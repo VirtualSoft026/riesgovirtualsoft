@@ -550,7 +550,7 @@ function renderQuickDocs(selectedTaskName) {
     if (!container) return;
 
     const archivos = [
-        "Instructivo de revisión de apuestas casino.docx",
+        "Instructivo de revisión de apuestas casino.pdf",
         "Instructivo de validación de GGR Casino.pdf",
         "Política Procedimiento De Aprobación De Retiros.pdf",
         "Proceso de Eliminación de Cuentas - Implementaciones.pdf",
@@ -564,7 +564,7 @@ function renderQuickDocs(selectedTaskName) {
     if (selectedTaskName) {
         const taskNameLower = selectedTaskName.toLowerCase();
         if (taskNameLower.includes('ggr')) matchedDoc = "Instructivo de validación de GGR Casino.pdf";
-        else if (taskNameLower.includes('apuesta')) matchedDoc = "Instructivo de revisión de apuestas casino.docx";
+        else if (taskNameLower.includes('apuesta')) matchedDoc = "Instructivo de revisión de apuestas casino.pdf";
         else if (taskNameLower.includes('retiro')) matchedDoc = "Política Procedimiento De Aprobación De Retiros.pdf";
         else if (taskNameLower.includes('eliminaci')) matchedDoc = "Proceso de Eliminación de Cuentas - Implementaciones.pdf";
         else if (taskNameLower.includes('bonos')) matchedDoc = "VALIDACIÓN DE ABUSO DE BONOS EN CAMPAÑAS DE CRM.pdf";
@@ -908,7 +908,7 @@ function initApp() {
             
             const taskName = (currentSelectedTask['Tarea'] || currentSelectedTask.name || '').toLowerCase();
             const archivos = [
-                "Instructivo de revisión de apuestas casino.docx",
+                "Instructivo de revisión de apuestas casino.pdf",
                 "Instructivo de validación de GGR Casino.pdf",
                 "Política Procedimiento De Aprobación De Retiros.pdf",
                 "Proceso de Eliminación de Cuentas - Implementaciones.pdf",
@@ -920,7 +920,7 @@ function initApp() {
             
             let matchedDoc = null;
             if (taskName.includes('ggr')) matchedDoc = "Instructivo de validación de GGR Casino.pdf";
-            else if (taskName.includes('apuesta')) matchedDoc = "Instructivo de revisión de apuestas casino.docx";
+            else if (taskName.includes('apuesta')) matchedDoc = "Instructivo de revisión de apuestas casino.pdf";
             else if (taskName.includes('retiro')) matchedDoc = "Política Procedimiento De Aprobación De Retiros.pdf";
             else if (taskName.includes('eliminaci')) matchedDoc = "Proceso de Eliminación de Cuentas - Implementaciones.pdf";
             else if (taskName.includes('bonos')) matchedDoc = "VALIDACIÓN DE ABUSO DE BONOS EN CAMPAÑAS DE CRM.pdf";
@@ -976,7 +976,7 @@ function initApp() {
     const docsGrid = document.querySelector('.docs-grid');
     if(docsGrid) {
         const archivos = [
-            "Instructivo de revisión de apuestas casino.docx",
+            "Instructivo de revisión de apuestas casino.pdf",
             "Instructivo de validación de GGR Casino.pdf",
             "Política Procedimiento De Aprobación De Retiros.pdf",
             "Proceso de Eliminación de Cuentas - Implementaciones.pdf",
