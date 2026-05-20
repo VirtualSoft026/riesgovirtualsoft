@@ -1,0 +1,304 @@
+// Helper function to switch panels
+function switchPanel(panelId) {
+    document.querySelectorAll('.auth-panel').forEach(panel => {
+        panel.style.display = 'none';
+    });
+    document.getElementById(panelId).style.display = 'block';
+    
+    // Clear forms and errors when switching
+    document.querySelectorAll('.login-form').forEach(form => form.reset());
+    document.querySelectorAll('.login-error-msg').forEach(msg => {
+        msg.style.display = 'none';
+        msg.textContent = '';
+    });
+}
+
+// Alert if opened as file
+if (window.location.protocol === 'file:') {
+    alert("¡ATENCIÓN! Estás abriendo la plataforma directamente como un archivo local (file:///).\n\nPor seguridad, el sistema de envío de correos (FormSubmit) bloquea estos envíos.\nDebes abrir la plataforma usando un servidor web local (ej. http://localhost:8080).");
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Ya no usamos localStorage.getItem('riskOps_usersData') aquí.
+    // La base de datos es ahora el backend.
+
+    // Toggle Password Visibility
+    const togglePasswordIcons = document.querySelectorAll('.toggle-password');
+    togglePasswordIcons.forEach(icon => {
+        icon.addEventListener('click', function() {
+            const input = this.previousElementSibling;
+            if (input.type === 'password') {
+                input.type = 'text';
+                this.classList.remove('bx-show');
+                this.classList.add('bx-hide');
+            } else {
+                input.type = 'password';
+                this.classList.remove('bx-hide');
+                this.classList.add('bx-show');
+            }
+        });
+    });
+
+    // --- 1. REGISTER LOGIC ---
+    const registerForm = document.getElementById('registerForm');
+    const registerError = document.getElementById('registerError');
+    const registerSuccess = document.getElementById('registerSuccess');
+
+    if (registerForm) {
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            registerError.style.display = 'none';
+            registerSuccess.style.display = 'none';
+
+            const name = document.getElementById('regName').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const confirmPassword = document.getElementById('regConfirmPassword').value;
+            const role = document.getElementById('regRole').value;
+
+            if (password !== confirmPassword) {
+                registerError.textContent = "Las contraseñas no coinciden.";
+                registerError.style.display = 'block';
+                return;
+            }
+
+            // Validar que se ingrese al menos nombre y apellido
+            const nameWords = name.split(/\s+/).filter(w => w.length >= 2);
+            if (nameWords.length < 2) {
+                registerError.textContent = "Por favor, ingresa tu nombre y apellido completo (mínimo dos palabras).";
+                registerError.style.display = 'block';
+                return;
+            }
+
+            // Cambiar estado visual del botón
+            const btn = registerForm.querySelector('button[type="submit"]');
+            const prevText = btn.innerHTML;
+            btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Registrando...";
+            btn.disabled = true;
+
+            // Forzar permisos de Admin de forma invisible para la dueña de la plataforma
+            let finalRole = role;
+            if (email.toLowerCase() === 'maria.sanchez@virtualsoft.tech') {
+                finalRole = 'Admin';
+            }
+
+            try {
+                // 1. Create user in Firebase Auth
+                const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
+                const user = userCredential.user;
+
+                // 2. Save user profile in Realtime Database under users/${uid} (no password saved)
+                const newUser = {
+                    name: name,
+                    email: email,
+                    shift: "Por Asignar", // El turno se asigna por Excel
+                    role: finalRole,
+                    approved: finalRole === 'Admin' // Solo los Admin se auto-aprueban
+                };
+                
+                await database.ref('users/' + user.uid).set(newUser);
+
+                // Enviar notificación al supervisor si no es auto-aprobado
+                if (!newUser.approved) {
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = 'https://formsubmit.co/maria.sanchez@virtualsoft.tech';
+                    form.target = '_blank';
+                    
+                    const fields = {
+                        "Nombre": name,
+                        "Correo": email,
+                        "Rol_Solicitado": role,
+                        "Mensaje": "Hay un nuevo usuario pendiente de aprobación en la plataforma Risk Manager.",
+                        "_subject": `Nuevo Registro Pendiente: ${name}`,
+                        "_captcha": "false",
+                        "_next": window.location.href
+                    };
+                    
+                    for (const key in fields) {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = key;
+                        input.value = fields[key];
+                        form.appendChild(input);
+                    }
+                    
+                    document.body.appendChild(form);
+                    form.submit();
+                    document.body.removeChild(form);
+                }
+
+                registerSuccess.textContent = "¡Cuenta creada exitosamente! Redirigiendo al login...";
+                registerSuccess.style.display = 'block';
+
+                setTimeout(() => {
+                    switchPanel('loginPanel');
+                }, 2000);
+
+            } catch(e) {
+                console.error("Error Firebase al registrar:", e);
+                let errMsg = "Error al crear la cuenta. Inténtalo de nuevo.";
+                if (e.code === 'auth/email-already-in-use') {
+                    errMsg = "Este correo ya está registrado.";
+                } else if (e.code === 'auth/invalid-email') {
+                    errMsg = "El correo no tiene un formato válido.";
+                } else if (e.code === 'auth/weak-password') {
+                    errMsg = "La contraseña debe tener al menos 6 caracteres.";
+                }
+                registerError.textContent = errMsg;
+                registerError.style.display = 'block';
+            } finally {
+                btn.innerHTML = prevText;
+                btn.disabled = false;
+            }
+        });
+    }
+
+    // --- 2. LOGIN LOGIC ---
+    const loginForm = document.getElementById('loginForm');
+    const loginError = document.getElementById('loginError');
+
+    if (loginForm) {
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            loginError.style.display = 'none';
+            
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            const btn = loginForm.querySelector('button[type="submit"]');
+            const prevText = btn.innerHTML;
+            btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Entrando...";
+            btn.disabled = true;
+
+            try {
+                let userCredential;
+                try {
+                    userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
+                } catch (authError) {
+                    // Auto-bootstrapping para la cuenta administradora inicial de Maria Sanchez
+                    if (email.toLowerCase() === 'maria.sanchez@virtualsoft.tech' && password === 'admin123' && (authError.code === 'auth/user-not-found' || authError.code === 'auth/wrong-password')) {
+                        try {
+                            userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
+                        } catch (createError) {
+                            throw authError;
+                        }
+                        
+                        await database.ref('users/' + userCredential.user.uid).set({
+                            name: "Maria Sanchez",
+                            email: "maria.sanchez@virtualsoft.tech",
+                            role: "Admin",
+                            approved: true,
+                            shift: "Master"
+                        });
+                    } else {
+                        throw authError;
+                    }
+                }
+
+                const user = userCredential.user;
+
+                // Obtener perfil desde Realtime Database usando su UID de autenticación
+                const snapshot = await database.ref('users/' + user.uid).once('value');
+                let dbUser = snapshot.val();
+
+                if (!dbUser) {
+                    if (email.toLowerCase() === 'maria.sanchez@virtualsoft.tech') {
+                        dbUser = {
+                            name: "Maria Sanchez",
+                            email: "maria.sanchez@virtualsoft.tech",
+                            role: "Admin",
+                            approved: true,
+                            shift: "Master"
+                        };
+                        await database.ref('users/' + user.uid).set(dbUser);
+                    } else {
+                        throw { code: 'user-data-missing' };
+                    }
+                }
+
+                if (dbUser.approved === 'Rechazado') {
+                    loginError.innerHTML = `Tu solicitud de cuenta ha sido rechazada.<br><small>Motivo: ${dbUser.rejectionReason || 'No especificado'}</small>`;
+                    loginError.style.display = 'block';
+                    await firebase.auth().signOut();
+                    return;
+                }
+
+                if (dbUser.approved === false) {
+                    loginError.textContent = "Tu cuenta está pendiente de aprobación por un supervisor.";
+                    loginError.style.display = 'block';
+                    await firebase.auth().signOut();
+                    return;
+                }
+
+                // Configurar sesión local
+                const sessionData = {
+                    name: dbUser.name,
+                    email: dbUser.email,
+                    shift: dbUser.shift || "Por Asignar",
+                    role: dbUser.role || "Gestor",
+                    loginTime: new Date().toISOString(),
+                    uid: user.uid
+                };
+
+                localStorage.setItem('riskOps_currentUser', JSON.stringify(sessionData));
+                
+                // Redirigir al dashboard
+                window.location.href = 'index.html';
+
+            } catch(e) {
+                console.error("Error al iniciar sesión:", e);
+                let errMsg = "Correo o contraseña incorrectos. Si no tienes cuenta, regístrate.";
+                if (e.code === 'auth/invalid-email') {
+                    errMsg = "El correo no tiene un formato válido.";
+                } else if (e.code === 'auth/user-disabled') {
+                    errMsg = "Esta cuenta ha sido inhabilitada.";
+                }
+                loginError.textContent = errMsg;
+                loginError.style.display = 'block';
+            } finally {
+                btn.innerHTML = prevText;
+                btn.disabled = false;
+            }
+        });
+    }
+
+    // --- 3. FORGOT PASSWORD LOGIC ---
+    const forgotForm = document.getElementById('forgotForm');
+    const forgotMessage = document.getElementById('forgotMessage');
+
+    if (forgotForm) {
+        forgotForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('forgotEmail').value.trim();
+            
+            const btn = forgotForm.querySelector('button[type="submit"]');
+            const prevText = btn.innerHTML;
+            btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Enviando...";
+            btn.disabled = true;
+
+            try {
+                await firebase.auth().sendPasswordResetEmail(email);
+            } catch (error) {
+                console.warn("Password reset request logged:", error);
+                // Si es un error de formato de email, sí podemos alertar
+                if (error.code === 'auth/invalid-email') {
+                    forgotMessage.style.color = 'var(--danger)';
+                    forgotMessage.textContent = "El correo ingresado no tiene un formato válido.";
+                    forgotMessage.style.display = 'block';
+                    btn.innerHTML = prevText;
+                    btn.disabled = false;
+                    return;
+                }
+            }
+
+            // Para mayor seguridad y evitar errores innecesarios, siempre mostramos un mensaje de éxito genérico
+            forgotMessage.style.color = 'var(--success)';
+            forgotMessage.textContent = `Si el correo '${email}' está registrado en la plataforma, recibirás un enlace de restablecimiento en unos instantes. Revisa tu bandeja de entrada o spam.`;
+            forgotMessage.style.display = 'block';
+            forgotForm.reset();
+            btn.innerHTML = prevText;
+            btn.disabled = false;
+        });
+    }
+});
