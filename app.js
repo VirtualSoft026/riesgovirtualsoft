@@ -34,6 +34,20 @@ function namesMatch(name1, name2) {
     return shorter.every(word => longer.includes(word));
 }
 
+// Mapeo de URLs para documentos (especialmente videos pesados alojados en Google Drive)
+const documentUrls = {
+    "Revisión de Eventos Deportivos.mp4": "https://drive.google.com/file/d/1UqccsnUwTG6tgPcDYdUeLnf9XqvGzSoc/view?usp=sharing",
+    "Revisión de Eventos.mp4": "https://drive.google.com/file/d/1SB9ePi1EOJU05hzOsxOyl7BeNvCN1hOh/view?usp=sharing",
+    "Validación SEON.mp4": "https://drive.google.com/file/d/1JFf5basGD0gmrAVIy5AlMK1DBHYgE6JC/view?usp=sharing"
+};
+
+function getDocUrl(fileName) {
+    if (documentUrls[fileName]) {
+        return documentUrls[fileName];
+    }
+    return "Procesos/" + fileName;
+}
+
 let taskStateCache = {};
 try {
     const cached = localStorage.getItem('riskOps_cache');
@@ -579,7 +593,7 @@ function renderQuickDocs(selectedTaskName) {
                 <span style="font-size: 10px; color: var(--accent-primary); font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px; margin-bottom: 6px;">
                     <i class='bx bxs-star'></i> Sugerido para esta tarea
                 </span>
-                <a href="Procesos/${matchedDoc}" target="_blank" class="doc-link" style="background: transparent; padding: 0; display: flex; align-items: center; gap: 10px;">
+                <a href="${getDocUrl(matchedDoc)}" target="_blank" class="doc-link" style="background: transparent; padding: 0; display: flex; align-items: center; gap: 10px;">
                     <i class='bx ${icon}' style="font-size: 20px; color: ${color};"></i>
                     <span style="color: var(--text-primary); font-weight: 500; font-size: 13px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${matchedDoc.replace(/\.[^/.]+$/, "")}</span>
                 </a>
@@ -604,7 +618,7 @@ function renderQuickDocs(selectedTaskName) {
         else if (isExcel) { icon = 'bx-table'; color = '#10B981'; } // Excel green
 
         container.innerHTML += `
-            <a href="Procesos/${file}" target="_blank" class="doc-link" style="margin-bottom: 8px;">
+            <a href="${getDocUrl(file)}" target="_blank" class="doc-link" style="margin-bottom: 8px;">
                 <i class='bx ${icon}' style="font-size: 18px; color: ${color};"></i>
                 <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;">${file.replace(/\.[^/.]+$/, "")}</span>
             </a>
@@ -915,7 +929,7 @@ function initApp() {
             else if (taskName.includes('seon')) matchedDoc = "Validación SEON.mp4";
             
             if (matchedDoc) {
-                window.open("Procesos/" + matchedDoc, "_blank");
+                window.open(getDocUrl(matchedDoc), "_blank");
             } else {
                 alert("No se encontró un documento específico para esta tarea. Por favor, búscalo en la pestaña Documentación.");
             }
@@ -985,7 +999,7 @@ function initApp() {
             else if(isExcel) { icon = 'bx-table'; color = '#10B981'; } // Excel green
 
             docsGrid.innerHTML += `
-                <a href="Procesos/${file}" target="_blank" class="glass-panel" style="padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; transition: transform 0.2s;">
+                <a href="${getDocUrl(file)}" target="_blank" class="glass-panel" style="padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; transition: transform 0.2s;">
                     <i class='bx ${icon}' style="font-size: 40px; color: ${color};"></i>
                     <span style="font-size: 14px; color: var(--text-primary); font-weight: 500;">${file.replace(/\.[^/.]+$/, "")}</span>
                 </a>
