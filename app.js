@@ -553,6 +553,7 @@ function renderQuickDocs(selectedTaskName) {
         "Instructivo de revisión de apuestas casino.pdf",
         "Instructivo de validación de GGR Casino.pdf",
         "Política Procedimiento De Aprobación De Retiros.pdf",
+        "Procedimiento Identificación de jineteo.pdf",
         "Proceso de Eliminación de Cuentas - Implementaciones.pdf",
         "VALIDACIÓN DE ABUSO DE BONOS EN CAMPAÑAS DE CRM.pdf",
         "Revisión de Eventos Deportivos.mp4",
@@ -566,6 +567,7 @@ function renderQuickDocs(selectedTaskName) {
         if (taskNameLower.includes('ggr')) matchedDoc = "Instructivo de validación de GGR Casino.pdf";
         else if (taskNameLower.includes('apuesta')) matchedDoc = "Instructivo de revisión de apuestas casino.pdf";
         else if (taskNameLower.includes('retiro')) matchedDoc = "Política Procedimiento De Aprobación De Retiros.pdf";
+        else if (taskNameLower.includes('jineteo') || taskNameLower.includes('jineteo')) matchedDoc = "Procedimiento Identificación de jineteo.pdf";
         else if (taskNameLower.includes('eliminaci')) matchedDoc = "Proceso de Eliminación de Cuentas - Implementaciones.pdf";
         else if (taskNameLower.includes('bonos')) matchedDoc = "VALIDACIÓN DE ABUSO DE BONOS EN CAMPAÑAS DE CRM.pdf";
         else if (taskNameLower.includes('deportiv')) matchedDoc = "Revisión de Eventos Deportivos.mp4";
@@ -911,6 +913,7 @@ function initApp() {
                 "Instructivo de revisión de apuestas casino.pdf",
                 "Instructivo de validación de GGR Casino.pdf",
                 "Política Procedimiento De Aprobación De Retiros.pdf",
+                "Procedimiento Identificación de jineteo.pdf",
                 "Proceso de Eliminación de Cuentas - Implementaciones.pdf",
                 "VALIDACIÓN DE ABUSO DE BONOS EN CAMPAÑAS DE CRM.pdf",
                 "Revisión de Eventos Deportivos.mp4",
@@ -922,6 +925,7 @@ function initApp() {
             if (taskName.includes('ggr')) matchedDoc = "Instructivo de validación de GGR Casino.pdf";
             else if (taskName.includes('apuesta')) matchedDoc = "Instructivo de revisión de apuestas casino.pdf";
             else if (taskName.includes('retiro')) matchedDoc = "Política Procedimiento De Aprobación De Retiros.pdf";
+            else if (taskName.includes('jineteo')) matchedDoc = "Procedimiento Identificación de jineteo.pdf";
             else if (taskName.includes('eliminaci')) matchedDoc = "Proceso de Eliminación de Cuentas - Implementaciones.pdf";
             else if (taskName.includes('bonos')) matchedDoc = "VALIDACIÓN DE ABUSO DE BONOS EN CAMPAÑAS DE CRM.pdf";
             else if (taskName.includes('deportiv')) matchedDoc = "Revisión de Eventos Deportivos.mp4";
@@ -979,6 +983,7 @@ function initApp() {
             "Instructivo de revisión de apuestas casino.pdf",
             "Instructivo de validación de GGR Casino.pdf",
             "Política Procedimiento De Aprobación De Retiros.pdf",
+            "Procedimiento Identificación de jineteo.pdf",
             "Proceso de Eliminación de Cuentas - Implementaciones.pdf",
             "VALIDACIÓN DE ABUSO DE BONOS EN CAMPAÑAS DE CRM.pdf",
             "Revisión de Eventos Deportivos.mp4",
