@@ -1435,7 +1435,7 @@ El esqueleto estructural de la plataforma Risk Manager. Contiene la barra de nav
                     <!-- Total Activos -->
                     <div class="stat-widget glass-panel">
                         <div class="stat-widget-details">
-                            <h3>Gestores Activos</h3>
+                            <h3 id="statsGestoresTitle">Gestores Activos</h3>
                             <div class="number" id="statsGestores">0 / 0</div>
                         </div>
                         <div class="stat-widget-icon">
@@ -1451,17 +1451,6 @@ El esqueleto estructural de la plataforma Risk Manager. Contiene la barra de nav
                         </div>
                         <div class="stat-widget-icon">
                             <i class='bx bx-line-chart'></i>
-                        </div>
-                    </div>
-
-                    <!-- Turno Predominante -->
-                    <div class="stat-widget glass-panel warning">
-                        <div class="stat-widget-details">
-                            <h3>Turno en Curso</h3>
-                            <div class="number" id="statsTurno">Cargando...</div>
-                        </div>
-                        <div class="stat-widget-icon">
-                            <i class='bx bx-time-five'></i>
                         </div>
                     </div>
                 </div>
@@ -2510,6 +2499,8 @@ try {
     localStorage.removeItem('riskOps_currentUser');
     window.location.href = 'login.html';
 }
+let globalScheduleRows = null;
+let globalScheduleBlocks = null;
 // Helper to remove accents and normalize names for comparison and file paths
 function normalizeName(name) {
     if (!name) return "";
@@ -2545,6 +2536,94 @@ function isSameDate(excelDate, jsDate) {
     return excelDate.getUTCDate() === jsDate.getDate() &&
            excelDate.getUTCMonth() === jsDate.getMonth() &&
            excelDate.getUTCFullYear() === jsDate.getFullYear();
+}
+
+function getShiftCategory(shiftText) {
+    if (!shiftText) return "";
+    const clean = shiftText.trim().toLowerCase();
+    
+    // Exact or partial category matches
+    if (clean.includes("manana") || clean.includes("mañana")) return "Mañana";
+    if (clean.includes("tarde")) return "Tarde";
+    if (clean.includes("noche")) return "Noche";
+    if (clean.includes("master")) return "Master";
+    
+    // Parse time ranges (e.g. "8am - 4pm", "3pm - 11pm", "10pm - 6am")
+    // Match the starting hour
+    const match = clean.match(/^(\d+)\s*(am|pm)/i);
+    if (match) {
+        let hour = parseInt(match[1]);
+        const ampm = match[2].toLowerCase();
+        if (ampm === 'pm' && hour < 12) hour += 12;
+        if (ampm === 'am' && hour === 12) hour = 0;
+        
+        // Define classifications based on starting hour
+        if (hour >= 6 && hour < 14) return "Mañana";
+        if (hour >= 14 && hour < 22) return "Tarde";
+        return "Noche";
+    }
+    
+    return "";
+}
+
+function getScheduledGestoresCountForShift(shiftName, targetDate = new Date()) {
+    if (!globalScheduleRows || !globalScheduleBlocks || globalScheduleBlocks.length === 0) {
+        return 0;
+    }
+    
+    let targetBlock = null;
+    let targetColIndex = -1;
+    
+    for (let block of globalScheduleBlocks) {
+        const dateRow = globalScheduleRows[block.startRow];
+        for (let c = 1; c < dateRow.length; c++) {
+            const serial = dateRow[c];
+            if (serial && !isNaN(serial)) {
+                const cellDate = excelToJSDate(serial);
+                if (cellDate && isSameDate(cellDate, targetDate)) {
+                    targetBlock = block;
+                    targetColIndex = c;
+                    break;
+                }
+            }
+        }
+        if (targetBlock) break;
+    }
+    
+    if (!targetBlock) {
+        targetBlock = globalScheduleBlocks[globalScheduleBlocks.length - 1];
+        const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+        const dayRow = globalScheduleRows[targetBlock.startRow + 1];
+        const targetDayName = dayNames[targetDate.getDay()];
+        
+        for (let c = 1; c < dayRow.length; c++) {
+            const dayName = String(dayRow[c] || '').trim();
+            if (normalizeName(dayName) === normalizeName(targetDayName)) {
+                targetColIndex = c;
+                break;
+            }
+        }
+        
+        if (targetColIndex === -1) {
+            let jsDay = targetDate.getDay();
+            targetColIndex = jsDay === 0 ? 7 : jsDay;
+        }
+    }
+    
+    let count = 0;
+    const blockStartRow = targetBlock.startRow;
+    for (let rIdx = blockStartRow + 2; rIdx < globalScheduleRows.length; rIdx++) {
+        const r = globalScheduleRows[rIdx];
+        if (!r || !r[0] || String(r[0]).trim() === '' || String(r[0]).trim().toUpperCase() === 'GESTOR') break;
+        
+        const rawShift = r[targetColIndex] || 'Descansa';
+        const category = getShiftCategory(rawShift);
+        if (category === shiftName) {
+            count++;
+        }
+    }
+    
+    return count;
 }
 
 function getShiftForDate(rows, allScheduleBlocks, gestorName, date) {
@@ -2727,24 +2806,18 @@ async function loadSchedule() {
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
         
-        const tableHead = document.getElementById('scheduleTableHead');
-        const tableBody = document.getElementById('scheduleTableBody');
+        // Función helper para parsear fechas de Excel a JS
+        function formatExcelDate(serial) {
+            if(!serial || isNaN(serial)) return "";
+            // Usar UTC para evitar problemas de zonas horarias e historia de DST
+            const epochUTC = Date.UTC(1899, 11, 30);
+            const d = new Date(epochUTC + serial * 86400000);
+            const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+            return `${d.getUTCDate()} ${monthNames[d.getUTCMonth()]}`;
+        }
         
-        if(tableHead && tableBody && rows.length > 2) {
-            
-            // Función helper para parsear fechas de Excel a JS
-            function formatExcelDate(serial) {
-                if(!serial || isNaN(serial)) return "";
-                // Usar UTC para evitar problemas de zonas horarias e historia de DST
-                const epochUTC = Date.UTC(1899, 11, 30);
-                const d = new Date(epochUTC + serial * 86400000);
-                const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-                return `${d.getUTCDate()} ${monthNames[d.getUTCMonth()]}`;
-            }
-            
-            let allScheduleBlocks = [];
-            
-            // Buscar en todas las filas TODOS los bloques de fechas disponibles
+        let allScheduleBlocks = [];
+        if (rows && rows.length > 2) {
             for(let rIdx = 0; rIdx < rows.length; rIdx++) {
                 const testRow = rows[rIdx];
                 if (!testRow || testRow.length < 2) continue;
@@ -2767,8 +2840,17 @@ async function loadSchedule() {
                     }
                 }
             }
-            
-            if (allScheduleBlocks.length === 0) return; // No hay datos válidos
+        }
+
+        globalScheduleRows = rows;
+        globalScheduleBlocks = allScheduleBlocks;
+        
+        if (allScheduleBlocks.length === 0) return; // No hay datos válidos
+
+        const tableHead = document.getElementById('scheduleTableHead');
+        const tableBody = document.getElementById('scheduleTableBody');
+        
+        if(tableHead && tableBody && rows.length > 2) {
             
             const weekSelector = document.getElementById('weekSelector');
             
@@ -2879,6 +2961,7 @@ async function loadSchedule() {
                 }
             }
         }
+        updateGlobalStats();
     } catch(e) {
         console.log("No se pudo cargar el horario", e);
     }
@@ -4656,8 +4739,9 @@ function renderActiveSessionsDashboard() {
             return false;
         }
 
-        // Shift match
-        if (shiftQuery && shift !== shiftQuery) {
+        // Shift match using getShiftCategory helper
+        const sessionShiftCat = getShiftCategory(shift);
+        if (shiftQuery && sessionShiftCat !== shiftQuery) {
             return false;
         }
 
@@ -4678,6 +4762,7 @@ function renderActiveSessionsDashboard() {
                 <p style="font-size: 12px; margin-top: 5px; opacity: 0.7;">Los gestores activos se listarán aquí automáticamente al ingresar.</p>
             </div>
         `;
+        updateGlobalStats();
         return;
     }
 
@@ -4720,7 +4805,7 @@ function renderActiveSessionsDashboard() {
                     <strong style="color: var(--text-primary);">${session.shift || 'Mañana'}</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                    <span style="color: var(--text-secondary);"><i class='bx bx-time'></i> Inicio Turno:</span>
+                    <span style="color: var(--text-secondary);"><i class='bx bx-time'></i> Inicio de Turno:</span>
                     <span style="color: var(--text-primary); font-size: 12px;">${loginTimeStr}</span>
                 </div>
             </div>
@@ -4743,38 +4828,19 @@ function renderActiveSessionsDashboard() {
         `;
         grid.appendChild(card);
     });
+
+    updateGlobalStats();
 }
 
 function updateGlobalStats() {
     const statsGestores = document.getElementById('statsGestores');
     const statsKpi = document.getElementById('statsKpi');
-    const statsTurno = document.getElementById('statsTurno');
+    const statsGestoresTitle = document.getElementById('statsGestoresTitle');
 
     const uids = Object.keys(allActiveSessions);
     const totalGestores = uids.length;
-    
-    // Count active (lastActive within 2 mins)
-    const onlineCount = uids.filter(uid => {
-        const session = allActiveSessions[uid];
-        return session && session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
-    }).length;
 
-    if (statsGestores) {
-        statsGestores.textContent = `${onlineCount} / ${totalGestores}`;
-    }
-
-    // Compute average KPI
-    let totalPercentage = 0;
-    uids.forEach(uid => {
-        const session = allActiveSessions[uid];
-        totalPercentage += session ? (session.percentage || 0) : 0;
-    });
-    const avgKpi = totalGestores > 0 ? Math.round(totalPercentage / totalGestores) : 0;
-    if (statsKpi) {
-        statsKpi.textContent = `${avgKpi}%`;
-    }
-
-    // Determine current shift based on active sessions or system hour
+    // Determine current system shift based on system hour
     let shiftName = "Mañana";
     const hour = new Date().getHours();
     if (hour >= 6 && hour < 14) {
@@ -4785,12 +4851,15 @@ function updateGlobalStats() {
         shiftName = "Noche";
     }
 
-    // Overwrite shift name if there is a dominant shift in active sessions
+    // Overwrite system shift if there is a dominant shift in active sessions
     if (totalGestores > 0) {
         const shifts = uids.map(uid => allActiveSessions[uid] ? allActiveSessions[uid].shift : null).filter(Boolean);
         if (shifts.length > 0) {
             const counts = {};
-            shifts.forEach(s => counts[s] = (counts[s] || 0) + 1);
+            shifts.forEach(s => {
+                const cat = getShiftCategory(s);
+                if (cat) counts[cat] = (counts[cat] || 0) + 1;
+            });
             let dominantShift = shiftName;
             let maxCount = 0;
             for (const [s, count] of Object.entries(counts)) {
@@ -4803,8 +4872,40 @@ function updateGlobalStats() {
         }
     }
 
-    if (statsTurno) {
-        statsTurno.textContent = shiftName;
+    // Get filter shift selection
+    const shiftSelectEl = document.getElementById('filterShiftSelect');
+    const selectedShift = shiftSelectEl ? shiftSelectEl.value : '';
+    const targetShift = selectedShift || shiftName;
+
+    // Count online managers belonging to targetShift
+    const onlineCountForShift = uids.filter(uid => {
+        const session = allActiveSessions[uid];
+        if (!session) return false;
+        const isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
+        const sessionShiftCat = getShiftCategory(session.shift || 'Mañana');
+        return isOnline && (sessionShiftCat === targetShift);
+    }).length;
+
+    // Get total scheduled managers for targetShift today
+    const scheduledCountForShift = getScheduledGestoresCountForShift(targetShift);
+
+    if (statsGestores) {
+        statsGestores.textContent = `${onlineCountForShift} / ${scheduledCountForShift}`;
+    }
+
+    if (statsGestoresTitle) {
+        statsGestoresTitle.textContent = `Gestores Activos (${targetShift})`;
+    }
+
+    // Compute average KPI
+    let totalPercentage = 0;
+    uids.forEach(uid => {
+        const session = allActiveSessions[uid];
+        totalPercentage += session ? (session.percentage || 0) : 0;
+    });
+    const avgKpi = totalGestores > 0 ? Math.round(totalPercentage / totalGestores) : 0;
+    if (statsKpi) {
+        statsKpi.textContent = `${avgKpi}%`;
     }
 }
 
