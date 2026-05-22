@@ -1,9 +1,14 @@
 import pandas as pd
-import sys
+import os
 
-try:
-    df = pd.read_excel('Horario/Horario 2026.xlsx', header=None)
-    print("Row 0:", df.iloc[0].tolist()[:8])
-    print("Row 1:", df.iloc[1].tolist()[:8])
-except Exception as e:
-    print(e)
+excel_file = 'Tareas Riesgo/Tareas de Riesgo.xlsx'
+if os.path.exists(excel_file):
+    xl = pd.ExcelFile(excel_file)
+    df = xl.parse(xl.sheet_names[0])
+    print("Columns:", df.columns.tolist())
+    print("\nUnique task names in Tareas de Riesgo.xlsx:")
+    unique_tasks = df['Tarea'].dropna().unique()
+    for task in sorted(unique_tasks):
+        print(f"- {task}")
+else:
+    print(f"File not found: {excel_file}")
