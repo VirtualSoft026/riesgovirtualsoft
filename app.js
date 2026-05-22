@@ -2608,7 +2608,7 @@ function renderActiveSessionsDashboard() {
         
         const isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
         const lastActiveTime = session.lastActive ? new Date(session.lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Nunca';
-        const loginTimeStr = session.loginTime ? new Date(session.loginTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : (session.lastActive ? new Date(session.lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Nunca');
+        const loginTimeStr = session.loginTime ? new Date(session.loginTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Pendiente (Falta actualizar)';
         
         const fullName = (session.name || '').trim();
         let matchedAvatar = availableAvatars.find(img => namesMatch(fullName, img.replace('.png', '')));
@@ -2766,7 +2766,7 @@ window.openMonitoreoDetails = function(uid) {
     if (nameEl) nameEl.textContent = "Tareas de " + fullName;
     
     const lastActiveTime = session.lastActive ? new Date(session.lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Nunca';
-    const loginTimeStr = session.loginTime ? new Date(session.loginTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : lastActiveTime;
+    const loginTimeStr = session.loginTime ? new Date(session.loginTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pendiente (Falta actualizar)';
     const infoEl = document.getElementById('monitoreoModalInfo');
     if (infoEl) infoEl.textContent = `Turno: ${session.shift || 'Mañana'} | Inicio: ${loginTimeStr} | Actividad: ${lastActiveTime}`;
 
