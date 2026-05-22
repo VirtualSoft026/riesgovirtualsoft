@@ -503,6 +503,34 @@ function renderTree(tasksBySet) {
     updateKPI();
 }
 
+function syncActiveSessionToFirebase() {
+    if (!currentUser || currentUser.role !== 'Gestor') return;
+    const uid = currentUser.uid;
+    if (!uid) return;
+
+    const totalTasks = document.querySelectorAll('.task-item').length;
+    const completedTasks = document.querySelectorAll('.task-item .status-completed').length;
+    const notDoneTasks = document.querySelectorAll('.task-item .status-not-done').length;
+    const finalized = completedTasks + notDoneTasks;
+
+    let percentage = 0;
+    if (totalTasks > 0) {
+        percentage = Math.round((finalized / totalTasks) * 100);
+    }
+
+    const sessionRef = database.ref('active_sessions/' + uid);
+    sessionRef.set({
+        name: currentUser.name,
+        email: currentUser.email,
+        shift: currentUser.shift || 'Por Asignar',
+        lastActive: Date.now(),
+        totalTasks: totalTasks,
+        finalizedTasks: finalized,
+        percentage: percentage,
+        tasks: taskStateCache || {}
+    }).catch(e => console.error("Error syncing active session to Firebase:", e));
+}
+
 function updateKPI() {
     const totalTasks = document.querySelectorAll('.task-item').length;
     const completedTasks = document.querySelectorAll('.task-item .status-completed').length;
@@ -533,6 +561,11 @@ function updateKPI() {
                 <p><strong>${pending}</strong> Pendientes</p>
             </div>
         `;
+    }
+
+    // Sincronizar sesión activa si es gestor
+    if (currentUser && currentUser.role === 'Gestor') {
+        syncActiveSessionToFirebase();
     }
 }
 
@@ -743,10 +776,16 @@ function initApp() {
             }
         }
 
+        if (currentUser.role === 'Gestor') {
+            syncActiveSessionToFirebase();
+            setInterval(syncActiveSessionToFirebase, 30000);
+        }
+
         // Show Aprobaciones tab for Supervisor/Admin
         if (currentUser.role === 'Admin' || currentUser.role === 'Supervisor') {
             const navAprobaciones = document.getElementById('navAprobaciones');
             const navTurnos = document.getElementById('navTurnos');
+            const navMonitoreo = document.getElementById('navMonitoreo');
             const navWorkspace = document.getElementById('navWorkspace');
             const viewWorkspace = document.getElementById('view-workspace');
             const viewAprobaciones = document.getElementById('view-aprobaciones');
@@ -756,6 +795,7 @@ function initApp() {
 
             if(navAprobaciones) navAprobaciones.style.display = 'flex';
             if(navTurnos) navTurnos.style.display = 'flex';
+            if(navMonitoreo) navMonitoreo.style.display = 'flex';
             if(navWorkspace) navWorkspace.style.display = 'none';
             if(viewWorkspace) viewWorkspace.style.display = 'none';
             
@@ -940,10 +980,29 @@ function initApp() {
         });
     }
 
+    // Listeners para filtros de historial de turnos
+    const filterGestorInput = document.getElementById('filterGestorInput');
+    const filterFechaInput = document.getElementById('filterFechaInput');
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+    if (filterGestorInput) filterGestorInput.addEventListener('input', applyShiftReportsFilters);
+    if (filterFechaInput) filterFechaInput.addEventListener('change', applyShiftReportsFilters);
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', () => {
+            if (filterGestorInput) filterGestorInput.value = '';
+            if (filterFechaInput) filterFechaInput.value = '';
+            applyShiftReportsFilters();
+        });
+    }
+
     // Navegación de Vistas (Tabs)
     const navItems = document.querySelectorAll('.nav-item');
     navItems.forEach(item => {
         item.addEventListener('click', (e) => {
+            // Evitar preventDefault para el monitoreo ya que se abre en una pestaña nueva
+            if (item.id === 'navMonitoreo' || item.textContent.includes('Monitoreo')) {
+                return; // Deja que el enlace nativo con target="_blank" haga su trabajo
+            }
+            
             e.preventDefault();
             // Evitar redirigir erróneamente en el botón soporte real
             if(item.textContent.includes('Soporte')) {
@@ -1189,6 +1248,7 @@ function handleEndShift() {
             
             formData.append("_subject", `Reporte de Turno: ${currentUser.name}`);
             formData.append("_captcha", "false");
+            formData.append("_cc", "sara.santamaria@virtualsoft.tech");
             
             // Build task report
             let report = "";
@@ -1224,6 +1284,11 @@ function handleEndShift() {
 
             // Intentamos guardar en firebase pero no bloqueamos el flujo si hay error
             database.ref('shift_reports').push(shiftReportObject).catch(e => console.error("Firebase backup failed", e));
+
+            // Eliminar sesión activa de Firebase
+            if (currentUser.uid) {
+                database.ref('active_sessions/' + currentUser.uid).remove().catch(e => console.error("Error removing active session on shift end:", e));
+            }
 
             // Antes de enviar, limpiamos la sesión y el caché
             localStorage.removeItem('riskOps_currentUser');
@@ -1609,32 +1674,69 @@ window.exportShiftReport = async function(fb_id) {
 };
 
 // Logic for Shift Reports History
+let allShiftReports = [];
+
 async function renderShiftReports() {
     const tbody = document.getElementById('shiftReportsTableBody');
     if (!tbody) return;
     
-    let reports = [];
     try { 
         const snapshot = await database.ref('shift_reports').once('value');
         if (snapshot.exists()) {
             const data = snapshot.val();
-            reports = Object.keys(data).map(k => ({...data[k], fb_id: k}));
+            allShiftReports = Object.keys(data).map(k => ({...data[k], fb_id: k}));
+        } else {
+            allShiftReports = [];
         }
     } catch(e) {
         console.error("Error cargando historial de turnos:", e);
     }
     
+    applyShiftReportsFilters();
+}
+
+function applyShiftReportsFilters() {
+    const tbody = document.getElementById('shiftReportsTableBody');
+    if (!tbody) return;
+
+    const gestorQuery = document.getElementById('filterGestorInput') ? document.getElementById('filterGestorInput').value.toLowerCase().trim() : '';
+    const fechaQuery = document.getElementById('filterFechaInput') ? document.getElementById('filterFechaInput').value : '';
+
+    let filtered = [...allShiftReports];
+
+    // Filter by Gestor name
+    if (gestorQuery) {
+        filtered = filtered.filter(r => (r.gestor || '').toLowerCase().includes(gestorQuery));
+    }
+
+    // Filter by Date (comparing local YYYY-MM-DD format)
+    if (fechaQuery) {
+        filtered = filtered.filter(r => {
+            if (r.timestamp) {
+                const d = new Date(r.timestamp);
+                const localYear = d.getFullYear();
+                const localMonth = String(d.getMonth() + 1).padStart(2, '0');
+                const localDay = String(d.getDate()).padStart(2, '0');
+                const localDateStr = `${localYear}-${localMonth}-${localDay}`;
+                if (localDateStr === fechaQuery) return true;
+            }
+            if (r.horaInicio && r.horaInicio.includes(fechaQuery)) return true;
+            if (r.horaFin && r.horaFin.includes(fechaQuery)) return true;
+            return false;
+        });
+    }
+
     tbody.innerHTML = '';
     
-    if (reports.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay historial de turnos registrados.</td></tr>`;
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay historial de turnos registrados con los filtros seleccionados.</td></tr>`;
         return;
     }
     
     // Sort descending by timestamp
-    reports.sort((a, b) => b.timestamp - a.timestamp);
+    filtered.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     
-    reports.forEach(r => {
+    filtered.forEach(r => {
         // Formatear el reporte de tareas para que sea legible en HTML
         const safeReport = (r.reporte || 'Sin reporte').replace(/\n/g, '<br>').replace(/\[(.*?)\]/g, '<strong>[$1]</strong>');
         
@@ -1661,6 +1763,8 @@ async function renderShiftReports() {
         `;
     });
 }
+
+
 
 // Helper Notification function
 function toggleNotifications() {

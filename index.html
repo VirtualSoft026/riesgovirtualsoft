@@ -41,6 +41,7 @@
                 <a href="#" class="nav-item" id="navPermisos"><i class='bx bx-check-shield'></i> Permisos</a>
                 <a href="#" class="nav-item" id="navTurnos" style="display: none;"><i class='bx bx-history'></i> Historial Turnos</a>
                 <a href="#" class="nav-item" id="navAprobaciones" style="display: none;"><i class='bx bx-user-check'></i> Aprobaciones</a>
+                <a href="monitoreo.html" target="_blank" class="nav-item" id="navMonitoreo" style="display: none;"><i class='bx bx-pulse'></i> Monitoreo Realtime</a>
                 <a href="#" class="nav-item"><i class='bx bx-help-circle'></i> Soporte</a>
             </nav>
 
@@ -276,6 +277,22 @@
             <!-- Vista: Historial de Turnos -->
             <div id="view-turnos" class="view-panel" style="display: none; padding: 20px;">
                 <h2 class="panel-title" style="margin-bottom: 20px; color: var(--success);"><i class='bx bx-history'></i> Historial de Turnos Global</h2>
+                
+                <!-- Filtros para historial de turnos -->
+                <div class="glass-panel" style="padding: 15px; margin-bottom: 20px; display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; border: 1px solid var(--glass-border);">
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; display: block; font-weight: 500;">Filtrar por Gestor:</label>
+                        <input type="text" id="filterGestorInput" placeholder="Nombre del gestor..." class="modern-input" style="min-height: 40px; padding: 10px; resize: none;">
+                    </div>
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; display: block; font-weight: 500;">Filtrar por Fecha:</label>
+                        <input type="date" id="filterFechaInput" class="modern-input" style="min-height: 40px; padding: 10px; resize: none;">
+                    </div>
+                    <div>
+                        <button class="btn btn-outline" id="clearFiltersBtn" style="height: 40px; padding: 0 15px; display: flex; align-items: center; gap: 8px;"><i class='bx bx-filter-alt'></i> Limpiar Filtros</button>
+                    </div>
+                </div>
+
                 <div class="glass-panel" style="padding: 20px; border: 1px solid var(--success); overflow-x: auto;">
                     <table style="width: 100%; border-collapse: collapse;">
                         <thead>
@@ -292,6 +309,8 @@
                     </table>
                 </div>
             </div>
+
+
         </main>
     </div>
 
@@ -335,6 +354,8 @@
             <p id="passwordChangeMsg" style="display: none; margin-top: 10px; font-size: 14px; text-align: center;"></p>
         </div>
     </div>
+
+
 
     <!-- Notifications Dropdown -->
     <div id="notificationDropdown" class="glass-panel" style="display: none; position: fixed; top: 80px; right: 20px; width: 320px; max-height: 400px; overflow-y: auto; z-index: 999999; padding: 15px; background: var(--bg-panel); border: 1px solid var(--accent-primary);">
