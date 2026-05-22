@@ -1985,11 +1985,16 @@ async function renderPendingUsers() {
         
         let statusBadge = user.approved ? `<span class="badge" style="background: rgba(16, 185, 129, 0.2); color: var(--success);">${user.role}</span>` : `<span class="badge pending">${user.role}</span>`;
 
+        const regDateStr = user.registrationDate ? new Date(user.registrationDate).toLocaleDateString() : 'Desconocida';
+        const appDateStr = user.approvalDate ? new Date(user.approvalDate).toLocaleDateString() : (user.approved === true ? 'Desconocida' : '-');
+        
         tbody.innerHTML += `
             <tr style="border-bottom: 1px solid var(--glass-border);">
                 <td style="padding: 12px;">${user.name}</td>
                 <td style="padding: 12px; color: var(--text-secondary);">${user.email}</td>
                 <td style="padding: 12px;">${statusBadge}</td>
+                <td style="padding: 12px; font-size: 12px;">${regDateStr}</td>
+                <td style="padding: 12px; font-size: 12px;">${appDateStr}</td>
                 <td style="padding: 12px; text-align: center;">
                     ${actionHtml}
                 </td>
@@ -2003,7 +2008,8 @@ async function approveUser(userId) {
     
     try {
         await database.ref('users/' + userId).update({
-            approved: true
+            approved: true,
+            approvalDate: new Date().toISOString()
         });
         alert('Usuario aprobado exitosamente. Ahora puede iniciar sesión.');
         renderPendingUsers(); // Reload table

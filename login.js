@@ -93,7 +93,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     email: email,
                     shift: "Por Asignar", // El turno se asigna por Excel
                     role: finalRole,
-                    approved: finalRole === 'Admin' // Solo los Admin se auto-aprueban
+                    approved: finalRole === 'Admin', // Solo los Admin se auto-aprueban
+                    registrationDate: new Date().toISOString()
                 };
                 
                 await database.ref('users/' + user.uid).set(newUser);
