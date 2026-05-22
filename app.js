@@ -435,8 +435,17 @@ async function loadExcelTasks() {
         let processedRows = [];
         
         if (currentUser && currentUser.role === 'Gestor') {
-            // Load cronograma assignments
-            await loadCronogramaAssignments(currentUser.name, currentUser.shift);
+            // Resolve today's real shift from the parsed schedule (globalScheduleRows/globalScheduleBlocks)
+            // This ensures the filter uses the actual shift for today, not a stale value from localStorage
+            let resolvedShift = currentUser.shift || 'Por Asignar';
+            if (globalScheduleRows && globalScheduleBlocks && globalScheduleBlocks.length > 0) {
+                const todayShift = getShiftForDate(globalScheduleRows, globalScheduleBlocks, currentUser.name, new Date());
+                if (todayShift && todayShift !== 'Por Asignar' && todayShift !== 'Descansa') {
+                    resolvedShift = todayShift;
+                }
+            }
+            // Load cronograma assignments using the resolved real shift
+            await loadCronogramaAssignments(currentUser.name, resolvedShift);
             
             if (gestorCronogramaAssignments && gestorCronogramaAssignments.length > 0) {
                 // Filter the master json rows
@@ -938,17 +947,27 @@ function syncActiveSessionToFirebase() {
     }
 
     const sessionRef = database.ref('active_sessions/' + uid);
-    sessionRef.set({
-        name: currentUser.name,
-        email: currentUser.email,
-        shift: currentUser.shift || 'Por Asignar',
-        loginTime: currentUser.loginTime || new Date().toISOString(),
-        lastActive: Date.now(),
-        totalTasks: totalTasks,
-        finalizedTasks: finalized,
-        percentage: percentage,
-        tasks: taskStateCache || {}
-    }).catch(e => console.error("Error syncing active session to Firebase:", e));
+    
+    // Read existing session first to preserve the original loginTime.
+    // Using update() instead of set() so we only overwrite what we need.
+    // For loginTime: only write it if the node doesn't have one yet (first login of the day).
+    sessionRef.once('value').then(snap => {
+        const existing = snap.val();
+        // Preserve the loginTime from Firebase if it already exists, otherwise use the one from localStorage
+        const loginTime = (existing && existing.loginTime) ? existing.loginTime : (currentUser.loginTime || new Date().toISOString());
+        
+        sessionRef.set({
+            name: currentUser.name,
+            email: currentUser.email,
+            shift: currentUser.shift || 'Por Asignar',
+            loginTime: loginTime,
+            lastActive: Date.now(),
+            totalTasks: totalTasks,
+            finalizedTasks: finalized,
+            percentage: percentage,
+            tasks: taskStateCache || {}
+        }).catch(e => console.error("Error syncing active session to Firebase:", e));
+    }).catch(e => console.error("Error reading session from Firebase:", e));
 }
 
 function updateKPI() {
