@@ -2674,14 +2674,7 @@ function getCronogramaColumnsForToday(targetDate, shiftText) {
     } else if (day === 6) { // Saturday
         return [[7, 8]];
     } else { // Monday to Friday
-        const sLower = String(shiftText || '').toLowerCase();
-        if (sLower.includes("manana") || sLower.includes("mañana") || sLower.includes("6am") || sLower.includes("8am")) {
-            return [[1, 2]];
-        } else if (sLower.includes("tarde") || sLower.includes("noche") || sLower.includes("pm") || sLower.includes("3pm") || sLower.includes("10pm")) {
-            return [[4, 5]];
-        } else {
-            return [[1, 2], [4, 5]];
-        }
+        return [[1, 2], [4, 5]];
     }
 }
 
@@ -3027,11 +3020,21 @@ async function loadExcelTasks() {
                     renderTree(filtered);
                 }
             });
+
+            if (setsKeys.length === 1) {
+                newSelect.value = setsKeys[0];
+                const filtered = {};
+                filtered[setsKeys[0]] = tasksBySet[setsKeys[0]];
+                renderTree(filtered);
+            } else if (setsKeys.length === 0) {
+                const container = document.querySelector('.tree-container');
+                if(container) container.innerHTML = '<div style="padding: 20px; color: var(--text-secondary); text-align: center;">No hay tareas asignadas en tu cronograma para el día de hoy.</div>';
+            } else {
+                // No renderizar todos por defecto, esperar selección
+                const container = document.querySelector('.tree-container');
+                if(container) container.innerHTML = '<div style="padding: 20px; color: var(--text-secondary); text-align: center;">Selecciona un SET en el menú desplegable para ver las tareas.</div>';
+            }
         }
-        
-        // No renderizar todos por defecto, esperar selección
-        const container = document.querySelector('.tree-container');
-        if(container) container.innerHTML = '<div style="padding: 20px; color: var(--text-secondary); text-align: center;">Selecciona un SET en el menú desplegable para ver las tareas.</div>';
         
     } catch(err) {
         console.error("Error loading tasks:", err);
@@ -3382,20 +3385,23 @@ function renderTree(tasksBySet) {
     
     // Sort keys logically
     const sets = Object.keys(tasksBySet).sort();
+    const shouldAutoExpand = sets.length === 1;
     
     sets.forEach(set => {
         const setDiv = document.createElement('div');
         setDiv.className = 'tree-item';
         
         const total = tasksBySet[set].length;
+        const headerClass = shouldAutoExpand ? 'tree-header open' : 'tree-header';
+        const childrenClass = shouldAutoExpand ? 'tree-children show' : 'tree-children';
         
         setDiv.innerHTML = `
-            <div class="tree-header" onclick="toggleTree(this)">
+            <div class="${headerClass}" onclick="toggleTree(this)">
                 <i class='bx bx-chevron-right'></i>
                 <span>${set}</span>
                 <span class="badge pending">${total} Tareas</span>
             </div>
-            <div class="tree-children">
+            <div class="${childrenClass}">
                 ${tasksBySet[set].map(task => {
                     let statusClass = 'status-pending';
                     if (taskStateCache[task.id]) {
