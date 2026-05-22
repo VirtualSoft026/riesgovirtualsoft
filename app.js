@@ -178,27 +178,23 @@ function getWeekSheet(sheetNames, targetDate) {
     return sheetNames[sheetNames.length - 1];
 }
 
-function getCronogramaColumnsForToday(targetDate, shiftText) {
-    const day = targetDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-    if (day === 0) { // Sunday
+function getCronogramaColumnsForToday(targetDate) {
+    // Always scan ALL column pairs for the day.
+    // Each gestor only appears in ONE column pair per day, so no duplicates occur.
+    // This avoids dependency on correctly resolving the shift text.
+    const day = targetDate.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+    if (day === 0) { // Sunday: cols 10 (tarea) and 11 (gestor)
         return [[10, 11]];
-    } else if (day === 6) { // Saturday
+    } else if (day === 6) { // Saturday: cols 7 and 8
         return [[7, 8]];
-    } else { // Monday to Friday
-        const sLower = String(shiftText || '').toLowerCase();
-        if (sLower.includes("manana") || sLower.includes("mañana") || sLower.includes("6am") || sLower.includes("8am")) {
-            return [[1, 2]];
-        } else if (sLower.includes("tarde") || sLower.includes("noche") || sLower.includes("pm") || sLower.includes("3pm") || sLower.includes("10pm")) {
-            return [[4, 5]];
-        } else {
-            return [[1, 2], [4, 5]];
-        }
+    } else { // Monday to Friday: scan both Mañana (1,2) AND Tarde/Noche (4,5)
+        return [[1, 2], [4, 5]];
     }
 }
 
 let gestorCronogramaAssignments = null;
 
-async function loadCronogramaAssignments(gestorName, gestorShift) {
+async function loadCronogramaAssignments(gestorName) {
     try {
         const url = encodeURI('Cronograma de Tareas/Cronograma Mayo.xlsx') + '?t=' + Date.now();
         const response = await fetch(url);
@@ -213,7 +209,9 @@ async function loadCronogramaAssignments(gestorName, gestorShift) {
         const worksheet = workbook.Sheets[sheetName];
         const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
         
-        const colGroups = getCronogramaColumnsForToday(today, gestorShift);
+        const colGroups = getCronogramaColumnsForToday(today);
+        // colGroups now always covers all column pairs for the day.
+        // Since each gestor only appears once per day, duplicates cannot occur.
         
         gestorCronogramaAssignments = [];
         
@@ -435,17 +433,8 @@ async function loadExcelTasks() {
         let processedRows = [];
         
         if (currentUser && currentUser.role === 'Gestor') {
-            // Resolve today's real shift from the parsed schedule (globalScheduleRows/globalScheduleBlocks)
-            // This ensures the filter uses the actual shift for today, not a stale value from localStorage
-            let resolvedShift = currentUser.shift || 'Por Asignar';
-            if (globalScheduleRows && globalScheduleBlocks && globalScheduleBlocks.length > 0) {
-                const todayShift = getShiftForDate(globalScheduleRows, globalScheduleBlocks, currentUser.name, new Date());
-                if (todayShift && todayShift !== 'Por Asignar' && todayShift !== 'Descansa') {
-                    resolvedShift = todayShift;
-                }
-            }
-            // Load cronograma assignments using the resolved real shift
-            await loadCronogramaAssignments(currentUser.name, resolvedShift);
+            // Load cronograma assignments (shift is no longer needed for column selection)
+            await loadCronogramaAssignments(currentUser.name);
             
             if (gestorCronogramaAssignments && gestorCronogramaAssignments.length > 0) {
                 // Filter the master json rows
