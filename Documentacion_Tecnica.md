@@ -625,7 +625,7 @@ Página de presentación y control de inicio de sesión de la plataforma. Diseñ
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="firebase-config.js?v=45"></script>
-    <script src="login.js?v=45"></script>
+    <script src="login.js?v=46"></script>
 </body>
 </html>
 
@@ -882,7 +882,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     email: email,
                     shift: "Por Asignar", // El turno se asigna por Excel
                     role: finalRole,
-                    approved: finalRole === 'Admin' // Solo los Admin se auto-aprueban
+                    approved: finalRole === 'Admin', // Solo los Admin se auto-aprueban
+                    registrationDate: new Date().toISOString()
                 };
                 
                 await database.ref('users/' + user.uid).set(newUser);
@@ -1360,7 +1361,10 @@ El esqueleto estructural de la plataforma Risk Manager. Contiene la barra de nav
                         <thead>
                             <tr style="border-bottom: 1px solid var(--glass-border);">
                                 <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Nombre</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Rol Solicitado</th>
+                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Email</th>
+                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Rol</th>
+                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">F. Solicitud</th>
+                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">F. Aprobación</th>
                                 <th style="padding: 12px; color: var(--accent-primary); text-align: center;">Acción</th>
                             </tr>
                         </thead>
@@ -1571,7 +1575,7 @@ El esqueleto estructural de la plataforma Risk Manager. Contiene la barra de nav
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="firebase-config.js?v=59"></script>
-    <script src="app.js?v=88"></script>
+    <script src="app.js?v=89"></script>
 </body>
 </html>
 
@@ -4473,11 +4477,16 @@ async function renderPendingUsers() {
         
         let statusBadge = user.approved ? `<span class="badge" style="background: rgba(16, 185, 129, 0.2); color: var(--success);">${user.role}</span>` : `<span class="badge pending">${user.role}</span>`;
 
+        const regDateStr = user.registrationDate ? new Date(user.registrationDate).toLocaleDateString() : 'Desconocida';
+        const appDateStr = user.approvalDate ? new Date(user.approvalDate).toLocaleDateString() : (user.approved === true ? 'Desconocida' : '-');
+        
         tbody.innerHTML += `
             <tr style="border-bottom: 1px solid var(--glass-border);">
                 <td style="padding: 12px;">${user.name}</td>
                 <td style="padding: 12px; color: var(--text-secondary);">${user.email}</td>
                 <td style="padding: 12px;">${statusBadge}</td>
+                <td style="padding: 12px; font-size: 12px;">${regDateStr}</td>
+                <td style="padding: 12px; font-size: 12px;">${appDateStr}</td>
                 <td style="padding: 12px; text-align: center;">
                     ${actionHtml}
                 </td>
@@ -4491,7 +4500,8 @@ async function approveUser(userId) {
     
     try {
         await database.ref('users/' + userId).update({
-            approved: true
+            approved: true,
+            approvalDate: new Date().toISOString()
         });
         alert('Usuario aprobado exitosamente. Ahora puede iniciar sesión.');
         renderPendingUsers(); // Reload table
