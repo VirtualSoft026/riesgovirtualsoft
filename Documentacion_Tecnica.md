@@ -1571,7 +1571,7 @@ El esqueleto estructural de la plataforma Risk Manager. Contiene la barra de nav
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="firebase-config.js?v=59"></script>
-    <script src="app.js?v=84"></script>
+    <script src="app.js?v=88"></script>
 </body>
 </html>
 
@@ -2667,14 +2667,43 @@ function getWeekSheet(sheetNames, targetDate) {
     return sheetNames[sheetNames.length - 1];
 }
 
-function getCronogramaColumnsForToday(targetDate, shiftText) {
+function getCronogramaColumnsForToday(targetDate, shiftText, rows = []) {
     const day = targetDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    
+    let cols = { manana: [], tarde: [], sabado: [], domingo: [] };
+    
+    for (let rIdx = 0; rIdx < Math.min(5, rows.length); rIdx++) {
+        const row = rows[rIdx];
+        if (!row) continue;
+        for (let c = 0; c < row.length; c++) {
+            const val = String(row[c] || "").trim().toLowerCase();
+            if (val.includes("mañana") && !val.includes("sabado") && !val.includes("sábado") && !val.includes("domingo") && cols.manana.length === 0) {
+                if (c + 1 < row.length) cols.manana = [c, c + 1];
+            }
+            if (val.includes("tarde") && cols.tarde.length === 0) {
+                if (c + 1 < row.length) cols.tarde = [c, c + 1];
+            }
+            if ((val.includes("sábado") || val.includes("sabado")) && cols.sabado.length === 0) {
+                if (c + 1 < row.length) cols.sabado = [c, c + 1];
+            }
+            if (val.includes("domingo") && cols.domingo.length === 0) {
+                if (c + 1 < row.length) cols.domingo = [c, c + 1];
+            }
+        }
+    }
+    
+    // Fallback si no se encuentran
+    if (cols.manana.length === 0) cols.manana = [1, 2];
+    if (cols.tarde.length === 0) cols.tarde = [4, 5];
+    if (cols.sabado.length === 0) cols.sabado = [7, 8];
+    if (cols.domingo.length === 0) cols.domingo = [10, 11];
+
     if (day === 0) { // Sunday
-        return [[10, 11]];
+        return [cols.domingo];
     } else if (day === 6) { // Saturday
-        return [[7, 8]];
+        return [cols.sabado];
     } else { // Monday to Friday
-        return [[1, 2], [4, 5]];
+        return [cols.manana, cols.tarde];
     }
 }
 
@@ -2695,7 +2724,7 @@ async function loadCronogramaAssignments(gestorName, gestorShift) {
         const worksheet = workbook.Sheets[sheetName];
         const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
         
-        const colGroups = getCronogramaColumnsForToday(today, gestorShift);
+        const colGroups = getCronogramaColumnsForToday(today, gestorShift, rows);
         
         gestorCronogramaAssignments = [];
         
@@ -5003,6 +5032,43 @@ function startActiveSessionsListener() {
     });
 }
 
+function calculateShiftDelay(session) {
+    if (!session.loginTime || !session.shift) return '';
+    const shiftStr = session.shift.toLowerCase().trim();
+    
+    // Parse start time: e.g. "8am - 4pm" -> "8", "am"
+    const match = shiftStr.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+    if (!match) return ''; // Cannot parse shift
+    
+    let hour = parseInt(match[1], 10);
+    let minute = match[2] ? parseInt(match[2], 10) : 0;
+    const ampm = match[3].toLowerCase();
+    
+    if (ampm === 'pm' && hour < 12) hour += 12;
+    if (ampm === 'am' && hour === 12) hour = 0;
+    
+    const loginDate = new Date(session.loginTime);
+    const expected = new Date(loginDate);
+    expected.setHours(hour, minute, 0, 0);
+    
+    let diffMinutes = (loginDate - expected) / 60000;
+    
+    if (diffMinutes < -12 * 60) {
+        expected.setDate(expected.getDate() + 1);
+        diffMinutes = (loginDate - expected) / 60000;
+    } else if (diffMinutes > 12 * 60) {
+        expected.setDate(expected.getDate() - 1);
+        diffMinutes = (loginDate - expected) / 60000;
+    }
+    
+    if (diffMinutes <= 5) {
+        return `<span style="background: var(--success); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 5px;" title="Límite: ${expected.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}">A tiempo</span>`;
+    } else {
+        const tardanza = Math.round(diffMinutes);
+        return `<span style="background: var(--danger); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 5px;" title="Límite: ${expected.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}">+${tardanza}m Tarde</span>`;
+    }
+}
+
 function renderActiveSessionsDashboard() {
     const grid = document.getElementById('monitoreoGrid');
     if (!grid) return;
@@ -5067,7 +5133,8 @@ function renderActiveSessionsDashboard() {
         
         const isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
         const lastActiveTime = session.lastActive ? new Date(session.lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Nunca';
-        const loginTimeStr = session.loginTime ? new Date(session.loginTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : (session.lastActive ? new Date(session.lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Nunca');
+        const loginTimeStr = session.loginTime ? new Date(session.loginTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Pendiente (Falta actualizar)';
+        const delayBadge = calculateShiftDelay(session);
         
         const fullName = (session.name || '').trim();
         let matchedAvatar = availableAvatars.find(img => namesMatch(fullName, img.replace('.png', '')));
@@ -5101,7 +5168,10 @@ function renderActiveSessionsDashboard() {
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                     <span style="color: var(--text-secondary);"><i class='bx bx-time'></i> Inicio de Turno:</span>
-                    <span style="color: var(--text-primary); font-size: 12px;">${loginTimeStr}</span>
+                    <div style="display: flex; align-items: center;">
+                        <span style="color: var(--text-primary); font-size: 12px;">${loginTimeStr}</span>
+                        ${delayBadge}
+                    </div>
                 </div>
             </div>
 
@@ -5225,7 +5295,7 @@ window.openMonitoreoDetails = function(uid) {
     if (nameEl) nameEl.textContent = "Tareas de " + fullName;
     
     const lastActiveTime = session.lastActive ? new Date(session.lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Nunca';
-    const loginTimeStr = session.loginTime ? new Date(session.loginTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : lastActiveTime;
+    const loginTimeStr = session.loginTime ? new Date(session.loginTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pendiente (Falta actualizar)';
     const infoEl = document.getElementById('monitoreoModalInfo');
     if (infoEl) infoEl.textContent = `Turno: ${session.shift || 'Mañana'} | Inicio: ${loginTimeStr} | Actividad: ${lastActiveTime}`;
 
