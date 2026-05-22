@@ -179,14 +179,43 @@ function getWeekSheet(sheetNames, targetDate) {
     return sheetNames[sheetNames.length - 1];
 }
 
-function getCronogramaColumnsForToday(targetDate, shiftText) {
+function getCronogramaColumnsForToday(targetDate, shiftText, rows = []) {
     const day = targetDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    
+    let cols = { manana: [], tarde: [], sabado: [], domingo: [] };
+    
+    for (let rIdx = 0; rIdx < Math.min(5, rows.length); rIdx++) {
+        const row = rows[rIdx];
+        if (!row) continue;
+        for (let c = 0; c < row.length; c++) {
+            const val = String(row[c] || "").trim().toLowerCase();
+            if (val.includes("mañana") && !val.includes("sabado") && !val.includes("sábado") && !val.includes("domingo") && cols.manana.length === 0) {
+                if (c + 1 < row.length) cols.manana = [c, c + 1];
+            }
+            if (val.includes("tarde") && cols.tarde.length === 0) {
+                if (c + 1 < row.length) cols.tarde = [c, c + 1];
+            }
+            if ((val.includes("sábado") || val.includes("sabado")) && cols.sabado.length === 0) {
+                if (c + 1 < row.length) cols.sabado = [c, c + 1];
+            }
+            if (val.includes("domingo") && cols.domingo.length === 0) {
+                if (c + 1 < row.length) cols.domingo = [c, c + 1];
+            }
+        }
+    }
+    
+    // Fallback si no se encuentran
+    if (cols.manana.length === 0) cols.manana = [1, 2];
+    if (cols.tarde.length === 0) cols.tarde = [4, 5];
+    if (cols.sabado.length === 0) cols.sabado = [7, 8];
+    if (cols.domingo.length === 0) cols.domingo = [10, 11];
+
     if (day === 0) { // Sunday
-        return [[10, 11]];
+        return [cols.domingo];
     } else if (day === 6) { // Saturday
-        return [[7, 8]];
+        return [cols.sabado];
     } else { // Monday to Friday
-        return [[1, 2], [4, 5]];
+        return [cols.manana, cols.tarde];
     }
 }
 
@@ -207,7 +236,7 @@ async function loadCronogramaAssignments(gestorName, gestorShift) {
         const worksheet = workbook.Sheets[sheetName];
         const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
         
-        const colGroups = getCronogramaColumnsForToday(today, gestorShift);
+        const colGroups = getCronogramaColumnsForToday(today, gestorShift, rows);
         
         gestorCronogramaAssignments = [];
         
