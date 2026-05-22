@@ -34,6 +34,77 @@ function namesMatch(name1, name2) {
     return shorter.every(word => longer.includes(word));
 }
 
+// Helpers for date calculations in schedules
+function excelToJSDate(serial) {
+    if(!serial || isNaN(serial)) return null;
+    const epochUTC = Date.UTC(1899, 11, 30);
+    return new Date(epochUTC + serial * 86400000);
+}
+
+function isSameDate(excelDate, jsDate) {
+    if (!excelDate || !jsDate) return false;
+    return excelDate.getUTCDate() === jsDate.getDate() &&
+           excelDate.getUTCMonth() === jsDate.getMonth() &&
+           excelDate.getUTCFullYear() === jsDate.getFullYear();
+}
+
+function getShiftForDate(rows, allScheduleBlocks, gestorName, date) {
+    if (!rows || rows.length === 0 || !allScheduleBlocks || allScheduleBlocks.length === 0) {
+        return 'Por Asignar';
+    }
+    
+    let targetBlock = null;
+    let targetColIndex = -1;
+    
+    for (let block of allScheduleBlocks) {
+        const dateRow = rows[block.startRow];
+        for (let c = 1; c < dateRow.length; c++) {
+            const serial = dateRow[c];
+            if (serial && !isNaN(serial)) {
+                const cellDate = excelToJSDate(serial);
+                if (cellDate && isSameDate(cellDate, date)) {
+                    targetBlock = block;
+                    targetColIndex = c;
+                    break;
+                }
+            }
+        }
+        if (targetBlock) break;
+    }
+    
+    if (!targetBlock) {
+        targetBlock = allScheduleBlocks[allScheduleBlocks.length - 1];
+        const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+        const dayRow = rows[targetBlock.startRow + 1];
+        const targetDayName = dayNames[date.getDay()];
+        
+        for (let c = 1; c < dayRow.length; c++) {
+            const dayName = String(dayRow[c] || '').trim();
+            if (normalizeName(dayName) === normalizeName(targetDayName)) {
+                targetColIndex = c;
+                break;
+            }
+        }
+        
+        if (targetColIndex === -1) {
+            let jsDay = date.getDay();
+            targetColIndex = jsDay === 0 ? 7 : jsDay;
+        }
+    }
+    
+    const blockStartRow = targetBlock.startRow;
+    for (let rIdx = blockStartRow + 2; rIdx < rows.length; rIdx++) {
+        const r = rows[rIdx];
+        if (!r || !r[0] || String(r[0]).trim() === '' || String(r[0]).trim().toUpperCase() === 'GESTOR') break;
+        
+        if (namesMatch(r[0], gestorName)) {
+            return r[targetColIndex] || 'Descansa';
+        }
+    }
+    
+    return 'Por Asignar';
+}
+
 // Mapeo de URLs para documentos (especialmente videos pesados alojados en Google Drive)
 const documentUrls = {
     "Revisión de Eventos Deportivos.mp4": "https://drive.google.com/file/d/1UqccsnUwTG6tgPcDYdUeLnf9XqvGzSoc/view?usp=sharing",
@@ -202,8 +273,27 @@ async function loadSchedule() {
             
             const weekSelector = document.getElementById('weekSelector');
             
-            // Siempre el último bloque por defecto
-            let defaultBlockRow = allScheduleBlocks[allScheduleBlocks.length - 1].startRow; 
+            // Encontrar el bloque correspondiente a hoy
+            let defaultBlockRow = null;
+            const today = new Date();
+            for (let block of allScheduleBlocks) {
+                const dateRow = rows[block.startRow];
+                for (let c = 1; c < dateRow.length; c++) {
+                    const serial = dateRow[c];
+                    if (serial && !isNaN(serial)) {
+                        const cellDate = excelToJSDate(serial);
+                        if (cellDate && isSameDate(cellDate, today)) {
+                            defaultBlockRow = block.startRow;
+                            break;
+                        }
+                    }
+                }
+                if (defaultBlockRow !== null) break;
+            }
+            
+            if (defaultBlockRow === null) {
+                defaultBlockRow = allScheduleBlocks[allScheduleBlocks.length - 1].startRow;
+            }
             
             if (weekSelector) {
                 weekSelector.innerHTML = '';
@@ -256,19 +346,11 @@ async function loadSchedule() {
                     let trHTML = `<tr class="hover-highlight" style="border-bottom: 1px solid var(--glass-border); background: ${bgClass};">`;
                     trHTML += `<td style="padding: 12px; font-weight: 600; text-align: left; color: ${isCurrentUser ? 'var(--accent-primary)' : 'var(--text-primary)'}; position: sticky; left: 0; background: ${isCurrentUser ? 'var(--bg-dark)' : 'var(--bg-panel)'}; z-index: 1;">${r[0]}</td>`;
                     
-                    // Encontrar el turno para mostrar en el badge principal
-                    let badgeShift = null;
+                    // Encontrar el turno para mostrar en el badge principal (corresponde a hoy)
+                    let badgeShift = getShiftForDate(rows, allScheduleBlocks, r[0], new Date());
                     
                     for(let i = 1; i <= numCols; i++) {
                         const shift = r[i] || 'Descansa';
-                        
-                        if (isCurrentUser) {
-                            if (!badgeShift && shift && !shift.includes('Descansa')) {
-                                badgeShift = shift;
-                            } else if (!badgeShift && i === numCols) {
-                                badgeShift = shift; // fallback
-                            }
-                        }
                         
                         let badgeClass = 'pending';
                         const sLower = normalizeName(shift);
@@ -530,6 +612,7 @@ function syncActiveSessionToFirebase() {
         name: currentUser.name,
         email: currentUser.email,
         shift: currentUser.shift || 'Por Asignar',
+        loginTime: currentUser.loginTime || new Date().toISOString(),
         lastActive: Date.now(),
         totalTasks: totalTasks,
         finalizedTasks: finalized,
@@ -2105,6 +2188,7 @@ function renderActiveSessionsDashboard() {
         
         const isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
         const lastActiveTime = session.lastActive ? new Date(session.lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Nunca';
+        const loginTimeStr = session.loginTime ? new Date(session.loginTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : (session.lastActive ? new Date(session.lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Nunca');
         
         const fullName = (session.name || '').trim();
         let matchedAvatar = availableAvatars.find(img => namesMatch(fullName, img.replace('.png', '')));
@@ -2137,8 +2221,8 @@ function renderActiveSessionsDashboard() {
                     <strong style="color: var(--text-primary);">${session.shift || 'Mañana'}</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                    <span style="color: var(--text-secondary);"><i class='bx bx-time'></i> Actividad:</span>
-                    <span style="color: var(--text-primary); font-size: 12px;">${lastActiveTime}</span>
+                    <span style="color: var(--text-secondary);"><i class='bx bx-time'></i> Inicio Turno:</span>
+                    <span style="color: var(--text-primary); font-size: 12px;">${loginTimeStr}</span>
                 </div>
             </div>
 
@@ -2246,8 +2330,9 @@ window.openMonitoreoDetails = function(uid) {
     if (nameEl) nameEl.textContent = "Tareas de " + fullName;
     
     const lastActiveTime = session.lastActive ? new Date(session.lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Nunca';
+    const loginTimeStr = session.loginTime ? new Date(session.loginTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : lastActiveTime;
     const infoEl = document.getElementById('monitoreoModalInfo');
-    if (infoEl) infoEl.textContent = `Turno: ${session.shift || 'Mañana'} | Última actividad: ${lastActiveTime}`;
+    if (infoEl) infoEl.textContent = `Turno: ${session.shift || 'Mañana'} | Inicio: ${loginTimeStr} | Actividad: ${lastActiveTime}`;
 
     const tasksList = document.getElementById('monitoreoModalTasksList');
     if (tasksList) {
