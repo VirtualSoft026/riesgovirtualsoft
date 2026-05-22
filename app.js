@@ -781,6 +781,9 @@ function initApp() {
             setInterval(syncActiveSessionToFirebase, 30000);
         }
 
+        // Setup programmatical sidebar ordering for roles
+        setupSidebar();
+
         // Show Aprobaciones tab for Supervisor/Admin
         if (currentUser.role === 'Admin' || currentUser.role === 'Supervisor') {
             const navAprobaciones = document.getElementById('navAprobaciones');
@@ -796,15 +799,54 @@ function initApp() {
             if(navAprobaciones) navAprobaciones.style.display = 'flex';
             if(navTurnos) navTurnos.style.display = 'flex';
             if(navMonitoreo) navMonitoreo.style.display = 'flex';
-            if(navWorkspace) navWorkspace.style.display = 'none';
-            if(viewWorkspace) viewWorkspace.style.display = 'none';
+            if(navWorkspace) navWorkspace.style.display = 'flex'; // Keep Mis Tareas visible
             
-            // Forzar vista de Aprobaciones como inicial
-            if(viewAprobaciones) {
+            // Forzar vista de Monitoreo Realtime como inicial
+            const viewMonitoreo = document.getElementById('view-monitoreo');
+            if (viewMonitoreo && navMonitoreo) {
                 document.querySelectorAll('.view-panel').forEach(v => v.style.display = 'none');
-                viewAprobaciones.style.display = 'block';
+                viewMonitoreo.style.display = 'block';
                 document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-                navAprobaciones.classList.add('active');
+                navMonitoreo.classList.add('active');
+            }
+
+            // Iniciar sincronización en tiempo real para Monitoreo
+            startActiveSessionsListener();
+
+            // Listeners for Monitoreo filters
+            const searchInput = document.getElementById('monitoreoSearchInput');
+            const shiftSelect = document.getElementById('filterShiftSelect');
+            const statusSelect = document.getElementById('filterStatusSelect');
+            const clearMonitoreoFiltersBtn = document.getElementById('clearMonitoreoFiltersBtn');
+
+            if (searchInput) searchInput.addEventListener('input', renderActiveSessionsDashboard);
+            if (shiftSelect) shiftSelect.addEventListener('change', renderActiveSessionsDashboard);
+            if (statusSelect) statusSelect.addEventListener('change', renderActiveSessionsDashboard);
+
+            if (clearMonitoreoFiltersBtn) {
+                clearMonitoreoFiltersBtn.addEventListener('click', () => {
+                    if (searchInput) searchInput.value = '';
+                    if (shiftSelect) shiftSelect.value = '';
+                    if (statusSelect) statusSelect.value = '';
+                    renderActiveSessionsDashboard();
+                });
+            }
+
+            // Close Monitoreo modal listeners
+            const closeBtn = document.getElementById('closeMonitoreoModalBtn');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => {
+                    const modal = document.getElementById('monitoreoModal');
+                    if (modal) modal.classList.remove('active');
+                });
+            }
+            const modalOverlay = document.getElementById('monitoreoModal');
+            if (modalOverlay) {
+                modalOverlay.addEventListener('click', (e) => {
+                    if (e.target === modalOverlay) {
+                        modalOverlay.classList.remove('active');
+                    }
+                });
             }
             
             // Ocultar formulario de pedir permiso
@@ -998,14 +1040,9 @@ function initApp() {
     const navItems = document.querySelectorAll('.nav-item');
     navItems.forEach(item => {
         item.addEventListener('click', (e) => {
-            // Evitar preventDefault para el monitoreo ya que se abre en una pestaña nueva
-            if (item.id === 'navMonitoreo' || item.textContent.includes('Monitoreo')) {
-                return; // Deja que el enlace nativo con target="_blank" haga su trabajo
-            }
-            
             e.preventDefault();
             // Evitar redirigir erróneamente en el botón soporte real
-            if(item.textContent.includes('Soporte')) {
+            if(item.id === 'navSoporte' || item.textContent.includes('Soporte')) {
                 alert("Redirigiendo al IT HelpDesk...");
                 return;
             }
@@ -1018,19 +1055,28 @@ function initApp() {
             document.querySelectorAll('.view-panel').forEach(v => v.style.display = 'none');
 
             // Mostrar la correcta
-            if(item.textContent.includes('Mis Tareas') || item.textContent.includes('Workspace')) document.getElementById('view-workspace').style.display = 'block';
-            if(item.textContent.includes('Horario')) document.getElementById('view-horario').style.display = 'block';
-            if(item.textContent.includes('Teletrabajo')) document.getElementById('view-teletrabajo').style.display = 'block';
-            if(item.textContent.includes('Documentación')) document.getElementById('view-docs').style.display = 'block';
-            if(item.textContent.includes('Permisos')) document.getElementById('view-permisos').style.display = 'block';
-            if(item.textContent.includes('Historial Turnos')) {
+            if (item.id === 'navWorkspace') {
+                document.getElementById('view-workspace').style.display = 'block';
+            } else if (item.id === 'navHorario') {
+                document.getElementById('view-horario').style.display = 'block';
+            } else if (item.id === 'navTeletrabajo') {
+                document.getElementById('view-teletrabajo').style.display = 'block';
+            } else if (item.id === 'navDocs') {
+                document.getElementById('view-docs').style.display = 'block';
+            } else if (item.id === 'navPermisos') {
+                document.getElementById('view-permisos').style.display = 'block';
+            } else if (item.id === 'navTurnos') {
                 document.getElementById('view-turnos').style.display = 'block';
                 renderShiftReports();
-            }
-            if(item.textContent.includes('Aprobaciones')) {
+            } else if (item.id === 'navAprobaciones') {
                 document.getElementById('view-aprobaciones').style.display = 'block';
                 renderPendingUsers();
                 renderPendingPermissions();
+            } else if (item.id === 'navMonitoreo') {
+                const viewMonitoreo = document.getElementById('view-monitoreo');
+                if (viewMonitoreo) viewMonitoreo.style.display = 'block';
+                renderActiveSessionsDashboard();
+                updateGlobalStats();
             }
         });
     });
@@ -1164,6 +1210,7 @@ function initApp() {
             e.preventDefault(); // Evitar recarga
             
             const formData = new FormData(pForm);
+            formData.append("_cc", "sara.santamaria@virtualsoft.tech");
             
             const tipo = formData.get("Tipo_Permiso");
             const especifico = formData.get("Especificacion_Otro");
@@ -1699,14 +1746,15 @@ function applyShiftReportsFilters() {
     const tbody = document.getElementById('shiftReportsTableBody');
     if (!tbody) return;
 
-    const gestorQuery = document.getElementById('filterGestorInput') ? document.getElementById('filterGestorInput').value.toLowerCase().trim() : '';
+    const gestorQueryInput = document.getElementById('filterGestorInput');
+    const gestorQuery = gestorQueryInput ? normalizeName(gestorQueryInput.value) : '';
     const fechaQuery = document.getElementById('filterFechaInput') ? document.getElementById('filterFechaInput').value : '';
 
     let filtered = [...allShiftReports];
 
-    // Filter by Gestor name
+    // Filter by Gestor name (accent-insensitive)
     if (gestorQuery) {
-        filtered = filtered.filter(r => (r.gestor || '').toLowerCase().includes(gestorQuery));
+        filtered = filtered.filter(r => normalizeName(r.gestor).includes(gestorQuery));
     }
 
     // Filter by Date (comparing local YYYY-MM-DD format)
@@ -1887,3 +1935,345 @@ async function changePassword() {
         console.error("Error al actualizar la contraseña:", e);
     }
 }
+
+// --- PROGRAMMATIC SIDEBAR ORDER & MONITOREO REALTIME ---
+
+function setupSidebar() {
+    const sidebarNav = document.querySelector('.sidebar-nav');
+    if (!sidebarNav) return;
+    
+    const navWorkspace = document.getElementById('navWorkspace');
+    const navHorario = document.getElementById('navHorario');
+    const navTeletrabajo = document.getElementById('navTeletrabajo');
+    const navDocs = document.getElementById('navDocs');
+    const navPermisos = document.getElementById('navPermisos');
+    const navTurnos = document.getElementById('navTurnos');
+    const navAprobaciones = document.getElementById('navAprobaciones');
+    const navMonitoreo = document.getElementById('navMonitoreo');
+    const navSoporte = document.getElementById('navSoporte');
+
+    if (currentUser && (currentUser.role === 'Admin' || currentUser.role === 'Supervisor')) {
+        // Admin/Supervisor Order:
+        // 1. Monitoreo
+        // 2. Historial de turnos
+        // 3. Aprobaciones
+        // 4. Historial de permisos
+        // 5. Horario
+        // 6. Teletrabajo
+        // 7. Documentación
+        // 8. Mis Tareas
+        // 9. Soporte
+        
+        if (navMonitoreo) { navMonitoreo.style.display = 'flex'; sidebarNav.appendChild(navMonitoreo); }
+        if (navTurnos) { navTurnos.style.display = 'flex'; sidebarNav.appendChild(navTurnos); }
+        if (navAprobaciones) { navAprobaciones.style.display = 'flex'; sidebarNav.appendChild(navAprobaciones); }
+        if (navPermisos) { navPermisos.style.display = 'flex'; sidebarNav.appendChild(navPermisos); }
+        if (navHorario) { navHorario.style.display = 'flex'; sidebarNav.appendChild(navHorario); }
+        if (navTeletrabajo) { navTeletrabajo.style.display = 'flex'; sidebarNav.appendChild(navTeletrabajo); }
+        if (navDocs) { navDocs.style.display = 'flex'; sidebarNav.appendChild(navDocs); }
+        if (navWorkspace) { navWorkspace.style.display = 'flex'; sidebarNav.appendChild(navWorkspace); }
+        if (navSoporte) { navSoporte.style.display = 'flex'; sidebarNav.appendChild(navSoporte); }
+    } else {
+        // Gestor Order:
+        // 1. Mis Tareas
+        // 2. Horario
+        // 3. Teletrabajo
+        // 4. Documentación
+        // 5. Historial de permisos (Permisos)
+        // 6. Soporte
+        
+        if (navWorkspace) { navWorkspace.style.display = 'flex'; sidebarNav.appendChild(navWorkspace); }
+        if (navHorario) { navHorario.style.display = 'flex'; sidebarNav.appendChild(navHorario); }
+        if (navTeletrabajo) { navTeletrabajo.style.display = 'flex'; sidebarNav.appendChild(navTeletrabajo); }
+        if (navDocs) { navDocs.style.display = 'flex'; sidebarNav.appendChild(navDocs); }
+        if (navPermisos) { navPermisos.style.display = 'flex'; sidebarNav.appendChild(navPermisos); }
+        
+        // Hide Admin tabs for Gestor
+        if (navTurnos) navTurnos.style.display = 'none';
+        if (navAprobaciones) navAprobaciones.style.display = 'none';
+        if (navMonitoreo) navMonitoreo.style.display = 'none';
+        
+        if (navSoporte) { navSoporte.style.display = 'flex'; sidebarNav.appendChild(navSoporte); }
+    }
+}
+
+let allActiveSessions = {};
+
+const availableAvatars = [
+    "Alexander Villada.png",
+    "Camilo Espinosa.png",
+    "Daniel Benavidez.png",
+    "Josue Alvarez.png",
+    "Juan Jose Diaz.png",
+    "Maria Sanchez.png",
+    "Marilyn Jimenez.png",
+    "Oriana Borja.png",
+    "Samuel Cruz.png",
+    "Sara Santamaria.png",
+    "Sebastian Arango.png",
+    "Sebastian Hincapie.png",
+    "Yefferson Giraldo.png"
+];
+
+function startActiveSessionsListener() {
+    database.ref('active_sessions').on('value', (snapshot) => {
+        if (snapshot.exists()) {
+            allActiveSessions = snapshot.val();
+        } else {
+            allActiveSessions = {};
+        }
+        renderActiveSessionsDashboard();
+        updateGlobalStats();
+    }, (error) => {
+        console.error("Error cargando monitoreo en tiempo real:", error);
+    });
+}
+
+function renderActiveSessionsDashboard() {
+    const grid = document.getElementById('monitoreoGrid');
+    if (!grid) return;
+
+    grid.innerHTML = '';
+    
+    // Get filter queries
+    const searchInputEl = document.getElementById('monitoreoSearchInput');
+    const searchQuery = searchInputEl ? normalizeName(searchInputEl.value) : '';
+    const shiftSelectEl = document.getElementById('filterShiftSelect');
+    const shiftQuery = shiftSelectEl ? shiftSelectEl.value : '';
+    const statusSelectEl = document.getElementById('filterStatusSelect');
+    const statusQuery = statusSelectEl ? statusSelectEl.value : '';
+
+    const uids = Object.keys(allActiveSessions);
+    
+    // Filtering active sessions
+    let filteredUids = uids.filter(uid => {
+        const session = allActiveSessions[uid];
+        if (!session) return false;
+        
+        const fullName = (session.name || '').trim();
+        const email = (session.email || '');
+        const shift = session.shift || 'Mañana';
+        const isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
+
+        // Search match (accent-insensitive substring)
+        if (searchQuery && !normalizeName(fullName).includes(searchQuery) && !normalizeName(email).includes(searchQuery)) {
+            return false;
+        }
+
+        // Shift match
+        if (shiftQuery && shift !== shiftQuery) {
+            return false;
+        }
+
+        // Status match
+        if (statusQuery) {
+            if (statusQuery === 'online' && !isOnline) return false;
+            if (statusQuery === 'offline' && isOnline) return false;
+        }
+
+        return true;
+    });
+
+    if (filteredUids.length === 0) {
+        grid.innerHTML = `
+            <div style="grid-column: 1 / -1; padding: 60px; text-align: center; color: var(--text-secondary);">
+                <i class='bx bx-devices' style="font-size: 48px; margin-bottom: 15px; color: var(--text-secondary); opacity: 0.5;"></i>
+                <p style="font-size: 16px; font-weight: 500;">No se encontraron gestores en el turno con los filtros aplicados.</p>
+                <p style="font-size: 12px; margin-top: 5px; opacity: 0.7;">Los gestores activos se listarán aquí automáticamente al ingresar.</p>
+            </div>
+        `;
+        return;
+    }
+
+    filteredUids.forEach(uid => {
+        const session = allActiveSessions[uid];
+        if (!session) return;
+        
+        const isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
+        const lastActiveTime = session.lastActive ? new Date(session.lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Nunca';
+        
+        const fullName = (session.name || '').trim();
+        let matchedAvatar = availableAvatars.find(img => namesMatch(fullName, img.replace('.png', '')));
+        let avatarSrc = matchedAvatar ? `assets/src/img/${matchedAvatar}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0D8ABC&color=fff`;
+
+        const completedTasks = session.finalizedTasks || 0;
+        const totalTasks = session.totalTasks || 0;
+        const percentage = session.percentage || 0;
+
+        const card = document.createElement('div');
+        card.className = 'monitoreo-card';
+        card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+                <div class="monitoreo-user-info">
+                    <img src="${avatarSrc}" alt="${fullName}" class="monitoreo-avatar" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0D8ABC&color=fff';">
+                    <div class="monitoreo-details">
+                        <span class="monitoreo-name">${fullName}</span>
+                        <span class="monitoreo-meta">${session.email || ''}</span>
+                    </div>
+                </div>
+                <div class="status-indicator-badge ${isOnline ? 'status-online' : 'status-offline'}">
+                    <div class="pulse-dot ${isOnline ? '' : 'offline'}"></div>
+                    ${isOnline ? 'En Línea' : 'Inactivo'}
+                </div>
+            </div>
+            
+            <div style="margin-top: 10px; font-size: 13px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span style="color: var(--text-secondary);"><i class='bx bx-calendar-check'></i> Turno:</span>
+                    <strong style="color: var(--text-primary);">${session.shift || 'Mañana'}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span style="color: var(--text-secondary);"><i class='bx bx-time'></i> Actividad:</span>
+                    <span style="color: var(--text-primary); font-size: 12px;">${lastActiveTime}</span>
+                </div>
+            </div>
+
+            <div class="progress-container">
+                <div class="progress-label-row">
+                    <span>Avance de Tareas</span>
+                    <strong>${percentage}% (${completedTasks}/${totalTasks})</strong>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" style="width: ${percentage}%;"></div>
+                </div>
+            </div>
+
+            <div style="margin-top: 15px; display: flex; justify-content: flex-end;">
+                <button class="btn btn-outline" style="width: auto; padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;" onclick="openMonitoreoDetails('${uid}')">
+                    <i class='bx bx-search-alt-2'></i> Ver Tareas
+                </button>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+function updateGlobalStats() {
+    const statsGestores = document.getElementById('statsGestores');
+    const statsKpi = document.getElementById('statsKpi');
+    const statsTurno = document.getElementById('statsTurno');
+
+    const uids = Object.keys(allActiveSessions);
+    const totalGestores = uids.length;
+    
+    // Count active (lastActive within 2 mins)
+    const onlineCount = uids.filter(uid => {
+        const session = allActiveSessions[uid];
+        return session && session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
+    }).length;
+
+    if (statsGestores) {
+        statsGestores.textContent = `${onlineCount} / ${totalGestores}`;
+    }
+
+    // Compute average KPI
+    let totalPercentage = 0;
+    uids.forEach(uid => {
+        const session = allActiveSessions[uid];
+        totalPercentage += session ? (session.percentage || 0) : 0;
+    });
+    const avgKpi = totalGestores > 0 ? Math.round(totalPercentage / totalGestores) : 0;
+    if (statsKpi) {
+        statsKpi.textContent = `${avgKpi}%`;
+    }
+
+    // Determine current shift based on active sessions or system hour
+    let shiftName = "Mañana";
+    const hour = new Date().getHours();
+    if (hour >= 6 && hour < 14) {
+        shiftName = "Mañana";
+    } else if (hour >= 14 && hour < 22) {
+        shiftName = "Tarde";
+    } else {
+        shiftName = "Noche";
+    }
+
+    // Overwrite shift name if there is a dominant shift in active sessions
+    if (totalGestores > 0) {
+        const shifts = uids.map(uid => allActiveSessions[uid] ? allActiveSessions[uid].shift : null).filter(Boolean);
+        if (shifts.length > 0) {
+            const counts = {};
+            shifts.forEach(s => counts[s] = (counts[s] || 0) + 1);
+            let dominantShift = shiftName;
+            let maxCount = 0;
+            for (const [s, count] of Object.entries(counts)) {
+                if (count > maxCount) {
+                    maxCount = count;
+                    dominantShift = s;
+                }
+            }
+            shiftName = dominantShift;
+        }
+    }
+
+    if (statsTurno) {
+        statsTurno.textContent = shiftName;
+    }
+}
+
+window.openMonitoreoDetails = function(uid) {
+    const session = allActiveSessions[uid];
+    if (!session) return;
+
+    const fullName = (session.name || '').trim();
+    let matchedAvatar = availableAvatars.find(img => namesMatch(fullName, img.replace('.png', '')));
+    let avatarSrc = matchedAvatar ? `assets/src/img/${matchedAvatar}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0D8ABC&color=fff`;
+
+    const avatarEl = document.getElementById('monitoreoModalAvatar');
+    if (avatarEl) {
+        avatarEl.src = avatarSrc;
+        avatarEl.onerror = function() {
+            this.onerror = null;
+            this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0D8ABC&color=fff`;
+        };
+    }
+
+    const nameEl = document.getElementById('monitoreoModalName');
+    if (nameEl) nameEl.textContent = "Tareas de " + fullName;
+    
+    const lastActiveTime = session.lastActive ? new Date(session.lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Nunca';
+    const infoEl = document.getElementById('monitoreoModalInfo');
+    if (infoEl) infoEl.textContent = `Turno: ${session.shift || 'Mañana'} | Última actividad: ${lastActiveTime}`;
+
+    const tasksList = document.getElementById('monitoreoModalTasksList');
+    if (tasksList) {
+        tasksList.innerHTML = '';
+
+        const tasks = session.tasks || {};
+        const taskIds = Object.keys(tasks);
+
+        if (taskIds.length === 0) {
+            tasksList.innerHTML = `
+                <div style="padding: 20px; text-align: center; color: var(--text-secondary);">
+                    Este gestor aún no ha registrado avances de tareas en su turno.
+                </div>
+            `;
+        } else {
+            taskIds.forEach(id => {
+                const t = tasks[id];
+                
+                let badgeClass = 'pending';
+                if (t.status === 'Finalizada') badgeClass = 'completed';
+                else if (t.status === 'En Proceso') badgeClass = 'in-progress';
+                else if (t.status === 'No Realizada') badgeClass = 'not-done';
+
+                const observationText = t.observation ? t.observation.trim() : 'Sin observaciones cargadas.';
+
+                tasksList.innerHTML += `
+                    <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); padding: 12px; border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; gap: 10px;">
+                            <span style="font-weight: 500; font-size: 13.5px; color: var(--text-primary);">${t.name}</span>
+                            <span class="monitoreo-task-badge ${badgeClass}">${t.status}</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); background: rgba(0,0,0,0.15); padding: 8px; border-radius: 4px; border-left: 3px solid var(--accent-primary);">
+                            <strong>Notas Técnicas:</strong> ${observationText}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+    }
+
+    const modal = document.getElementById('monitoreoModal');
+    if (modal) modal.classList.add('active');
+};

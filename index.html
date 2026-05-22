@@ -35,14 +35,14 @@
             
             <nav class="sidebar-nav">
                 <a href="#" class="nav-item active" id="navWorkspace"><i class='bx bx-grid-alt'></i> Mis Tareas</a>
-                <a href="#" class="nav-item"><i class='bx bx-calendar'></i> Horario</a>
-                <a href="#" class="nav-item"><i class='bx bx-home-alt'></i> Teletrabajo</a>
-                <a href="#" class="nav-item"><i class='bx bx-folder-open'></i> Documentación</a>
-                <a href="#" class="nav-item" id="navPermisos"><i class='bx bx-check-shield'></i> Permisos</a>
-                <a href="#" class="nav-item" id="navTurnos" style="display: none;"><i class='bx bx-history'></i> Historial Turnos</a>
+                <a href="#" class="nav-item" id="navHorario"><i class='bx bx-calendar'></i> Horario</a>
+                <a href="#" class="nav-item" id="navTeletrabajo"><i class='bx bx-home-alt'></i> Teletrabajo</a>
+                <a href="#" class="nav-item" id="navDocs"><i class='bx bx-folder-open'></i> Documentación</a>
+                <a href="#" class="nav-item" id="navPermisos"><i class='bx bx-check-shield'></i> Historial de permisos</a>
+                <a href="#" class="nav-item" id="navTurnos" style="display: none;"><i class='bx bx-history'></i> Historial de turnos</a>
                 <a href="#" class="nav-item" id="navAprobaciones" style="display: none;"><i class='bx bx-user-check'></i> Aprobaciones</a>
-                <a href="monitoreo.html" target="_blank" class="nav-item" id="navMonitoreo" style="display: none;"><i class='bx bx-pulse'></i> Monitoreo Realtime</a>
-                <a href="#" class="nav-item"><i class='bx bx-help-circle'></i> Soporte</a>
+                <a href="#" class="nav-item" id="navMonitoreo" style="display: none;"><i class='bx bx-pulse'></i> Monitoreo</a>
+                <a href="#" class="nav-item" id="navSoporte"><i class='bx bx-help-circle'></i> Soporte</a>
             </nav>
 
             <div class="sidebar-footer" style="padding: 20px; border-top: 1px solid var(--glass-border); margin-top: auto;">
@@ -310,6 +310,85 @@
                 </div>
             </div>
 
+            <!-- Vista: Monitoreo Realtime -->
+            <div id="view-monitoreo" class="view-panel" style="display: none; padding: 20px; overflow-y: auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 class="panel-title" style="margin: 0;"><i class='bx bx-pulse'></i> Monitoreo</h2>
+                    <div class="pulse-live">
+                        <div class="pulse-live-dot"></div>
+                        En Vivo
+                    </div>
+                </div>
+
+                <!-- Stat Cards -->
+                <div class="stats-grid" style="margin-bottom: 20px;">
+                    <!-- Total Activos -->
+                    <div class="stat-widget glass-panel">
+                        <div class="stat-widget-details">
+                            <h3>Gestores Activos</h3>
+                            <div class="number" id="statsGestores">0 / 0</div>
+                        </div>
+                        <div class="stat-widget-icon">
+                            <i class='bx bx-group'></i>
+                        </div>
+                    </div>
+
+                    <!-- KPI Promedio -->
+                    <div class="stat-widget glass-panel">
+                        <div class="stat-widget-details">
+                            <h3>KPI Promedio General</h3>
+                            <div class="number" id="statsKpi">0%</div>
+                        </div>
+                        <div class="stat-widget-icon">
+                            <i class='bx bx-line-chart'></i>
+                        </div>
+                    </div>
+
+                    <!-- Turno Predominante -->
+                    <div class="stat-widget glass-panel warning">
+                        <div class="stat-widget-details">
+                            <h3>Turno en Curso</h3>
+                            <div class="number" id="statsTurno">Cargando...</div>
+                        </div>
+                        <div class="stat-widget-icon">
+                            <i class='bx bx-time-five'></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filter Row -->
+                <div class="filter-section glass-panel" style="margin-bottom: 20px;">
+                    <div class="filter-group">
+                        <div class="filter-input-wrapper">
+                            <i class='bx bx-search'></i>
+                            <input type="text" id="monitoreoSearchInput" class="modern-input" placeholder="Buscar por gestor...">
+                        </div>
+
+                        <select id="filterShiftSelect" class="filter-select">
+                            <option value="">Todos los Turnos</option>
+                            <option value="Mañana">Turno Mañana</option>
+                            <option value="Tarde">Turno Tarde</option>
+                            <option value="Noche">Turno Noche</option>
+                            <option value="Master">Turno Master</option>
+                        </select>
+
+                        <select id="filterStatusSelect" class="filter-select">
+                            <option value="">Todos los Estados</option>
+                            <option value="online">En Línea</option>
+                            <option value="offline">Inactivos</option>
+                        </select>
+                    </div>
+                    
+                    <button class="btn btn-outline" id="clearMonitoreoFiltersBtn" style="height: 40px; padding: 0 15px; display: flex; align-items: center; gap: 8px; width: auto;">
+                        <i class='bx bx-filter-alt'></i> Limpiar Filtros
+                    </button>
+                </div>
+
+                <!-- Grid layout of active managers -->
+                <div class="monitoreo-grid" id="monitoreoGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; padding-bottom: 40px;">
+                    <!-- Renderizado dinámico -->
+                </div>
+            </div>
 
         </main>
     </div>
@@ -352,6 +431,29 @@
                 <button class="btn btn-primary" onclick="changePassword()">Guardar</button>
             </div>
             <p id="passwordChangeMsg" style="display: none; margin-top: 10px; font-size: 14px; text-align: center;"></p>
+        </div>
+    </div>
+
+    <!-- Monitoreo Detail Modal -->
+    <div id="monitoreoModal" class="modal-overlay">
+        <div class="modal glass-panel" style="max-width: 600px; width: 90%;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 5px;">
+                <img id="monitoreoModalAvatar" src="" alt="Avatar" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-primary);">
+                <div>
+                    <h2 id="monitoreoModalName" style="margin: 0; font-size: 20px; color: var(--text-primary);">Bitácora de Tareas</h2>
+                    <div id="monitoreoModalInfo" style="font-size: 12px; color: var(--text-secondary);">Turno: Mañana | Activo hace poco</div>
+                </div>
+            </div>
+            <hr style="border: 0; border-top: 1px solid var(--glass-border); margin: 15px 0;">
+            <h3 style="font-size: 14px; color: var(--accent-primary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;"><i class='bx bx-task'></i> Detalle de Gestión de Tareas</h3>
+            
+            <div style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px;" id="monitoreoModalTasksList">
+                <!-- Tareas del gestor se cargan dinámicamente -->
+            </div>
+            
+            <div class="modal-actions" style="margin-top: 20px;">
+                <button class="btn btn-outline" id="closeMonitoreoModalBtn" style="width: auto;">Cerrar</button>
+            </div>
         </div>
     </div>
 
