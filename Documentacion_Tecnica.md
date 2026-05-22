@@ -1469,10 +1469,9 @@ El esqueleto estructural de la plataforma Risk Manager. Contiene la barra de nav
                 <!-- Filter Row -->
                 <div class="filter-section glass-panel" style="margin-bottom: 20px;">
                     <div class="filter-group">
-                        <div class="filter-input-wrapper">
-                            <i class='bx bx-search'></i>
-                            <input type="text" id="monitoreoSearchInput" class="modern-input" placeholder="Buscar por gestor...">
-                        </div>
+                        <select id="monitoreoSearchInput" class="filter-select">
+                            <option value="">Todos los Gestores</option>
+                        </select>
 
                         <select id="filterShiftSelect" class="filter-select">
                             <option value="">Todos los Turnos</option>
@@ -1931,6 +1930,10 @@ a { text-decoration: none; color: inherit; }
     gap: var(--spacing-sm);
     flex-grow: 1;
     overflow: hidden;
+}
+
+.workspace-grid.no-right-panel {
+    grid-template-columns: 300px 1fr;
 }
 
 .panel {
@@ -3297,6 +3300,12 @@ function initApp() {
             if(navMonitoreo) navMonitoreo.style.display = 'flex';
             if(navWorkspace) navWorkspace.style.display = 'flex'; // Keep Mis Tareas visible
             
+            // Ocultar el panel de Progreso del Turno / Documentos de Acceso Rápido en Mis Tareas para Admin o Supervisor
+            const rightPanel = document.querySelector('.right-panel');
+            if (rightPanel) rightPanel.style.display = 'none';
+            const workspaceGrid = document.querySelector('.workspace-grid');
+            if (workspaceGrid) workspaceGrid.classList.add('no-right-panel');
+
             // Forzar vista de Monitoreo Realtime como inicial
             const viewMonitoreo = document.getElementById('view-monitoreo');
             if (viewMonitoreo && navMonitoreo) {
@@ -3308,6 +3317,7 @@ function initApp() {
 
             // Iniciar sincronización en tiempo real para Monitoreo
             startActiveSessionsListener();
+            populateGestoresDropdown();
 
             // Listeners for Monitoreo filters
             const searchInput = document.getElementById('monitoreoSearchInput');
@@ -3315,7 +3325,7 @@ function initApp() {
             const statusSelect = document.getElementById('filterStatusSelect');
             const clearMonitoreoFiltersBtn = document.getElementById('clearMonitoreoFiltersBtn');
 
-            if (searchInput) searchInput.addEventListener('input', renderActiveSessionsDashboard);
+            if (searchInput) searchInput.addEventListener('change', renderActiveSessionsDashboard);
             if (shiftSelect) shiftSelect.addEventListener('change', renderActiveSessionsDashboard);
             if (statusSelect) statusSelect.addEventListener('change', renderActiveSessionsDashboard);
 
@@ -4773,6 +4783,35 @@ window.openMonitoreoDetails = function(uid) {
     const modal = document.getElementById('monitoreoModal');
     if (modal) modal.classList.add('active');
 };
+
+function populateGestoresDropdown() {
+    const selectEl = document.getElementById('monitoreoSearchInput');
+    if (!selectEl) return;
+    
+    selectEl.innerHTML = '<option value="">Todos los Gestores</option>';
+    
+    database.ref('users').once('value').then(snapshot => {
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            const gestores = Object.keys(data)
+                .map(k => data[k])
+                .filter(u => u && u.role === 'Gestor' && u.approved === true)
+                .map(u => u.name.trim())
+                .sort((a, b) => a.localeCompare(b));
+            
+            const uniqueGestores = [...new Set(gestores)];
+            
+            uniqueGestores.forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                selectEl.appendChild(opt);
+            });
+        }
+    }).catch(err => {
+        console.error("Error populating gestores dropdown:", err);
+    });
+}
 
 ```
 
