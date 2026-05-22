@@ -45,11 +45,10 @@ function excelToJSDate(serial) {
 
 function isSameDate(excelDate, jsDate) {
     if (!excelDate || !jsDate) return false;
-    // Both sides must use UTC to avoid Colombia's UTC-5 offset causing
-    // May 22 00:00 UTC to appear as May 21 19:00 local time.
-    return excelDate.getUTCDate()  === jsDate.getUTCDate()  &&
-           excelDate.getUTCMonth() === jsDate.getUTCMonth() &&
-           excelDate.getUTCFullYear() === jsDate.getUTCFullYear();
+    // Compare the UTC date from Excel (which is timezone-naive) with the browser's local date
+    return excelDate.getUTCDate()   === jsDate.getDate() &&
+           excelDate.getUTCMonth()  === jsDate.getMonth() &&
+           excelDate.getUTCFullYear() === jsDate.getFullYear();
 }
 
 function getShiftCategory(shiftText) {
