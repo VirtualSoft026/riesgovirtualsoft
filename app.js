@@ -285,6 +285,13 @@ async function loadSchedule() {
                         if (userRoleEl) userRoleEl.textContent = `${currentUser.role} | Turno: ${badgeShift}`;
                         const headerShiftBadge = document.querySelector('.shift-badge');
                         if (headerShiftBadge) headerShiftBadge.textContent = `TURNO: ${badgeShift}`;
+                        
+                        // Guardar el turno en currentUser y sincronizar a Firebase
+                        if (currentUser.shift !== badgeShift) {
+                            currentUser.shift = badgeShift;
+                            localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
+                            syncActiveSessionToFirebase();
+                        }
                     }
                     trHTML += '</tr>';
                     tableBody.innerHTML += trHTML;
