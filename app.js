@@ -1938,6 +1938,48 @@ function confirmException() {
     closeModal('exceptionModal');
 }
 
+function openExtraTaskModal() {
+    const modal = document.getElementById('extraTaskModal');
+    if (modal) {
+        document.getElementById('extraTaskName').value = '';
+        document.getElementById('extraTaskStatus').value = 'Finalizada';
+        document.getElementById('extraTaskObs').value = '';
+        modal.classList.add('active');
+    }
+}
+
+function saveExtraTask() {
+    const name = document.getElementById('extraTaskName').value.trim();
+    const status = document.getElementById('extraTaskStatus').value;
+    const obs = document.getElementById('extraTaskObs').value.trim();
+    
+    if (!name) {
+        alert("OBLIGATORIO: Debes ingresar el nombre de la tarea extra.");
+        return;
+    }
+    
+    if (!obs) {
+        alert("OBLIGATORIO: Debes detallar la gestión realizada en las Notas Técnicas.");
+        return;
+    }
+    
+    // Generar un ID único para esta tarea extra
+    const extraId = 'extra_' + Date.now();
+    
+    // Guardar en la caché local
+    taskStateCache[extraId] = {
+        name: "[EXTRA] " + name,
+        status: status,
+        observation: obs
+    };
+    localStorage.setItem('riskOps_cache', JSON.stringify(taskStateCache));
+    
+    updateKPI(); // Actualizar el anillo de progreso
+    closeModal('extraTaskModal');
+    
+    alert(`Tarea Adicional "${name}" agregada exitosamente y se incluirá en tu reporte de turno.`);
+}
+
 // Logic for Approving Users
 async function renderPendingUsers() {
     const tbody = document.getElementById('pendingUsersTableBody');
