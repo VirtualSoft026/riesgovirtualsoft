@@ -2972,8 +2972,28 @@ async function calcularIndicadores() {
     let totalNoRealizadas = 0;
     let totalPendientes = 0;
     let turnosAnalizados = shiftReports.length;
+    let totalMinutosConectados = 0;
+    let turnosValidosParaTiempo = 0;
     
     shiftReports.forEach(report => {
+        // Calcular duración del turno
+        if (report.horaInicio && report.horaFin) {
+            // Intentar parsear las fechas (asumiendo formato compatible o parseable)
+            // Se puede intentar limpiar o parsear directamente
+            const start = new Date(report.horaInicio);
+            const end = new Date(report.horaFin);
+            
+            if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                const diffMs = end - start;
+                const diffMins = diffMs / 60000;
+                // Filtrar errores (turnos menores a 1 minuto o mayores a 24h son sospechosos)
+                if (diffMins > 0 && diffMins < 1440) {
+                    totalMinutosConectados += diffMins;
+                    turnosValidosParaTiempo++;
+                }
+            }
+        }
+        
         if (!report.reporte) return;
         
         // Count occurrences of statuses in the text report
@@ -3002,11 +3022,21 @@ async function calcularIndicadores() {
     
     porcentaje = Math.round(porcentaje);
     
+    // Calcular promedio de horas y minutos
+    let promedioHoras = 0;
+    let promedioMinutosRestantes = 0;
+    if (turnosValidosParaTiempo > 0) {
+        const avgMinutosTotales = totalMinutosConectados / turnosValidosParaTiempo;
+        promedioHoras = Math.floor(avgMinutosTotales / 60);
+        promedioMinutosRestantes = Math.round(avgMinutosTotales % 60);
+    }
+    
     // Update DOM
     document.getElementById('kpiTotalFinalizadas').textContent = totalFinalizadas;
     document.getElementById('kpiTotalNoRealizadas').textContent = totalNoRealizadas;
     document.getElementById('kpiTotalPendientes').textContent = totalPendientes;
     document.getElementById('kpiTurnosAnalizados').textContent = turnosAnalizados;
+    document.getElementById('kpiDuracionPromedio').textContent = turnosValidosParaTiempo > 0 ? `${promedioHoras}h ${promedioMinutosRestantes}m` : 'N/A';
     
     const ring = document.getElementById('kpiScoreRing');
     const textPercent = document.getElementById('kpiScoreText');
