@@ -42,6 +42,7 @@
                 <a href="#" class="nav-item" id="navTurnos" style="display: none;"><i class='bx bx-history'></i> Historial de turnos</a>
                 <a href="#" class="nav-item" id="navAprobaciones" style="display: none;"><i class='bx bx-user-check'></i> Aprobaciones</a>
                 <a href="#" class="nav-item" id="navMonitoreo" style="display: none;"><i class='bx bx-pulse'></i> Monitoreo</a>
+                <a href="#" class="nav-item" id="navIndicadores" style="display: none;"><i class='bx bx-pie-chart-alt-2'></i> Indicadores (KPIs)</a>
                 <a href="#" class="nav-item" id="navSoporte"><i class='bx bx-help-circle'></i> Soporte</a>
             </nav>
 
@@ -378,6 +379,95 @@
                 <!-- Grid layout of active managers -->
                 <div class="monitoreo-grid" id="monitoreoGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; padding-bottom: 40px;">
                     <!-- Renderizado dinámico -->
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Vista: Indicadores (Injected via JS dynamically, wait, I will place it inside the main element where the other view panels are) -->
+    <!-- Let's put it right above the </main> tag -->
+            <!-- Vista: Indicadores -->
+            <div id="view-indicadores" class="view-panel" style="display: none; padding: 20px; overflow-y: auto;">
+                <h2 class="panel-title" style="margin-bottom: 20px; color: var(--accent-primary);"><i class='bx bx-pie-chart-alt-2'></i> Indicadores de Gestión</h2>
+                
+                <div class="glass-panel" style="padding: 20px; margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; border: 1px solid var(--glass-border);">
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; display: block; font-weight: 500;">Seleccionar Gestor:</label>
+                        <select id="kpiGestorSelect" class="modern-input" style="padding: 10px; width: 100%;">
+                            <option value="">Selecciona un gestor...</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; display: block; font-weight: 500;">Periodo de Evaluación:</label>
+                        <select id="kpiPeriodoSelect" class="modern-input" style="padding: 10px; width: 100%;">
+                            <option value="general">Histórico General</option>
+                            <option value="semanal">Últimos 7 Días</option>
+                        </select>
+                    </div>
+                    <div>
+                        <button class="btn btn-primary" onclick="calcularIndicadores()" style="height: 40px; padding: 0 20px; display: flex; align-items: center; gap: 8px;"><i class='bx bx-search-alt-2'></i> Calcular Rendimiento</button>
+                    </div>
+                </div>
+
+                <!-- Resultados KPIs -->
+                <div id="kpiResultsContainer" style="display: none;">
+                    <div class="stats-grid" style="margin-bottom: 20px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
+                        <!-- Rendimiento Global -->
+                        <div class="stat-widget glass-panel" style="display: flex; align-items: center; gap: 20px; grid-column: 1 / -1;">
+                            <div style="position: relative; width: 120px; height: 120px; flex-shrink: 0;">
+                                <svg width="120" height="120" viewBox="0 0 120 120" style="transform: rotate(-90deg);">
+                                    <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="12"></circle>
+                                    <circle id="kpiScoreRing" cx="60" cy="60" r="50" fill="none" stroke="var(--success)" stroke-width="12" stroke-dasharray="314.159" stroke-dashoffset="314.159" stroke-linecap="round" style="transition: stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1);"></circle>
+                                </svg>
+                                <div id="kpiScoreText" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; font-size: 26px; font-weight: 700; color: var(--text-primary);">0%</div>
+                            </div>
+                            <div>
+                                <h3 style="font-size: 20px; margin: 0 0 8px 0; color: var(--text-primary);">Puntaje de Rendimiento</h3>
+                                <p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 8px 0;">El rendimiento se calcula dividiendo las tareas finalizadas entre el total de tareas marcadas en todos los turnos. Las tareas marcadas como 'No Realizadas' o dejadas 'Pendientes' reducen la puntuación.</p>
+                                <div id="kpiVerdictBadge" class="badge" style="background: rgba(16, 185, 129, 0.2); color: var(--success); font-size: 12px; padding: 5px 10px;">Excelente Rendimiento</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stats-grid" style="margin-bottom: 20px;">
+                        <div class="stat-widget glass-panel" style="border-left: 4px solid var(--success);">
+                            <div class="stat-widget-details">
+                                <h3>Total Finalizadas</h3>
+                                <div class="number" id="kpiTotalFinalizadas" style="color: var(--success);">0</div>
+                            </div>
+                            <div class="stat-widget-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">
+                                <i class='bx bx-check-double'></i>
+                            </div>
+                        </div>
+                        <div class="stat-widget glass-panel" style="border-left: 4px solid var(--danger);">
+                            <div class="stat-widget-details">
+                                <h3>No Realizadas</h3>
+                                <div class="number" id="kpiTotalNoRealizadas" style="color: var(--danger);">0</div>
+                            </div>
+                            <div class="stat-widget-icon" style="background: rgba(239, 68, 68, 0.1); color: var(--danger);">
+                                <i class='bx bx-x-circle'></i>
+                            </div>
+                        </div>
+                        <div class="stat-widget glass-panel" style="border-left: 4px solid var(--warning);">
+                            <div class="stat-widget-details">
+                                <h3>Pendientes (Olvidadas)</h3>
+                                <div class="number" id="kpiTotalPendientes" style="color: var(--warning);">0</div>
+                            </div>
+                            <div class="stat-widget-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--warning);">
+                                <i class='bx bx-time'></i>
+                            </div>
+                        </div>
+                        <div class="stat-widget glass-panel" style="border-left: 4px solid var(--accent-primary);">
+                            <div class="stat-widget-details">
+                                <h3>Turnos Analizados</h3>
+                                <div class="number" id="kpiTurnosAnalizados" style="color: var(--accent-primary);">0</div>
+                            </div>
+                            <div class="stat-widget-icon" style="background: rgba(59, 130, 246, 0.1); color: var(--accent-primary);">
+                                <i class='bx bx-calendar-check'></i>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 

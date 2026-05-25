@@ -1286,6 +1286,7 @@ async function initApp() {
             const navAprobaciones = document.getElementById('navAprobaciones');
             const navTurnos = document.getElementById('navTurnos');
             const navMonitoreo = document.getElementById('navMonitoreo');
+            const navIndicadores = document.getElementById('navIndicadores');
             const navWorkspace = document.getElementById('navWorkspace');
             const viewWorkspace = document.getElementById('view-workspace');
             const viewAprobaciones = document.getElementById('view-aprobaciones');
@@ -1296,6 +1297,7 @@ async function initApp() {
             if(navAprobaciones) navAprobaciones.style.display = 'flex';
             if(navTurnos) navTurnos.style.display = 'flex';
             if(navMonitoreo) navMonitoreo.style.display = 'flex';
+            if(navIndicadores) navIndicadores.style.display = 'flex';
             if(navWorkspace) navWorkspace.style.display = 'flex'; // Keep Mis Tareas visible
             
             // Ocultar el panel de Progreso del Turno / Documentos de Acceso Rápido en Mis Tareas para Admin o Supervisor
@@ -1592,6 +1594,10 @@ async function initApp() {
                 if (viewMonitoreo) viewMonitoreo.style.display = 'block';
                 renderActiveSessionsDashboard();
                 updateGlobalStats();
+            } else if (item.id === 'navIndicadores') {
+                const viewIndicadores = document.getElementById('view-indicadores');
+                if (viewIndicadores) viewIndicadores.style.display = 'block';
+                loadGestoresForKPIs();
             }
         });
     });
@@ -2471,6 +2477,7 @@ function setupSidebar() {
     const navTurnos = document.getElementById('navTurnos');
     const navAprobaciones = document.getElementById('navAprobaciones');
     const navMonitoreo = document.getElementById('navMonitoreo');
+    const navIndicadores = document.getElementById('navIndicadores');
     const navSoporte = document.getElementById('navSoporte');
 
     if (currentUser && (currentUser.role === 'Admin' || currentUser.role === 'Supervisor')) {
@@ -2486,6 +2493,7 @@ function setupSidebar() {
         // 9. Soporte
         
         if (navMonitoreo) { navMonitoreo.style.display = 'flex'; sidebarNav.appendChild(navMonitoreo); }
+        if (navIndicadores) { navIndicadores.style.display = 'flex'; sidebarNav.appendChild(navIndicadores); }
         if (navTurnos) { navTurnos.style.display = 'flex'; sidebarNav.appendChild(navTurnos); }
         if (navAprobaciones) { navAprobaciones.style.display = 'flex'; sidebarNav.appendChild(navAprobaciones); }
         if (navPermisos) { navPermisos.style.display = 'flex'; sidebarNav.appendChild(navPermisos); }
@@ -2513,6 +2521,7 @@ function setupSidebar() {
         if (navTurnos) navTurnos.style.display = 'none';
         if (navAprobaciones) navAprobaciones.style.display = 'none';
         if (navMonitoreo) navMonitoreo.style.display = 'none';
+        if (navIndicadores) navIndicadores.style.display = 'none';
         
         if (navSoporte) { navSoporte.style.display = 'flex'; sidebarNav.appendChild(navSoporte); }
     }
@@ -2887,4 +2896,153 @@ function populateGestoresDropdown() {
     }).catch(err => {
         console.error("Error populating gestores dropdown:", err);
     });
+}
+
+// --- Lógica del Portal de Indicadores de Gestión (KPIs) ---
+
+function loadGestoresForKPIs() {
+    const selectEl = document.getElementById('kpiGestorSelect');
+    if (!selectEl) return;
+    
+    selectEl.innerHTML = '<option value="">Selecciona un gestor...</option>';
+    
+    database.ref('users').once('value').then(snapshot => {
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            const gestores = Object.keys(data)
+                .map(k => data[k])
+                .filter(u => u && u.role === 'Gestor' && u.approved === true)
+                .map(u => u.name.trim())
+                .sort((a, b) => a.localeCompare(b));
+            
+            const uniqueGestores = [...new Set(gestores)];
+            
+            uniqueGestores.forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                selectEl.appendChild(opt);
+            });
+        }
+    }).catch(err => console.error("Error populating KPI gestores dropdown:", err));
+}
+
+async function calcularIndicadores() {
+    const gestorName = document.getElementById('kpiGestorSelect').value;
+    const periodo = document.getElementById('kpiPeriodoSelect').value;
+    
+    if (!gestorName) {
+        alert("Por favor, selecciona un gestor primero.");
+        return;
+    }
+    
+    const resultsContainer = document.getElementById('kpiResultsContainer');
+    resultsContainer.style.display = 'none'; // hide while loading
+    
+    let shiftReports = [];
+    try {
+        const snapshot = await database.ref('shift_reports').orderByChild('gestor').equalTo(gestorName).once('value');
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            shiftReports = Object.keys(data).map(k => data[k]);
+        }
+    } catch(e) {
+        console.error("Error cargando shift reports para KPIs", e);
+        alert("Hubo un error cargando los datos.");
+        return;
+    }
+    
+    if (shiftReports.length === 0) {
+        alert(`No se encontraron turnos registrados para ${gestorName}.`);
+        return;
+    }
+    
+    // Filtro por fecha si es "semanal"
+    if (periodo === 'semanal') {
+        const unaSemanaAtras = Date.now() - (7 * 24 * 60 * 60 * 1000);
+        shiftReports = shiftReports.filter(r => r.timestamp && r.timestamp >= unaSemanaAtras);
+    }
+    
+    if (shiftReports.length === 0) {
+        alert(`No hay registros en los últimos 7 días para ${gestorName}.`);
+        return;
+    }
+    
+    let totalFinalizadas = 0;
+    let totalNoRealizadas = 0;
+    let totalPendientes = 0;
+    let turnosAnalizados = shiftReports.length;
+    
+    shiftReports.forEach(report => {
+        if (!report.reporte) return;
+        
+        // Count occurrences of statuses in the text report
+        const text = report.reporte.toUpperCase();
+        
+        // Use regular expressions to count matches
+        const finMatches = text.match(/\[\s*FINALIZADA\s*\]/g);
+        const noRealMatches = text.match(/\[\s*NO REALIZADA\s*\]/g);
+        const procMatches = text.match(/\[\s*EN PROCESO\s*\]/g);
+        const pendMatches = text.match(/\[\s*PENDIENTE\s*\]/g);
+        
+        if (finMatches) totalFinalizadas += finMatches.length;
+        if (noRealMatches) totalNoRealizadas += noRealMatches.length;
+        if (procMatches) totalPendientes += procMatches.length;
+        if (pendMatches) totalPendientes += pendMatches.length;
+    });
+    
+    const totalTareas = totalFinalizadas + totalNoRealizadas + totalPendientes;
+    let porcentaje = 0;
+    
+    if (totalTareas > 0) {
+        porcentaje = (totalFinalizadas / totalTareas) * 100;
+    } else {
+        porcentaje = 100; // Si no hay tareas marcadas, no se penaliza
+    }
+    
+    porcentaje = Math.round(porcentaje);
+    
+    // Update DOM
+    document.getElementById('kpiTotalFinalizadas').textContent = totalFinalizadas;
+    document.getElementById('kpiTotalNoRealizadas').textContent = totalNoRealizadas;
+    document.getElementById('kpiTotalPendientes').textContent = totalPendientes;
+    document.getElementById('kpiTurnosAnalizados').textContent = turnosAnalizados;
+    
+    const ring = document.getElementById('kpiScoreRing');
+    const textPercent = document.getElementById('kpiScoreText');
+    const badge = document.getElementById('kpiVerdictBadge');
+    
+    // Circumference = 2 * pi * r = 2 * 3.14159 * 50 = 314.159
+    const circumference = 314.159;
+    const offset = circumference - (porcentaje / 100) * circumference;
+    
+    // Reset ring for animation
+    ring.style.transition = 'none';
+    ring.style.strokeDashoffset = circumference;
+    
+    // Trigger animation flow
+    setTimeout(() => {
+        ring.style.transition = 'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)';
+        ring.style.strokeDashoffset = offset;
+        textPercent.textContent = porcentaje + '%';
+        
+        if (porcentaje >= 90) {
+            ring.style.stroke = 'var(--success)';
+            badge.style.background = 'rgba(16, 185, 129, 0.2)';
+            badge.style.color = 'var(--success)';
+            badge.textContent = 'Excelente Rendimiento';
+        } else if (porcentaje >= 75) {
+            ring.style.stroke = 'var(--warning)';
+            badge.style.background = 'rgba(245, 158, 11, 0.2)';
+            badge.style.color = 'var(--warning)';
+            badge.textContent = 'Rendimiento Aceptable';
+        } else {
+            ring.style.stroke = 'var(--danger)';
+            badge.style.background = 'rgba(239, 68, 68, 0.2)';
+            badge.style.color = 'var(--danger)';
+            badge.textContent = 'Rendimiento Crítico';
+        }
+    }, 50);
+    
+    resultsContainer.style.display = 'block';
 }
