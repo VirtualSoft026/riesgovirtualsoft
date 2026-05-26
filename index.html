@@ -410,7 +410,10 @@
                             <label style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 600;"><i class='bx bx-calendar'></i> Periodo de Evaluación</label>
                             <select id="kpiPeriodoSelect" class="modern-input" style="padding: 12px; width: 100%; border-radius: var(--radius-md); background: rgba(0,0,0,0.2);">
                                 <option value="general">Histórico General (Todo)</option>
+                                <option value="hoy">Hoy</option>
                                 <option value="semanal">Últimos 7 Días</option>
+                                <option value="30dias">Últimos 30 Días</option>
+                                <option value="mes">Este Mes</option>
                             </select>
                         </div>
                     </div>
@@ -438,7 +441,7 @@
                             </div>
 
                             <!-- Grid de Tarjetas (Unificado) -->
-                            <div class="stats-grid" style="grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px;">
+                            <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; width: 100%;">
                                 
                                 <!-- TAREAS SET (Operatividad) -->
                                 <div class="stat-widget glass-panel kpi-clickable-card" style="border-left: 4px solid var(--success); cursor: pointer; transition: all 0.3s;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 20px rgba(16,185,129,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'" onclick="openKpiTaskDetails('finalizadas')">

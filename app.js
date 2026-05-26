@@ -3039,11 +3039,21 @@ async function calcularIndicadores() {
         alert(`No se encontraron turnos registrados para ${gestorName}.`);
         return;
     }
+    // Filtro por fecha
+    const now = Date.now();
     
-    // Filtro por fecha si es "semanal"
-    if (periodo === 'semanal') {
-        const unaSemanaAtras = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    if (periodo === 'hoy') {
+        const hoyStart = new Date().setHours(0,0,0,0);
+        shiftReports = shiftReports.filter(r => r.timestamp && r.timestamp >= hoyStart);
+    } else if (periodo === 'semanal') {
+        const unaSemanaAtras = now - (7 * 24 * 60 * 60 * 1000);
         shiftReports = shiftReports.filter(r => r.timestamp && r.timestamp >= unaSemanaAtras);
+    } else if (periodo === '30dias') {
+        const unMesAtras = now - (30 * 24 * 60 * 60 * 1000);
+        shiftReports = shiftReports.filter(r => r.timestamp && r.timestamp >= unMesAtras);
+    } else if (periodo === 'mes') {
+        const esteMesStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+        shiftReports = shiftReports.filter(r => r.timestamp && r.timestamp >= esteMesStart);
     }
     
     if (shiftReports.length === 0) {
