@@ -3077,21 +3077,25 @@ async function calcularIndicadores() {
             }
         }
         
-        if (!report.reporte) return;
+        if (!report.tasks) return;
         
-        // Count occurrences of statuses in the text report
-        const text = report.reporte.toUpperCase();
-        
-        // Use regular expressions to count matches
-        const finMatches = text.match(/\[\s*FINALIZADA\s*\]/g);
-        const noRealMatches = text.match(/\[\s*NO REALIZADA\s*\]/g);
-        const procMatches = text.match(/\[\s*EN PROCESO\s*\]/g);
-        const pendMatches = text.match(/\[\s*PENDIENTE\s*\]/g);
-        
-        if (finMatches) totalFinalizadas += finMatches.length;
-        if (noRealMatches) totalNoRealizadas += noRealMatches.length;
-        if (procMatches) totalPendientes += procMatches.length;
-        if (pendMatches) totalPendientes += pendMatches.length;
+        // Contar tareas
+        for (let taskId in report.tasks) {
+            const task = report.tasks[taskId];
+            const shiftDateStr = new Date(report.loginTime || report.createdAt || Date.now()).toLocaleDateString();
+            const taskObj = { name: task.name, date: shiftDateStr, type: task.type };
+            
+            if (task.status === 'finalizada') {
+                totalFinalizadas++;
+                window.kpiTaskLists.finalizadas.push(taskObj);
+            } else if (task.status === 'no_realizada') {
+                totalNoRealizadas++;
+                window.kpiTaskLists.no_realizadas.push(taskObj);
+            } else if (task.status === 'pendiente' || task.status === 'en_proceso') {
+                totalPendientes++;
+                window.kpiTaskLists.pendientes.push(taskObj);
+            }
+        }
     });
     
     const totalTareas = totalFinalizadas + totalNoRealizadas + totalPendientes;
@@ -3137,8 +3141,6 @@ async function calcularIndicadores() {
         }
         
         if (stats) {
-            // Mostrar tarjetas de métricas
-            retirosCardsElements.forEach(el => el.style.display = 'flex');
             if (cardPagados) cardPagados.textContent = stats.totalAprobados;
             if (cardRechazados) cardRechazados.textContent = stats.totalRechazados;
             if (cardMonto) {
@@ -3165,14 +3167,22 @@ async function calcularIndicadores() {
                 if (cardRetiros) cardRetiros.style.display = 'none';
             }
         } else {
-            // Gestor no tiene data de retiros
-            retirosCardsElements.forEach(el => el.style.display = 'none');
+            // Gestor no tiene data de retiros, mostrar 0
+            if (cardPagados) cardPagados.textContent = "0";
+            if (cardRechazados) cardRechazados.textContent = "0";
+            if (cardMonto) cardMonto.textContent = "$0";
             if (cardRetiros) cardRetiros.style.display = 'none';
         }
     } else {
-        retirosCardsElements.forEach(el => el.style.display = 'none');
+        // No hay JSON de retiros
+        if (cardPagados) cardPagados.textContent = "0";
+        if (cardRechazados) cardRechazados.textContent = "0";
+        if (cardMonto) cardMonto.textContent = "$0";
         if (cardRetiros) cardRetiros.style.display = 'none';
     }
+    
+    // SIEMPRE mostrar las tarjetas de retiros base, independientemente de si hay datos (excluyendo la de penalidad que es dinámica)
+    retirosCardsElements.forEach(el => el.style.display = 'flex');
     
     // Calcular promedio de horas y minutos
     let promedioHoras = 0;
@@ -3226,7 +3236,7 @@ async function calcularIndicadores() {
         }
     }, 50);
     
-    resultsContainer.style.display = 'block';
+    resultsContainer.style.display = 'flex';
 }
 
 // Modal de Detalle de Tareas (KPIs)
