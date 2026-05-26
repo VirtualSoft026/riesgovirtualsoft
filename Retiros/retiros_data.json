@@ -125,6 +125,13 @@
     "minutosDemoraTotales": 13852.383333333333,
     "retirosConTiempo": 46
   },
+  "sara.castaneda": {
+    "totalAprobados": 4775,
+    "totalRechazados": 672,
+    "montoProcesado": 541621.3499999996,
+    "minutosDemoraTotales": 6423843.749999994,
+    "retirosConTiempo": 5456
+  },
   "lina.restrepo@virtualsoft.tech": {
     "totalAprobados": 8482,
     "totalRechazados": 441,
@@ -146,12 +153,33 @@
     "minutosDemoraTotales": 329715.63333333307,
     "retirosConTiempo": 1550
   },
+  "samuel cruz": {
+    "totalAprobados": 197,
+    "totalRechazados": 11,
+    "montoProcesado": 108962.95999999998,
+    "minutosDemoraTotales": 48703.81666666667,
+    "retirosConTiempo": 227
+  },
+  "oriana borjs": {
+    "totalAprobados": 535,
+    "totalRechazados": 123,
+    "montoProcesado": 3050658.8200000008,
+    "minutosDemoraTotales": 140544.80000000005,
+    "retirosConTiempo": 696
+  },
   "josue.alvarez@virtualsoft.tech": {
     "totalAprobados": 2516,
     "totalRechazados": 32,
     "montoProcesado": 725628.6400000001,
     "minutosDemoraTotales": 329674.4833333337,
     "retirosConTiempo": 2781
+  },
+  "marilyn.jimenez": {
+    "totalAprobados": 279,
+    "totalRechazados": 37,
+    "montoProcesado": 392150.23,
+    "minutosDemoraTotales": 113718.94999999998,
+    "retirosConTiempo": 337
   },
   "mariana.fernandez@virtualsoft.tech": {
     "totalAprobados": 404,
@@ -160,12 +188,54 @@
     "minutosDemoraTotales": 756328.2166666667,
     "retirosConTiempo": 411
   },
+  "alexander villada": {
+    "totalAprobados": 1356,
+    "totalRechazados": 4,
+    "montoProcesado": 718443.38,
+    "minutosDemoraTotales": 146338.41666666654,
+    "retirosConTiempo": 1544
+  },
+  "sebastian hincapie": {
+    "totalAprobados": 683,
+    "totalRechazados": 62,
+    "montoProcesado": 2242791.850000003,
+    "minutosDemoraTotales": 65370.98333333334,
+    "retirosConTiempo": 890
+  },
+  "mariana hernandez": {
+    "totalAprobados": 0,
+    "totalRechazados": 2,
+    "montoProcesado": 10089.0,
+    "minutosDemoraTotales": 0.4166666666666667,
+    "retirosConTiempo": 2
+  },
+  "alejandro garcia": {
+    "totalAprobados": 0,
+    "totalRechazados": 3,
+    "montoProcesado": 30000.0,
+    "minutosDemoraTotales": 1.3833333333333333,
+    "retirosConTiempo": 3
+  },
   "bjimenez@doradobet.cr": {
     "totalAprobados": 10750,
     "totalRechazados": 255,
     "montoProcesado": 624590105.66,
     "minutosDemoraTotales": 12164798.81666666,
     "retirosConTiempo": 11005
+  },
+  "agentecr2": {
+    "totalAprobados": 4053,
+    "totalRechazados": 680,
+    "montoProcesado": 215014723.84000006,
+    "minutosDemoraTotales": 1172073.5999999992,
+    "retirosConTiempo": 4917
+  },
+  "dirfinancr": {
+    "totalAprobados": 210,
+    "totalRechazados": 27,
+    "montoProcesado": 18038108.2,
+    "minutosDemoraTotales": 348108.79999999993,
+    "retirosConTiempo": 237
   },
   "jacobo.perez@virtualsoft.tech": {
     "totalAprobados": 0,
@@ -195,6 +265,27 @@
     "minutosDemoraTotales": 45362.9,
     "retirosConTiempo": 267
   },
+  "finannota": {
+    "totalAprobados": 33326,
+    "totalRechazados": 455,
+    "montoProcesado": 20827601.734890003,
+    "minutosDemoraTotales": 32677711.73333317,
+    "retirosConTiempo": 33782
+  },
+  "auxsaldos6": {
+    "totalAprobados": 8070,
+    "totalRechazados": 291,
+    "montoProcesado": 5804189.790000001,
+    "minutosDemoraTotales": 6295939.916666664,
+    "retirosConTiempo": 8578
+  },
+  "xiomara bernardo": {
+    "totalAprobados": 0,
+    "totalRechazados": 314,
+    "montoProcesado": 375418.87000000005,
+    "minutosDemoraTotales": 1260.9833333333333,
+    "retirosConTiempo": 343
+  },
   "julian.baena@doradobet.com": {
     "totalAprobados": 0,
     "totalRechazados": 170,
@@ -202,12 +293,54 @@
     "minutosDemoraTotales": 296.4,
     "retirosConTiempo": 170
   },
+  "grace mendoza": {
+    "totalAprobados": 0,
+    "totalRechazados": 205,
+    "montoProcesado": 163068.35,
+    "minutosDemoraTotales": 0.0,
+    "retirosConTiempo": 205
+  },
+  "maria.sanchez": {
+    "totalAprobados": 0,
+    "totalRechazados": 365,
+    "montoProcesado": 55650.72999999999,
+    "minutosDemoraTotales": 0.0,
+    "retirosConTiempo": 365
+  },
   "fausto.leon@doradobet.com": {
     "totalAprobados": 0,
     "totalRechazados": 245,
     "montoProcesado": 431567.73999999993,
     "minutosDemoraTotales": 5573.600000000001,
     "retirosConTiempo": 331
+  },
+  "jerson.polo": {
+    "totalAprobados": 0,
+    "totalRechazados": 3,
+    "montoProcesado": 150.0,
+    "minutosDemoraTotales": 34.6,
+    "retirosConTiempo": 3
+  },
+  "henry.chimbolema": {
+    "totalAprobados": 23257,
+    "totalRechazados": 55,
+    "montoProcesado": 3037122.1119999937,
+    "minutosDemoraTotales": 1812185.3333333333,
+    "retirosConTiempo": 23400
+  },
+  "leslie.pinto": {
+    "totalAprobados": 1540,
+    "totalRechazados": 0,
+    "montoProcesado": 231698.71000000008,
+    "minutosDemoraTotales": 216879.69999999987,
+    "retirosConTiempo": 1554
+  },
+  "johana.fermenal": {
+    "totalAprobados": 2037,
+    "totalRechazados": 0,
+    "montoProcesado": 334075.08000000013,
+    "minutosDemoraTotales": 220152.3166666668,
+    "retirosConTiempo": 2037
   },
   "miriam.perez@ecuabet.com": {
     "totalAprobados": 8799,
@@ -244,6 +377,13 @@
     "minutosDemoraTotales": 845387.8166666653,
     "retirosConTiempo": 6914
   },
+  "alyson sanchez": {
+    "totalAprobados": 9264,
+    "totalRechazados": 62,
+    "montoProcesado": 1330132.9700000004,
+    "minutosDemoraTotales": 1183678.7166666596,
+    "retirosConTiempo": 9867
+  },
   "alexander.guanuche@ecuabet.com": {
     "totalAprobados": 9895,
     "totalRechazados": 32,
@@ -257,6 +397,13 @@
     "montoProcesado": 872946.7300000002,
     "minutosDemoraTotales": 1291381.4333333343,
     "retirosConTiempo": 6669
+  },
+  "adrian.zambrano": {
+    "totalAprobados": 123,
+    "totalRechazados": 3,
+    "montoProcesado": 9678.13,
+    "minutosDemoraTotales": 5262.9,
+    "retirosConTiempo": 126
   },
   "cristian.chela@ecuabet.com": {
     "totalAprobados": 38,
@@ -327,6 +474,13 @@
     "montoProcesado": 180952.15,
     "minutosDemoraTotales": 189832.73333333337,
     "retirosConTiempo": 2009
+  },
+  "yennifer.perez": {
+    "totalAprobados": 170,
+    "totalRechazados": 485,
+    "montoProcesado": 577491.75,
+    "minutosDemoraTotales": 86373.20000000007,
+    "retirosConTiempo": 900
   },
   "sonia.duran@ganaplay.com": {
     "totalAprobados": 174,

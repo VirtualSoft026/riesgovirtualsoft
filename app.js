@@ -3165,6 +3165,27 @@ async function calcularIndicadores() {
                     break;
                 }
             }
+            
+            // Fallback: Emparejamiento por nombre y apellido
+            if (!stats && gestorName) {
+                const nameParts = gestorName.toLowerCase().split(' ').filter(p => p.length > 2);
+                if (nameParts.length >= 1) {
+                    const firstName = nameParts[0];
+                    const secondPart = nameParts.length > 1 ? nameParts[1].substring(0, 3) : "";
+                    
+                    for (let excelEmail in window.retirosGlobalData) {
+                        if (excelEmail.includes(firstName)) {
+                            if (secondPart && excelEmail.includes(secondPart)) {
+                                stats = window.retirosGlobalData[excelEmail];
+                                break;
+                            } else if (!secondPart) {
+                                stats = window.retirosGlobalData[excelEmail];
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
         }
         
         if (stats) {

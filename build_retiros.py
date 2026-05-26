@@ -33,7 +33,7 @@ def build_retiros():
             if pd.isna(email):
                 email = row.get("Nombre Usuario Cambio")
                 
-            if pd.isna(email) or not isinstance(email, str) or '@' not in email:
+            if pd.isna(email) or not isinstance(email, str):
                 continue
                 
             email = email.strip().lower()
