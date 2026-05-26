@@ -1570,6 +1570,10 @@ async function initApp() {
 
             // Ocultar todas las vistas
             document.querySelectorAll('.view-panel').forEach(v => v.style.display = 'none');
+            
+            // Mostrar por defecto el top-header para todas las vistas (se oculta en casos específicos)
+            const topHeader = document.querySelector('.top-header');
+            if (topHeader) topHeader.style.display = 'flex';
 
             // Mostrar la correcta
             if (item.id === 'navWorkspace') {
@@ -1597,6 +1601,7 @@ async function initApp() {
             } else if (item.id === 'navIndicadores') {
                 const viewIndicadores = document.getElementById('view-indicadores');
                 if (viewIndicadores) viewIndicadores.style.display = 'block';
+                if (topHeader) topHeader.style.display = 'none'; // Ocultar header según solicitud
                 loadGestoresForKPIs();
             }
         });
