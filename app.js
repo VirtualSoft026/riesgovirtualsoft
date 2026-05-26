@@ -3229,6 +3229,62 @@ async function calcularIndicadores() {
     resultsContainer.style.display = 'block';
 }
 
+// Modal de Detalle de Tareas (KPIs)
+function openKpiTaskDetails(tipo) {
+    const modal = document.getElementById('kpiTaskDetailsModal');
+    const title = document.getElementById('kpiModalTitle');
+    const icon = document.getElementById('kpiModalIcon');
+    const list = document.getElementById('kpiModalTaskList');
+    
+    if (!window.kpiTaskLists) return;
+    
+    const tasks = window.kpiTaskLists[tipo] || [];
+    
+    // Configurar cabecera
+    if (tipo === 'finalizadas') {
+        title.textContent = 'Tareas Finalizadas';
+        icon.className = 'bx bx-check-double';
+        icon.style.color = 'var(--success)';
+    } else if (tipo === 'no_realizadas') {
+        title.textContent = 'Tareas No Realizadas';
+        icon.className = 'bx bx-x-circle';
+        icon.style.color = 'var(--danger)';
+    } else if (tipo === 'pendientes') {
+        title.textContent = 'Tareas Pendientes';
+        icon.className = 'bx bx-time';
+        icon.style.color = 'var(--warning)';
+    }
+    
+    list.innerHTML = '';
+    
+    if (tasks.length === 0) {
+        list.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 20px;">No hay tareas en este estado.</div>';
+    } else {
+        tasks.forEach(t => {
+            const tTypeColor = t.type === 'adicional' ? 'var(--warning)' : 'var(--accent-primary)';
+            const tTypeBadge = `<span style="font-size: 10px; background: ${tTypeColor}20; color: ${tTypeColor}; padding: 2px 6px; border-radius: 10px; margin-left: 8px;">${t.type === 'adicional' ? 'Adicional' : 'Set'}</span>`;
+            
+            list.innerHTML += `
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); padding: 10px 15px; border-radius: var(--radius-sm); display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-size: 13px; color: var(--text-primary); font-weight: 500;">
+                        ${t.name}
+                        ${tTypeBadge}
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-secondary);">
+                        <i class='bx bx-calendar'></i> ${t.date}
+                    </div>
+                </div>
+            `;
+        });
+    }
+    
+    modal.classList.add('active');
+}
+
+function closeKpiTaskDetails() {
+    document.getElementById('kpiTaskDetailsModal').classList.remove('active');
+}
+
 // Inicialización al cargar el DOM
 document.addEventListener('DOMContentLoaded', () => {
     loadRetirosData();
