@@ -395,137 +395,162 @@
     <!-- Let's put it right above the </main> tag -->
             <!-- Vista: Indicadores -->
             <div id="view-indicadores" class="view-panel" style="display: none; padding: 20px; overflow-y: auto;">
-                <h2 class="panel-title" style="margin-bottom: 20px; color: var(--accent-primary);"><i class='bx bx-pie-chart-alt-2'></i> Indicadores de Gestión</h2>
+                <h2 class="panel-title" style="margin-bottom: 20px; color: var(--accent-primary);"><i class='bx bx-pie-chart-alt-2'></i> Indicadores de Gestión y Desempeño</h2>
                 
-                <div class="glass-panel" style="padding: 20px; margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; border: 1px solid var(--glass-border);">
-                    <div style="flex: 1; min-width: 200px;">
-                        <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; display: block; font-weight: 500;">Seleccionar Gestor:</label>
-                        <select id="kpiGestorSelect" class="modern-input" style="padding: 10px; width: 100%;">
-                            <option value="">Selecciona un gestor...</option>
-                        </select>
-                    </div>
-                    <div style="flex: 1; min-width: 200px;">
-                        <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; display: block; font-weight: 500;">Periodo de Evaluación:</label>
-                        <select id="kpiPeriodoSelect" class="modern-input" style="padding: 10px; width: 100%;">
-                            <option value="general">Histórico General</option>
-                            <option value="semanal">Últimos 7 Días</option>
-                        </select>
-                    </div>
-                    <div>
-                        <button class="btn btn-primary" onclick="calcularIndicadores()" style="height: 40px; padding: 0 20px; display: flex; align-items: center; gap: 8px;"><i class='bx bx-search-alt-2'></i> Calcular Rendimiento</button>
-                    </div>
-                </div>
-
-                <!-- Resultados KPIs -->
-                <div id="kpiResultsContainer" style="display: none;">
-                    <div class="stats-grid" style="margin-bottom: 20px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
-                        <!-- Rendimiento Global -->
-                        <div class="stat-widget glass-panel" style="display: flex; align-items: center; gap: 20px; grid-column: 1 / -1;">
-                            <div style="position: relative; width: 120px; height: 120px; flex-shrink: 0;">
-                                <svg width="120" height="120" viewBox="0 0 120 120" style="transform: rotate(-90deg);">
-                                    <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="12"></circle>
-                                    <circle id="kpiScoreRing" cx="60" cy="60" r="50" fill="none" stroke="var(--success)" stroke-width="12" stroke-dasharray="314.159" stroke-dashoffset="314.159" stroke-linecap="round" style="transition: stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1);"></circle>
-                                </svg>
-                                <div id="kpiScoreText" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; font-size: 26px; font-weight: 700; color: var(--text-primary);">0%</div>
-                            </div>
-                            <div>
-                                <h3 style="font-size: 20px; margin: 0 0 8px 0; color: var(--text-primary);">Puntaje de Rendimiento</h3>
-                                <p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 8px 0;">El rendimiento se calcula dividiendo las tareas finalizadas entre el total de tareas marcadas en todos los turnos. Las tareas marcadas como 'No Realizadas' o dejadas 'Pendientes' reducen la puntuación.</p>
-                                <div id="kpiVerdictBadge" class="badge" style="background: rgba(16, 185, 129, 0.2); color: var(--success); font-size: 12px; padding: 5px 10px;">Excelente Rendimiento</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="stats-grid" style="margin-bottom: 20px;">
-                        <div class="stat-widget glass-panel" style="border-left: 4px solid var(--success);">
-                            <div class="stat-widget-details">
-                                <h3>Total Finalizadas</h3>
-                                <div class="number" id="kpiTotalFinalizadas" style="color: var(--success);">0</div>
-                            </div>
-                            <div class="stat-widget-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">
-                                <i class='bx bx-check-double'></i>
-                            </div>
-                        </div>
-                        <div class="stat-widget glass-panel" style="border-left: 4px solid var(--danger);">
-                            <div class="stat-widget-details">
-                                <h3>No Realizadas</h3>
-                                <div class="number" id="kpiTotalNoRealizadas" style="color: var(--danger);">0</div>
-                            </div>
-                            <div class="stat-widget-icon" style="background: rgba(239, 68, 68, 0.1); color: var(--danger);">
-                                <i class='bx bx-x-circle'></i>
-                            </div>
-                        </div>
-                        <div class="stat-widget glass-panel" style="border-left: 4px solid var(--warning);">
-                            <div class="stat-widget-details">
-                                <h3>Pendientes (Olvidadas)</h3>
-                                <div class="number" id="kpiTotalPendientes" style="color: var(--warning);">0</div>
-                            </div>
-                            <div class="stat-widget-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--warning);">
-                                <i class='bx bx-time'></i>
-                            </div>
-                        </div>
-                        <div class="stat-widget glass-panel" style="border-left: 4px solid var(--accent-primary);">
-                            <div class="stat-widget-details">
-                                <h3>Turnos Analizados</h3>
-                                <div class="number" id="kpiTurnosAnalizados" style="color: var(--accent-primary);">0</div>
-                            </div>
-                            <div class="stat-widget-icon" style="background: rgba(59, 130, 246, 0.1); color: var(--accent-primary);">
-                                <i class='bx bx-calendar-check'></i>
-                            </div>
-                        </div>
-                        <div class="stat-widget glass-panel" style="border-left: 4px solid #8B5CF6;">
-                            <div class="stat-widget-details">
-                                <h3>Duración Promedio</h3>
-                                <div class="number" id="kpiDuracionPromedio" style="color: #8B5CF6;">0h 0m</div>
-                            </div>
-                            <div class="stat-widget-icon" style="background: rgba(139, 92, 246, 0.1); color: #8B5CF6;">
-                                <i class='bx bx-time-five'></i>
-                            </div>
-                        </div>
-                        <div class="stat-widget glass-panel" style="border-left: 4px solid var(--danger); display: none;" id="kpiRetirosPenalidadCard">
-                            <div class="stat-widget-details">
-                                <h3>Penalidad por Demora (Retiros)</h3>
-                                <div class="number" id="kpiPenalidadRetiros" style="color: var(--danger); font-size: 18px;">-0%</div>
-                                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 5px;" id="kpiDemoraPromedioText">Sin datos</div>
-                            </div>
-                            <div class="stat-widget-icon" style="background: rgba(239, 68, 68, 0.1); color: var(--danger);">
-                                <i class='bx bx-trending-down'></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Nueva Sección de Carga de Retiros -->
-                <div class="kpi-dashboard glass-panel" style="margin-top: 20px;">
-                    <div class="kpi-header" style="margin-bottom: 15px;">
-                        <h2 style="color: var(--text-primary); display: flex; align-items: center; gap: 10px;">
-                            <i class='bx bx-cloud-upload'></i> Análisis de Retiros
-                        </h2>
-                    </div>
-                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 15px;">Sube el archivo de retiros para calcular los promedios de tiempo de aprobación y afectar el rendimiento de los gestores correspondientes. (Solo .xlsx)</p>
-                    <div style="display: flex; flex-direction: column; gap: 15px; align-items: stretch; max-width: 600px; margin: 0 auto;">
-                        <div class="file-upload-wrapper" style="border: 2px dashed var(--accent-primary); border-radius: var(--radius-md); padding: 30px 20px; text-align: center; position: relative; background: rgba(59, 130, 246, 0.05); transition: all 0.3s ease; cursor: pointer;" onmouseover="this.style.background='rgba(59, 130, 246, 0.1)'" onmouseout="this.style.background='rgba(59, 130, 246, 0.05)'">
-                            <i class='bx bx-cloud-upload' style="font-size: 48px; color: var(--accent-primary); margin-bottom: 10px;"></i>
-                            <p style="margin: 0; font-size: 15px; color: var(--text-primary); font-weight: 500;">Haz clic o arrastra tu archivo aquí</p>
-                            <p style="margin: 5px 0 0; font-size: 12px; color: var(--text-secondary);">Archivo soportado: Excel (.xlsx)</p>
-                            <input type="file" id="retirosFileInput" accept=".xlsx, .xls" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;" onchange="document.getElementById('selectedFileName').textContent = this.files[0] ? 'Archivo cargado: ' + this.files[0].name : '';">
-                        </div>
-                        <div id="selectedFileName" style="font-size: 13px; color: var(--success); text-align: center; font-weight: 600;"></div>
-                        <button class="btn btn-primary" onclick="procesarArchivoRetiros()" style="width: 100%; justify-content: center; padding: 12px;"><i class='bx bx-cog'></i> Procesar Datos de Retiros</button>
-                    </div>
-                    <div id="retirosUploadStatus" style="font-size: 13px; margin-top: 15px; font-weight: 500;"></div>
+                <div style="display: grid; grid-template-columns: 350px 1fr; gap: 20px;">
                     
-                    <div id="retirosGlobalStats" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--glass-border);">
-                        <h3 style="color: var(--text-primary); margin-bottom: 15px; font-size: 15px;">Resumen del Archivo</h3>
-                        <div class="kpi-stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
-                            <div class="stat-widget glass-panel" style="border-left: 3px solid var(--accent-primary); padding: 15px;">
-                                <div style="font-size: 12px; color: var(--text-secondary);">Total Retiros Procesados</div>
-                                <div id="globalRetirosTotal" style="font-size: 20px; font-weight: 600; color: var(--text-primary); margin-top: 5px;">0</div>
+                    <!-- Columna Izquierda: Filtros y Carga de Datos -->
+                    <div class="kpi-sidebar" style="display: flex; flex-direction: column; gap: 20px;">
+                        
+                        <!-- Panel de Filtros -->
+                        <div class="glass-panel" style="padding: 20px; border: 1px solid var(--glass-border);">
+                            <h3 style="font-size: 15px; color: var(--text-primary); margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;"><i class='bx bx-filter'></i> Configuración</h3>
+                            <div style="margin-bottom: 15px;">
+                                <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; display: block; font-weight: 500;">Seleccionar Gestor:</label>
+                                <select id="kpiGestorSelect" class="modern-input" style="padding: 10px; width: 100%;">
+                                    <option value="">Selecciona un gestor...</option>
+                                </select>
                             </div>
-                            <div class="stat-widget glass-panel" style="border-left: 3px solid var(--success); padding: 15px;">
-                                <div style="font-size: 12px; color: var(--text-secondary);">Gestores Encontrados</div>
-                                <div id="globalRetirosGestores" style="font-size: 20px; font-weight: 600; color: var(--success); margin-top: 5px;">0</div>
+                            <div style="margin-bottom: 20px;">
+                                <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; display: block; font-weight: 500;">Periodo de Evaluación:</label>
+                                <select id="kpiPeriodoSelect" class="modern-input" style="padding: 10px; width: 100%;">
+                                    <option value="general">Histórico General</option>
+                                    <option value="semanal">Últimos 7 Días</option>
+                                </select>
                             </div>
+                            <button class="btn btn-primary" onclick="calcularIndicadores()" style="width: 100%; height: 40px; display: flex; align-items: center; justify-content: center; gap: 8px;"><i class='bx bx-search-alt-2'></i> Calcular Rendimiento</button>
+                        </div>
+
+                        <!-- Panel de Carga de Retiros -->
+                        <div class="glass-panel" style="padding: 20px; border: 1px solid var(--glass-border);">
+                            <h3 style="font-size: 15px; color: var(--text-primary); margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;"><i class='bx bx-data'></i> Cargar Data Externa</h3>
+                            <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 15px;">Sube el Excel de Retiros para incluir sus métricas y penalidades en el cálculo.</p>
+                            
+                            <div class="file-upload-wrapper" style="border: 2px dashed var(--accent-primary); border-radius: var(--radius-md); padding: 20px 10px; text-align: center; position: relative; background: rgba(59, 130, 246, 0.05); transition: all 0.3s ease; cursor: pointer; margin-bottom: 10px;" onmouseover="this.style.background='rgba(59, 130, 246, 0.1)'" onmouseout="this.style.background='rgba(59, 130, 246, 0.05)'">
+                                <i class='bx bx-cloud-upload' style="font-size: 32px; color: var(--accent-primary); margin-bottom: 5px;"></i>
+                                <p style="margin: 0; font-size: 13px; color: var(--text-primary); font-weight: 500;">Arrastrar Excel aquí</p>
+                                <input type="file" id="retirosFileInput" accept=".xlsx, .xls" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;" onchange="document.getElementById('selectedFileName').textContent = this.files[0] ? this.files[0].name : '';">
+                            </div>
+                            <div id="selectedFileName" style="font-size: 11px; color: var(--success); text-align: center; font-weight: 600; margin-bottom: 10px; min-height: 14px;"></div>
+                            <button class="btn btn-outline" onclick="procesarArchivoRetiros()" style="width: 100%; padding: 8px; font-size: 13px;"><i class='bx bx-cog'></i> Procesar Archivo</button>
+                            <div id="retirosUploadStatus" style="font-size: 11px; margin-top: 10px; font-weight: 500; text-align: center;"></div>
+                        </div>
+                        
+                    </div>
+
+                    <!-- Columna Derecha: Resultados y Tarjetas -->
+                    <div class="kpi-results">
+                        <div id="kpiResultsContainer" style="display: none; display: flex; flex-direction: column; gap: 20px;">
+                            
+                            <!-- Rendimiento Global -->
+                            <div class="stat-widget glass-panel" style="display: flex; align-items: center; gap: 20px; padding: 20px;">
+                                <div style="position: relative; width: 100px; height: 100px; flex-shrink: 0;">
+                                    <svg width="100" height="100" viewBox="0 0 100 100" style="transform: rotate(-90deg);">
+                                        <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="10"></circle>
+                                        <circle id="kpiScoreRing" cx="50" cy="50" r="40" fill="none" stroke="var(--success)" stroke-width="10" stroke-dasharray="251.2" stroke-dashoffset="251.2" stroke-linecap="round" style="transition: stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1);"></circle>
+                                    </svg>
+                                    <div id="kpiScoreText" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; font-size: 22px; font-weight: 700; color: var(--text-primary);">0%</div>
+                                </div>
+                                <div>
+                                    <h3 style="font-size: 18px; margin: 0 0 8px 0; color: var(--text-primary);">Puntaje de Rendimiento</h3>
+                                    <p style="font-size: 12px; color: var(--text-secondary); margin: 0 0 8px 0; max-width: 500px;">Basado en las tareas del set completadas, velocidad de retiros y otras variables operativas del gestor.</p>
+                                    <div id="kpiVerdictBadge" class="badge" style="background: rgba(16, 185, 129, 0.2); color: var(--success); font-size: 12px; padding: 5px 10px;">Excelente</div>
+                                </div>
+                            </div>
+
+                            <!-- Grid de Tarjetas (Unificado) -->
+                            <div class="stats-grid" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+                                <!-- Operatividad -->
+                                <div class="stat-widget glass-panel" style="border-left: 3px solid var(--success);">
+                                    <div class="stat-widget-details">
+                                        <h3 style="font-size: 12px;">Finalizadas</h3>
+                                        <div class="number" id="kpiTotalFinalizadas" style="color: var(--success); font-size: 20px;">0</div>
+                                    </div>
+                                    <div class="stat-widget-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--success); font-size: 20px; width: 40px; height: 40px;">
+                                        <i class='bx bx-check-double'></i>
+                                    </div>
+                                </div>
+                                <div class="stat-widget glass-panel" style="border-left: 3px solid var(--danger);">
+                                    <div class="stat-widget-details">
+                                        <h3 style="font-size: 12px;">No Realizadas</h3>
+                                        <div class="number" id="kpiTotalNoRealizadas" style="color: var(--danger); font-size: 20px;">0</div>
+                                    </div>
+                                    <div class="stat-widget-icon" style="background: rgba(239, 68, 68, 0.1); color: var(--danger); font-size: 20px; width: 40px; height: 40px;">
+                                        <i class='bx bx-x-circle'></i>
+                                    </div>
+                                </div>
+                                <div class="stat-widget glass-panel" style="border-left: 3px solid var(--warning);">
+                                    <div class="stat-widget-details">
+                                        <h3 style="font-size: 12px;">Pendientes</h3>
+                                        <div class="number" id="kpiTotalPendientes" style="color: var(--warning); font-size: 20px;">0</div>
+                                    </div>
+                                    <div class="stat-widget-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--warning); font-size: 20px; width: 40px; height: 40px;">
+                                        <i class='bx bx-time'></i>
+                                    </div>
+                                </div>
+                                <div class="stat-widget glass-panel" style="border-left: 3px solid var(--accent-primary);">
+                                    <div class="stat-widget-details">
+                                        <h3 style="font-size: 12px;">Turnos</h3>
+                                        <div class="number" id="kpiTurnosAnalizados" style="color: var(--accent-primary); font-size: 20px;">0</div>
+                                    </div>
+                                    <div class="stat-widget-icon" style="background: rgba(59, 130, 246, 0.1); color: var(--accent-primary); font-size: 20px; width: 40px; height: 40px;">
+                                        <i class='bx bx-calendar-check'></i>
+                                    </div>
+                                </div>
+                                <div class="stat-widget glass-panel" style="border-left: 3px solid #8B5CF6;">
+                                    <div class="stat-widget-details">
+                                        <h3 style="font-size: 12px;">Duración Promedio</h3>
+                                        <div class="number" id="kpiDuracionPromedio" style="color: #8B5CF6; font-size: 18px;">0h 0m</div>
+                                    </div>
+                                    <div class="stat-widget-icon" style="background: rgba(139, 92, 246, 0.1); color: #8B5CF6; font-size: 20px; width: 40px; height: 40px;">
+                                        <i class='bx bx-time-five'></i>
+                                    </div>
+                                </div>
+
+                                <!-- Retiros (Nuevas Tarjetas) -->
+                                <div class="stat-widget glass-panel retiros-card" style="border-left: 3px solid #10B981; display: none;">
+                                    <div class="stat-widget-details">
+                                        <h3 style="font-size: 12px;">Retiros Pagados</h3>
+                                        <div class="number" id="kpiRetirosPagados" style="color: #10B981; font-size: 20px;">0</div>
+                                    </div>
+                                    <div class="stat-widget-icon" style="background: rgba(16, 185, 129, 0.1); color: #10B981; font-size: 20px; width: 40px; height: 40px;">
+                                        <i class='bx bx-money'></i>
+                                    </div>
+                                </div>
+                                <div class="stat-widget glass-panel retiros-card" style="border-left: 3px solid #F43F5E; display: none;">
+                                    <div class="stat-widget-details">
+                                        <h3 style="font-size: 12px;">Retiros Rechazados</h3>
+                                        <div class="number" id="kpiRetirosRechazados" style="color: #F43F5E; font-size: 20px;">0</div>
+                                    </div>
+                                    <div class="stat-widget-icon" style="background: rgba(244, 63, 94, 0.1); color: #F43F5E; font-size: 20px; width: 40px; height: 40px;">
+                                        <i class='bx bx-block'></i>
+                                    </div>
+                                </div>
+                                <div class="stat-widget glass-panel retiros-card" style="border-left: 3px solid #06B6D4; display: none;">
+                                    <div class="stat-widget-details">
+                                        <h3 style="font-size: 12px;">Monto Procesado</h3>
+                                        <div class="number" id="kpiRetirosMonto" style="color: #06B6D4; font-size: 16px; margin-top: 5px;">$0</div>
+                                    </div>
+                                    <div class="stat-widget-icon" style="background: rgba(6, 182, 212, 0.1); color: #06B6D4; font-size: 20px; width: 40px; height: 40px;">
+                                        <i class='bx bx-line-chart'></i>
+                                    </div>
+                                </div>
+
+                                <!-- Penalidad -->
+                                <div class="stat-widget glass-panel" style="border-left: 3px solid var(--danger); display: none; grid-column: 1 / -1;" id="kpiRetirosPenalidadCard">
+                                    <div class="stat-widget-details" style="flex: 1;">
+                                        <h3 style="font-size: 14px;">Penalidad por Demora (Retiros)</h3>
+                                        <div style="display: flex; gap: 15px; align-items: baseline; margin-top: 5px;">
+                                            <div class="number" id="kpiPenalidadRetiros" style="color: var(--danger); font-size: 24px;">-0%</div>
+                                            <div style="font-size: 12px; color: var(--text-secondary);" id="kpiDemoraPromedioText">Sin datos</div>
+                                        </div>
+                                    </div>
+                                    <div class="stat-widget-icon" style="background: rgba(239, 68, 68, 0.1); color: var(--danger);">
+                                        <i class='bx bx-trending-down'></i>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 </div>

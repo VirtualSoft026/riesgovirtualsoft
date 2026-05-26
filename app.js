@@ -2705,7 +2705,7 @@ function renderActiveSessionsDashboard() {
         const session = allActiveSessions[uid];
         if (!session) return;
         
-        const isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
+        const isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 43200000) : false;
         const lastActiveTime = session.lastActive ? new Date(session.lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Nunca';
         const loginTimeStr = session.loginTime ? new Date(session.loginTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Pendiente (Falta actualizar)';
         const delayBadge = calculateShiftDelay(session);
@@ -3080,13 +3080,17 @@ async function calcularIndicadores() {
     
     porcentaje = Math.round(porcentaje);
     
-    // Aplicar penalidad de retiros si existe la data
+    // Aplicar penalidad de retiros si existe la data y llenar nuevas tarjetas
     let penalidadRetiros = 0;
     const cardRetiros = document.getElementById('kpiRetirosPenalidadCard');
     const textPenalidad = document.getElementById('kpiPenalidadRetiros');
     const textDemora = document.getElementById('kpiDemoraPromedioText');
+    const cardPagados = document.getElementById('kpiRetirosPagados');
+    const cardRechazados = document.getElementById('kpiRetirosRechazados');
+    const cardMonto = document.getElementById('kpiRetirosMonto');
+    const retirosCardsElements = document.querySelectorAll('.retiros-card');
     
-    if (window.retirosGlobalData && cardRetiros) {
+    if (window.retirosGlobalData) {
         let gestorEmail = null;
         for (let email in window.kpiUsersData) {
             if (window.kpiUsersData[email] === gestorName) {
@@ -3107,26 +3111,42 @@ async function calcularIndicadores() {
             }
         }
         
-        if (stats && stats.retirosConTiempo > 0) {
-            const avgDemoraMins = stats.minutosDemoraTotales / stats.retirosConTiempo;
-            
-            // Penalidad: si el promedio supera los 15 minutos, restar 1% por cada minuto extra (max 30% de penalidad)
-            if (avgDemoraMins > 15) {
-                penalidadRetiros = Math.floor(avgDemoraMins - 15);
-                if (penalidadRetiros > 30) penalidadRetiros = 30; // Cap
+        if (stats) {
+            // Mostrar tarjetas de métricas
+            retirosCardsElements.forEach(el => el.style.display = 'flex');
+            if (cardPagados) cardPagados.textContent = stats.totalAprobados;
+            if (cardRechazados) cardRechazados.textContent = stats.totalRechazados;
+            if (cardMonto) {
+                const formattedMonto = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(stats.montoProcesado);
+                cardMonto.textContent = formattedMonto;
             }
             
-            porcentaje -= penalidadRetiros;
-            if (porcentaje < 0) porcentaje = 0;
-            
-            cardRetiros.style.display = 'flex';
-            textPenalidad.textContent = `-${penalidadRetiros}%`;
-            textDemora.textContent = `Promedio: ${Math.round(avgDemoraMins)} min / ${stats.retirosConTiempo} retiros`;
+            if (stats.retirosConTiempo > 0) {
+                const avgDemoraMins = stats.minutosDemoraTotales / stats.retirosConTiempo;
+                
+                // Penalidad: si el promedio supera los 15 minutos, restar 1% por cada minuto extra (max 30% de penalidad)
+                if (avgDemoraMins > 15) {
+                    penalidadRetiros = Math.floor(avgDemoraMins - 15);
+                    if (penalidadRetiros > 30) penalidadRetiros = 30; // Cap
+                }
+                
+                porcentaje -= penalidadRetiros;
+                if (porcentaje < 0) porcentaje = 0;
+                
+                if (cardRetiros) cardRetiros.style.display = 'flex';
+                if (textPenalidad) textPenalidad.textContent = `-${penalidadRetiros}%`;
+                if (textDemora) textDemora.textContent = `Promedio: ${Math.round(avgDemoraMins)} min / ${stats.retirosConTiempo} retiros`;
+            } else {
+                if (cardRetiros) cardRetiros.style.display = 'none';
+            }
         } else {
-            cardRetiros.style.display = 'none';
+            // Gestor no tiene data de retiros
+            retirosCardsElements.forEach(el => el.style.display = 'none');
+            if (cardRetiros) cardRetiros.style.display = 'none';
         }
-    } else if (cardRetiros) {
-        cardRetiros.style.display = 'none';
+    } else {
+        retirosCardsElements.forEach(el => el.style.display = 'none');
+        if (cardRetiros) cardRetiros.style.display = 'none';
     }
     
     // Calcular promedio de horas y minutos
