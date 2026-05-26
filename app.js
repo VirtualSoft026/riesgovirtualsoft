@@ -2948,7 +2948,25 @@ function populateGestoresDropdown() {
 // --- Lógica del Portal de Indicadores de Gestión (KPIs) ---
 
 window.kpiUsersData = {}; // email -> name
-window.retirosGlobalData = null; // email -> stats
+window.retirosGlobalData = null; // Carga automática del backend
+window.kpiTaskLists = { finalizadas: [], no_realizadas: [], pendientes: [] };
+
+// Cargar data de retiros automáticamente (JSON pre-procesado por el bat)
+function loadRetirosData() {
+    fetch('Retiros/retiros_data.json')
+        .then(response => {
+            if (!response.ok) throw new Error('No se encontró el JSON');
+            return response.json();
+        })
+        .then(data => {
+            window.retirosGlobalData = data;
+            console.log("Data de retiros cargada automáticamente:", Object.keys(data).length, "gestores");
+        })
+        .catch(err => {
+            console.warn("No hay data de retiros automatizada o hubo un error:", err);
+            window.retirosGlobalData = null;
+        });
+}
 
 function loadGestoresForKPIs() {
     const selectEl = document.getElementById('kpiGestorSelect');
@@ -2988,6 +3006,13 @@ function loadGestoresForKPIs() {
 async function calcularIndicadores() {
     const gestorName = document.getElementById('kpiGestorSelect').value;
     const periodo = document.getElementById('kpiPeriodoSelect').value;
+    const db = firebase.database();
+    
+    // Resetear listas de detalle
+    window.kpiTaskLists = { finalizadas: [], no_realizadas: [], pendientes: [] };
+
+    // Limpiar UI anterior
+    document.getElementById('kpiResultsContainer').style.display = 'none';
     
     if (!gestorName) {
         alert("Por favor, selecciona un gestor primero.");
@@ -3204,111 +3229,20 @@ async function calcularIndicadores() {
     resultsContainer.style.display = 'block';
 }
 
-function procesarArchivoRetiros() {
-    const fileInput = document.getElementById('retirosFileInput');
-    const statusDiv = document.getElementById('retirosUploadStatus');
-    
-    if (!fileInput.files.length) {
-        alert("Por favor selecciona un archivo de retiros primero.");
-        return;
+// Inicialización al cargar el DOM
+document.addEventListener('DOMContentLoaded', () => {
+    loadRetirosData();
+});
+
+// Window clicks para cerrar modales
+window.onclick = function(event) {
+    const modalPermiso = document.getElementById('permisoModal');
+    if (event.target == modalPermiso) {
+        cerrarModalPermiso();
     }
     
-    const file = fileInput.files[0];
-    statusDiv.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Procesando archivo (esto puede tomar entre 5 y 15 segundos)...";
-    statusDiv.style.color = "var(--warning)";
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, {type: 'array'});
-            const firstSheet = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheet];
-            
-            const jsonData = XLSX.utils.sheet_to_json(worksheet, {defval: ""});
-            
-            let totalRetiros = 0;
-            const gestoresMap = {};
-            
-            jsonData.forEach(row => {
-                let gestorEmail = row["Nombre Usuario Rechaza"] || row["Nombre Usuario Pago"] || row["Nombre Usuario Cambio"];
-                if (!gestorEmail || typeof gestorEmail !== 'string') return;
-                
-                gestorEmail = gestorEmail.trim().toLowerCase();
-                if (!gestorEmail.includes('@')) return; 
-                
-                totalRetiros++;
-                
-                if (!gestoresMap[gestorEmail]) {
-                    gestoresMap[gestorEmail] = {
-                        totalAprobados: 0,
-                        totalRechazados: 0,
-                        montoProcesado: 0,
-                        minutosDemoraTotales: 0,
-                        retirosConTiempo: 0
-                    };
-                }
-                
-                const stats = gestoresMap[gestorEmail];
-                const estado = row["Estado Retiro Creado"] || "";
-                
-                if (estado.toLowerCase() === 'pagado') {
-                    stats.totalAprobados++;
-                } else if (estado.toLowerCase() === 'rechazado') {
-                    stats.totalRechazados++;
-                }
-                
-                const monto = parseFloat(row["Valor Retiros Creados"]) || 0;
-                stats.montoProcesado += monto;
-                
-                const fechaCreacion = row["Fecha Creacion Retiro Time"] || row["Fecha Creacion Retiro"];
-                const fechaCambio = row["Fecha Cambio Time"] || row["Fecha Cambio"];
-                
-                if (fechaCreacion && fechaCambio) {
-                    let d1, d2;
-                    if (typeof fechaCreacion === 'number') {
-                        d1 = new Date(Math.round((fechaCreacion - 25569)*86400*1000));
-                    } else {
-                        d1 = new Date(fechaCreacion);
-                    }
-                    
-                    if (typeof fechaCambio === 'number') {
-                        d2 = new Date(Math.round((fechaCambio - 25569)*86400*1000));
-                    } else {
-                        d2 = new Date(fechaCambio);
-                    }
-                    
-                    if (!isNaN(d1) && !isNaN(d2)) {
-                        const diffMins = (d2 - d1) / 60000;
-                        if (diffMins >= 0 && diffMins < 10080) { // max 1 week diff
-                            stats.minutosDemoraTotales += diffMins;
-                            stats.retirosConTiempo++;
-                        }
-                    }
-                }
-            });
-            
-            window.retirosGlobalData = gestoresMap;
-            
-            const numGestores = Object.keys(gestoresMap).length;
-            
-            document.getElementById('globalRetirosTotal').textContent = totalRetiros;
-            document.getElementById('globalRetirosGestores').textContent = numGestores;
-            document.getElementById('retirosGlobalStats').style.display = 'block';
-            
-            statusDiv.innerHTML = "<i class='bx bx-check-circle'></i> Archivo procesado correctamente. Los KPIs de retiros ahora afectarán los resultados.";
-            statusDiv.style.color = "var(--success)";
-            
-            const gestorName = document.getElementById('kpiGestorSelect').value;
-            if (gestorName) {
-                calcularIndicadores();
-            }
-            
-        } catch(err) {
-            console.error(err);
-            statusDiv.innerHTML = "<i class='bx bx-error'></i> Error procesando el archivo: " + err.message;
-            statusDiv.style.color = "var(--danger)";
-        }
-    };
-    reader.readAsArrayBuffer(file);
-}
+    const taskDetailsModal = document.getElementById('kpiTaskDetailsModal');
+    if (event.target == taskDetailsModal) {
+        closeKpiTaskDetails();
+    }
+};

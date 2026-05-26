@@ -421,19 +421,13 @@
                             <button class="btn btn-primary" onclick="calcularIndicadores()" style="width: 100%; height: 40px; display: flex; align-items: center; justify-content: center; gap: 8px;"><i class='bx bx-search-alt-2'></i> Calcular Rendimiento</button>
                         </div>
 
-                        <!-- Panel de Carga de Retiros -->
+                        <!-- Panel de Carga de Retiros (Automatizado) -->
                         <div class="glass-panel" style="padding: 20px; border: 1px solid var(--glass-border);">
-                            <h3 style="font-size: 15px; color: var(--text-primary); margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;"><i class='bx bx-data'></i> Cargar Data Externa</h3>
-                            <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 15px;">Sube el Excel de Retiros para incluir sus métricas y penalidades en el cálculo.</p>
-                            
-                            <div class="file-upload-wrapper" style="border: 2px dashed var(--accent-primary); border-radius: var(--radius-md); padding: 20px 10px; text-align: center; position: relative; background: rgba(59, 130, 246, 0.05); transition: all 0.3s ease; cursor: pointer; margin-bottom: 10px;" onmouseover="this.style.background='rgba(59, 130, 246, 0.1)'" onmouseout="this.style.background='rgba(59, 130, 246, 0.05)'">
-                                <i class='bx bx-cloud-upload' style="font-size: 32px; color: var(--accent-primary); margin-bottom: 5px;"></i>
-                                <p style="margin: 0; font-size: 13px; color: var(--text-primary); font-weight: 500;">Arrastrar Excel aquí</p>
-                                <input type="file" id="retirosFileInput" accept=".xlsx, .xls" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;" onchange="document.getElementById('selectedFileName').textContent = this.files[0] ? this.files[0].name : '';">
+                            <h3 style="font-size: 15px; color: var(--text-primary); margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;"><i class='bx bx-data'></i> Data Externa (Retiros)</h3>
+                            <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 15px;">La data de retiros ahora se procesa <strong>automáticamente</strong> al utilizar el actualizador (Subir_Cambios.bat).</p>
+                            <div style="padding: 15px; background: rgba(16, 185, 129, 0.1); border-left: 3px solid var(--success); border-radius: 4px; font-size: 12px; color: var(--text-primary);">
+                                <i class='bx bx-check-circle' style="color: var(--success); margin-right: 5px;"></i> Sincronización Automática Activada.
                             </div>
-                            <div id="selectedFileName" style="font-size: 11px; color: var(--success); text-align: center; font-weight: 600; margin-bottom: 10px; min-height: 14px;"></div>
-                            <button class="btn btn-outline" onclick="procesarArchivoRetiros()" style="width: 100%; padding: 8px; font-size: 13px;"><i class='bx bx-cog'></i> Procesar Archivo</button>
-                            <div id="retirosUploadStatus" style="font-size: 11px; margin-top: 10px; font-weight: 500; text-align: center;"></div>
                         </div>
                         
                     </div>
@@ -461,27 +455,27 @@
                             <!-- Grid de Tarjetas (Unificado) -->
                             <div class="stats-grid" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
                                 <!-- Operatividad -->
-                                <div class="stat-widget glass-panel" style="border-left: 3px solid var(--success);">
+                                <div class="stat-widget glass-panel kpi-clickable-card" style="border-left: 3px solid var(--success); cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openKpiTaskDetails('finalizadas')">
                                     <div class="stat-widget-details">
-                                        <h3 style="font-size: 12px;">Finalizadas</h3>
+                                        <h3 style="font-size: 12px;">Finalizadas <i class='bx bx-search' style="font-size: 10px;"></i></h3>
                                         <div class="number" id="kpiTotalFinalizadas" style="color: var(--success); font-size: 20px;">0</div>
                                     </div>
                                     <div class="stat-widget-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--success); font-size: 20px; width: 40px; height: 40px;">
                                         <i class='bx bx-check-double'></i>
                                     </div>
                                 </div>
-                                <div class="stat-widget glass-panel" style="border-left: 3px solid var(--danger);">
+                                <div class="stat-widget glass-panel kpi-clickable-card" style="border-left: 3px solid var(--danger); cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openKpiTaskDetails('no_realizadas')">
                                     <div class="stat-widget-details">
-                                        <h3 style="font-size: 12px;">No Realizadas</h3>
+                                        <h3 style="font-size: 12px;">No Realizadas <i class='bx bx-search' style="font-size: 10px;"></i></h3>
                                         <div class="number" id="kpiTotalNoRealizadas" style="color: var(--danger); font-size: 20px;">0</div>
                                     </div>
                                     <div class="stat-widget-icon" style="background: rgba(239, 68, 68, 0.1); color: var(--danger); font-size: 20px; width: 40px; height: 40px;">
                                         <i class='bx bx-x-circle'></i>
                                     </div>
                                 </div>
-                                <div class="stat-widget glass-panel" style="border-left: 3px solid var(--warning);">
+                                <div class="stat-widget glass-panel kpi-clickable-card" style="border-left: 3px solid var(--warning); cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openKpiTaskDetails('pendientes')">
                                     <div class="stat-widget-details">
-                                        <h3 style="font-size: 12px;">Pendientes</h3>
+                                        <h3 style="font-size: 12px;">Pendientes <i class='bx bx-search' style="font-size: 10px;"></i></h3>
                                         <div class="number" id="kpiTotalPendientes" style="color: var(--warning); font-size: 20px;">0</div>
                                     </div>
                                     <div class="stat-widget-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--warning); font-size: 20px; width: 40px; height: 40px;">
@@ -666,6 +660,30 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="firebase-config.js?v=59"></script>
+
+    <!-- Modal de Detalles de Tareas KPI -->
+    <div id="kpiTaskDetailsModal" class="modal">
+        <div class="modal-content glass-panel" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 style="font-size: 18px; display: flex; align-items: center; gap: 8px;">
+                    <i class='bx bx-list-check' id="kpiModalIcon"></i> 
+                    <span id="kpiModalTitle">Detalle de Tareas</span>
+                </h2>
+                <span class="close-modal" onclick="closeKpiTaskDetails()">&times;</span>
+            </div>
+            <div class="modal-body" style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
+                <p id="kpiModalSubtitle" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 15px;">Listado de tareas correspondientes a este estado.</p>
+                <div id="kpiModalTaskList" style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- Inyectado desde JS -->
+                </div>
+            </div>
+            <div class="modal-footer" style="text-align: right; margin-top: 20px;">
+                <button class="btn btn-outline" onclick="closeKpiTaskDetails()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
     <script src="app.js?v=90"></script>
 </body>
 </html>
