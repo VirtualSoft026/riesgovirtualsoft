@@ -2979,6 +2979,19 @@ function loadGestoresForKPIs() {
             const data = snapshot.val();
             window.kpiUsersData = {};
             
+            const targetGestores = [
+                "oriana borja",
+                "marilyn",
+                "sebastian hincapie",
+                "sebastian arango",
+                "sebastiana",
+                "juan jose diaz",
+                "yefferson",
+                "alexander villada",
+                "daniel",
+                "josue alvarez"
+            ];
+            
             const gestores = Object.keys(data)
                 .map(k => {
                     const u = data[k];
@@ -2987,7 +3000,11 @@ function loadGestoresForKPIs() {
                     }
                     return u;
                 })
-                .filter(u => u && u.role === 'Gestor' && u.approved === true)
+                .filter(u => {
+                    if (!u || u.role !== 'Gestor' || u.approved !== true) return false;
+                    const nameLower = u.name.toLowerCase();
+                    return targetGestores.some(t => nameLower.includes(t));
+                })
                 .map(u => u.name.trim())
                 .sort((a, b) => a.localeCompare(b));
             
