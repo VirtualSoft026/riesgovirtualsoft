@@ -482,6 +482,45 @@
                                 <i class='bx bx-time-five'></i>
                             </div>
                         </div>
+                        <div class="stat-widget glass-panel" style="border-left: 4px solid var(--danger); display: none;" id="kpiRetirosPenalidadCard">
+                            <div class="stat-widget-details">
+                                <h3>Penalidad por Demora (Retiros)</h3>
+                                <div class="number" id="kpiPenalidadRetiros" style="color: var(--danger); font-size: 18px;">-0%</div>
+                                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 5px;" id="kpiDemoraPromedioText">Sin datos</div>
+                            </div>
+                            <div class="stat-widget-icon" style="background: rgba(239, 68, 68, 0.1); color: var(--danger);">
+                                <i class='bx bx-trending-down'></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nueva Sección de Carga de Retiros -->
+                <div class="kpi-dashboard glass-panel" style="margin-top: 20px;">
+                    <div class="kpi-header" style="margin-bottom: 15px;">
+                        <h2 style="color: var(--text-primary); display: flex; align-items: center; gap: 10px;">
+                            <i class='bx bx-cloud-upload'></i> Análisis de Retiros
+                        </h2>
+                    </div>
+                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 15px;">Sube el archivo de retiros para calcular los promedios de tiempo de aprobación y afectar el rendimiento de los gestores correspondientes. (Solo .xlsx)</p>
+                    <div style="display: flex; gap: 15px; align-items: center;">
+                        <input type="file" id="retirosFileInput" accept=".xlsx, .xls" class="modern-input" style="flex: 1; max-width: 400px; padding: 10px;">
+                        <button class="btn btn-primary" onclick="procesarArchivoRetiros()">Procesar Datos</button>
+                    </div>
+                    <div id="retirosUploadStatus" style="font-size: 13px; margin-top: 15px; font-weight: 500;"></div>
+                    
+                    <div id="retirosGlobalStats" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--glass-border);">
+                        <h3 style="color: var(--text-primary); margin-bottom: 15px; font-size: 15px;">Resumen del Archivo</h3>
+                        <div class="kpi-stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                            <div class="stat-widget glass-panel" style="border-left: 3px solid var(--accent-primary); padding: 15px;">
+                                <div style="font-size: 12px; color: var(--text-secondary);">Total Retiros Procesados</div>
+                                <div id="globalRetirosTotal" style="font-size: 20px; font-weight: 600; color: var(--text-primary); margin-top: 5px;">0</div>
+                            </div>
+                            <div class="stat-widget glass-panel" style="border-left: 3px solid var(--success); padding: 15px;">
+                                <div style="font-size: 12px; color: var(--text-secondary);">Gestores Encontrados</div>
+                                <div id="globalRetirosGestores" style="font-size: 20px; font-weight: 600; color: var(--success); margin-top: 5px;">0</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

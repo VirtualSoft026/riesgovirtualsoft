@@ -2942,6 +2942,9 @@ function populateGestoresDropdown() {
 
 // --- Lógica del Portal de Indicadores de Gestión (KPIs) ---
 
+window.kpiUsersData = {}; // email -> name
+window.retirosGlobalData = null; // email -> stats
+
 function loadGestoresForKPIs() {
     const selectEl = document.getElementById('kpiGestorSelect');
     if (!selectEl) return;
@@ -2951,8 +2954,16 @@ function loadGestoresForKPIs() {
     database.ref('users').once('value').then(snapshot => {
         if (snapshot.exists()) {
             const data = snapshot.val();
+            window.kpiUsersData = {};
+            
             const gestores = Object.keys(data)
-                .map(k => data[k])
+                .map(k => {
+                    const u = data[k];
+                    if (u && u.email && u.name) {
+                        window.kpiUsersData[u.email.toLowerCase()] = u.name.trim();
+                    }
+                    return u;
+                })
                 .filter(u => u && u.role === 'Gestor' && u.approved === true)
                 .map(u => u.name.trim())
                 .sort((a, b) => a.localeCompare(b));
@@ -3064,6 +3075,55 @@ async function calcularIndicadores() {
     
     porcentaje = Math.round(porcentaje);
     
+    // Aplicar penalidad de retiros si existe la data
+    let penalidadRetiros = 0;
+    const cardRetiros = document.getElementById('kpiRetirosPenalidadCard');
+    const textPenalidad = document.getElementById('kpiPenalidadRetiros');
+    const textDemora = document.getElementById('kpiDemoraPromedioText');
+    
+    if (window.retirosGlobalData && cardRetiros) {
+        let gestorEmail = null;
+        for (let email in window.kpiUsersData) {
+            if (window.kpiUsersData[email] === gestorName) {
+                gestorEmail = email;
+                break;
+            }
+        }
+        
+        let stats = null;
+        if (gestorEmail) {
+            const prefixDb = gestorEmail.split('@')[0].toLowerCase();
+            for (let excelEmail in window.retirosGlobalData) {
+                const prefixExcel = excelEmail.split('@')[0].toLowerCase();
+                if (prefixDb === prefixExcel || gestorEmail === excelEmail) {
+                    stats = window.retirosGlobalData[excelEmail];
+                    break;
+                }
+            }
+        }
+        
+        if (stats && stats.retirosConTiempo > 0) {
+            const avgDemoraMins = stats.minutosDemoraTotales / stats.retirosConTiempo;
+            
+            // Penalidad: si el promedio supera los 15 minutos, restar 1% por cada minuto extra (max 30% de penalidad)
+            if (avgDemoraMins > 15) {
+                penalidadRetiros = Math.floor(avgDemoraMins - 15);
+                if (penalidadRetiros > 30) penalidadRetiros = 30; // Cap
+            }
+            
+            porcentaje -= penalidadRetiros;
+            if (porcentaje < 0) porcentaje = 0;
+            
+            cardRetiros.style.display = 'flex';
+            textPenalidad.textContent = `-${penalidadRetiros}%`;
+            textDemora.textContent = `Promedio: ${Math.round(avgDemoraMins)} min / ${stats.retirosConTiempo} retiros`;
+        } else {
+            cardRetiros.style.display = 'none';
+        }
+    } else if (cardRetiros) {
+        cardRetiros.style.display = 'none';
+    }
+    
     // Calcular promedio de horas y minutos
     let promedioHoras = 0;
     let promedioMinutosRestantes = 0;
@@ -3117,4 +3177,113 @@ async function calcularIndicadores() {
     }, 50);
     
     resultsContainer.style.display = 'block';
+}
+
+function procesarArchivoRetiros() {
+    const fileInput = document.getElementById('retirosFileInput');
+    const statusDiv = document.getElementById('retirosUploadStatus');
+    
+    if (!fileInput.files.length) {
+        alert("Por favor selecciona un archivo de retiros primero.");
+        return;
+    }
+    
+    const file = fileInput.files[0];
+    statusDiv.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Procesando archivo (esto puede tomar entre 5 y 15 segundos)...";
+    statusDiv.style.color = "var(--warning)";
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const firstSheet = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheet];
+            
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, {defval: ""});
+            
+            let totalRetiros = 0;
+            const gestoresMap = {};
+            
+            jsonData.forEach(row => {
+                let gestorEmail = row["Nombre Usuario Rechaza"] || row["Nombre Usuario Pago"] || row["Nombre Usuario Cambio"];
+                if (!gestorEmail || typeof gestorEmail !== 'string') return;
+                
+                gestorEmail = gestorEmail.trim().toLowerCase();
+                if (!gestorEmail.includes('@')) return; 
+                
+                totalRetiros++;
+                
+                if (!gestoresMap[gestorEmail]) {
+                    gestoresMap[gestorEmail] = {
+                        totalAprobados: 0,
+                        totalRechazados: 0,
+                        montoProcesado: 0,
+                        minutosDemoraTotales: 0,
+                        retirosConTiempo: 0
+                    };
+                }
+                
+                const stats = gestoresMap[gestorEmail];
+                const estado = row["Estado Retiro Creado"] || "";
+                
+                if (estado.toLowerCase() === 'pagado') {
+                    stats.totalAprobados++;
+                } else if (estado.toLowerCase() === 'rechazado') {
+                    stats.totalRechazados++;
+                }
+                
+                const monto = parseFloat(row["Valor Retiros Creados"]) || 0;
+                stats.montoProcesado += monto;
+                
+                const fechaCreacion = row["Fecha Creacion Retiro Time"] || row["Fecha Creacion Retiro"];
+                const fechaCambio = row["Fecha Cambio Time"] || row["Fecha Cambio"];
+                
+                if (fechaCreacion && fechaCambio) {
+                    let d1, d2;
+                    if (typeof fechaCreacion === 'number') {
+                        d1 = new Date(Math.round((fechaCreacion - 25569)*86400*1000));
+                    } else {
+                        d1 = new Date(fechaCreacion);
+                    }
+                    
+                    if (typeof fechaCambio === 'number') {
+                        d2 = new Date(Math.round((fechaCambio - 25569)*86400*1000));
+                    } else {
+                        d2 = new Date(fechaCambio);
+                    }
+                    
+                    if (!isNaN(d1) && !isNaN(d2)) {
+                        const diffMins = (d2 - d1) / 60000;
+                        if (diffMins >= 0 && diffMins < 10080) { // max 1 week diff
+                            stats.minutosDemoraTotales += diffMins;
+                            stats.retirosConTiempo++;
+                        }
+                    }
+                }
+            });
+            
+            window.retirosGlobalData = gestoresMap;
+            
+            const numGestores = Object.keys(gestoresMap).length;
+            
+            document.getElementById('globalRetirosTotal').textContent = totalRetiros;
+            document.getElementById('globalRetirosGestores').textContent = numGestores;
+            document.getElementById('retirosGlobalStats').style.display = 'block';
+            
+            statusDiv.innerHTML = "<i class='bx bx-check-circle'></i> Archivo procesado correctamente. Los KPIs de retiros ahora afectarán los resultados.";
+            statusDiv.style.color = "var(--success)";
+            
+            const gestorName = document.getElementById('kpiGestorSelect').value;
+            if (gestorName) {
+                calcularIndicadores();
+            }
+            
+        } catch(err) {
+            console.error(err);
+            statusDiv.innerHTML = "<i class='bx bx-error'></i> Error procesando el archivo: " + err.message;
+            statusDiv.style.color = "var(--danger)";
+        }
+    };
+    reader.readAsArrayBuffer(file);
 }
