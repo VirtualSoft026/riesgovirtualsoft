@@ -3076,6 +3076,17 @@ async function calcularIndicadores() {
     } else if (periodo === 'mes') {
         const esteMesStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
         shiftReports = shiftReports.filter(r => r.timestamp && r.timestamp >= esteMesStart);
+    } else if (periodo === 'custom') {
+        const customDateStr = document.getElementById('kpiCustomDateInput').value;
+        if (customDateStr) {
+            const parts = customDateStr.split('-');
+            const customStart = new Date(parts[0], parts[1]-1, parts[2]).getTime();
+            const customEnd = customStart + 86400000;
+            shiftReports = shiftReports.filter(r => r.timestamp && r.timestamp >= customStart && r.timestamp < customEnd);
+        } else {
+            alert("Por favor selecciona una fecha específica en el calendario.");
+            return;
+        }
     }
     
     if (shiftReports.length === 0) {
@@ -3253,6 +3264,9 @@ async function calcularIndicadores() {
                             targetDates.push(getLocalYYYYMMDD(dt));
                         }
                     }
+                } else if (periodo === 'custom') {
+                    const customDateStr = document.getElementById('kpiCustomDateInput').value;
+                    if (customDateStr) targetDates.push(customDateStr);
                 }
                 
                 for (let td of targetDates) {
@@ -3428,6 +3442,16 @@ function closeKpiTaskDetails() {
 // Inicialización al cargar el DOM
 document.addEventListener('DOMContentLoaded', () => {
     loadRetirosData();
+    
+    const periodoSelect = document.getElementById('kpiPeriodoSelect');
+    if (periodoSelect) {
+        periodoSelect.addEventListener('change', function(e) {
+            const customInput = document.getElementById('kpiCustomDateInput');
+            if (customInput) {
+                customInput.style.display = e.target.value === 'custom' ? 'block' : 'none';
+            }
+        });
+    }
 });
 
 // Window clicks para cerrar modales
