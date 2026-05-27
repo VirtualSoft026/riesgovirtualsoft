@@ -40,22 +40,46 @@ def build_retiros():
                     "totalRechazados": 0,
                     "montoProcesado": 0,
                     "minutosDemoraTotales": 0,
-                    "retirosConTiempo": 0
+                    "retirosConTiempo": 0,
+                    "diario": {}
                 }
                 
             stats = gestores_map[email]
+            
+            # Formatear la fecha
+            fecha_cambio = row.get("Fecha Cambio")
+            fecha_str = "general"
+            if not pd.isna(fecha_cambio):
+                try:
+                    fecha_str = str(fecha_cambio).split(" ")[0] # Asume formato YYYY-MM-DD
+                except:
+                    pass
+            
+            if fecha_str not in stats["diario"]:
+                stats["diario"][fecha_str] = {
+                    "totalAprobados": 0,
+                    "totalRechazados": 0,
+                    "montoProcesado": 0,
+                    "minutosDemoraTotales": 0,
+                    "retirosConTiempo": 0
+                }
+            
+            day_stats = stats["diario"][fecha_str]
             
             estado = row.get("Estado Retiro Creado", "")
             if isinstance(estado, str):
                 if estado.lower() == "pagado":
                     stats["totalAprobados"] += 1
+                    day_stats["totalAprobados"] += 1
                 elif estado.lower() == "rechazado":
                     stats["totalRechazados"] += 1
+                    day_stats["totalRechazados"] += 1
                     
             monto = row.get("Valor Retiros Creados", 0)
             if not pd.isna(monto):
                 try:
                     stats["montoProcesado"] += float(monto)
+                    day_stats["montoProcesado"] += float(monto)
                 except ValueError:
                     pass
                     
@@ -74,10 +98,13 @@ def build_retiros():
                     d1 = pd.to_datetime(f_creacion)
                     d2 = pd.to_datetime(f_cambio)
                     
-                    diff_mins = (d2 - d1).total_seconds() / 60.0
-                    if 0 <= diff_mins < 10080: # maximo 1 semana de diferencia para descartar outliers absurdos
-                        stats["minutosDemoraTotales"] += diff_mins
+                    diff = (d2 - d1)
+                    demora_mins = diff.total_seconds() / 60
+                    if 0 <= demora_mins < 10080: # maximo 1 semana de diferencia para descartar outliers absurdos
+                        stats["minutosDemoraTotales"] += demora_mins
                         stats["retirosConTiempo"] += 1
+                        day_stats["minutosDemoraTotales"] += demora_mins
+                        day_stats["retirosConTiempo"] += 1
                 except Exception:
                     pass
 

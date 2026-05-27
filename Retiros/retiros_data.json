@@ -4,349 +4,4439 @@
     "totalRechazados": 37,
     "montoProcesado": 31223424.99,
     "minutosDemoraTotales": 119396.95000000017,
-    "retirosConTiempo": 1699
+    "retirosConTiempo": 1699,
+    "diario": {
+      "2026-05-01": {
+        "totalAprobados": 109,
+        "totalRechazados": 1,
+        "montoProcesado": 2543167.37,
+        "minutosDemoraTotales": 3793.1999999999994,
+        "retirosConTiempo": 110
+      },
+      "2026-05-07": {
+        "totalAprobados": 159,
+        "totalRechazados": 5,
+        "montoProcesado": 2862224.66,
+        "minutosDemoraTotales": 12507.399999999998,
+        "retirosConTiempo": 164
+      },
+      "2026-05-17": {
+        "totalAprobados": 142,
+        "totalRechazados": 1,
+        "montoProcesado": 2185465.26,
+        "minutosDemoraTotales": 4402.2666666666655,
+        "retirosConTiempo": 143
+      },
+      "2026-05-16": {
+        "totalAprobados": 93,
+        "totalRechazados": 3,
+        "montoProcesado": 1325420.44,
+        "minutosDemoraTotales": 4579.916666666665,
+        "retirosConTiempo": 96
+      },
+      "2026-05-22": {
+        "totalAprobados": 126,
+        "totalRechazados": 0,
+        "montoProcesado": 2972723.0,
+        "minutosDemoraTotales": 8651.666666666668,
+        "retirosConTiempo": 126
+      },
+      "2026-05-18": {
+        "totalAprobados": 124,
+        "totalRechazados": 3,
+        "montoProcesado": 1992810.0,
+        "minutosDemoraTotales": 6037.500000000001,
+        "retirosConTiempo": 127
+      },
+      "2026-05-08": {
+        "totalAprobados": 135,
+        "totalRechazados": 1,
+        "montoProcesado": 3120602.0,
+        "minutosDemoraTotales": 7973.416666666667,
+        "retirosConTiempo": 136
+      },
+      "2026-05-11": {
+        "totalAprobados": 130,
+        "totalRechazados": 1,
+        "montoProcesado": 1434490.04,
+        "minutosDemoraTotales": 4832.25,
+        "retirosConTiempo": 131
+      },
+      "2026-05-21": {
+        "totalAprobados": 115,
+        "totalRechazados": 5,
+        "montoProcesado": 3347086.9899999998,
+        "minutosDemoraTotales": 8062.450000000002,
+        "retirosConTiempo": 120
+      },
+      "2026-05-26": {
+        "totalAprobados": 53,
+        "totalRechazados": 2,
+        "montoProcesado": 1468842.0,
+        "minutosDemoraTotales": 3568.9500000000007,
+        "retirosConTiempo": 55
+      },
+      "2026-05-24": {
+        "totalAprobados": 119,
+        "totalRechazados": 3,
+        "montoProcesado": 2207594.45,
+        "minutosDemoraTotales": 4416.866666666669,
+        "retirosConTiempo": 122
+      },
+      "2026-05-06": {
+        "totalAprobados": 97,
+        "totalRechazados": 2,
+        "montoProcesado": 1597878.05,
+        "minutosDemoraTotales": 3565.733333333332,
+        "retirosConTiempo": 99
+      },
+      "2026-05-05": {
+        "totalAprobados": 129,
+        "totalRechazados": 6,
+        "montoProcesado": 1749426.29,
+        "minutosDemoraTotales": 5311.783333333334,
+        "retirosConTiempo": 135
+      },
+      "2026-05-23": {
+        "totalAprobados": 131,
+        "totalRechazados": 4,
+        "montoProcesado": 2415694.44,
+        "minutosDemoraTotales": 41693.549999999996,
+        "retirosConTiempo": 135
+      }
+    }
   },
   "smorales@caman.biz": {
     "totalAprobados": 1461,
     "totalRechazados": 43,
     "montoProcesado": 28751200.190000005,
     "minutosDemoraTotales": 494057.5666666677,
-    "retirosConTiempo": 1504
+    "retirosConTiempo": 1504,
+    "diario": {
+      "2026-05-02": {
+        "totalAprobados": 135,
+        "totalRechazados": 0,
+        "montoProcesado": 3628860.9499999997,
+        "minutosDemoraTotales": 4628.4000000000015,
+        "retirosConTiempo": 135
+      },
+      "2026-05-16": {
+        "totalAprobados": 288,
+        "totalRechazados": 17,
+        "montoProcesado": 5982347.130000001,
+        "minutosDemoraTotales": 139371.1499999999,
+        "retirosConTiempo": 305
+      },
+      "2026-05-11": {
+        "totalAprobados": 123,
+        "totalRechazados": 4,
+        "montoProcesado": 1901969.82,
+        "minutosDemoraTotales": 41118.66666666667,
+        "retirosConTiempo": 127
+      },
+      "2026-05-06": {
+        "totalAprobados": 254,
+        "totalRechazados": 2,
+        "montoProcesado": 4290588.1899999995,
+        "minutosDemoraTotales": 81641.68333333335,
+        "retirosConTiempo": 256
+      },
+      "2026-05-17": {
+        "totalAprobados": 149,
+        "totalRechazados": 2,
+        "montoProcesado": 2627962.84,
+        "minutosDemoraTotales": 54283.83333333335,
+        "retirosConTiempo": 151
+      },
+      "2026-05-05": {
+        "totalAprobados": 172,
+        "totalRechazados": 3,
+        "montoProcesado": 3040349.33,
+        "minutosDemoraTotales": 53937.58333333332,
+        "retirosConTiempo": 175
+      },
+      "2026-05-04": {
+        "totalAprobados": 37,
+        "totalRechazados": 0,
+        "montoProcesado": 1019474.0,
+        "minutosDemoraTotales": 16446.9,
+        "retirosConTiempo": 37
+      },
+      "2026-05-21": {
+        "totalAprobados": 141,
+        "totalRechazados": 10,
+        "montoProcesado": 3174630.9299999997,
+        "minutosDemoraTotales": 52577.44999999999,
+        "retirosConTiempo": 151
+      },
+      "2026-05-22": {
+        "totalAprobados": 162,
+        "totalRechazados": 5,
+        "montoProcesado": 3085017.0,
+        "minutosDemoraTotales": 50051.900000000016,
+        "retirosConTiempo": 167
+      }
+    }
   },
   "gsubero@caman.biz": {
     "totalAprobados": 473,
     "totalRechazados": 8,
     "montoProcesado": 9495049.59,
     "minutosDemoraTotales": 125102.3666666667,
-    "retirosConTiempo": 481
+    "retirosConTiempo": 481,
+    "diario": {
+      "2026-05-23": {
+        "totalAprobados": 122,
+        "totalRechazados": 3,
+        "montoProcesado": 2601476.94,
+        "minutosDemoraTotales": 4662.900000000002,
+        "retirosConTiempo": 125
+      },
+      "2026-05-18": {
+        "totalAprobados": 172,
+        "totalRechazados": 3,
+        "montoProcesado": 3512089.84,
+        "minutosDemoraTotales": 58635.36666666667,
+        "retirosConTiempo": 175
+      },
+      "2026-05-24": {
+        "totalAprobados": 179,
+        "totalRechazados": 2,
+        "montoProcesado": 3381482.8099999996,
+        "minutosDemoraTotales": 61804.100000000006,
+        "retirosConTiempo": 181
+      }
+    }
   },
   "jduarte@caman.biz": {
     "totalAprobados": 1308,
     "totalRechazados": 24,
     "montoProcesado": 25469152.250000004,
     "minutosDemoraTotales": 153046.64999999967,
-    "retirosConTiempo": 1332
+    "retirosConTiempo": 1332,
+    "diario": {
+      "2026-05-25": {
+        "totalAprobados": 125,
+        "totalRechazados": 1,
+        "montoProcesado": 2372549.4200000004,
+        "minutosDemoraTotales": 6654.500000000001,
+        "retirosConTiempo": 126
+      },
+      "2026-05-09": {
+        "totalAprobados": 112,
+        "totalRechazados": 3,
+        "montoProcesado": 2641120.75,
+        "minutosDemoraTotales": 5103.366666666665,
+        "retirosConTiempo": 115
+      },
+      "2026-05-15": {
+        "totalAprobados": 117,
+        "totalRechazados": 1,
+        "montoProcesado": 2988825.62,
+        "minutosDemoraTotales": 40643.383333333346,
+        "retirosConTiempo": 118
+      },
+      "2026-05-13": {
+        "totalAprobados": 126,
+        "totalRechazados": 3,
+        "montoProcesado": 1727625.7000000002,
+        "minutosDemoraTotales": 8100.599999999998,
+        "retirosConTiempo": 129
+      },
+      "2026-05-19": {
+        "totalAprobados": 96,
+        "totalRechazados": 3,
+        "montoProcesado": 1735738.15,
+        "minutosDemoraTotales": 8004.833333333332,
+        "retirosConTiempo": 99
+      },
+      "2026-05-14": {
+        "totalAprobados": 124,
+        "totalRechazados": 2,
+        "montoProcesado": 2782861.0,
+        "minutosDemoraTotales": 9220.05,
+        "retirosConTiempo": 126
+      },
+      "2026-05-04": {
+        "totalAprobados": 95,
+        "totalRechazados": 3,
+        "montoProcesado": 1452422.3199999998,
+        "minutosDemoraTotales": 5267.999999999999,
+        "retirosConTiempo": 98
+      },
+      "2026-05-10": {
+        "totalAprobados": 118,
+        "totalRechazados": 2,
+        "montoProcesado": 2411365.83,
+        "minutosDemoraTotales": 4201.466666666667,
+        "retirosConTiempo": 120
+      },
+      "2026-05-20": {
+        "totalAprobados": 161,
+        "totalRechazados": 1,
+        "montoProcesado": 3266318.7600000002,
+        "minutosDemoraTotales": 14352.08333333333,
+        "retirosConTiempo": 162
+      },
+      "2026-05-01": {
+        "totalAprobados": 158,
+        "totalRechazados": 5,
+        "montoProcesado": 2736334.6999999997,
+        "minutosDemoraTotales": 48550.200000000004,
+        "retirosConTiempo": 163
+      },
+      "2026-05-12": {
+        "totalAprobados": 76,
+        "totalRechazados": 0,
+        "montoProcesado": 1353990.0,
+        "minutosDemoraTotales": 2948.166666666667,
+        "retirosConTiempo": 76
+      }
+    }
   },
   "vmesa@caman.biz": {
     "totalAprobados": 1429,
     "totalRechazados": 61,
     "montoProcesado": 30394527.74,
     "minutosDemoraTotales": 544755.7833333332,
-    "retirosConTiempo": 1490
+    "retirosConTiempo": 1490,
+    "diario": {
+      "2026-05-19": {
+        "totalAprobados": 149,
+        "totalRechazados": 1,
+        "montoProcesado": 2748518.0300000003,
+        "minutosDemoraTotales": 55142.78333333334,
+        "retirosConTiempo": 150
+      },
+      "2026-05-20": {
+        "totalAprobados": 181,
+        "totalRechazados": 3,
+        "montoProcesado": 3646541.5300000003,
+        "minutosDemoraTotales": 76695.83333333331,
+        "retirosConTiempo": 184
+      },
+      "2026-05-03": {
+        "totalAprobados": 118,
+        "totalRechazados": 2,
+        "montoProcesado": 2184036.79,
+        "minutosDemoraTotales": 4613.600000000001,
+        "retirosConTiempo": 120
+      },
+      "2026-05-09": {
+        "totalAprobados": 160,
+        "totalRechazados": 1,
+        "montoProcesado": 2627984.48,
+        "minutosDemoraTotales": 44935.66666666665,
+        "retirosConTiempo": 161
+      },
+      "2026-05-15": {
+        "totalAprobados": 48,
+        "totalRechazados": 48,
+        "montoProcesado": 1150475.15,
+        "minutosDemoraTotales": 51542.46666666667,
+        "retirosConTiempo": 96
+      },
+      "2026-05-25": {
+        "totalAprobados": 144,
+        "totalRechazados": 1,
+        "montoProcesado": 2432821.3,
+        "minutosDemoraTotales": 45467.68333333333,
+        "retirosConTiempo": 145
+      },
+      "2026-05-04": {
+        "totalAprobados": 160,
+        "totalRechazados": 0,
+        "montoProcesado": 7379504.05,
+        "minutosDemoraTotales": 81938.54999999999,
+        "retirosConTiempo": 160
+      },
+      "2026-05-26": {
+        "totalAprobados": 143,
+        "totalRechazados": 3,
+        "montoProcesado": 3139284.7,
+        "minutosDemoraTotales": 52221.66666666666,
+        "retirosConTiempo": 146
+      },
+      "2026-05-10": {
+        "totalAprobados": 146,
+        "totalRechazados": 1,
+        "montoProcesado": 2623257.71,
+        "minutosDemoraTotales": 58828.88333333334,
+        "retirosConTiempo": 147
+      },
+      "2026-05-14": {
+        "totalAprobados": 180,
+        "totalRechazados": 1,
+        "montoProcesado": 2462104.0,
+        "minutosDemoraTotales": 73368.65000000002,
+        "retirosConTiempo": 181
+      }
+    }
   },
   "scarvajal@caman.biz": {
     "totalAprobados": 1007,
     "totalRechazados": 14,
     "montoProcesado": 17198156.830000002,
     "minutosDemoraTotales": 365951.3833333333,
-    "retirosConTiempo": 1021
+    "retirosConTiempo": 1021,
+    "diario": {
+      "2026-05-08": {
+        "totalAprobados": 191,
+        "totalRechazados": 2,
+        "montoProcesado": 3325870.48,
+        "minutosDemoraTotales": 76483.9333333333,
+        "retirosConTiempo": 193
+      },
+      "2026-05-02": {
+        "totalAprobados": 142,
+        "totalRechazados": 5,
+        "montoProcesado": 3159761.95,
+        "minutosDemoraTotales": 54929.51666666668,
+        "retirosConTiempo": 147
+      },
+      "2026-05-03": {
+        "totalAprobados": 154,
+        "totalRechazados": 2,
+        "montoProcesado": 2273685.16,
+        "minutosDemoraTotales": 62758.816666666695,
+        "retirosConTiempo": 156
+      },
+      "2026-05-07": {
+        "totalAprobados": 197,
+        "totalRechazados": 1,
+        "montoProcesado": 3001651.19,
+        "minutosDemoraTotales": 65252.783333333355,
+        "retirosConTiempo": 198
+      },
+      "2026-05-12": {
+        "totalAprobados": 159,
+        "totalRechazados": 3,
+        "montoProcesado": 2689707.8200000003,
+        "minutosDemoraTotales": 55338.03333333334,
+        "retirosConTiempo": 162
+      },
+      "2026-05-13": {
+        "totalAprobados": 164,
+        "totalRechazados": 1,
+        "montoProcesado": 2747480.23,
+        "minutosDemoraTotales": 51188.3,
+        "retirosConTiempo": 165
+      }
+    }
   },
   "omarchan@caman.biz": {
     "totalAprobados": 28,
     "totalRechazados": 1,
     "montoProcesado": 144271.0,
     "minutosDemoraTotales": 2051.383333333333,
-    "retirosConTiempo": 29
+    "retirosConTiempo": 29,
+    "diario": {
+      "2026-05-07": {
+        "totalAprobados": 9,
+        "totalRechazados": 0,
+        "montoProcesado": 57100.0,
+        "minutosDemoraTotales": 948.4500000000002,
+        "retirosConTiempo": 9
+      },
+      "2026-05-05": {
+        "totalAprobados": 14,
+        "totalRechazados": 1,
+        "montoProcesado": 61062.0,
+        "minutosDemoraTotales": 630.0500000000001,
+        "retirosConTiempo": 15
+      },
+      "2026-05-11": {
+        "totalAprobados": 4,
+        "totalRechazados": 0,
+        "montoProcesado": 25109.0,
+        "minutosDemoraTotales": 66.86666666666666,
+        "retirosConTiempo": 4
+      },
+      "2026-05-15": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 1000.0,
+        "minutosDemoraTotales": 406.01666666666665,
+        "retirosConTiempo": 1
+      }
+    }
   },
   "jcuevas@camanbet.vip": {
     "totalAprobados": 1,
     "totalRechazados": 0,
     "montoProcesado": 2000.0,
     "minutosDemoraTotales": 155.98333333333332,
-    "retirosConTiempo": 1
+    "retirosConTiempo": 1,
+    "diario": {
+      "2026-05-07": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 2000.0,
+        "minutosDemoraTotales": 155.98333333333332,
+        "retirosConTiempo": 1
+      }
+    }
   },
   "riesgo4@caman.biz": {
     "totalAprobados": 28,
     "totalRechazados": 0,
     "montoProcesado": 6038.19,
     "minutosDemoraTotales": 1575.7666666666667,
-    "retirosConTiempo": 28
+    "retirosConTiempo": 28,
+    "diario": {
+      "2026-05-09": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 820.0,
+        "minutosDemoraTotales": 90.75,
+        "retirosConTiempo": 2
+      },
+      "2026-05-19": {
+        "totalAprobados": 6,
+        "totalRechazados": 0,
+        "montoProcesado": 428.0,
+        "minutosDemoraTotales": 271.99999999999994,
+        "retirosConTiempo": 6
+      },
+      "2026-05-11": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 60.0,
+        "minutosDemoraTotales": 18.8,
+        "retirosConTiempo": 2
+      },
+      "2026-05-21": {
+        "totalAprobados": 3,
+        "totalRechazados": 0,
+        "montoProcesado": 885.0,
+        "minutosDemoraTotales": 31.15,
+        "retirosConTiempo": 3
+      },
+      "2026-05-05": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 1000.0,
+        "minutosDemoraTotales": 15.566666666666666,
+        "retirosConTiempo": 1
+      },
+      "2026-05-17": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 46.0,
+        "minutosDemoraTotales": 10.516666666666667,
+        "retirosConTiempo": 1
+      },
+      "2026-05-20": {
+        "totalAprobados": 3,
+        "totalRechazados": 0,
+        "montoProcesado": 70.0,
+        "minutosDemoraTotales": 995.9666666666666,
+        "retirosConTiempo": 3
+      },
+      "2026-05-04": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 372.0,
+        "minutosDemoraTotales": 38.63333333333333,
+        "retirosConTiempo": 2
+      },
+      "2026-05-22": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 500.0,
+        "minutosDemoraTotales": 27.633333333333333,
+        "retirosConTiempo": 2
+      },
+      "2026-05-26": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 45.0,
+        "minutosDemoraTotales": 4.233333333333333,
+        "retirosConTiempo": 1
+      },
+      "2026-05-14": {
+        "totalAprobados": 3,
+        "totalRechazados": 0,
+        "montoProcesado": 890.0,
+        "minutosDemoraTotales": 33.25,
+        "retirosConTiempo": 3
+      },
+      "2026-05-25": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 910.0,
+        "minutosDemoraTotales": 5.566666666666666,
+        "retirosConTiempo": 1
+      },
+      "2026-05-16": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 12.19,
+        "minutosDemoraTotales": 31.7,
+        "retirosConTiempo": 1
+      }
+    }
   },
   "riesgo1@caman.biz": {
     "totalAprobados": 33,
     "totalRechazados": 0,
     "montoProcesado": 14926.69,
     "minutosDemoraTotales": 6477.733333333334,
-    "retirosConTiempo": 33
+    "retirosConTiempo": 33,
+    "diario": {
+      "2026-05-04": {
+        "totalAprobados": 6,
+        "totalRechazados": 0,
+        "montoProcesado": 2331.0,
+        "minutosDemoraTotales": 2786.866666666667,
+        "retirosConTiempo": 6
+      },
+      "2026-05-02": {
+        "totalAprobados": 4,
+        "totalRechazados": 0,
+        "montoProcesado": 1485.0,
+        "minutosDemoraTotales": 814.5666666666668,
+        "retirosConTiempo": 4
+      },
+      "2026-05-14": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 300.0,
+        "minutosDemoraTotales": 41.8,
+        "retirosConTiempo": 1
+      },
+      "2026-05-24": {
+        "totalAprobados": 4,
+        "totalRechazados": 0,
+        "montoProcesado": 2350.0,
+        "minutosDemoraTotales": 209.20000000000002,
+        "retirosConTiempo": 4
+      },
+      "2026-05-08": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 1500.0,
+        "minutosDemoraTotales": 117.51666666666667,
+        "retirosConTiempo": 1
+      },
+      "2026-05-09": {
+        "totalAprobados": 3,
+        "totalRechazados": 0,
+        "montoProcesado": 2814.0,
+        "minutosDemoraTotales": 52.96666666666667,
+        "retirosConTiempo": 3
+      },
+      "2026-05-12": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 400.0,
+        "minutosDemoraTotales": 12.833333333333334,
+        "retirosConTiempo": 1
+      },
+      "2026-05-18": {
+        "totalAprobados": 4,
+        "totalRechazados": 0,
+        "montoProcesado": 1046.0,
+        "minutosDemoraTotales": 392.1666666666667,
+        "retirosConTiempo": 4
+      },
+      "2026-05-13": {
+        "totalAprobados": 4,
+        "totalRechazados": 0,
+        "montoProcesado": 1620.0,
+        "minutosDemoraTotales": 327.51666666666665,
+        "retirosConTiempo": 4
+      },
+      "2026-05-25": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 160.0,
+        "minutosDemoraTotales": 21.75,
+        "retirosConTiempo": 1
+      },
+      "2026-05-20": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 500.0,
+        "minutosDemoraTotales": 755.8833333333333,
+        "retirosConTiempo": 1
+      },
+      "2026-05-15": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 300.0,
+        "minutosDemoraTotales": 9.0,
+        "retirosConTiempo": 1
+      },
+      "2026-05-19": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 100.0,
+        "minutosDemoraTotales": 13.3,
+        "retirosConTiempo": 1
+      },
+      "2026-05-03": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 20.69,
+        "minutosDemoraTotales": 922.3666666666667,
+        "retirosConTiempo": 1
+      }
+    }
   },
   "riesgo3@caman.biz": {
     "totalAprobados": 39,
     "totalRechazados": 1,
     "montoProcesado": 10105.0,
     "minutosDemoraTotales": 14072.583333333332,
-    "retirosConTiempo": 40
+    "retirosConTiempo": 40,
+    "diario": {
+      "2026-05-05": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 253.0,
+        "minutosDemoraTotales": 13.916666666666666,
+        "retirosConTiempo": 2
+      },
+      "2026-05-12": {
+        "totalAprobados": 3,
+        "totalRechazados": 0,
+        "montoProcesado": 425.0,
+        "minutosDemoraTotales": 911.7833333333334,
+        "retirosConTiempo": 3
+      },
+      "2026-05-18": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 800.0,
+        "minutosDemoraTotales": 927.9166666666667,
+        "retirosConTiempo": 2
+      },
+      "2026-05-11": {
+        "totalAprobados": 6,
+        "totalRechazados": 0,
+        "montoProcesado": 858.0,
+        "minutosDemoraTotales": 6243.433333333333,
+        "retirosConTiempo": 6
+      },
+      "2026-05-07": {
+        "totalAprobados": 6,
+        "totalRechazados": 0,
+        "montoProcesado": 2265.0,
+        "minutosDemoraTotales": 974.9333333333333,
+        "retirosConTiempo": 6
+      },
+      "2026-05-24": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 67.0,
+        "minutosDemoraTotales": 32.55,
+        "retirosConTiempo": 2
+      },
+      "2026-05-26": {
+        "totalAprobados": 3,
+        "totalRechazados": 0,
+        "montoProcesado": 1005.0,
+        "minutosDemoraTotales": 203.93333333333334,
+        "retirosConTiempo": 3
+      },
+      "2026-05-01": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 310.0,
+        "minutosDemoraTotales": 27.883333333333333,
+        "retirosConTiempo": 2
+      },
+      "2026-05-21": {
+        "totalAprobados": 8,
+        "totalRechazados": 0,
+        "montoProcesado": 3321.0,
+        "minutosDemoraTotales": 4669.133333333333,
+        "retirosConTiempo": 8
+      },
+      "2026-05-08": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 200.0,
+        "minutosDemoraTotales": 13.966666666666667,
+        "retirosConTiempo": 1
+      },
+      "2026-05-16": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 35.0,
+        "minutosDemoraTotales": 10.166666666666666,
+        "retirosConTiempo": 1
+      },
+      "2026-05-03": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 310.0,
+        "minutosDemoraTotales": 9.916666666666666,
+        "retirosConTiempo": 1
+      },
+      "2026-05-02": {
+        "totalAprobados": 1,
+        "totalRechazados": 1,
+        "montoProcesado": 146.0,
+        "minutosDemoraTotales": 26.93333333333333,
+        "retirosConTiempo": 2
+      },
+      "2026-05-17": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 110.0,
+        "minutosDemoraTotales": 6.116666666666666,
+        "retirosConTiempo": 1
+      }
+    }
   },
   "riesgo6@caman.biz": {
     "totalAprobados": 43,
     "totalRechazados": 0,
     "montoProcesado": 10939.7,
     "minutosDemoraTotales": 4747.383333333334,
-    "retirosConTiempo": 43
+    "retirosConTiempo": 43,
+    "diario": {
+      "2026-05-09": {
+        "totalAprobados": 4,
+        "totalRechazados": 0,
+        "montoProcesado": 866.0,
+        "minutosDemoraTotales": 60.2,
+        "retirosConTiempo": 4
+      },
+      "2026-05-19": {
+        "totalAprobados": 4,
+        "totalRechazados": 0,
+        "montoProcesado": 780.0,
+        "minutosDemoraTotales": 71.06666666666666,
+        "retirosConTiempo": 4
+      },
+      "2026-05-13": {
+        "totalAprobados": 4,
+        "totalRechazados": 0,
+        "montoProcesado": 1005.7,
+        "minutosDemoraTotales": 320.25,
+        "retirosConTiempo": 4
+      },
+      "2026-05-23": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 180.0,
+        "minutosDemoraTotales": 5.95,
+        "retirosConTiempo": 1
+      },
+      "2026-05-24": {
+        "totalAprobados": 4,
+        "totalRechazados": 0,
+        "montoProcesado": 1253.0,
+        "minutosDemoraTotales": 53.2,
+        "retirosConTiempo": 4
+      },
+      "2026-05-20": {
+        "totalAprobados": 3,
+        "totalRechazados": 0,
+        "montoProcesado": 680.0,
+        "minutosDemoraTotales": 74.68333333333334,
+        "retirosConTiempo": 3
+      },
+      "2026-05-25": {
+        "totalAprobados": 5,
+        "totalRechazados": 0,
+        "montoProcesado": 1026.0,
+        "minutosDemoraTotales": 177.03333333333333,
+        "retirosConTiempo": 5
+      },
+      "2026-05-14": {
+        "totalAprobados": 4,
+        "totalRechazados": 0,
+        "montoProcesado": 945.0,
+        "minutosDemoraTotales": 149.03333333333333,
+        "retirosConTiempo": 4
+      },
+      "2026-05-18": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 30.0,
+        "minutosDemoraTotales": 6.283333333333333,
+        "retirosConTiempo": 1
+      },
+      "2026-05-07": {
+        "totalAprobados": 5,
+        "totalRechazados": 0,
+        "montoProcesado": 1340.0,
+        "minutosDemoraTotales": 2161.5333333333338,
+        "retirosConTiempo": 5
+      },
+      "2026-05-10": {
+        "totalAprobados": 3,
+        "totalRechazados": 0,
+        "montoProcesado": 647.0,
+        "minutosDemoraTotales": 31.5,
+        "retirosConTiempo": 3
+      },
+      "2026-05-04": {
+        "totalAprobados": 3,
+        "totalRechazados": 0,
+        "montoProcesado": 1527.0,
+        "minutosDemoraTotales": 1619.95,
+        "retirosConTiempo": 3
+      },
+      "2026-05-02": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 660.0,
+        "minutosDemoraTotales": 16.7,
+        "retirosConTiempo": 2
+      }
+    }
   },
   "riesgo2@caman.biz": {
     "totalAprobados": 57,
     "totalRechazados": 0,
     "montoProcesado": 37416.0,
     "minutosDemoraTotales": 13767.383333333331,
-    "retirosConTiempo": 58
+    "retirosConTiempo": 58,
+    "diario": {
+      "2026-05-21": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 1050.0,
+        "minutosDemoraTotales": 34.25,
+        "retirosConTiempo": 2
+      },
+      "2026-05-08": {
+        "totalAprobados": 7,
+        "totalRechazados": 0,
+        "montoProcesado": 4405.0,
+        "minutosDemoraTotales": 1894.8333333333333,
+        "retirosConTiempo": 7
+      },
+      "2026-05-26": {
+        "totalAprobados": 9,
+        "totalRechazados": 0,
+        "montoProcesado": 11632.0,
+        "minutosDemoraTotales": 4680.599999999999,
+        "retirosConTiempo": 9
+      },
+      "2026-05-06": {
+        "totalAprobados": 5,
+        "totalRechazados": 0,
+        "montoProcesado": 1471.0,
+        "minutosDemoraTotales": 46.86666666666667,
+        "retirosConTiempo": 5
+      },
+      "2026-05-22": {
+        "totalAprobados": 6,
+        "totalRechazados": 0,
+        "montoProcesado": 8259.0,
+        "minutosDemoraTotales": 2334.416666666667,
+        "retirosConTiempo": 6
+      },
+      "2026-05-13": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 40.0,
+        "minutosDemoraTotales": 1300.7333333333333,
+        "retirosConTiempo": 2
+      },
+      "2026-05-05": {
+        "totalAprobados": 7,
+        "totalRechazados": 0,
+        "montoProcesado": 2293.0,
+        "minutosDemoraTotales": 411.08333333333337,
+        "retirosConTiempo": 7
+      },
+      "2026-05-12": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 1300.0,
+        "minutosDemoraTotales": 14.25,
+        "retirosConTiempo": 2
+      },
+      "2026-05-07": {
+        "totalAprobados": 3,
+        "totalRechazados": 0,
+        "montoProcesado": 1555.0,
+        "minutosDemoraTotales": 317.65,
+        "retirosConTiempo": 3
+      },
+      "2026-05-18": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 2000.0,
+        "minutosDemoraTotales": 757.1166666666667,
+        "retirosConTiempo": 2
+      },
+      "2026-05-23": {
+        "totalAprobados": 3,
+        "totalRechazados": 0,
+        "montoProcesado": 710.0,
+        "minutosDemoraTotales": 20.083333333333336,
+        "retirosConTiempo": 3
+      },
+      "2026-05-02": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 820.0,
+        "minutosDemoraTotales": 15.0,
+        "retirosConTiempo": 2
+      },
+      "2026-05-16": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 534.0,
+        "minutosDemoraTotales": 41.15,
+        "retirosConTiempo": 2
+      },
+      "2026-05-11": {
+        "totalAprobados": 3,
+        "totalRechazados": 0,
+        "montoProcesado": 941.0,
+        "minutosDemoraTotales": 1851.85,
+        "retirosConTiempo": 4
+      },
+      "2026-05-17": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 406.0,
+        "minutosDemoraTotales": 47.5,
+        "retirosConTiempo": 2
+      }
+    }
   },
   "riesgo7@caman.biz": {
     "totalAprobados": 53,
     "totalRechazados": 1,
     "montoProcesado": 16477.04,
     "minutosDemoraTotales": 15148.100000000002,
-    "retirosConTiempo": 54
+    "retirosConTiempo": 54,
+    "diario": {
+      "2026-05-11": {
+        "totalAprobados": 5,
+        "totalRechazados": 1,
+        "montoProcesado": 1402.0,
+        "minutosDemoraTotales": 4169.950000000001,
+        "retirosConTiempo": 6
+      },
+      "2026-05-22": {
+        "totalAprobados": 8,
+        "totalRechazados": 0,
+        "montoProcesado": 1682.0,
+        "minutosDemoraTotales": 2924.9166666666665,
+        "retirosConTiempo": 8
+      },
+      "2026-05-21": {
+        "totalAprobados": 4,
+        "totalRechazados": 0,
+        "montoProcesado": 1385.0,
+        "minutosDemoraTotales": 52.349999999999994,
+        "retirosConTiempo": 4
+      },
+      "2026-05-02": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 90.0,
+        "minutosDemoraTotales": 14.116666666666667,
+        "retirosConTiempo": 1
+      },
+      "2026-05-18": {
+        "totalAprobados": 3,
+        "totalRechazados": 0,
+        "montoProcesado": 2210.0,
+        "minutosDemoraTotales": 813.4,
+        "retirosConTiempo": 3
+      },
+      "2026-05-16": {
+        "totalAprobados": 4,
+        "totalRechazados": 0,
+        "montoProcesado": 187.0,
+        "minutosDemoraTotales": 588.4166666666666,
+        "retirosConTiempo": 4
+      },
+      "2026-05-05": {
+        "totalAprobados": 4,
+        "totalRechazados": 0,
+        "montoProcesado": 1995.0,
+        "minutosDemoraTotales": 51.96666666666667,
+        "retirosConTiempo": 4
+      },
+      "2026-05-01": {
+        "totalAprobados": 3,
+        "totalRechazados": 0,
+        "montoProcesado": 1757.0,
+        "minutosDemoraTotales": 2345.0666666666666,
+        "retirosConTiempo": 3
+      },
+      "2026-05-03": {
+        "totalAprobados": 3,
+        "totalRechazados": 0,
+        "montoProcesado": 780.0,
+        "minutosDemoraTotales": 30.866666666666664,
+        "retirosConTiempo": 3
+      },
+      "2026-05-12": {
+        "totalAprobados": 3,
+        "totalRechazados": 0,
+        "montoProcesado": 911.0,
+        "minutosDemoraTotales": 289.70000000000005,
+        "retirosConTiempo": 3
+      },
+      "2026-05-07": {
+        "totalAprobados": 3,
+        "totalRechazados": 0,
+        "montoProcesado": 735.0,
+        "minutosDemoraTotales": 21.833333333333336,
+        "retirosConTiempo": 3
+      },
+      "2026-05-26": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 788.0,
+        "minutosDemoraTotales": 1098.2833333333333,
+        "retirosConTiempo": 2
+      },
+      "2026-05-08": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 300.0,
+        "minutosDemoraTotales": 29.983333333333334,
+        "retirosConTiempo": 2
+      },
+      "2026-05-23": {
+        "totalAprobados": 4,
+        "totalRechazados": 0,
+        "montoProcesado": 1412.0,
+        "minutosDemoraTotales": 50.733333333333334,
+        "retirosConTiempo": 4
+      },
+      "2026-05-06": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 200.0,
+        "minutosDemoraTotales": 22.683333333333334,
+        "retirosConTiempo": 1
+      },
+      "2026-05-17": {
+        "totalAprobados": 3,
+        "totalRechazados": 0,
+        "montoProcesado": 643.04,
+        "minutosDemoraTotales": 2643.8333333333335,
+        "retirosConTiempo": 3
+      }
+    }
   },
   "riesgo5@caman.biz": {
     "totalAprobados": 33,
     "totalRechazados": 0,
     "montoProcesado": 12056.0,
     "minutosDemoraTotales": 6581.0166666666655,
-    "retirosConTiempo": 34
+    "retirosConTiempo": 34,
+    "diario": {
+      "2026-05-19": {
+        "totalAprobados": 4,
+        "totalRechazados": 0,
+        "montoProcesado": 1383.0,
+        "minutosDemoraTotales": 41.21666666666667,
+        "retirosConTiempo": 4
+      },
+      "2026-05-03": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 52.0,
+        "minutosDemoraTotales": 1330.7333333333333,
+        "retirosConTiempo": 2
+      },
+      "2026-05-15": {
+        "totalAprobados": 7,
+        "totalRechazados": 0,
+        "montoProcesado": 4490.0,
+        "minutosDemoraTotales": 1960.8166666666666,
+        "retirosConTiempo": 8
+      },
+      "2026-05-04": {
+        "totalAprobados": 4,
+        "totalRechazados": 0,
+        "montoProcesado": 1405.0,
+        "minutosDemoraTotales": 1292.2166666666667,
+        "retirosConTiempo": 4
+      },
+      "2026-05-06": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 460.0,
+        "minutosDemoraTotales": 33.71666666666667,
+        "retirosConTiempo": 2
+      },
+      "2026-05-10": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 80.0,
+        "minutosDemoraTotales": 10.866666666666667,
+        "retirosConTiempo": 1
+      },
+      "2026-05-20": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 110.0,
+        "minutosDemoraTotales": 26.316666666666666,
+        "retirosConTiempo": 2
+      },
+      "2026-05-23": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 350.0,
+        "minutosDemoraTotales": 103.71666666666667,
+        "retirosConTiempo": 1
+      },
+      "2026-05-09": {
+        "totalAprobados": 4,
+        "totalRechazados": 0,
+        "montoProcesado": 1456.0,
+        "minutosDemoraTotales": 45.46666666666667,
+        "retirosConTiempo": 4
+      },
+      "2026-05-14": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 20.0,
+        "minutosDemoraTotales": 21.716666666666665,
+        "retirosConTiempo": 1
+      },
+      "2026-05-25": {
+        "totalAprobados": 3,
+        "totalRechazados": 0,
+        "montoProcesado": 1640.0,
+        "minutosDemoraTotales": 69.23333333333333,
+        "retirosConTiempo": 3
+      },
+      "2026-05-08": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 260.0,
+        "minutosDemoraTotales": 4.55,
+        "retirosConTiempo": 1
+      },
+      "2026-05-18": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 350.0,
+        "minutosDemoraTotales": 1640.45,
+        "retirosConTiempo": 1
+      }
+    }
   },
   "riesgo8@caman.biz": {
     "totalAprobados": 46,
     "totalRechazados": 0,
     "montoProcesado": 18063.39,
     "minutosDemoraTotales": 13852.383333333333,
-    "retirosConTiempo": 46
+    "retirosConTiempo": 46,
+    "diario": {
+      "2026-05-16": {
+        "totalAprobados": 5,
+        "totalRechazados": 0,
+        "montoProcesado": 1630.0,
+        "minutosDemoraTotales": 1391.5833333333335,
+        "retirosConTiempo": 5
+      },
+      "2026-05-14": {
+        "totalAprobados": 4,
+        "totalRechazados": 0,
+        "montoProcesado": 1015.0,
+        "minutosDemoraTotales": 813.1833333333333,
+        "retirosConTiempo": 4
+      },
+      "2026-05-10": {
+        "totalAprobados": 4,
+        "totalRechazados": 0,
+        "montoProcesado": 775.0,
+        "minutosDemoraTotales": 611.4,
+        "retirosConTiempo": 4
+      },
+      "2026-05-15": {
+        "totalAprobados": 3,
+        "totalRechazados": 0,
+        "montoProcesado": 2250.0,
+        "minutosDemoraTotales": 47.48333333333333,
+        "retirosConTiempo": 3
+      },
+      "2026-05-04": {
+        "totalAprobados": 6,
+        "totalRechazados": 0,
+        "montoProcesado": 7515.0,
+        "minutosDemoraTotales": 1538.0666666666666,
+        "retirosConTiempo": 6
+      },
+      "2026-05-20": {
+        "totalAprobados": 6,
+        "totalRechazados": 0,
+        "montoProcesado": 2360.0,
+        "minutosDemoraTotales": 2398.35,
+        "retirosConTiempo": 6
+      },
+      "2026-05-01": {
+        "totalAprobados": 7,
+        "totalRechazados": 0,
+        "montoProcesado": 1437.0,
+        "minutosDemoraTotales": 2693.7166666666667,
+        "retirosConTiempo": 7
+      },
+      "2026-05-19": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 360.0,
+        "minutosDemoraTotales": 63.03333333333333,
+        "retirosConTiempo": 2
+      },
+      "2026-05-09": {
+        "totalAprobados": 5,
+        "totalRechazados": 0,
+        "montoProcesado": 349.39,
+        "minutosDemoraTotales": 4048.633333333333,
+        "retirosConTiempo": 5
+      },
+      "2026-05-25": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 284.0,
+        "minutosDemoraTotales": 142.08333333333334,
+        "retirosConTiempo": 1
+      },
+      "2026-05-17": {
+        "totalAprobados": 3,
+        "totalRechazados": 0,
+        "montoProcesado": 88.0,
+        "minutosDemoraTotales": 104.85,
+        "retirosConTiempo": 3
+      }
+    }
   },
   "alexander villada": {
     "totalAprobados": 2870,
     "totalRechazados": 200,
     "montoProcesado": 24451032.519999977,
     "minutosDemoraTotales": 1310453.4833333364,
-    "retirosConTiempo": 3256
+    "retirosConTiempo": 3256,
+    "diario": {
+      "2026-05-03": {
+        "totalAprobados": 285,
+        "totalRechazados": 13,
+        "montoProcesado": 2154634.26,
+        "minutosDemoraTotales": 12848.399999999989,
+        "retirosConTiempo": 317
+      },
+      "2026-05-06": {
+        "totalAprobados": 281,
+        "totalRechazados": 34,
+        "montoProcesado": 7901342.36,
+        "minutosDemoraTotales": 110205.18333333339,
+        "retirosConTiempo": 316
+      },
+      "2026-05-23": {
+        "totalAprobados": 249,
+        "totalRechazados": 3,
+        "montoProcesado": 1497514.23,
+        "minutosDemoraTotales": 20658.449999999993,
+        "retirosConTiempo": 269
+      },
+      "2026-05-04": {
+        "totalAprobados": 234,
+        "totalRechazados": 17,
+        "montoProcesado": 3683541.45,
+        "minutosDemoraTotales": 136421.01666666672,
+        "retirosConTiempo": 252
+      },
+      "2026-05-07": {
+        "totalAprobados": 327,
+        "totalRechazados": 25,
+        "montoProcesado": 3697507.86,
+        "minutosDemoraTotales": 199783.54999999993,
+        "retirosConTiempo": 352
+      },
+      "2026-05-05": {
+        "totalAprobados": 210,
+        "totalRechazados": 12,
+        "montoProcesado": 3379277.99,
+        "minutosDemoraTotales": 133765.85000000006,
+        "retirosConTiempo": 223
+      },
+      "2026-05-08": {
+        "totalAprobados": 196,
+        "totalRechazados": 14,
+        "montoProcesado": 1509946.3599999999,
+        "minutosDemoraTotales": 118101.8,
+        "retirosConTiempo": 212
+      },
+      "2026-05-26": {
+        "totalAprobados": 121,
+        "totalRechazados": 0,
+        "montoProcesado": 490969.39999999997,
+        "minutosDemoraTotales": 21010.983333333337,
+        "retirosConTiempo": 193
+      },
+      "2026-05-01": {
+        "totalAprobados": 263,
+        "totalRechazados": 0,
+        "montoProcesado": 32340.9,
+        "minutosDemoraTotales": 31999.316666666662,
+        "retirosConTiempo": 286
+      },
+      "2026-05-17": {
+        "totalAprobados": 298,
+        "totalRechazados": 0,
+        "montoProcesado": 28228.620000000003,
+        "minutosDemoraTotales": 25525.63333333334,
+        "retirosConTiempo": 317
+      },
+      "2026-05-25": {
+        "totalAprobados": 250,
+        "totalRechazados": 7,
+        "montoProcesado": 55177.479999999996,
+        "minutosDemoraTotales": 287407.85000000003,
+        "retirosConTiempo": 274
+      },
+      "2026-05-11": {
+        "totalAprobados": 40,
+        "totalRechazados": 0,
+        "montoProcesado": 5952.08,
+        "minutosDemoraTotales": 145955.3333333333,
+        "retirosConTiempo": 40
+      },
+      "2026-05-13": {
+        "totalAprobados": 41,
+        "totalRechazados": 0,
+        "montoProcesado": 1066.19,
+        "minutosDemoraTotales": 1821.1666666666663,
+        "retirosConTiempo": 49
+      },
+      "2026-05-18": {
+        "totalAprobados": 29,
+        "totalRechazados": 0,
+        "montoProcesado": 2202.5,
+        "minutosDemoraTotales": 1174.2166666666662,
+        "retirosConTiempo": 32
+      },
+      "2026-05-15": {
+        "totalAprobados": 13,
+        "totalRechazados": 0,
+        "montoProcesado": 319.0,
+        "minutosDemoraTotales": 842.7333333333335,
+        "retirosConTiempo": 13
+      },
+      "2026-05-22": {
+        "totalAprobados": 21,
+        "totalRechazados": 0,
+        "montoProcesado": 4320.24,
+        "minutosDemoraTotales": 350.75,
+        "retirosConTiempo": 24
+      },
+      "2026-05-09": {
+        "totalAprobados": 12,
+        "totalRechazados": 75,
+        "montoProcesado": 6691.6,
+        "minutosDemoraTotales": 62581.250000000015,
+        "retirosConTiempo": 87
+      }
+    }
   },
   "yefferson.giraldo@virtualsoft.tech": {
     "totalAprobados": 6776,
     "totalRechazados": 519,
     "montoProcesado": 90605390.44999997,
     "minutosDemoraTotales": 6027774.250000006,
-    "retirosConTiempo": 7871
+    "retirosConTiempo": 7871,
+    "diario": {
+      "2026-05-19": {
+        "totalAprobados": 282,
+        "totalRechazados": 19,
+        "montoProcesado": 5311647.69,
+        "minutosDemoraTotales": 121213.44999999987,
+        "retirosConTiempo": 302
+      },
+      "2026-05-25": {
+        "totalAprobados": 320,
+        "totalRechazados": 17,
+        "montoProcesado": 4548462.640000001,
+        "minutosDemoraTotales": 630536.2,
+        "retirosConTiempo": 564
+      },
+      "2026-05-15": {
+        "totalAprobados": 295,
+        "totalRechazados": 22,
+        "montoProcesado": 3279339.84,
+        "minutosDemoraTotales": 202264.8166666666,
+        "retirosConTiempo": 317
+      },
+      "2026-05-20": {
+        "totalAprobados": 364,
+        "totalRechazados": 36,
+        "montoProcesado": 3927658.17,
+        "minutosDemoraTotales": 221857.74999999985,
+        "retirosConTiempo": 400
+      },
+      "2026-05-04": {
+        "totalAprobados": 394,
+        "totalRechazados": 16,
+        "montoProcesado": 6979330.6,
+        "minutosDemoraTotales": 918928.3166666669,
+        "retirosConTiempo": 411
+      },
+      "2026-05-08": {
+        "totalAprobados": 271,
+        "totalRechazados": 23,
+        "montoProcesado": 11345175.91,
+        "minutosDemoraTotales": 264565.1666666667,
+        "retirosConTiempo": 294
+      },
+      "2026-05-06": {
+        "totalAprobados": 259,
+        "totalRechazados": 10,
+        "montoProcesado": 2019690.57,
+        "minutosDemoraTotales": 248907.59999999998,
+        "retirosConTiempo": 269
+      },
+      "2026-05-14": {
+        "totalAprobados": 353,
+        "totalRechazados": 25,
+        "montoProcesado": 5519052.830000001,
+        "minutosDemoraTotales": 201601.36666666664,
+        "retirosConTiempo": 381
+      },
+      "2026-05-07": {
+        "totalAprobados": 396,
+        "totalRechazados": 26,
+        "montoProcesado": 6328144.46,
+        "minutosDemoraTotales": 283093.60000000003,
+        "retirosConTiempo": 425
+      },
+      "2026-05-12": {
+        "totalAprobados": 251,
+        "totalRechazados": 13,
+        "montoProcesado": 3637249.0699999994,
+        "minutosDemoraTotales": 154693.9666666666,
+        "retirosConTiempo": 265
+      },
+      "2026-05-05": {
+        "totalAprobados": 324,
+        "totalRechazados": 22,
+        "montoProcesado": 2576961.13,
+        "minutosDemoraTotales": 389950.5333333333,
+        "retirosConTiempo": 346
+      },
+      "2026-05-11": {
+        "totalAprobados": 218,
+        "totalRechazados": 7,
+        "montoProcesado": 6335628.55,
+        "minutosDemoraTotales": 108083.26666666666,
+        "retirosConTiempo": 229
+      },
+      "2026-05-22": {
+        "totalAprobados": 304,
+        "totalRechazados": 44,
+        "montoProcesado": 1700568.9999999998,
+        "minutosDemoraTotales": 226999.73333333337,
+        "retirosConTiempo": 349
+      },
+      "2026-05-13": {
+        "totalAprobados": 329,
+        "totalRechazados": 12,
+        "montoProcesado": 5538344.170000001,
+        "minutosDemoraTotales": 143299.8166666665,
+        "retirosConTiempo": 341
+      },
+      "2026-05-26": {
+        "totalAprobados": 161,
+        "totalRechazados": 21,
+        "montoProcesado": 3854090.7500000005,
+        "minutosDemoraTotales": 460332.9833333332,
+        "retirosConTiempo": 424
+      },
+      "2026-05-18": {
+        "totalAprobados": 203,
+        "totalRechazados": 8,
+        "montoProcesado": 2485410.88,
+        "minutosDemoraTotales": 300173.0833333333,
+        "retirosConTiempo": 212
+      },
+      "2026-05-01": {
+        "totalAprobados": 248,
+        "totalRechazados": 16,
+        "montoProcesado": 2329256.9200000004,
+        "minutosDemoraTotales": 88634.71666666675,
+        "retirosConTiempo": 282
+      },
+      "2026-05-24": {
+        "totalAprobados": 171,
+        "totalRechazados": 15,
+        "montoProcesado": 5114442.96,
+        "minutosDemoraTotales": 172042.1499999999,
+        "retirosConTiempo": 190
+      },
+      "2026-05-21": {
+        "totalAprobados": 342,
+        "totalRechazados": 46,
+        "montoProcesado": 4351771.240000001,
+        "minutosDemoraTotales": 245585.15000000008,
+        "retirosConTiempo": 392
+      },
+      "2026-05-16": {
+        "totalAprobados": 293,
+        "totalRechazados": 17,
+        "montoProcesado": 3292563.370000001,
+        "minutosDemoraTotales": 146649.4166666668,
+        "retirosConTiempo": 310
+      },
+      "2026-05-09": {
+        "totalAprobados": 527,
+        "totalRechazados": 50,
+        "montoProcesado": 75053.31999999998,
+        "minutosDemoraTotales": 212490.1833333335,
+        "retirosConTiempo": 624
+      },
+      "2026-05-02": {
+        "totalAprobados": 308,
+        "totalRechazados": 7,
+        "montoProcesado": 47649.42,
+        "minutosDemoraTotales": 87493.51666666668,
+        "retirosConTiempo": 334
+      },
+      "2026-05-23": {
+        "totalAprobados": 111,
+        "totalRechazados": 10,
+        "montoProcesado": 4746.14,
+        "minutosDemoraTotales": 123134.56666666662,
+        "retirosConTiempo": 121
+      },
+      "2026-05-17": {
+        "totalAprobados": 52,
+        "totalRechazados": 37,
+        "montoProcesado": 3150.82,
+        "minutosDemoraTotales": 75242.90000000002,
+        "retirosConTiempo": 89
+      }
+    }
   },
   "marilyn.jimenez": {
     "totalAprobados": 1689,
     "totalRechazados": 101,
     "montoProcesado": 19260768.049999997,
     "minutosDemoraTotales": 1942679.1833333338,
-    "retirosConTiempo": 1813
+    "retirosConTiempo": 1813,
+    "diario": {
+      "2026-05-11": {
+        "totalAprobados": 251,
+        "totalRechazados": 23,
+        "montoProcesado": 948437.24,
+        "minutosDemoraTotales": 496045.5333333334,
+        "retirosConTiempo": 275
+      },
+      "2026-05-16": {
+        "totalAprobados": 67,
+        "totalRechazados": 0,
+        "montoProcesado": 4467228.66,
+        "minutosDemoraTotales": 21321.65,
+        "retirosConTiempo": 68
+      },
+      "2026-05-12": {
+        "totalAprobados": 265,
+        "totalRechazados": 8,
+        "montoProcesado": 3152352.3800000004,
+        "minutosDemoraTotales": 300276.2166666665,
+        "retirosConTiempo": 273
+      },
+      "2026-05-14": {
+        "totalAprobados": 237,
+        "totalRechazados": 21,
+        "montoProcesado": 3160537.92,
+        "minutosDemoraTotales": 224116.88333333333,
+        "retirosConTiempo": 258
+      },
+      "2026-05-10": {
+        "totalAprobados": 150,
+        "totalRechazados": 4,
+        "montoProcesado": 4144874.91,
+        "minutosDemoraTotales": 80801.65000000002,
+        "retirosConTiempo": 154
+      },
+      "2026-05-13": {
+        "totalAprobados": 226,
+        "totalRechazados": 7,
+        "montoProcesado": 3247696.590000001,
+        "minutosDemoraTotales": 240280.71666666673,
+        "retirosConTiempo": 233
+      },
+      "2026-05-15": {
+        "totalAprobados": 122,
+        "totalRechazados": 6,
+        "montoProcesado": 69281.93999999999,
+        "minutosDemoraTotales": 204771.03333333335,
+        "retirosConTiempo": 128
+      },
+      "2026-05-24": {
+        "totalAprobados": 216,
+        "totalRechazados": 0,
+        "montoProcesado": 37328.259999999995,
+        "minutosDemoraTotales": 62801.933333333334,
+        "retirosConTiempo": 232
+      },
+      "2026-05-18": {
+        "totalAprobados": 59,
+        "totalRechazados": 8,
+        "montoProcesado": 20648.85,
+        "minutosDemoraTotales": 173042.0,
+        "retirosConTiempo": 67
+      },
+      "2026-05-05": {
+        "totalAprobados": 23,
+        "totalRechazados": 0,
+        "montoProcesado": 7092.2,
+        "minutosDemoraTotales": 6010.733333333334,
+        "retirosConTiempo": 27
+      },
+      "2026-05-20": {
+        "totalAprobados": 5,
+        "totalRechazados": 0,
+        "montoProcesado": 392.4,
+        "minutosDemoraTotales": 247.43333333333334,
+        "retirosConTiempo": 6
+      },
+      "2026-05-22": {
+        "totalAprobados": 9,
+        "totalRechazados": 0,
+        "montoProcesado": 582.36,
+        "minutosDemoraTotales": 897.2333333333332,
+        "retirosConTiempo": 9
+      },
+      "2026-05-17": {
+        "totalAprobados": 59,
+        "totalRechazados": 24,
+        "montoProcesado": 4314.34,
+        "minutosDemoraTotales": 132066.1666666667,
+        "retirosConTiempo": 83
+      }
+    }
   },
   "daniel.benavides@virtualsoft.tech": {
     "totalAprobados": 1899,
     "totalRechazados": 47,
     "montoProcesado": 9721435.540000003,
     "minutosDemoraTotales": 1028626.8666666665,
-    "retirosConTiempo": 2115
+    "retirosConTiempo": 2115,
+    "diario": {
+      "2026-05-25": {
+        "totalAprobados": 150,
+        "totalRechazados": 7,
+        "montoProcesado": 1919056.8199999998,
+        "minutosDemoraTotales": 358158.05000000005,
+        "retirosConTiempo": 228
+      },
+      "2026-05-17": {
+        "totalAprobados": 235,
+        "totalRechazados": 7,
+        "montoProcesado": 5246856.790000003,
+        "minutosDemoraTotales": 31629.533333333333,
+        "retirosConTiempo": 249
+      },
+      "2026-05-23": {
+        "totalAprobados": 84,
+        "totalRechazados": 8,
+        "montoProcesado": 1948093.5899999999,
+        "minutosDemoraTotales": 32675.749999999996,
+        "retirosConTiempo": 92
+      },
+      "2026-05-05": {
+        "totalAprobados": 9,
+        "totalRechazados": 2,
+        "montoProcesado": 311984.99,
+        "minutosDemoraTotales": 914.8000000000002,
+        "retirosConTiempo": 12
+      },
+      "2026-05-21": {
+        "totalAprobados": 272,
+        "totalRechazados": 1,
+        "montoProcesado": 35069.33,
+        "minutosDemoraTotales": 100481.0333333333,
+        "retirosConTiempo": 298
+      },
+      "2026-05-03": {
+        "totalAprobados": 175,
+        "totalRechazados": 0,
+        "montoProcesado": 25818.04,
+        "minutosDemoraTotales": 36775.00000000002,
+        "retirosConTiempo": 188
+      },
+      "2026-05-20": {
+        "totalAprobados": 205,
+        "totalRechazados": 0,
+        "montoProcesado": 51027.19,
+        "minutosDemoraTotales": 54443.733333333344,
+        "retirosConTiempo": 220
+      },
+      "2026-05-22": {
+        "totalAprobados": 241,
+        "totalRechazados": 0,
+        "montoProcesado": 57310.399999999994,
+        "minutosDemoraTotales": 74411.31666666668,
+        "retirosConTiempo": 255
+      },
+      "2026-05-11": {
+        "totalAprobados": 30,
+        "totalRechazados": 0,
+        "montoProcesado": 1364.03,
+        "minutosDemoraTotales": 1392.9166666666665,
+        "retirosConTiempo": 30
+      },
+      "2026-05-18": {
+        "totalAprobados": 223,
+        "totalRechazados": 6,
+        "montoProcesado": 59302.25,
+        "minutosDemoraTotales": 95311.34999999999,
+        "retirosConTiempo": 240
+      },
+      "2026-05-19": {
+        "totalAprobados": 200,
+        "totalRechazados": 11,
+        "montoProcesado": 43781.31,
+        "minutosDemoraTotales": 180850.86666666664,
+        "retirosConTiempo": 220
+      },
+      "2026-05-01": {
+        "totalAprobados": 22,
+        "totalRechazados": 0,
+        "montoProcesado": 1962.94,
+        "minutosDemoraTotales": 739.2666666666668,
+        "retirosConTiempo": 22
+      },
+      "2026-05-13": {
+        "totalAprobados": 22,
+        "totalRechazados": 0,
+        "montoProcesado": 1249.51,
+        "minutosDemoraTotales": 554.0166666666667,
+        "retirosConTiempo": 25
+      },
+      "2026-05-24": {
+        "totalAprobados": 26,
+        "totalRechazados": 5,
+        "montoProcesado": 1541.35,
+        "minutosDemoraTotales": 58702.76666666665,
+        "retirosConTiempo": 31
+      },
+      "2026-05-06": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 17.0,
+        "minutosDemoraTotales": 1174.7833333333333,
+        "retirosConTiempo": 1
+      },
+      "2026-05-04": {
+        "totalAprobados": 4,
+        "totalRechazados": 0,
+        "montoProcesado": 17000.0,
+        "minutosDemoraTotales": 411.6833333333333,
+        "retirosConTiempo": 4
+      }
+    }
   },
   "jose.diaz@virtualsoft.tech": {
     "totalAprobados": 806,
     "totalRechazados": 33,
     "montoProcesado": 12250026.75,
     "minutosDemoraTotales": 648679.7499999999,
-    "retirosConTiempo": 896
+    "retirosConTiempo": 896,
+    "diario": {
+      "2026-05-09": {
+        "totalAprobados": 71,
+        "totalRechazados": 1,
+        "montoProcesado": 3369901.5799999996,
+        "minutosDemoraTotales": 8052.333333333334,
+        "retirosConTiempo": 73
+      },
+      "2026-05-17": {
+        "totalAprobados": 88,
+        "totalRechazados": 2,
+        "montoProcesado": 2557363.87,
+        "minutosDemoraTotales": 37742.43333333333,
+        "retirosConTiempo": 90
+      },
+      "2026-05-03": {
+        "totalAprobados": 27,
+        "totalRechazados": 0,
+        "montoProcesado": 601161.0,
+        "minutosDemoraTotales": 2898.366666666667,
+        "retirosConTiempo": 27
+      },
+      "2026-05-11": {
+        "totalAprobados": 87,
+        "totalRechazados": 4,
+        "montoProcesado": 5469642.02,
+        "minutosDemoraTotales": 102747.06666666665,
+        "retirosConTiempo": 91
+      },
+      "2026-05-25": {
+        "totalAprobados": 93,
+        "totalRechazados": 0,
+        "montoProcesado": 164018.88999999998,
+        "minutosDemoraTotales": 5898.133333333334,
+        "retirosConTiempo": 125
+      },
+      "2026-05-18": {
+        "totalAprobados": 90,
+        "totalRechazados": 10,
+        "montoProcesado": 32120.91,
+        "minutosDemoraTotales": 168280.55,
+        "retirosConTiempo": 101
+      },
+      "2026-05-04": {
+        "totalAprobados": 14,
+        "totalRechazados": 0,
+        "montoProcesado": 3377.3,
+        "minutosDemoraTotales": 14119.666666666666,
+        "retirosConTiempo": 14
+      },
+      "2026-05-23": {
+        "totalAprobados": 165,
+        "totalRechazados": 0,
+        "montoProcesado": 38568.78,
+        "minutosDemoraTotales": 42470.483333333344,
+        "retirosConTiempo": 180
+      },
+      "2026-05-26": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 235.44,
+        "minutosDemoraTotales": 60.99999999999999,
+        "retirosConTiempo": 9
+      },
+      "2026-05-12": {
+        "totalAprobados": 16,
+        "totalRechazados": 0,
+        "montoProcesado": 2244.94,
+        "minutosDemoraTotales": 22476.333333333332,
+        "retirosConTiempo": 16
+      },
+      "2026-05-13": {
+        "totalAprobados": 29,
+        "totalRechazados": 4,
+        "montoProcesado": 1544.5,
+        "minutosDemoraTotales": 42117.38333333334,
+        "retirosConTiempo": 33
+      },
+      "2026-05-10": {
+        "totalAprobados": 87,
+        "totalRechazados": 4,
+        "montoProcesado": 7370.02,
+        "minutosDemoraTotales": 72854.33333333334,
+        "retirosConTiempo": 91
+      },
+      "2026-05-19": {
+        "totalAprobados": 38,
+        "totalRechazados": 8,
+        "montoProcesado": 2477.5,
+        "minutosDemoraTotales": 128961.66666666664,
+        "retirosConTiempo": 46
+      }
+    }
   },
   "oriana borjs": {
     "totalAprobados": 2595,
     "totalRechazados": 128,
     "montoProcesado": 23771102.909999978,
     "minutosDemoraTotales": 2864345.983333329,
-    "retirosConTiempo": 2772
+    "retirosConTiempo": 2772,
+    "diario": {
+      "2026-05-18": {
+        "totalAprobados": 169,
+        "totalRechazados": 6,
+        "montoProcesado": 5451473.53,
+        "minutosDemoraTotales": 229461.3833333334,
+        "retirosConTiempo": 175
+      },
+      "2026-05-20": {
+        "totalAprobados": 226,
+        "totalRechazados": 13,
+        "montoProcesado": 1852706.61,
+        "minutosDemoraTotales": 262328.6000000001,
+        "retirosConTiempo": 239
+      },
+      "2026-05-21": {
+        "totalAprobados": 354,
+        "totalRechazados": 29,
+        "montoProcesado": 4959534.510000002,
+        "minutosDemoraTotales": 467987.66666666657,
+        "retirosConTiempo": 384
+      },
+      "2026-05-15": {
+        "totalAprobados": 140,
+        "totalRechazados": 4,
+        "montoProcesado": 1332683.91,
+        "minutosDemoraTotales": 90396.26666666669,
+        "retirosConTiempo": 145
+      },
+      "2026-05-22": {
+        "totalAprobados": 298,
+        "totalRechazados": 24,
+        "montoProcesado": 1550323.79,
+        "minutosDemoraTotales": 372752.3666666667,
+        "retirosConTiempo": 322
+      },
+      "2026-05-19": {
+        "totalAprobados": 264,
+        "totalRechazados": 13,
+        "montoProcesado": 2442279.0900000003,
+        "minutosDemoraTotales": 335317.1499999997,
+        "retirosConTiempo": 278
+      },
+      "2026-05-24": {
+        "totalAprobados": 261,
+        "totalRechazados": 4,
+        "montoProcesado": 2174896.04,
+        "minutosDemoraTotales": 110431.36666666662,
+        "retirosConTiempo": 285
+      },
+      "2026-05-09": {
+        "totalAprobados": 115,
+        "totalRechazados": 0,
+        "montoProcesado": 3646838.79,
+        "minutosDemoraTotales": 72896.11666666665,
+        "retirosConTiempo": 115
+      },
+      "2026-05-13": {
+        "totalAprobados": 10,
+        "totalRechazados": 2,
+        "montoProcesado": 160125.0,
+        "minutosDemoraTotales": 2097.55,
+        "retirosConTiempo": 12
+      },
+      "2026-05-16": {
+        "totalAprobados": 264,
+        "totalRechazados": 11,
+        "montoProcesado": 79453.0,
+        "minutosDemoraTotales": 185580.85000000003,
+        "retirosConTiempo": 284
+      },
+      "2026-05-11": {
+        "totalAprobados": 93,
+        "totalRechazados": 1,
+        "montoProcesado": 9205.599999999999,
+        "minutosDemoraTotales": 271619.51666666666,
+        "retirosConTiempo": 94
+      },
+      "2026-05-02": {
+        "totalAprobados": 179,
+        "totalRechazados": 0,
+        "montoProcesado": 84560.58,
+        "minutosDemoraTotales": 26791.333333333343,
+        "retirosConTiempo": 196
+      },
+      "2026-05-25": {
+        "totalAprobados": 28,
+        "totalRechazados": 2,
+        "montoProcesado": 4533.29,
+        "minutosDemoraTotales": 71907.63333333335,
+        "retirosConTiempo": 30
+      },
+      "2026-05-12": {
+        "totalAprobados": 5,
+        "totalRechazados": 0,
+        "montoProcesado": 6100.0,
+        "minutosDemoraTotales": 19178.816666666666,
+        "retirosConTiempo": 5
+      },
+      "2026-05-07": {
+        "totalAprobados": 0,
+        "totalRechazados": 1,
+        "montoProcesado": 120.0,
+        "minutosDemoraTotales": 366.8833333333333,
+        "retirosConTiempo": 1
+      },
+      "2026-05-23": {
+        "totalAprobados": 37,
+        "totalRechazados": 3,
+        "montoProcesado": 1367.71,
+        "minutosDemoraTotales": 67171.28333333333,
+        "retirosConTiempo": 40
+      },
+      "2026-05-10": {
+        "totalAprobados": 100,
+        "totalRechazados": 4,
+        "montoProcesado": 7196.849999999999,
+        "minutosDemoraTotales": 133307.49999999994,
+        "retirosConTiempo": 104
+      },
+      "2026-05-26": {
+        "totalAprobados": 50,
+        "totalRechazados": 11,
+        "montoProcesado": 6674.61,
+        "minutosDemoraTotales": 139400.49999999997,
+        "retirosConTiempo": 61
+      },
+      "2026-05-01": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 1030.0,
+        "minutosDemoraTotales": 5353.2,
+        "retirosConTiempo": 2
+      }
+    }
   },
   "josue.alvarez@virtualsoft.tech": {
     "totalAprobados": 3274,
     "totalRechazados": 47,
     "montoProcesado": 7859175.830000002,
     "minutosDemoraTotales": 1486667.0666666671,
-    "retirosConTiempo": 3560
+    "retirosConTiempo": 3560,
+    "diario": {
+      "2026-05-01": {
+        "totalAprobados": 179,
+        "totalRechazados": 13,
+        "montoProcesado": 1891522.1600000004,
+        "minutosDemoraTotales": 172630.66666666672,
+        "retirosConTiempo": 194
+      },
+      "2026-05-10": {
+        "totalAprobados": 86,
+        "totalRechazados": 6,
+        "montoProcesado": 3250659.23,
+        "minutosDemoraTotales": 41341.53333333337,
+        "retirosConTiempo": 92
+      },
+      "2026-05-03": {
+        "totalAprobados": 113,
+        "totalRechazados": 7,
+        "montoProcesado": 1884220.83,
+        "minutosDemoraTotales": 43323.433333333334,
+        "retirosConTiempo": 121
+      },
+      "2026-05-21": {
+        "totalAprobados": 167,
+        "totalRechazados": 0,
+        "montoProcesado": 26763.309999999998,
+        "minutosDemoraTotales": 12561.416666666672,
+        "retirosConTiempo": 182
+      },
+      "2026-05-08": {
+        "totalAprobados": 127,
+        "totalRechazados": 0,
+        "montoProcesado": 11302.040000000003,
+        "minutosDemoraTotales": 6269.350000000001,
+        "retirosConTiempo": 140
+      },
+      "2026-05-20": {
+        "totalAprobados": 145,
+        "totalRechazados": 0,
+        "montoProcesado": 13908.699999999999,
+        "minutosDemoraTotales": 4287.600000000001,
+        "retirosConTiempo": 163
+      },
+      "2026-05-04": {
+        "totalAprobados": 357,
+        "totalRechazados": 3,
+        "montoProcesado": 54447.380000000005,
+        "minutosDemoraTotales": 643711.5166666658,
+        "retirosConTiempo": 383
+      },
+      "2026-05-07": {
+        "totalAprobados": 249,
+        "totalRechazados": 0,
+        "montoProcesado": 28622.13,
+        "minutosDemoraTotales": 45207.83333333333,
+        "retirosConTiempo": 269
+      },
+      "2026-05-12": {
+        "totalAprobados": 159,
+        "totalRechazados": 0,
+        "montoProcesado": 86148.65,
+        "minutosDemoraTotales": 50750.51666666666,
+        "retirosConTiempo": 170
+      },
+      "2026-05-19": {
+        "totalAprobados": 134,
+        "totalRechazados": 0,
+        "montoProcesado": 18258.92,
+        "minutosDemoraTotales": 3953.299999999999,
+        "retirosConTiempo": 157
+      },
+      "2026-05-11": {
+        "totalAprobados": 263,
+        "totalRechazados": 13,
+        "montoProcesado": 245990.26,
+        "minutosDemoraTotales": 116003.33333333334,
+        "retirosConTiempo": 283
+      },
+      "2026-05-14": {
+        "totalAprobados": 236,
+        "totalRechazados": 0,
+        "montoProcesado": 79213.38,
+        "minutosDemoraTotales": 64877.01666666669,
+        "retirosConTiempo": 254
+      },
+      "2026-05-06": {
+        "totalAprobados": 269,
+        "totalRechazados": 0,
+        "montoProcesado": 30711.309999999994,
+        "minutosDemoraTotales": 18289.783333333336,
+        "retirosConTiempo": 306
+      },
+      "2026-05-22": {
+        "totalAprobados": 113,
+        "totalRechazados": 0,
+        "montoProcesado": 25115.14,
+        "minutosDemoraTotales": 2800.8333333333326,
+        "retirosConTiempo": 124
+      },
+      "2026-05-13": {
+        "totalAprobados": 153,
+        "totalRechazados": 0,
+        "montoProcesado": 97982.32,
+        "minutosDemoraTotales": 29901.16666666666,
+        "retirosConTiempo": 162
+      },
+      "2026-05-15": {
+        "totalAprobados": 188,
+        "totalRechazados": 0,
+        "montoProcesado": 72232.72,
+        "minutosDemoraTotales": 52115.51666666668,
+        "retirosConTiempo": 199
+      },
+      "2026-05-05": {
+        "totalAprobados": 128,
+        "totalRechazados": 0,
+        "montoProcesado": 20612.35,
+        "minutosDemoraTotales": 4610.066666666666,
+        "retirosConTiempo": 140
+      },
+      "2026-05-24": {
+        "totalAprobados": 21,
+        "totalRechazados": 0,
+        "montoProcesado": 1563.2900000000002,
+        "minutosDemoraTotales": 2191.05,
+        "retirosConTiempo": 23
+      },
+      "2026-05-18": {
+        "totalAprobados": 83,
+        "totalRechazados": 0,
+        "montoProcesado": 6870.85,
+        "minutosDemoraTotales": 1870.2833333333338,
+        "retirosConTiempo": 89
+      },
+      "2026-05-02": {
+        "totalAprobados": 104,
+        "totalRechazados": 5,
+        "montoProcesado": 13030.859999999999,
+        "minutosDemoraTotales": 169970.85000000003,
+        "retirosConTiempo": 109
+      }
+    }
   },
   "sebastian hincapie": {
     "totalAprobados": 1068,
     "totalRechazados": 19,
     "montoProcesado": 9614111.089999994,
     "minutosDemoraTotales": 396017.55000000016,
-    "retirosConTiempo": 1232
+    "retirosConTiempo": 1232,
+    "diario": {
+      "2026-05-02": {
+        "totalAprobados": 113,
+        "totalRechazados": 4,
+        "montoProcesado": 4291992.5600000005,
+        "minutosDemoraTotales": 5647.95,
+        "retirosConTiempo": 117
+      },
+      "2026-05-07": {
+        "totalAprobados": 117,
+        "totalRechazados": 1,
+        "montoProcesado": 1789440.4600000004,
+        "minutosDemoraTotales": 16598.566666666666,
+        "retirosConTiempo": 128
+      },
+      "2026-05-04": {
+        "totalAprobados": 87,
+        "totalRechazados": 0,
+        "montoProcesado": 1952054.87,
+        "minutosDemoraTotales": 217382.06666666665,
+        "retirosConTiempo": 87
+      },
+      "2026-05-14": {
+        "totalAprobados": 17,
+        "totalRechazados": 2,
+        "montoProcesado": 1401952.5,
+        "minutosDemoraTotales": 15609.633333333331,
+        "retirosConTiempo": 19
+      },
+      "2026-05-16": {
+        "totalAprobados": 234,
+        "totalRechazados": 0,
+        "montoProcesado": 29310.179999999986,
+        "minutosDemoraTotales": 8406.650000000001,
+        "retirosConTiempo": 251
+      },
+      "2026-05-10": {
+        "totalAprobados": 181,
+        "totalRechazados": 0,
+        "montoProcesado": 54292.46000000001,
+        "minutosDemoraTotales": 12744.683333333336,
+        "retirosConTiempo": 191
+      },
+      "2026-05-12": {
+        "totalAprobados": 188,
+        "totalRechazados": 0,
+        "montoProcesado": 60110.5,
+        "minutosDemoraTotales": 4353.866666666668,
+        "retirosConTiempo": 214
+      },
+      "2026-05-25": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 7600.6,
+        "minutosDemoraTotales": 2832.6166666666663,
+        "retirosConTiempo": 83
+      },
+      "2026-05-05": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 35.0,
+        "minutosDemoraTotales": 1044.6833333333334,
+        "retirosConTiempo": 1
+      },
+      "2026-05-03": {
+        "totalAprobados": 109,
+        "totalRechazados": 5,
+        "montoProcesado": 13596.480000000001,
+        "minutosDemoraTotales": 92116.78333333333,
+        "retirosConTiempo": 114
+      },
+      "2026-05-09": {
+        "totalAprobados": 0,
+        "totalRechazados": 1,
+        "montoProcesado": 45.0,
+        "minutosDemoraTotales": 2046.9333333333334,
+        "retirosConTiempo": 1
+      },
+      "2026-05-08": {
+        "totalAprobados": 15,
+        "totalRechazados": 6,
+        "montoProcesado": 1970.48,
+        "minutosDemoraTotales": 14018.05,
+        "retirosConTiempo": 21
+      },
+      "2026-05-11": {
+        "totalAprobados": 5,
+        "totalRechazados": 0,
+        "montoProcesado": 11710.0,
+        "minutosDemoraTotales": 3215.0666666666666,
+        "retirosConTiempo": 5
+      }
+    }
   },
   "samuel cruz": {
     "totalAprobados": 539,
     "totalRechazados": 13,
     "montoProcesado": 19444796.32,
     "minutosDemoraTotales": 548711.6666666664,
-    "retirosConTiempo": 571
+    "retirosConTiempo": 571,
+    "diario": {
+      "2026-05-02": {
+        "totalAprobados": 76,
+        "totalRechazados": 2,
+        "montoProcesado": 4676444.78,
+        "minutosDemoraTotales": 19933.816666666666,
+        "retirosConTiempo": 79
+      },
+      "2026-05-09": {
+        "totalAprobados": 235,
+        "totalRechazados": 7,
+        "montoProcesado": 14733860.690000001,
+        "minutosDemoraTotales": 243883.2666666666,
+        "retirosConTiempo": 251
+      },
+      "2026-05-05": {
+        "totalAprobados": 9,
+        "totalRechazados": 0,
+        "montoProcesado": 994.12,
+        "minutosDemoraTotales": 13600.616666666665,
+        "retirosConTiempo": 9
+      },
+      "2026-05-11": {
+        "totalAprobados": 17,
+        "totalRechazados": 0,
+        "montoProcesado": 1452.75,
+        "minutosDemoraTotales": 41545.56666666667,
+        "retirosConTiempo": 17
+      },
+      "2026-05-04": {
+        "totalAprobados": 112,
+        "totalRechazados": 0,
+        "montoProcesado": 17306.399999999998,
+        "minutosDemoraTotales": 93806.76666666669,
+        "retirosConTiempo": 121
+      },
+      "2026-05-03": {
+        "totalAprobados": 89,
+        "totalRechazados": 4,
+        "montoProcesado": 13237.58,
+        "minutosDemoraTotales": 134916.78333333333,
+        "retirosConTiempo": 93
+      },
+      "2026-05-01": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 1500.0,
+        "minutosDemoraTotales": 1024.85,
+        "retirosConTiempo": 1
+      }
+    }
   },
   "sebastian.arango@virtualsoft.tech": {
     "totalAprobados": 1462,
     "totalRechazados": 3,
     "montoProcesado": 925908.2299999996,
     "minutosDemoraTotales": 368138.30000000005,
-    "retirosConTiempo": 1565
+    "retirosConTiempo": 1565,
+    "diario": {
+      "2026-05-23": {
+        "totalAprobados": 13,
+        "totalRechazados": 0,
+        "montoProcesado": 670683.2,
+        "minutosDemoraTotales": 412.79999999999995,
+        "retirosConTiempo": 14
+      },
+      "2026-05-14": {
+        "totalAprobados": 129,
+        "totalRechazados": 0,
+        "montoProcesado": 13559.52,
+        "minutosDemoraTotales": 8803.18333333334,
+        "retirosConTiempo": 141
+      },
+      "2026-05-10": {
+        "totalAprobados": 211,
+        "totalRechazados": 0,
+        "montoProcesado": 26688.66,
+        "minutosDemoraTotales": 44794.766666666656,
+        "retirosConTiempo": 215
+      },
+      "2026-05-07": {
+        "totalAprobados": 140,
+        "totalRechazados": 0,
+        "montoProcesado": 30171.2,
+        "minutosDemoraTotales": 48500.13333333334,
+        "retirosConTiempo": 154
+      },
+      "2026-05-15": {
+        "totalAprobados": 101,
+        "totalRechazados": 0,
+        "montoProcesado": 10811.33,
+        "minutosDemoraTotales": 6642.05,
+        "retirosConTiempo": 109
+      },
+      "2026-05-05": {
+        "totalAprobados": 126,
+        "totalRechazados": 0,
+        "montoProcesado": 15431.160000000002,
+        "minutosDemoraTotales": 29689.283333333355,
+        "retirosConTiempo": 135
+      },
+      "2026-05-11": {
+        "totalAprobados": 104,
+        "totalRechazados": 0,
+        "montoProcesado": 61090.46,
+        "minutosDemoraTotales": 6288.866666666667,
+        "retirosConTiempo": 117
+      },
+      "2026-05-08": {
+        "totalAprobados": 230,
+        "totalRechazados": 0,
+        "montoProcesado": 25186.029999999995,
+        "minutosDemoraTotales": 52618.99999999999,
+        "retirosConTiempo": 236
+      },
+      "2026-05-13": {
+        "totalAprobados": 189,
+        "totalRechazados": 0,
+        "montoProcesado": 16856.140000000007,
+        "minutosDemoraTotales": 13063.333333333338,
+        "retirosConTiempo": 204
+      },
+      "2026-05-06": {
+        "totalAprobados": 143,
+        "totalRechazados": 0,
+        "montoProcesado": 41512.969999999994,
+        "minutosDemoraTotales": 37753.78333333334,
+        "retirosConTiempo": 157
+      },
+      "2026-05-04": {
+        "totalAprobados": 15,
+        "totalRechazados": 0,
+        "montoProcesado": 3031.12,
+        "minutosDemoraTotales": 47753.28333333334,
+        "retirosConTiempo": 16
+      },
+      "2026-05-25": {
+        "totalAprobados": 51,
+        "totalRechazados": 3,
+        "montoProcesado": 9993.670000000002,
+        "minutosDemoraTotales": 71122.44999999998,
+        "retirosConTiempo": 57
+      },
+      "2026-05-17": {
+        "totalAprobados": 10,
+        "totalRechazados": 0,
+        "montoProcesado": 892.77,
+        "minutosDemoraTotales": 695.3666666666667,
+        "retirosConTiempo": 10
+      }
+    }
   },
   "mariana hernandez": {
     "totalAprobados": 0,
     "totalRechazados": 2,
     "montoProcesado": 10299.0,
     "minutosDemoraTotales": 0.7666666666666666,
-    "retirosConTiempo": 2
+    "retirosConTiempo": 2,
+    "diario": {
+      "2026-05-26": {
+        "totalAprobados": 0,
+        "totalRechazados": 1,
+        "montoProcesado": 10000.0,
+        "minutosDemoraTotales": 0.4166666666666667,
+        "retirosConTiempo": 1
+      },
+      "2026-05-15": {
+        "totalAprobados": 0,
+        "totalRechazados": 1,
+        "montoProcesado": 299.0,
+        "minutosDemoraTotales": 0.35,
+        "retirosConTiempo": 1
+      }
+    }
   },
   "alejandro garcia": {
     "totalAprobados": 0,
     "totalRechazados": 3,
     "montoProcesado": 30000.0,
     "minutosDemoraTotales": 1.3833333333333333,
-    "retirosConTiempo": 3
+    "retirosConTiempo": 3,
+    "diario": {
+      "2026-05-13": {
+        "totalAprobados": 0,
+        "totalRechazados": 3,
+        "montoProcesado": 30000.0,
+        "minutosDemoraTotales": 1.3833333333333333,
+        "retirosConTiempo": 3
+      }
+    }
   },
   "lina jimenez": {
     "totalAprobados": 0,
     "totalRechazados": 1,
     "montoProcesado": 10000.0,
     "minutosDemoraTotales": 1.4,
-    "retirosConTiempo": 1
+    "retirosConTiempo": 1,
+    "diario": {
+      "2026-05-24": {
+        "totalAprobados": 0,
+        "totalRechazados": 1,
+        "montoProcesado": 10000.0,
+        "minutosDemoraTotales": 1.4,
+        "retirosConTiempo": 1
+      }
+    }
   },
   "agentecr2": {
     "totalAprobados": 5237,
     "totalRechazados": 236,
     "montoProcesado": 411844992.0900001,
     "minutosDemoraTotales": 12611158.15,
-    "retirosConTiempo": 5657
+    "retirosConTiempo": 5657,
+    "diario": {
+      "2026-05-14": {
+        "totalAprobados": 318,
+        "totalRechazados": 14,
+        "montoProcesado": 21027214.330000002,
+        "minutosDemoraTotales": 392744.61666666664,
+        "retirosConTiempo": 332
+      },
+      "2026-05-05": {
+        "totalAprobados": 468,
+        "totalRechazados": 20,
+        "montoProcesado": 32241180.250000004,
+        "minutosDemoraTotales": 986915.9333333325,
+        "retirosConTiempo": 488
+      },
+      "2026-05-12": {
+        "totalAprobados": 171,
+        "totalRechazados": 14,
+        "montoProcesado": 14595565.13,
+        "minutosDemoraTotales": 216300.64999999997,
+        "retirosConTiempo": 185
+      },
+      "2026-05-15": {
+        "totalAprobados": 273,
+        "totalRechazados": 13,
+        "montoProcesado": 19473120.630000003,
+        "minutosDemoraTotales": 334794.8166666664,
+        "retirosConTiempo": 286
+      },
+      "2026-05-18": {
+        "totalAprobados": 781,
+        "totalRechazados": 29,
+        "montoProcesado": 44675561.78000001,
+        "minutosDemoraTotales": 2149975.9500000007,
+        "retirosConTiempo": 810
+      },
+      "2026-05-22": {
+        "totalAprobados": 184,
+        "totalRechazados": 12,
+        "montoProcesado": 14725086.07,
+        "minutosDemoraTotales": 276227.6000000001,
+        "retirosConTiempo": 196
+      },
+      "2026-05-25": {
+        "totalAprobados": 637,
+        "totalRechazados": 28,
+        "montoProcesado": 42528227.01,
+        "minutosDemoraTotales": 1739862.8,
+        "retirosConTiempo": 665
+      },
+      "2026-05-26": {
+        "totalAprobados": 0,
+        "totalRechazados": 0,
+        "montoProcesado": 15201426.600000001,
+        "minutosDemoraTotales": 252489.40000000008,
+        "retirosConTiempo": 184
+      },
+      "2026-05-01": {
+        "totalAprobados": 13,
+        "totalRechazados": 0,
+        "montoProcesado": 9679501.5,
+        "minutosDemoraTotales": 44344.25,
+        "retirosConTiempo": 13
+      },
+      "2026-05-04": {
+        "totalAprobados": 780,
+        "totalRechazados": 24,
+        "montoProcesado": 53200860.300000004,
+        "minutosDemoraTotales": 3421270.316666668,
+        "retirosConTiempo": 804
+      },
+      "2026-05-19": {
+        "totalAprobados": 232,
+        "totalRechazados": 15,
+        "montoProcesado": 24520079.96,
+        "minutosDemoraTotales": 329115.76666666666,
+        "retirosConTiempo": 247
+      },
+      "2026-05-06": {
+        "totalAprobados": 176,
+        "totalRechazados": 13,
+        "montoProcesado": 14196353.42,
+        "minutosDemoraTotales": 259031.69999999987,
+        "retirosConTiempo": 189
+      },
+      "2026-05-11": {
+        "totalAprobados": 461,
+        "totalRechazados": 11,
+        "montoProcesado": 38617034.809999995,
+        "minutosDemoraTotales": 1148457.6166666674,
+        "retirosConTiempo": 472
+      },
+      "2026-05-13": {
+        "totalAprobados": 161,
+        "totalRechazados": 6,
+        "montoProcesado": 11689941.0,
+        "minutosDemoraTotales": 237446.46666666662,
+        "retirosConTiempo": 167
+      },
+      "2026-05-21": {
+        "totalAprobados": 202,
+        "totalRechazados": 9,
+        "montoProcesado": 14811228.29,
+        "minutosDemoraTotales": 287307.20000000007,
+        "retirosConTiempo": 211
+      },
+      "2026-05-08": {
+        "totalAprobados": 172,
+        "totalRechazados": 8,
+        "montoProcesado": 21553002.009999998,
+        "minutosDemoraTotales": 244550.99999999997,
+        "retirosConTiempo": 180
+      },
+      "2026-05-20": {
+        "totalAprobados": 208,
+        "totalRechazados": 20,
+        "montoProcesado": 19109609.0,
+        "minutosDemoraTotales": 290322.06666666665,
+        "retirosConTiempo": 228
+      }
+    }
   },
   "dirfinancr": {
     "totalAprobados": 210,
     "totalRechazados": 14,
     "montoProcesado": 17271108.2,
     "minutosDemoraTotales": 346563.8333333333,
-    "retirosConTiempo": 224
+    "retirosConTiempo": 224,
+    "diario": {
+      "2026-05-07": {
+        "totalAprobados": 210,
+        "totalRechazados": 14,
+        "montoProcesado": 17271108.2,
+        "minutosDemoraTotales": 346563.8333333333,
+        "retirosConTiempo": 224
+      }
+    }
   },
   "jacobo.perez@virtualsoft.tech": {
     "totalAprobados": 0,
     "totalRechazados": 2,
     "montoProcesado": 10000.0,
     "minutosDemoraTotales": 44.766666666666666,
-    "retirosConTiempo": 2
+    "retirosConTiempo": 2,
+    "diario": {
+      "2026-05-15": {
+        "totalAprobados": 0,
+        "totalRechazados": 1,
+        "montoProcesado": 5000.0,
+        "minutosDemoraTotales": 43.9,
+        "retirosConTiempo": 1
+      },
+      "2026-05-19": {
+        "totalAprobados": 0,
+        "totalRechazados": 1,
+        "montoProcesado": 5000.0,
+        "minutosDemoraTotales": 0.8666666666666667,
+        "retirosConTiempo": 1
+      }
+    }
   },
   "julian.baena@doradobet.com": {
     "totalAprobados": 3958,
     "totalRechazados": 103,
     "montoProcesado": 3039191.8000000003,
     "minutosDemoraTotales": 5480677.066666658,
-    "retirosConTiempo": 4062
+    "retirosConTiempo": 4062,
+    "diario": {
+      "2026-05-04": {
+        "totalAprobados": 1165,
+        "totalRechazados": 23,
+        "montoProcesado": 1108630.7999999993,
+        "minutosDemoraTotales": 2391197.1499999994,
+        "retirosConTiempo": 1188
+      },
+      "2026-05-11": {
+        "totalAprobados": 1187,
+        "totalRechazados": 20,
+        "montoProcesado": 923316.2200000003,
+        "minutosDemoraTotales": 1943088.2333333362,
+        "retirosConTiempo": 1207
+      },
+      "2026-05-09": {
+        "totalAprobados": 705,
+        "totalRechazados": 17,
+        "montoProcesado": 372631.14999999985,
+        "minutosDemoraTotales": 467805.9833333335,
+        "retirosConTiempo": 722
+      },
+      "2026-05-08": {
+        "totalAprobados": 477,
+        "totalRechazados": 21,
+        "montoProcesado": 292423.73000000016,
+        "minutosDemoraTotales": 356346.51666666695,
+        "retirosConTiempo": 498
+      },
+      "2026-05-20": {
+        "totalAprobados": 423,
+        "totalRechazados": 19,
+        "montoProcesado": 341989.9,
+        "minutosDemoraTotales": 322222.24999999994,
+        "retirosConTiempo": 443
+      },
+      "2026-05-07": {
+        "totalAprobados": 0,
+        "totalRechazados": 2,
+        "montoProcesado": 100.0,
+        "minutosDemoraTotales": 0.6833333333333333,
+        "retirosConTiempo": 2
+      },
+      "2026-05-14": {
+        "totalAprobados": 0,
+        "totalRechazados": 1,
+        "montoProcesado": 50.0,
+        "minutosDemoraTotales": 11.633333333333333,
+        "retirosConTiempo": 1
+      },
+      "2026-05-19": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 50.0,
+        "minutosDemoraTotales": 4.616666666666666,
+        "retirosConTiempo": 1
+      }
+    }
   },
   "fausto.leon@doradobet.com": {
     "totalAprobados": 7688,
     "totalRechazados": 208,
     "montoProcesado": 5377866.559999997,
     "minutosDemoraTotales": 3905071.0666666715,
-    "retirosConTiempo": 8148
+    "retirosConTiempo": 8148,
+    "diario": {
+      "2026-05-07": {
+        "totalAprobados": 1331,
+        "totalRechazados": 45,
+        "montoProcesado": 994130.9100000005,
+        "minutosDemoraTotales": 418132.0499999995,
+        "retirosConTiempo": 1376
+      },
+      "2026-05-20": {
+        "totalAprobados": 321,
+        "totalRechazados": 18,
+        "montoProcesado": 227196.42999999993,
+        "minutosDemoraTotales": 71608.39999999998,
+        "retirosConTiempo": 339
+      },
+      "2026-05-22": {
+        "totalAprobados": 519,
+        "totalRechazados": 12,
+        "montoProcesado": 421830.9,
+        "minutosDemoraTotales": 257813.89999999985,
+        "retirosConTiempo": 531
+      },
+      "2026-05-08": {
+        "totalAprobados": 789,
+        "totalRechazados": 19,
+        "montoProcesado": 404688.03,
+        "minutosDemoraTotales": 149807.11666666655,
+        "retirosConTiempo": 808
+      },
+      "2026-05-14": {
+        "totalAprobados": 1694,
+        "totalRechazados": 31,
+        "montoProcesado": 892499.5200000001,
+        "minutosDemoraTotales": 898575.3333333334,
+        "retirosConTiempo": 1725
+      },
+      "2026-05-04": {
+        "totalAprobados": 576,
+        "totalRechazados": 9,
+        "montoProcesado": 518112.89999999997,
+        "minutosDemoraTotales": 404814.9666666667,
+        "retirosConTiempo": 585
+      },
+      "2026-05-09": {
+        "totalAprobados": 358,
+        "totalRechazados": 9,
+        "montoProcesado": 114390.53,
+        "minutosDemoraTotales": 444504.9166666665,
+        "retirosConTiempo": 367
+      },
+      "2026-05-19": {
+        "totalAprobados": 35,
+        "totalRechazados": 0,
+        "montoProcesado": 20435.399999999998,
+        "minutosDemoraTotales": 2284.6500000000005,
+        "retirosConTiempo": 35
+      },
+      "2026-05-12": {
+        "totalAprobados": 677,
+        "totalRechazados": 11,
+        "montoProcesado": 430875.0999999999,
+        "minutosDemoraTotales": 392681.93333333277,
+        "retirosConTiempo": 688
+      },
+      "2026-05-06": {
+        "totalAprobados": 63,
+        "totalRechazados": 1,
+        "montoProcesado": 34360.479999999996,
+        "minutosDemoraTotales": 43211.95,
+        "retirosConTiempo": 64
+      },
+      "2026-05-11": {
+        "totalAprobados": 259,
+        "totalRechazados": 3,
+        "montoProcesado": 344558.33,
+        "minutosDemoraTotales": 65315.666666666635,
+        "retirosConTiempo": 262
+      },
+      "2026-05-23": {
+        "totalAprobados": 209,
+        "totalRechazados": 3,
+        "montoProcesado": 147269.21,
+        "minutosDemoraTotales": 158022.3666666667,
+        "retirosConTiempo": 212
+      },
+      "2026-05-26": {
+        "totalAprobados": 157,
+        "totalRechazados": 20,
+        "montoProcesado": 355854.73999999993,
+        "minutosDemoraTotales": 228328.66666666666,
+        "retirosConTiempo": 428
+      },
+      "2026-05-13": {
+        "totalAprobados": 83,
+        "totalRechazados": 2,
+        "montoProcesado": 30294.180000000004,
+        "minutosDemoraTotales": 9628.3,
+        "retirosConTiempo": 85
+      },
+      "2026-05-18": {
+        "totalAprobados": 50,
+        "totalRechazados": 1,
+        "montoProcesado": 43762.740000000005,
+        "minutosDemoraTotales": 8251.433333333334,
+        "retirosConTiempo": 51
+      },
+      "2026-05-25": {
+        "totalAprobados": 315,
+        "totalRechazados": 20,
+        "montoProcesado": 243945.26,
+        "minutosDemoraTotales": 266292.0333333332,
+        "retirosConTiempo": 336
+      },
+      "2026-05-15": {
+        "totalAprobados": 83,
+        "totalRechazados": 2,
+        "montoProcesado": 34624.73999999999,
+        "minutosDemoraTotales": 38841.83333333333,
+        "retirosConTiempo": 85
+      },
+      "2026-05-21": {
+        "totalAprobados": 169,
+        "totalRechazados": 2,
+        "montoProcesado": 119037.15999999996,
+        "minutosDemoraTotales": 46955.54999999999,
+        "retirosConTiempo": 171
+      }
+    }
   },
   "xiomara bernardo": {
     "totalAprobados": 8683,
     "totalRechazados": 191,
     "montoProcesado": 6547932.610000002,
     "minutosDemoraTotales": 7666357.433333303,
-    "retirosConTiempo": 8937
+    "retirosConTiempo": 8937,
+    "diario": {
+      "2026-05-12": {
+        "totalAprobados": 694,
+        "totalRechazados": 8,
+        "montoProcesado": 423927.51000000007,
+        "minutosDemoraTotales": 390049.13333333365,
+        "retirosConTiempo": 702
+      },
+      "2026-05-06": {
+        "totalAprobados": 158,
+        "totalRechazados": 3,
+        "montoProcesado": 64123.02000000001,
+        "minutosDemoraTotales": 14015.800000000003,
+        "retirosConTiempo": 161
+      },
+      "2026-05-14": {
+        "totalAprobados": 425,
+        "totalRechazados": 16,
+        "montoProcesado": 268806.07000000007,
+        "minutosDemoraTotales": 59538.73333333338,
+        "retirosConTiempo": 441
+      },
+      "2026-05-21": {
+        "totalAprobados": 1465,
+        "totalRechazados": 27,
+        "montoProcesado": 1085083.2500000002,
+        "minutosDemoraTotales": 665826.7166666662,
+        "retirosConTiempo": 1493
+      },
+      "2026-05-05": {
+        "totalAprobados": 507,
+        "totalRechazados": 17,
+        "montoProcesado": 433315.65000000014,
+        "minutosDemoraTotales": 241650.5333333336,
+        "retirosConTiempo": 524
+      },
+      "2026-05-25": {
+        "totalAprobados": 971,
+        "totalRechazados": 39,
+        "montoProcesado": 1026185.1999999996,
+        "minutosDemoraTotales": 1725425.8000000014,
+        "retirosConTiempo": 1010
+      },
+      "2026-05-15": {
+        "totalAprobados": 55,
+        "totalRechazados": 1,
+        "montoProcesado": 24493.96,
+        "minutosDemoraTotales": 8632.816666666666,
+        "retirosConTiempo": 56
+      },
+      "2026-05-13": {
+        "totalAprobados": 1892,
+        "totalRechazados": 30,
+        "montoProcesado": 1095630.5200000005,
+        "minutosDemoraTotales": 869707.5166666684,
+        "retirosConTiempo": 1922
+      },
+      "2026-05-18": {
+        "totalAprobados": 1403,
+        "totalRechazados": 31,
+        "montoProcesado": 1250183.0800000005,
+        "minutosDemoraTotales": 2025296.1999999997,
+        "retirosConTiempo": 1434
+      },
+      "2026-05-07": {
+        "totalAprobados": 64,
+        "totalRechazados": 0,
+        "montoProcesado": 44597.24,
+        "minutosDemoraTotales": 10248.1,
+        "retirosConTiempo": 64
+      },
+      "2026-05-22": {
+        "totalAprobados": 82,
+        "totalRechazados": 2,
+        "montoProcesado": 62271.55,
+        "minutosDemoraTotales": 37818.43333333335,
+        "retirosConTiempo": 84
+      },
+      "2026-05-02": {
+        "totalAprobados": 783,
+        "totalRechazados": 11,
+        "montoProcesado": 627282.43,
+        "minutosDemoraTotales": 1319259.3999999997,
+        "retirosConTiempo": 794
+      },
+      "2026-05-20": {
+        "totalAprobados": 38,
+        "totalRechazados": 3,
+        "montoProcesado": 27523.91,
+        "minutosDemoraTotales": 5899.883333333333,
+        "retirosConTiempo": 41
+      },
+      "2026-05-26": {
+        "totalAprobados": 14,
+        "totalRechazados": 1,
+        "montoProcesado": 50346.83000000001,
+        "minutosDemoraTotales": 59174.649999999994,
+        "retirosConTiempo": 77
+      },
+      "2026-05-11": {
+        "totalAprobados": 71,
+        "totalRechazados": 0,
+        "montoProcesado": 18797.260000000002,
+        "minutosDemoraTotales": 187176.00000000003,
+        "retirosConTiempo": 71
+      },
+      "2026-05-19": {
+        "totalAprobados": 61,
+        "totalRechazados": 2,
+        "montoProcesado": 45365.13,
+        "minutosDemoraTotales": 46637.716666666674,
+        "retirosConTiempo": 63
+      }
+    }
   },
   "grace mendoza": {
     "totalAprobados": 3635,
     "totalRechazados": 110,
     "montoProcesado": 2458827.5200000005,
     "minutosDemoraTotales": 1959808.7500000056,
-    "retirosConTiempo": 3745
+    "retirosConTiempo": 3745,
+    "diario": {
+      "2026-05-15": {
+        "totalAprobados": 1193,
+        "totalRechazados": 43,
+        "montoProcesado": 806738.3599999999,
+        "minutosDemoraTotales": 652116.3500000006,
+        "retirosConTiempo": 1236
+      },
+      "2026-05-16": {
+        "totalAprobados": 292,
+        "totalRechazados": 9,
+        "montoProcesado": 135712.94,
+        "minutosDemoraTotales": 232658.6499999999,
+        "retirosConTiempo": 301
+      },
+      "2026-05-06": {
+        "totalAprobados": 945,
+        "totalRechazados": 27,
+        "montoProcesado": 704606.91,
+        "minutosDemoraTotales": 397651.3999999996,
+        "retirosConTiempo": 972
+      },
+      "2026-05-13": {
+        "totalAprobados": 140,
+        "totalRechazados": 1,
+        "montoProcesado": 46278.25000000001,
+        "minutosDemoraTotales": 12328.166666666666,
+        "retirosConTiempo": 141
+      },
+      "2026-05-19": {
+        "totalAprobados": 490,
+        "totalRechazados": 11,
+        "montoProcesado": 398287.11000000004,
+        "minutosDemoraTotales": 242542.84999999995,
+        "retirosConTiempo": 501
+      },
+      "2026-05-08": {
+        "totalAprobados": 93,
+        "totalRechazados": 0,
+        "montoProcesado": 18373.060000000005,
+        "minutosDemoraTotales": 91900.53333333335,
+        "retirosConTiempo": 93
+      },
+      "2026-05-11": {
+        "totalAprobados": 33,
+        "totalRechazados": 0,
+        "montoProcesado": 51308.25000000001,
+        "minutosDemoraTotales": 5364.033333333335,
+        "retirosConTiempo": 33
+      },
+      "2026-05-05": {
+        "totalAprobados": 87,
+        "totalRechazados": 7,
+        "montoProcesado": 84670.65000000001,
+        "minutosDemoraTotales": 55249.68333333333,
+        "retirosConTiempo": 94
+      },
+      "2026-05-18": {
+        "totalAprobados": 136,
+        "totalRechazados": 5,
+        "montoProcesado": 108524.2,
+        "minutosDemoraTotales": 189671.9,
+        "retirosConTiempo": 141
+      },
+      "2026-05-07": {
+        "totalAprobados": 188,
+        "totalRechazados": 6,
+        "montoProcesado": 68835.41999999998,
+        "minutosDemoraTotales": 73192.23333333334,
+        "retirosConTiempo": 194
+      },
+      "2026-05-22": {
+        "totalAprobados": 38,
+        "totalRechazados": 1,
+        "montoProcesado": 35492.369999999995,
+        "minutosDemoraTotales": 7132.950000000001,
+        "retirosConTiempo": 39
+      }
+    }
   },
   "jerson.polo": {
     "totalAprobados": 0,
     "totalRechazados": 3,
     "montoProcesado": 150.0,
     "minutosDemoraTotales": 34.6,
-    "retirosConTiempo": 3
+    "retirosConTiempo": 3,
+    "diario": {
+      "2026-05-07": {
+        "totalAprobados": 0,
+        "totalRechazados": 3,
+        "montoProcesado": 150.0,
+        "minutosDemoraTotales": 34.6,
+        "retirosConTiempo": 3
+      }
+    }
   },
   "tommy.cholango@ecuabet.com": {
     "totalAprobados": 7259,
     "totalRechazados": 4,
     "montoProcesado": 1014120.0600000002,
     "minutosDemoraTotales": 1575786.2000000004,
-    "retirosConTiempo": 7653
+    "retirosConTiempo": 7653,
+    "diario": {
+      "2026-05-03": {
+        "totalAprobados": 687,
+        "totalRechazados": 0,
+        "montoProcesado": 121597.42000000001,
+        "minutosDemoraTotales": 213412.80000000002,
+        "retirosConTiempo": 732
+      },
+      "2026-05-13": {
+        "totalAprobados": 1229,
+        "totalRechazados": 0,
+        "montoProcesado": 94183.94999999998,
+        "minutosDemoraTotales": 459514.76666666655,
+        "retirosConTiempo": 1302
+      },
+      "2026-05-09": {
+        "totalAprobados": 1045,
+        "totalRechazados": 0,
+        "montoProcesado": 165718.58999999997,
+        "minutosDemoraTotales": 101146.76666666659,
+        "retirosConTiempo": 1107
+      },
+      "2026-05-11": {
+        "totalAprobados": 912,
+        "totalRechazados": 2,
+        "montoProcesado": 118488.48000000003,
+        "minutosDemoraTotales": 212055.18333333303,
+        "retirosConTiempo": 949
+      },
+      "2026-05-04": {
+        "totalAprobados": 676,
+        "totalRechazados": 0,
+        "montoProcesado": 123298.59999999999,
+        "minutosDemoraTotales": 187733.95000000013,
+        "retirosConTiempo": 699
+      },
+      "2026-05-02": {
+        "totalAprobados": 28,
+        "totalRechazados": 0,
+        "montoProcesado": 9794.460000000001,
+        "minutosDemoraTotales": 6613.533333333332,
+        "retirosConTiempo": 29
+      },
+      "2026-05-20": {
+        "totalAprobados": 876,
+        "totalRechazados": 2,
+        "montoProcesado": 79480.48000000003,
+        "minutosDemoraTotales": 81293.01666666666,
+        "retirosConTiempo": 932
+      },
+      "2026-05-08": {
+        "totalAprobados": 642,
+        "totalRechazados": 0,
+        "montoProcesado": 73881.08000000002,
+        "minutosDemoraTotales": 59339.966666666725,
+        "retirosConTiempo": 691
+      },
+      "2026-05-18": {
+        "totalAprobados": 485,
+        "totalRechazados": 0,
+        "montoProcesado": 76912.47999999998,
+        "minutosDemoraTotales": 43877.18333333333,
+        "retirosConTiempo": 504
+      },
+      "2026-05-19": {
+        "totalAprobados": 15,
+        "totalRechazados": 0,
+        "montoProcesado": 3737.0,
+        "minutosDemoraTotales": 2051.35,
+        "retirosConTiempo": 16
+      },
+      "2026-05-23": {
+        "totalAprobados": 532,
+        "totalRechazados": 0,
+        "montoProcesado": 78231.63999999998,
+        "minutosDemoraTotales": 179143.1333333334,
+        "retirosConTiempo": 558
+      },
+      "2026-05-14": {
+        "totalAprobados": 76,
+        "totalRechazados": 0,
+        "montoProcesado": 41170.42999999999,
+        "minutosDemoraTotales": 24382.433333333334,
+        "retirosConTiempo": 78
+      },
+      "2026-05-12": {
+        "totalAprobados": 12,
+        "totalRechazados": 0,
+        "montoProcesado": 7243.33,
+        "minutosDemoraTotales": 713.4666666666666,
+        "retirosConTiempo": 12
+      },
+      "2026-05-10": {
+        "totalAprobados": 32,
+        "totalRechazados": 0,
+        "montoProcesado": 16408.66,
+        "minutosDemoraTotales": 3193.5833333333335,
+        "retirosConTiempo": 32
+      },
+      "2026-05-07": {
+        "totalAprobados": 12,
+        "totalRechazados": 0,
+        "montoProcesado": 3973.46,
+        "minutosDemoraTotales": 1315.0666666666668,
+        "retirosConTiempo": 12
+      }
+    }
   },
   "alejandra.chugchilan@ecuabet.com": {
     "totalAprobados": 8285,
     "totalRechazados": 3,
     "montoProcesado": 1408297.1149999995,
     "minutosDemoraTotales": 1568624.4000000034,
-    "retirosConTiempo": 8957
+    "retirosConTiempo": 8957,
+    "diario": {
+      "2026-05-06": {
+        "totalAprobados": 36,
+        "totalRechazados": 1,
+        "montoProcesado": 14459.64,
+        "minutosDemoraTotales": 18102.75,
+        "retirosConTiempo": 37
+      },
+      "2026-05-01": {
+        "totalAprobados": 2242,
+        "totalRechazados": 1,
+        "montoProcesado": 345184.02,
+        "minutosDemoraTotales": 541054.0500000007,
+        "retirosConTiempo": 2340
+      },
+      "2026-05-24": {
+        "totalAprobados": 663,
+        "totalRechazados": 0,
+        "montoProcesado": 116007.61,
+        "minutosDemoraTotales": 181862.85000000006,
+        "retirosConTiempo": 706
+      },
+      "2026-05-26": {
+        "totalAprobados": 1052,
+        "totalRechazados": 1,
+        "montoProcesado": 160442.8169999999,
+        "minutosDemoraTotales": 327268.6333333332,
+        "retirosConTiempo": 1351
+      },
+      "2026-05-16": {
+        "totalAprobados": 1364,
+        "totalRechazados": 0,
+        "montoProcesado": 181963.19999999987,
+        "minutosDemoraTotales": 106880.28333333338,
+        "retirosConTiempo": 1444
+      },
+      "2026-05-10": {
+        "totalAprobados": 1044,
+        "totalRechazados": 0,
+        "montoProcesado": 197973.66,
+        "minutosDemoraTotales": 230685.44999999952,
+        "retirosConTiempo": 1102
+      },
+      "2026-05-14": {
+        "totalAprobados": 1055,
+        "totalRechazados": 0,
+        "montoProcesado": 118436.54800000004,
+        "minutosDemoraTotales": 75440.85000000008,
+        "retirosConTiempo": 1110
+      },
+      "2026-05-09": {
+        "totalAprobados": 24,
+        "totalRechazados": 0,
+        "montoProcesado": 6705.18,
+        "minutosDemoraTotales": 2912.35,
+        "retirosConTiempo": 25
+      },
+      "2026-05-13": {
+        "totalAprobados": 126,
+        "totalRechazados": 0,
+        "montoProcesado": 67414.29999999999,
+        "minutosDemoraTotales": 10757.983333333332,
+        "retirosConTiempo": 133
+      },
+      "2026-05-15": {
+        "totalAprobados": 83,
+        "totalRechazados": 0,
+        "montoProcesado": 43476.24,
+        "minutosDemoraTotales": 6382.600000000001,
+        "retirosConTiempo": 85
+      },
+      "2026-05-18": {
+        "totalAprobados": 468,
+        "totalRechazados": 0,
+        "montoProcesado": 75477.92999999998,
+        "minutosDemoraTotales": 34193.58333333335,
+        "retirosConTiempo": 494
+      },
+      "2026-05-20": {
+        "totalAprobados": 86,
+        "totalRechazados": 0,
+        "montoProcesado": 60694.25000000001,
+        "minutosDemoraTotales": 27336.16666666666,
+        "retirosConTiempo": 86
+      },
+      "2026-05-19": {
+        "totalAprobados": 42,
+        "totalRechazados": 0,
+        "montoProcesado": 20061.72,
+        "minutosDemoraTotales": 5746.85,
+        "retirosConTiempo": 44
+      }
+    }
   },
   "alyson sanchez": {
     "totalAprobados": 10686,
     "totalRechazados": 6,
     "montoProcesado": 1592916.439999999,
     "minutosDemoraTotales": 1382978.4166666593,
-    "retirosConTiempo": 11243
+    "retirosConTiempo": 11243,
+    "diario": {
+      "2026-05-12": {
+        "totalAprobados": 42,
+        "totalRechazados": 0,
+        "montoProcesado": 19094.16,
+        "minutosDemoraTotales": 23540.599999999995,
+        "retirosConTiempo": 43
+      },
+      "2026-05-06": {
+        "totalAprobados": 1739,
+        "totalRechazados": 1,
+        "montoProcesado": 208481.04000000007,
+        "minutosDemoraTotales": 125286.55000000025,
+        "retirosConTiempo": 1814
+      },
+      "2026-05-15": {
+        "totalAprobados": 844,
+        "totalRechazados": 0,
+        "montoProcesado": 143019.01999999993,
+        "minutosDemoraTotales": 208401.26666666658,
+        "retirosConTiempo": 882
+      },
+      "2026-05-17": {
+        "totalAprobados": 1634,
+        "totalRechazados": 1,
+        "montoProcesado": 208833.3699999999,
+        "minutosDemoraTotales": 372735.2499999999,
+        "retirosConTiempo": 1711
+      },
+      "2026-05-23": {
+        "totalAprobados": 631,
+        "totalRechazados": 1,
+        "montoProcesado": 105129.52000000002,
+        "minutosDemoraTotales": 53228.59999999996,
+        "retirosConTiempo": 671
+      },
+      "2026-05-10": {
+        "totalAprobados": 632,
+        "totalRechazados": 0,
+        "montoProcesado": 110321.11999999998,
+        "minutosDemoraTotales": 56090.54999999998,
+        "retirosConTiempo": 661
+      },
+      "2026-05-04": {
+        "totalAprobados": 1147,
+        "totalRechazados": 2,
+        "montoProcesado": 184446.84,
+        "minutosDemoraTotales": 93249.98333333332,
+        "retirosConTiempo": 1204
+      },
+      "2026-05-21": {
+        "totalAprobados": 1048,
+        "totalRechazados": 1,
+        "montoProcesado": 139017.93,
+        "minutosDemoraTotales": 113149.71666666656,
+        "retirosConTiempo": 1106
+      },
+      "2026-05-25": {
+        "totalAprobados": 625,
+        "totalRechazados": 0,
+        "montoProcesado": 133126.53999999998,
+        "minutosDemoraTotales": 97471.74999999988,
+        "retirosConTiempo": 658
+      },
+      "2026-05-11": {
+        "totalAprobados": 1941,
+        "totalRechazados": 0,
+        "montoProcesado": 163835.6599999999,
+        "minutosDemoraTotales": 148855.73333333342,
+        "retirosConTiempo": 2075
+      },
+      "2026-05-07": {
+        "totalAprobados": 18,
+        "totalRechazados": 0,
+        "montoProcesado": 3695.3,
+        "minutosDemoraTotales": 1518.4333333333332,
+        "retirosConTiempo": 19
+      },
+      "2026-05-16": {
+        "totalAprobados": 80,
+        "totalRechazados": 0,
+        "montoProcesado": 36581.14,
+        "minutosDemoraTotales": 18304.083333333336,
+        "retirosConTiempo": 82
+      },
+      "2026-05-20": {
+        "totalAprobados": 77,
+        "totalRechazados": 0,
+        "montoProcesado": 49706.41,
+        "minutosDemoraTotales": 6667.01666666667,
+        "retirosConTiempo": 79
+      },
+      "2026-05-26": {
+        "totalAprobados": 49,
+        "totalRechazados": 0,
+        "montoProcesado": 17313.800000000003,
+        "minutosDemoraTotales": 32353.816666666666,
+        "retirosConTiempo": 55
+      },
+      "2026-05-01": {
+        "totalAprobados": 79,
+        "totalRechazados": 0,
+        "montoProcesado": 23880.959999999992,
+        "minutosDemoraTotales": 25850.466666666664,
+        "retirosConTiempo": 82
+      },
+      "2026-05-24": {
+        "totalAprobados": 77,
+        "totalRechazados": 0,
+        "montoProcesado": 33251.369999999995,
+        "minutosDemoraTotales": 4156.983333333333,
+        "retirosConTiempo": 78
+      },
+      "2026-05-22": {
+        "totalAprobados": 23,
+        "totalRechazados": 0,
+        "montoProcesado": 13182.26,
+        "minutosDemoraTotales": 2117.616666666667,
+        "retirosConTiempo": 23
+      }
+    }
   },
   "nelson.maldonado@ecuabet.com": {
     "totalAprobados": 8887,
     "totalRechazados": 2,
     "montoProcesado": 1224455.8399999999,
     "minutosDemoraTotales": 896849.4666666666,
-    "retirosConTiempo": 9415
+    "retirosConTiempo": 9415,
+    "diario": {
+      "2026-05-22": {
+        "totalAprobados": 99,
+        "totalRechazados": 0,
+        "montoProcesado": 46314.950000000004,
+        "minutosDemoraTotales": 26767.666666666668,
+        "retirosConTiempo": 101
+      },
+      "2026-05-05": {
+        "totalAprobados": 640,
+        "totalRechazados": 0,
+        "montoProcesado": 96767.37000000004,
+        "minutosDemoraTotales": 58894.516666666736,
+        "retirosConTiempo": 672
+      },
+      "2026-05-03": {
+        "totalAprobados": 417,
+        "totalRechazados": 0,
+        "montoProcesado": 72439.37999999999,
+        "minutosDemoraTotales": 49177.01666666666,
+        "retirosConTiempo": 435
+      },
+      "2026-05-25": {
+        "totalAprobados": 723,
+        "totalRechazados": 1,
+        "montoProcesado": 98943.34000000003,
+        "minutosDemoraTotales": 63194.54999999996,
+        "retirosConTiempo": 786
+      },
+      "2026-05-07": {
+        "totalAprobados": 3600,
+        "totalRechazados": 1,
+        "montoProcesado": 359739.86,
+        "minutosDemoraTotales": 277426.4499999998,
+        "retirosConTiempo": 3851
+      },
+      "2026-05-13": {
+        "totalAprobados": 700,
+        "totalRechazados": 0,
+        "montoProcesado": 68918.48,
+        "minutosDemoraTotales": 81529.06666666675,
+        "retirosConTiempo": 724
+      },
+      "2026-05-24": {
+        "totalAprobados": 478,
+        "totalRechazados": 0,
+        "montoProcesado": 97892.12999999993,
+        "minutosDemoraTotales": 73907.43333333326,
+        "retirosConTiempo": 508
+      },
+      "2026-05-14": {
+        "totalAprobados": 127,
+        "totalRechazados": 0,
+        "montoProcesado": 68502.44,
+        "minutosDemoraTotales": 31235.01666666666,
+        "retirosConTiempo": 128
+      },
+      "2026-05-12": {
+        "totalAprobados": 1395,
+        "totalRechazados": 0,
+        "montoProcesado": 116761.41999999997,
+        "minutosDemoraTotales": 115380.90000000008,
+        "retirosConTiempo": 1467
+      },
+      "2026-05-17": {
+        "totalAprobados": 84,
+        "totalRechazados": 0,
+        "montoProcesado": 37865.1,
+        "minutosDemoraTotales": 29675.66666666668,
+        "retirosConTiempo": 88
+      },
+      "2026-05-23": {
+        "totalAprobados": 406,
+        "totalRechazados": 0,
+        "montoProcesado": 85913.26999999996,
+        "minutosDemoraTotales": 50404.25000000001,
+        "retirosConTiempo": 432
+      },
+      "2026-05-08": {
+        "totalAprobados": 64,
+        "totalRechazados": 0,
+        "montoProcesado": 20649.67,
+        "minutosDemoraTotales": 9857.98333333333,
+        "retirosConTiempo": 65
+      },
+      "2026-05-11": {
+        "totalAprobados": 62,
+        "totalRechazados": 0,
+        "montoProcesado": 21534.74,
+        "minutosDemoraTotales": 4704.7333333333345,
+        "retirosConTiempo": 65
+      },
+      "2026-05-18": {
+        "totalAprobados": 34,
+        "totalRechazados": 0,
+        "montoProcesado": 13187.869999999999,
+        "minutosDemoraTotales": 10664.933333333334,
+        "retirosConTiempo": 34
+      },
+      "2026-05-06": {
+        "totalAprobados": 36,
+        "totalRechazados": 0,
+        "montoProcesado": 12102.01,
+        "minutosDemoraTotales": 3424.116666666667,
+        "retirosConTiempo": 36
+      },
+      "2026-05-02": {
+        "totalAprobados": 22,
+        "totalRechazados": 0,
+        "montoProcesado": 6923.81,
+        "minutosDemoraTotales": 10605.166666666668,
+        "retirosConTiempo": 23
+      }
+    }
   },
   "miriam.perez@ecuabet.com": {
     "totalAprobados": 10153,
     "totalRechazados": 1,
     "montoProcesado": 1443097.7900000005,
     "minutosDemoraTotales": 2017904.116666653,
-    "retirosConTiempo": 10805
+    "retirosConTiempo": 10805,
+    "diario": {
+      "2026-05-09": {
+        "totalAprobados": 839,
+        "totalRechazados": 0,
+        "montoProcesado": 134962.68999999994,
+        "minutosDemoraTotales": 219278.7000000003,
+        "retirosConTiempo": 884
+      },
+      "2026-05-05": {
+        "totalAprobados": 438,
+        "totalRechazados": 0,
+        "montoProcesado": 79368.31999999999,
+        "minutosDemoraTotales": 36731.10000000003,
+        "retirosConTiempo": 460
+      },
+      "2026-05-03": {
+        "totalAprobados": 637,
+        "totalRechazados": 1,
+        "montoProcesado": 103531.09000000001,
+        "minutosDemoraTotales": 52414.68333333333,
+        "retirosConTiempo": 678
+      },
+      "2026-05-14": {
+        "totalAprobados": 1733,
+        "totalRechazados": 0,
+        "montoProcesado": 194348.63,
+        "minutosDemoraTotales": 437382.61666666734,
+        "retirosConTiempo": 1802
+      },
+      "2026-05-26": {
+        "totalAprobados": 133,
+        "totalRechazados": 0,
+        "montoProcesado": 27436.560000000005,
+        "minutosDemoraTotales": 18536.216666666678,
+        "retirosConTiempo": 238
+      },
+      "2026-05-02": {
+        "totalAprobados": 701,
+        "totalRechazados": 0,
+        "montoProcesado": 121438.59000000001,
+        "minutosDemoraTotales": 63006.08333333343,
+        "retirosConTiempo": 774
+      },
+      "2026-05-12": {
+        "totalAprobados": 1746,
+        "totalRechazados": 0,
+        "montoProcesado": 175325.91999999995,
+        "minutosDemoraTotales": 510638.73333333305,
+        "retirosConTiempo": 1821
+      },
+      "2026-05-25": {
+        "totalAprobados": 126,
+        "totalRechazados": 0,
+        "montoProcesado": 42769.37,
+        "minutosDemoraTotales": 13891.466666666669,
+        "retirosConTiempo": 135
+      },
+      "2026-05-24": {
+        "totalAprobados": 1163,
+        "totalRechazados": 0,
+        "montoProcesado": 126687.51000000001,
+        "minutosDemoraTotales": 84213.5166666667,
+        "retirosConTiempo": 1235
+      },
+      "2026-05-22": {
+        "totalAprobados": 959,
+        "totalRechazados": 0,
+        "montoProcesado": 127378.94000000009,
+        "minutosDemoraTotales": 79358.4333333333,
+        "retirosConTiempo": 1026
+      },
+      "2026-05-21": {
+        "totalAprobados": 1322,
+        "totalRechazados": 0,
+        "montoProcesado": 155067.71000000008,
+        "minutosDemoraTotales": 410839.2500000001,
+        "retirosConTiempo": 1386
+      },
+      "2026-05-13": {
+        "totalAprobados": 87,
+        "totalRechazados": 0,
+        "montoProcesado": 44431.899999999994,
+        "minutosDemoraTotales": 32458.883333333335,
+        "retirosConTiempo": 92
+      },
+      "2026-05-11": {
+        "totalAprobados": 125,
+        "totalRechazados": 0,
+        "montoProcesado": 54833.170000000006,
+        "minutosDemoraTotales": 24367.166666666664,
+        "retirosConTiempo": 128
+      },
+      "2026-05-06": {
+        "totalAprobados": 53,
+        "totalRechazados": 0,
+        "montoProcesado": 18489.61,
+        "minutosDemoraTotales": 4440.483333333333,
+        "retirosConTiempo": 54
+      },
+      "2026-05-18": {
+        "totalAprobados": 52,
+        "totalRechazados": 0,
+        "montoProcesado": 18569.19,
+        "minutosDemoraTotales": 27316.899999999994,
+        "retirosConTiempo": 53
+      },
+      "2026-05-23": {
+        "totalAprobados": 39,
+        "totalRechazados": 0,
+        "montoProcesado": 18458.59,
+        "minutosDemoraTotales": 3029.8833333333337,
+        "retirosConTiempo": 39
+      }
+    }
   },
   "carmen.sotaminga@ecuabet.com": {
     "totalAprobados": 8181,
     "totalRechazados": 4,
     "montoProcesado": 1432309.8800000008,
     "minutosDemoraTotales": 1616466.1166666695,
-    "retirosConTiempo": 8567
+    "retirosConTiempo": 8567,
+    "diario": {
+      "2026-05-02": {
+        "totalAprobados": 1387,
+        "totalRechazados": 0,
+        "montoProcesado": 230386.0699999999,
+        "minutosDemoraTotales": 280513.88333333324,
+        "retirosConTiempo": 1488
+      },
+      "2026-05-15": {
+        "totalAprobados": 1390,
+        "totalRechazados": 2,
+        "montoProcesado": 164632.43999999997,
+        "minutosDemoraTotales": 112154.84999999996,
+        "retirosConTiempo": 1475
+      },
+      "2026-05-18": {
+        "totalAprobados": 1278,
+        "totalRechazados": 1,
+        "montoProcesado": 187616.17999999988,
+        "minutosDemoraTotales": 268889.0500000003,
+        "retirosConTiempo": 1322
+      },
+      "2026-05-06": {
+        "totalAprobados": 1516,
+        "totalRechazados": 0,
+        "montoProcesado": 278896.49999999994,
+        "minutosDemoraTotales": 417208.7333333325,
+        "retirosConTiempo": 1567
+      },
+      "2026-05-08": {
+        "totalAprobados": 27,
+        "totalRechazados": 0,
+        "montoProcesado": 7667.46,
+        "minutosDemoraTotales": 12394.199999999999,
+        "retirosConTiempo": 27
+      },
+      "2026-05-11": {
+        "totalAprobados": 112,
+        "totalRechazados": 0,
+        "montoProcesado": 62488.32,
+        "minutosDemoraTotales": 29895.316666666666,
+        "retirosConTiempo": 113
+      },
+      "2026-05-07": {
+        "totalAprobados": 35,
+        "totalRechazados": 0,
+        "montoProcesado": 15649.449999999999,
+        "minutosDemoraTotales": 18994.549999999996,
+        "retirosConTiempo": 35
+      },
+      "2026-05-17": {
+        "totalAprobados": 776,
+        "totalRechazados": 1,
+        "montoProcesado": 112211.97000000004,
+        "minutosDemoraTotales": 64813.74999999995,
+        "retirosConTiempo": 814
+      },
+      "2026-05-05": {
+        "totalAprobados": 337,
+        "totalRechazados": 0,
+        "montoProcesado": 56186.060000000005,
+        "minutosDemoraTotales": 149528.58333333323,
+        "retirosConTiempo": 354
+      },
+      "2026-05-19": {
+        "totalAprobados": 519,
+        "totalRechazados": 0,
+        "montoProcesado": 88430.35000000002,
+        "minutosDemoraTotales": 141951.65000000014,
+        "retirosConTiempo": 542
+      },
+      "2026-05-14": {
+        "totalAprobados": 120,
+        "totalRechazados": 0,
+        "montoProcesado": 49204.490000000005,
+        "minutosDemoraTotales": 14020.550000000003,
+        "retirosConTiempo": 124
+      },
+      "2026-05-04": {
+        "totalAprobados": 530,
+        "totalRechazados": 0,
+        "montoProcesado": 117854.38999999998,
+        "minutosDemoraTotales": 58990.216666666674,
+        "retirosConTiempo": 547
+      },
+      "2026-05-01": {
+        "totalAprobados": 80,
+        "totalRechazados": 0,
+        "montoProcesado": 28239.65,
+        "minutosDemoraTotales": 35316.89999999999,
+        "retirosConTiempo": 81
+      },
+      "2026-05-16": {
+        "totalAprobados": 49,
+        "totalRechazados": 0,
+        "montoProcesado": 25867.81,
+        "minutosDemoraTotales": 4321.566666666667,
+        "retirosConTiempo": 52
+      },
+      "2026-05-03": {
+        "totalAprobados": 25,
+        "totalRechazados": 0,
+        "montoProcesado": 6978.74,
+        "minutosDemoraTotales": 7472.316666666666,
+        "retirosConTiempo": 26
+      }
+    }
   },
   "michelle.jeria@ecuabet.com": {
     "totalAprobados": 7428,
     "totalRechazados": 0,
     "montoProcesado": 1201874.26,
     "minutosDemoraTotales": 997794.9333333282,
-    "retirosConTiempo": 7781
+    "retirosConTiempo": 7781,
+    "diario": {
+      "2026-05-07": {
+        "totalAprobados": 2327,
+        "totalRechazados": 0,
+        "montoProcesado": 336164.40999999974,
+        "minutosDemoraTotales": 502756.15,
+        "retirosConTiempo": 2418
+      },
+      "2026-05-09": {
+        "totalAprobados": 912,
+        "totalRechazados": 0,
+        "montoProcesado": 152373.30999999985,
+        "minutosDemoraTotales": 89323.56666666662,
+        "retirosConTiempo": 950
+      },
+      "2026-05-03": {
+        "totalAprobados": 897,
+        "totalRechazados": 0,
+        "montoProcesado": 143408.54000000004,
+        "minutosDemoraTotales": 72584.58333333323,
+        "retirosConTiempo": 953
+      },
+      "2026-05-01": {
+        "totalAprobados": 1260,
+        "totalRechazados": 0,
+        "montoProcesado": 191742.09999999998,
+        "minutosDemoraTotales": 96461.18333333348,
+        "retirosConTiempo": 1350
+      },
+      "2026-05-23": {
+        "totalAprobados": 840,
+        "totalRechazados": 0,
+        "montoProcesado": 104529.78,
+        "minutosDemoraTotales": 72575.9333333333,
+        "retirosConTiempo": 874
+      },
+      "2026-05-24": {
+        "totalAprobados": 65,
+        "totalRechazados": 0,
+        "montoProcesado": 32808.69,
+        "minutosDemoraTotales": 4283.799999999998,
+        "retirosConTiempo": 68
+      },
+      "2026-05-08": {
+        "totalAprobados": 15,
+        "totalRechazados": 0,
+        "montoProcesado": 4578.9,
+        "minutosDemoraTotales": 6071.683333333333,
+        "retirosConTiempo": 15
+      },
+      "2026-05-19": {
+        "totalAprobados": 409,
+        "totalRechazados": 0,
+        "montoProcesado": 79924.56999999999,
+        "minutosDemoraTotales": 62701.58333333329,
+        "retirosConTiempo": 427
+      },
+      "2026-05-05": {
+        "totalAprobados": 623,
+        "totalRechazados": 0,
+        "montoProcesado": 118259.56999999999,
+        "minutosDemoraTotales": 66345.81666666662,
+        "retirosConTiempo": 643
+      },
+      "2026-05-26": {
+        "totalAprobados": 45,
+        "totalRechazados": 0,
+        "montoProcesado": 21636.600000000002,
+        "minutosDemoraTotales": 19575.85,
+        "retirosConTiempo": 47
+      },
+      "2026-05-21": {
+        "totalAprobados": 35,
+        "totalRechazados": 0,
+        "montoProcesado": 16447.79,
+        "minutosDemoraTotales": 5114.783333333335,
+        "retirosConTiempo": 36
+      }
+    }
   },
   "alexander.guanuche@ecuabet.com": {
     "totalAprobados": 11729,
     "totalRechazados": 4,
     "montoProcesado": 1718777.395,
     "minutosDemoraTotales": 2291503.033333324,
-    "retirosConTiempo": 12280
+    "retirosConTiempo": 12280,
+    "diario": {
+      "2026-05-19": {
+        "totalAprobados": 886,
+        "totalRechazados": 0,
+        "montoProcesado": 110439.86,
+        "minutosDemoraTotales": 67695.44999999991,
+        "retirosConTiempo": 933
+      },
+      "2026-05-10": {
+        "totalAprobados": 735,
+        "totalRechazados": 1,
+        "montoProcesado": 96070.04000000001,
+        "minutosDemoraTotales": 63257.54999999998,
+        "retirosConTiempo": 773
+      },
+      "2026-05-13": {
+        "totalAprobados": 1707,
+        "totalRechazados": 0,
+        "montoProcesado": 168418.00000000006,
+        "minutosDemoraTotales": 137448.41666666654,
+        "retirosConTiempo": 1781
+      },
+      "2026-05-22": {
+        "totalAprobados": 1179,
+        "totalRechazados": 0,
+        "montoProcesado": 150029.88000000003,
+        "minutosDemoraTotales": 354122.3666666668,
+        "retirosConTiempo": 1242
+      },
+      "2026-05-20": {
+        "totalAprobados": 1923,
+        "totalRechazados": 1,
+        "montoProcesado": 256728.84999999995,
+        "minutosDemoraTotales": 506059.7666666658,
+        "retirosConTiempo": 1995
+      },
+      "2026-05-25": {
+        "totalAprobados": 895,
+        "totalRechazados": 1,
+        "montoProcesado": 151137.07499999998,
+        "minutosDemoraTotales": 228842.94999999955,
+        "retirosConTiempo": 934
+      },
+      "2026-05-17": {
+        "totalAprobados": 650,
+        "totalRechazados": 0,
+        "montoProcesado": 108867.31000000003,
+        "minutosDemoraTotales": 54927.55,
+        "retirosConTiempo": 681
+      },
+      "2026-05-08": {
+        "totalAprobados": 1195,
+        "totalRechazados": 0,
+        "montoProcesado": 168792.56999999992,
+        "minutosDemoraTotales": 424312.3333333335,
+        "retirosConTiempo": 1250
+      },
+      "2026-05-02": {
+        "totalAprobados": 729,
+        "totalRechazados": 1,
+        "montoProcesado": 120297.74,
+        "minutosDemoraTotales": 55216.93333333335,
+        "retirosConTiempo": 778
+      },
+      "2026-05-21": {
+        "totalAprobados": 113,
+        "totalRechazados": 0,
+        "montoProcesado": 76194.18000000001,
+        "minutosDemoraTotales": 41512.066666666666,
+        "retirosConTiempo": 115
+      },
+      "2026-05-16": {
+        "totalAprobados": 1364,
+        "totalRechazados": 0,
+        "montoProcesado": 189090.42,
+        "minutosDemoraTotales": 311736.7500000003,
+        "retirosConTiempo": 1432
+      },
+      "2026-05-12": {
+        "totalAprobados": 104,
+        "totalRechazados": 0,
+        "montoProcesado": 44869.33,
+        "minutosDemoraTotales": 9832.833333333328,
+        "retirosConTiempo": 108
+      },
+      "2026-05-09": {
+        "totalAprobados": 25,
+        "totalRechazados": 0,
+        "montoProcesado": 5817.79,
+        "minutosDemoraTotales": 2940.2666666666673,
+        "retirosConTiempo": 25
+      },
+      "2026-05-11": {
+        "totalAprobados": 148,
+        "totalRechazados": 0,
+        "montoProcesado": 41701.299999999996,
+        "minutosDemoraTotales": 11027.883333333335,
+        "retirosConTiempo": 156
+      },
+      "2026-05-07": {
+        "totalAprobados": 38,
+        "totalRechazados": 0,
+        "montoProcesado": 12947.3,
+        "minutosDemoraTotales": 18917.416666666664,
+        "retirosConTiempo": 39
+      },
+      "2026-05-03": {
+        "totalAprobados": 38,
+        "totalRechazados": 0,
+        "montoProcesado": 17375.75,
+        "minutosDemoraTotales": 3652.4999999999986,
+        "retirosConTiempo": 38
+      }
+    }
   },
   "cristian.chela@ecuabet.com": {
     "totalAprobados": 56,
     "totalRechazados": 0,
     "montoProcesado": 26388.62,
     "minutosDemoraTotales": 21149.316666666662,
-    "retirosConTiempo": 57
+    "retirosConTiempo": 57,
+    "diario": {
+      "2026-05-13": {
+        "totalAprobados": 44,
+        "totalRechazados": 0,
+        "montoProcesado": 20797.43,
+        "minutosDemoraTotales": 18567.316666666666,
+        "retirosConTiempo": 45
+      },
+      "2026-05-12": {
+        "totalAprobados": 12,
+        "totalRechazados": 0,
+        "montoProcesado": 5591.1900000000005,
+        "minutosDemoraTotales": 2582.0,
+        "retirosConTiempo": 12
+      }
+    }
   },
   "angie.vicuna@ecuabet.com": {
     "totalAprobados": 52,
     "totalRechazados": 0,
     "montoProcesado": 31189.26,
     "minutosDemoraTotales": 15499.899999999992,
-    "retirosConTiempo": 53
+    "retirosConTiempo": 53,
+    "diario": {
+      "2026-05-12": {
+        "totalAprobados": 11,
+        "totalRechazados": 0,
+        "montoProcesado": 6700.0,
+        "minutosDemoraTotales": 2088.3333333333335,
+        "retirosConTiempo": 11
+      },
+      "2026-05-13": {
+        "totalAprobados": 41,
+        "totalRechazados": 0,
+        "montoProcesado": 24489.26,
+        "minutosDemoraTotales": 13411.566666666664,
+        "retirosConTiempo": 42
+      }
+    }
   },
   "yennifer.perez": {
     "totalAprobados": 19644,
     "totalRechazados": 427,
     "montoProcesado": 3035727.110000001,
     "minutosDemoraTotales": 4586340.466666672,
-    "retirosConTiempo": 20317
+    "retirosConTiempo": 20317,
+    "diario": {
+      "2026-05-01": {
+        "totalAprobados": 1547,
+        "totalRechazados": 20,
+        "montoProcesado": 263325.18,
+        "minutosDemoraTotales": 453402.4833333332,
+        "retirosConTiempo": 1569
+      },
+      "2026-05-06": {
+        "totalAprobados": 738,
+        "totalRechazados": 26,
+        "montoProcesado": 112441.51999999999,
+        "minutosDemoraTotales": 12489.966666666662,
+        "retirosConTiempo": 765
+      },
+      "2026-05-12": {
+        "totalAprobados": 756,
+        "totalRechazados": 21,
+        "montoProcesado": 132725.96,
+        "minutosDemoraTotales": 287705.3833333333,
+        "retirosConTiempo": 779
+      },
+      "2026-05-14": {
+        "totalAprobados": 769,
+        "totalRechazados": 20,
+        "montoProcesado": 139169.65000000002,
+        "minutosDemoraTotales": 256243.54999999987,
+        "retirosConTiempo": 791
+      },
+      "2026-05-15": {
+        "totalAprobados": 729,
+        "totalRechazados": 17,
+        "montoProcesado": 117454.95,
+        "minutosDemoraTotales": 234588.78333333333,
+        "retirosConTiempo": 747
+      },
+      "2026-05-20": {
+        "totalAprobados": 803,
+        "totalRechazados": 15,
+        "montoProcesado": 86367.65,
+        "minutosDemoraTotales": 10356.566666666664,
+        "retirosConTiempo": 822
+      },
+      "2026-05-23": {
+        "totalAprobados": 863,
+        "totalRechazados": 12,
+        "montoProcesado": 104438.41,
+        "minutosDemoraTotales": 10673.083333333328,
+        "retirosConTiempo": 878
+      },
+      "2026-05-25": {
+        "totalAprobados": 1678,
+        "totalRechazados": 38,
+        "montoProcesado": 248911.53999999998,
+        "minutosDemoraTotales": 537893.683333334,
+        "retirosConTiempo": 1812
+      },
+      "2026-05-05": {
+        "totalAprobados": 568,
+        "totalRechazados": 23,
+        "montoProcesado": 65331.3,
+        "minutosDemoraTotales": 6558.083333333328,
+        "retirosConTiempo": 593
+      },
+      "2026-05-26": {
+        "totalAprobados": 1065,
+        "totalRechazados": 19,
+        "montoProcesado": 172689.80000000002,
+        "minutosDemoraTotales": 455874.96666666685,
+        "retirosConTiempo": 1134
+      },
+      "2026-05-22": {
+        "totalAprobados": 709,
+        "totalRechazados": 10,
+        "montoProcesado": 77343.31,
+        "minutosDemoraTotales": 10494.783333333338,
+        "retirosConTiempo": 721
+      },
+      "2026-05-21": {
+        "totalAprobados": 980,
+        "totalRechazados": 19,
+        "montoProcesado": 70697.23,
+        "minutosDemoraTotales": 9161.049999999997,
+        "retirosConTiempo": 1000
+      },
+      "2026-05-19": {
+        "totalAprobados": 825,
+        "totalRechazados": 22,
+        "montoProcesado": 135636.09,
+        "minutosDemoraTotales": 17168.73333333332,
+        "retirosConTiempo": 847
+      },
+      "2026-05-24": {
+        "totalAprobados": 1628,
+        "totalRechazados": 30,
+        "montoProcesado": 243760.25,
+        "minutosDemoraTotales": 498419.2666666662,
+        "retirosConTiempo": 1719
+      },
+      "2026-05-02": {
+        "totalAprobados": 966,
+        "totalRechazados": 16,
+        "montoProcesado": 155766.83999999997,
+        "minutosDemoraTotales": 358340.26666666643,
+        "retirosConTiempo": 984
+      },
+      "2026-05-10": {
+        "totalAprobados": 1157,
+        "totalRechazados": 27,
+        "montoProcesado": 191575.05000000005,
+        "minutosDemoraTotales": 282301.26666666724,
+        "retirosConTiempo": 1187
+      },
+      "2026-05-11": {
+        "totalAprobados": 1271,
+        "totalRechazados": 37,
+        "montoProcesado": 235417.67,
+        "minutosDemoraTotales": 388915.81666666706,
+        "retirosConTiempo": 1312
+      },
+      "2026-05-08": {
+        "totalAprobados": 551,
+        "totalRechazados": 16,
+        "montoProcesado": 137238.16999999998,
+        "minutosDemoraTotales": 308007.1499999999,
+        "retirosConTiempo": 571
+      },
+      "2026-05-09": {
+        "totalAprobados": 647,
+        "totalRechazados": 11,
+        "montoProcesado": 78490.64000000001,
+        "minutosDemoraTotales": 11315.049999999994,
+        "retirosConTiempo": 661
+      },
+      "2026-05-16": {
+        "totalAprobados": 769,
+        "totalRechazados": 16,
+        "montoProcesado": 131827.9,
+        "minutosDemoraTotales": 238078.3166666669,
+        "retirosConTiempo": 785
+      },
+      "2026-05-13": {
+        "totalAprobados": 625,
+        "totalRechazados": 12,
+        "montoProcesado": 135118.0,
+        "minutosDemoraTotales": 198352.21666666653,
+        "retirosConTiempo": 640
+      }
+    }
   },
   "sonia.duran@ganaplay.com": {
     "totalAprobados": 18336,
     "totalRechazados": 338,
     "montoProcesado": 2752462.4600000014,
     "minutosDemoraTotales": 5822343.21666667,
-    "retirosConTiempo": 18966
+    "retirosConTiempo": 18966,
+    "diario": {
+      "2026-05-03": {
+        "totalAprobados": 1351,
+        "totalRechazados": 29,
+        "montoProcesado": 235069.89999999997,
+        "minutosDemoraTotales": 345267.53333333356,
+        "retirosConTiempo": 1381
+      },
+      "2026-05-04": {
+        "totalAprobados": 1477,
+        "totalRechazados": 23,
+        "montoProcesado": 243628.76000000004,
+        "minutosDemoraTotales": 404847.4333333335,
+        "retirosConTiempo": 1504
+      },
+      "2026-05-05": {
+        "totalAprobados": 983,
+        "totalRechazados": 25,
+        "montoProcesado": 191628.29,
+        "minutosDemoraTotales": 425075.30000000005,
+        "retirosConTiempo": 1010
+      },
+      "2026-05-08": {
+        "totalAprobados": 1513,
+        "totalRechazados": 12,
+        "montoProcesado": 215073.29,
+        "minutosDemoraTotales": 1153187.233333333,
+        "retirosConTiempo": 1531
+      },
+      "2026-05-09": {
+        "totalAprobados": 656,
+        "totalRechazados": 13,
+        "montoProcesado": 126010.81000000001,
+        "minutosDemoraTotales": 301485.2999999998,
+        "retirosConTiempo": 670
+      },
+      "2026-05-19": {
+        "totalAprobados": 768,
+        "totalRechazados": 24,
+        "montoProcesado": 102234.63999999998,
+        "minutosDemoraTotales": 307721.89999999985,
+        "retirosConTiempo": 792
+      },
+      "2026-05-02": {
+        "totalAprobados": 725,
+        "totalRechazados": 17,
+        "montoProcesado": 107919.70000000001,
+        "minutosDemoraTotales": 26588.733333333355,
+        "retirosConTiempo": 745
+      },
+      "2026-05-22": {
+        "totalAprobados": 1334,
+        "totalRechazados": 21,
+        "montoProcesado": 138831.43,
+        "minutosDemoraTotales": 396424.81666666607,
+        "retirosConTiempo": 1359
+      },
+      "2026-05-18": {
+        "totalAprobados": 1240,
+        "totalRechazados": 27,
+        "montoProcesado": 219145.76000000004,
+        "minutosDemoraTotales": 412489.48333333374,
+        "retirosConTiempo": 1275
+      },
+      "2026-05-06": {
+        "totalAprobados": 782,
+        "totalRechazados": 13,
+        "montoProcesado": 131909.91999999998,
+        "minutosDemoraTotales": 272088.766666667,
+        "retirosConTiempo": 799
+      },
+      "2026-05-20": {
+        "totalAprobados": 1508,
+        "totalRechazados": 18,
+        "montoProcesado": 194762.51,
+        "minutosDemoraTotales": 525198.050000001,
+        "retirosConTiempo": 1529
+      },
+      "2026-05-07": {
+        "totalAprobados": 465,
+        "totalRechazados": 4,
+        "montoProcesado": 24717.36,
+        "minutosDemoraTotales": 222336.7833333333,
+        "retirosConTiempo": 471
+      },
+      "2026-05-16": {
+        "totalAprobados": 409,
+        "totalRechazados": 8,
+        "montoProcesado": 61729.94,
+        "minutosDemoraTotales": 6062.566666666667,
+        "retirosConTiempo": 418
+      },
+      "2026-05-21": {
+        "totalAprobados": 1222,
+        "totalRechazados": 20,
+        "montoProcesado": 171814.82,
+        "minutosDemoraTotales": 390300.6666666664,
+        "retirosConTiempo": 1249
+      },
+      "2026-05-17": {
+        "totalAprobados": 930,
+        "totalRechazados": 22,
+        "montoProcesado": 173868.55,
+        "minutosDemoraTotales": 240933.43333333344,
+        "retirosConTiempo": 953
+      },
+      "2026-05-23": {
+        "totalAprobados": 1084,
+        "totalRechazados": 12,
+        "montoProcesado": 117966.82,
+        "minutosDemoraTotales": 350907.5999999994,
+        "retirosConTiempo": 1101
+      },
+      "2026-05-12": {
+        "totalAprobados": 389,
+        "totalRechazados": 15,
+        "montoProcesado": 63946.95999999999,
+        "minutosDemoraTotales": 12007.583333333327,
+        "retirosConTiempo": 406
+      },
+      "2026-05-14": {
+        "totalAprobados": 617,
+        "totalRechazados": 14,
+        "montoProcesado": 81530.06999999999,
+        "minutosDemoraTotales": 10231.016666666663,
+        "retirosConTiempo": 633
+      },
+      "2026-05-13": {
+        "totalAprobados": 447,
+        "totalRechazados": 12,
+        "montoProcesado": 61504.11,
+        "minutosDemoraTotales": 11369.199999999997,
+        "retirosConTiempo": 461
+      },
+      "2026-05-15": {
+        "totalAprobados": 398,
+        "totalRechazados": 9,
+        "montoProcesado": 50447.06,
+        "minutosDemoraTotales": 5883.366666666663,
+        "retirosConTiempo": 408
+      },
+      "2026-05-26": {
+        "totalAprobados": 38,
+        "totalRechazados": 0,
+        "montoProcesado": 38721.759999999995,
+        "minutosDemoraTotales": 1936.4499999999991,
+        "retirosConTiempo": 271
+      }
+    }
   },
   "sebastian.jaramillo@virtualsoft.tech": {
     "totalAprobados": 4,
     "totalRechazados": 0,
     "montoProcesado": 460.0,
     "minutosDemoraTotales": 7.85,
-    "retirosConTiempo": 6
+    "retirosConTiempo": 6,
+    "diario": {
+      "2026-05-08": {
+        "totalAprobados": 0,
+        "totalRechazados": 0,
+        "montoProcesado": 5.0,
+        "minutosDemoraTotales": 1.95,
+        "retirosConTiempo": 1
+      },
+      "2026-05-12": {
+        "totalAprobados": 0,
+        "totalRechazados": 0,
+        "montoProcesado": 5.0,
+        "minutosDemoraTotales": 2.15,
+        "retirosConTiempo": 1
+      },
+      "2026-05-14": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 100.0,
+        "minutosDemoraTotales": 0.85,
+        "retirosConTiempo": 1
+      },
+      "2026-05-15": {
+        "totalAprobados": 1,
+        "totalRechazados": 0,
+        "montoProcesado": 100.0,
+        "minutosDemoraTotales": 0.5166666666666667,
+        "retirosConTiempo": 1
+      },
+      "2026-05-21": {
+        "totalAprobados": 2,
+        "totalRechazados": 0,
+        "montoProcesado": 250.0,
+        "minutosDemoraTotales": 2.3833333333333333,
+        "retirosConTiempo": 2
+      }
+    }
   }
 }

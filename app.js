@@ -3193,15 +3193,57 @@ async function calcularIndicadores() {
         }
         
         if (stats) {
-            if (cardPagados) cardPagados.textContent = stats.totalAprobados;
-            if (cardRechazados) cardRechazados.textContent = stats.totalRechazados;
+            let finalStats = stats;
+            if (stats.diario && periodo !== 'general') {
+                finalStats = { totalAprobados: 0, totalRechazados: 0, montoProcesado: 0, minutosDemoraTotales: 0, retirosConTiempo: 0 };
+                let targetDates = [];
+                const getLocalYYYYMMDD = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                
+                const now = new Date();
+                const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                
+                if (periodo === 'hoy') {
+                    targetDates.push(getLocalYYYYMMDD(todayStart));
+                } else if (periodo === 'ayer') {
+                    const ayer = new Date(todayStart.getTime() - 86400000);
+                    targetDates.push(getLocalYYYYMMDD(ayer));
+                } else if (periodo === 'semanal') {
+                    for(let i=0; i<7; i++){
+                        targetDates.push(getLocalYYYYMMDD(new Date(todayStart.getTime() - (i * 86400000))));
+                    }
+                } else if (periodo === '30dias') {
+                    for(let i=0; i<30; i++){
+                        targetDates.push(getLocalYYYYMMDD(new Date(todayStart.getTime() - (i * 86400000))));
+                    }
+                } else if (periodo === 'mes') {
+                    for(let i=1; i<=31; i++){
+                        const dt = new Date(todayStart.getFullYear(), todayStart.getMonth(), i);
+                        if (dt.getMonth() === todayStart.getMonth() && dt <= todayStart) {
+                            targetDates.push(getLocalYYYYMMDD(dt));
+                        }
+                    }
+                }
+                
+                for (let td of targetDates) {
+                    if (stats.diario[td]) {
+                        finalStats.totalAprobados += stats.diario[td].totalAprobados;
+                        finalStats.totalRechazados += stats.diario[td].totalRechazados;
+                        finalStats.montoProcesado += stats.diario[td].montoProcesado;
+                        finalStats.minutosDemoraTotales += stats.diario[td].minutosDemoraTotales;
+                        finalStats.retirosConTiempo += stats.diario[td].retirosConTiempo;
+                    }
+                }
+            }
+
+            if (cardPagados) cardPagados.textContent = finalStats.totalAprobados;
+            if (cardRechazados) cardRechazados.textContent = finalStats.totalRechazados;
             if (cardMonto) {
-                const formattedMonto = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(stats.montoProcesado);
+                const formattedMonto = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(finalStats.montoProcesado);
                 cardMonto.textContent = formattedMonto;
             }
             
-            if (stats.retirosConTiempo > 0) {
-                const avgDemoraMins = stats.minutosDemoraTotales / stats.retirosConTiempo;
+            if (finalStats.retirosConTiempo > 0) {
+                const avgDemoraMins = finalStats.minutosDemoraTotales / finalStats.retirosConTiempo;
                 
                 // Penalidad: si el promedio supera los 15 minutos, restar 1% por cada minuto extra (max 30% de penalidad)
                 if (avgDemoraMins > 15) {
