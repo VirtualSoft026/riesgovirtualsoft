@@ -3127,13 +3127,14 @@ async function calcularIndicadores() {
         let tasks = report.tasks;
         if (!tasks && report.reporte) {
             tasks = {};
-            const regex = /\[\s*([A-Za-z_]+)\s*\]\s*-\s*([^\n]+)/g;
+            const regex = /\[\s*([A-Za-z_]+)\s*\]\s*-\s*([^\n]+)(?:\nObservación:\s*([^\n]+))?/g;
             let match;
             let i = 0;
             while ((match = regex.exec(report.reporte)) !== null) {
                 tasks[`parsed_${i++}`] = {
                     status: match[1].toLowerCase(),
-                    name: match[2].trim()
+                    name: match[2].trim(),
+                    observation: match[3] ? match[3].trim() : 'N/A'
                 };
             }
         }
@@ -3144,7 +3145,7 @@ async function calcularIndicadores() {
         for (let taskId in tasks) {
             const task = tasks[taskId];
             const shiftDateStr = new Date(report.timestamp || report.loginTime || Date.now()).toLocaleDateString();
-            const taskObj = { name: task.name, date: shiftDateStr, type: task.type || 'N/A' };
+            const taskObj = { name: task.name, date: shiftDateStr, type: task.type || 'N/A', observation: task.observation || 'N/A' };
             
             if (task.status === 'finalizada') {
                 totalFinalizadas++;
@@ -3399,13 +3400,18 @@ function openKpiTaskDetails(tipo) {
             const tTypeBadge = `<span style="font-size: 10px; background: ${tTypeColor}20; color: ${tTypeColor}; padding: 2px 6px; border-radius: 10px; margin-left: 8px;">${t.type === 'adicional' ? 'Adicional' : 'Set'}</span>`;
             
             list.innerHTML += `
-                <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); padding: 10px 15px; border-radius: var(--radius-sm); display: flex; justify-content: space-between; align-items: center;">
-                    <div style="font-size: 13px; color: var(--text-primary); font-weight: 500;">
-                        ${t.name}
-                        ${tTypeBadge}
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); padding: 10px 15px; border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="font-size: 13px; color: var(--text-primary); font-weight: 500;">
+                            ${t.name}
+                            ${tTypeBadge}
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-secondary);">
+                            <i class='bx bx-calendar'></i> ${t.date}
+                        </div>
                     </div>
-                    <div style="font-size: 11px; color: var(--text-secondary);">
-                        <i class='bx bx-calendar'></i> ${t.date}
+                    <div style="font-size: 11px; color: var(--text-secondary); background: rgba(0,0,0,0.2); padding: 6px 10px; border-radius: 4px; border-left: 2px solid ${tTypeColor};">
+                        <strong>Nota:</strong> ${t.observation}
                     </div>
                 </div>
             `;
