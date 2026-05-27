@@ -1852,6 +1852,7 @@ function handleEndShift() {
                 horaFin: new Date().toLocaleString(),
                 setTrabajado: setSelect ? setSelect.value : 'N/A',
                 reporte: report,
+                tasks: taskStateCache,
                 timestamp: Date.now()
             };
 
@@ -3123,18 +3124,32 @@ async function calcularIndicadores() {
             }
         }
         
-        if (!report.tasks) return;
+        let tasks = report.tasks;
+        if (!tasks && report.reporte) {
+            tasks = {};
+            const regex = /\[\s*([A-Za-z_]+)\s*\]\s*-\s*([^\n]+)/g;
+            let match;
+            let i = 0;
+            while ((match = regex.exec(report.reporte)) !== null) {
+                tasks[`parsed_${i++}`] = {
+                    status: match[1].toLowerCase(),
+                    name: match[2].trim()
+                };
+            }
+        }
+        
+        if (!tasks) return;
         
         // Contar tareas
-        for (let taskId in report.tasks) {
-            const task = report.tasks[taskId];
-            const shiftDateStr = new Date(report.loginTime || report.createdAt || Date.now()).toLocaleDateString();
-            const taskObj = { name: task.name, date: shiftDateStr, type: task.type };
+        for (let taskId in tasks) {
+            const task = tasks[taskId];
+            const shiftDateStr = new Date(report.timestamp || report.loginTime || Date.now()).toLocaleDateString();
+            const taskObj = { name: task.name, date: shiftDateStr, type: task.type || 'N/A' };
             
             if (task.status === 'finalizada') {
                 totalFinalizadas++;
                 window.kpiTaskLists.finalizadas.push(taskObj);
-            } else if (task.status === 'no_realizada') {
+            } else if (task.status === 'no_realizada' || task.status === 'no realizada') {
                 totalNoRealizadas++;
                 window.kpiTaskLists.no_realizadas.push(taskObj);
             } else if (task.status === 'pendiente' || task.status === 'en_proceso') {
