@@ -3062,6 +3062,10 @@ async function calcularIndicadores() {
     if (periodo === 'hoy') {
         const hoyStart = new Date().setHours(0,0,0,0);
         shiftReports = shiftReports.filter(r => r.timestamp && r.timestamp >= hoyStart);
+    } else if (periodo === 'ayer') {
+        const hoyStart = new Date().setHours(0,0,0,0);
+        const ayerStart = hoyStart - (24 * 60 * 60 * 1000);
+        shiftReports = shiftReports.filter(r => r.timestamp && r.timestamp >= ayerStart && r.timestamp < hoyStart);
     } else if (periodo === 'semanal') {
         const unaSemanaAtras = now - (7 * 24 * 60 * 60 * 1000);
         shiftReports = shiftReports.filter(r => r.timestamp && r.timestamp >= unaSemanaAtras);
