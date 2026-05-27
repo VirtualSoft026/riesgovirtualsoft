@@ -3092,16 +3092,31 @@ async function calcularIndicadores() {
     shiftReports.forEach(report => {
         // Calcular duración del turno
         if (report.horaInicio && report.horaFin) {
-            // Intentar parsear las fechas (asumiendo formato compatible o parseable)
-            // Se puede intentar limpiar o parsear directamente
-            const start = new Date(report.horaInicio);
-            const end = new Date(report.horaFin);
+            const baseMs = report.timestamp || report.loginTime || Date.now();
             
-            if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-                const diffMs = end - start;
-                const diffMins = diffMs / 60000;
-                // Filtrar errores (turnos menores a 1 minuto o mayores a 24h son sospechosos)
-                if (diffMins > 0 && diffMins < 1440) {
+            const parseTime = (timeStr, baseDateMs) => {
+                let d = new Date(timeStr);
+                if (!isNaN(d.getTime())) return d.getTime();
+                
+                if (typeof timeStr === 'string' && timeStr.includes(':')) {
+                    const parts = timeStr.match(/(\d+):(\d+)/);
+                    if (parts) {
+                        const base = new Date(baseDateMs);
+                        base.setHours(parseInt(parts[1], 10), parseInt(parts[2], 10), 0, 0);
+                        return base.getTime();
+                    }
+                }
+                return NaN;
+            };
+
+            const startMs = parseTime(report.horaInicio, baseMs);
+            const endMs = parseTime(report.horaFin, baseMs);
+            
+            if (!isNaN(startMs) && !isNaN(endMs)) {
+                let diffMins = (endMs - startMs) / 60000;
+                if (diffMins < 0) diffMins += 1440; // Cruzó la medianoche
+                
+                if (diffMins > 0 && diffMins <= 1440) {
                     totalMinutosConectados += diffMins;
                     turnosValidosParaTiempo++;
                 }
