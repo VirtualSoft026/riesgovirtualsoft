@@ -68,12 +68,13 @@ def build_retiros():
             
             estado = row.get("Estado Retiro Creado", "")
             if isinstance(estado, str):
-                if estado.lower() == "pagado":
-                    stats["totalAprobados"] += 1
-                    day_stats["totalAprobados"] += 1
-                elif estado.lower() == "rechazado":
+                if estado.lower() == "rechazado":
                     stats["totalRechazados"] += 1
                     day_stats["totalRechazados"] += 1
+                else:
+                    # Si tiene Nombre Usuario Cambio y no es Rechazado, es una aprobación (ej. Pendiente por pago, Pagado)
+                    stats["totalAprobados"] += 1
+                    day_stats["totalAprobados"] += 1
                     
             monto = row.get("Valor Retiros Creados", 0)
             if not pd.isna(monto):
