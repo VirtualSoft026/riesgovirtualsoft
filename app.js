@@ -1793,10 +1793,10 @@ async function initApp() {
 function handleEndShift() {
     if(confirm("¿Estás seguro que deseas finalizar tu turno actual? Se enviará un resumen al supervisor.")) {
         
-        let currentUser = null;
-        try { currentUser = JSON.parse(localStorage.getItem('riskOps_currentUser')); } catch(e) {}
+        let localUser = null;
+        try { localUser = JSON.parse(localStorage.getItem('riskOps_currentUser')); } catch(e) {}
         
-        if (currentUser) {
+        if (localUser) {
             // Build task report
             const setSelect = document.getElementById('activeSetSelect');
             if(setSelect && setSelect.value === 'Todos') {
@@ -1807,10 +1807,10 @@ function handleEndShift() {
             const formData = new FormData();
             
             // Format login time
-            const loginDate = new Date(currentUser.loginTime);
+            const loginDate = new Date(localUser.loginTime);
             
-            formData.append("Usuario", currentUser.name);
-            formData.append("Rol", currentUser.role);
+            formData.append("Usuario", localUser.name);
+            formData.append("Rol", localUser.role);
             formData.append("Reporte", "CIERRE DE TURNO Y RESUMEN DE TAREAS");
             formData.append("Hora_Inicio_Turno", loginDate.toLocaleString());
             formData.append("Hora_Fin_Turno", new Date().toLocaleString());
@@ -1819,7 +1819,7 @@ function handleEndShift() {
                 formData.append("SET_Principal_Trabajado", setSelect.value);
             }
             
-            formData.append("_subject", `Reporte de Turno: ${currentUser.name}`);
+            formData.append("_subject", `Reporte de Turno: ${localUser.name}`);
             formData.append("_captcha", "false");
             formData.append("_cc", "sara.santamaria@virtualsoft.tech");
             
@@ -1846,8 +1846,8 @@ function handleEndShift() {
 
             // --- RESPALDO SEGURO EN FIREBASE ---
             const shiftReportObject = {
-                gestor: currentUser.name,
-                rol: currentUser.role,
+                gestor: localUser.name,
+                rol: localUser.role,
                 horaInicio: loginDate.toLocaleString(),
                 horaFin: new Date().toLocaleString(),
                 setTrabajado: setSelect ? setSelect.value : 'N/A',
@@ -1860,13 +1860,17 @@ function handleEndShift() {
             database.ref('shift_reports').push(shiftReportObject).catch(e => console.error("Firebase backup failed", e));
 
             // Eliminar sesión activa de Firebase
-            if (currentUser.uid) {
-                database.ref('active_sessions/' + currentUser.uid).remove().catch(e => console.error("Error removing active session on shift end:", e));
+            if (localUser.uid) {
+                database.ref('active_sessions/' + localUser.uid).remove().catch(e => console.error("Error removing active session on shift end:", e));
             }
 
             // Antes de enviar, limpiamos la sesión y el caché
             localStorage.removeItem('riskOps_currentUser');
             localStorage.removeItem('riskOps_cache');
+            
+            // Set the global currentUser to null so syncActiveSessionToFirebase stops firing
+            currentUser = null;
+            
             firebase.auth().signOut().catch(err => console.error(err));
             
             // Enviar de forma silenciosa para que un error 522 de Cloudflare no bloquee la pantalla
