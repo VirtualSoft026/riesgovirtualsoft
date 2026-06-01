@@ -34,6 +34,10 @@ def build_retiros():
                 
             email = email.strip().lower()
             
+            # Normalización de errores de tipeo frecuentes en el Excel
+            if email == "oriana borjs":
+                email = "oriana borja"
+            
             if email not in gestores_map:
                 gestores_map[email] = {
                     "totalAprobados": 0,
