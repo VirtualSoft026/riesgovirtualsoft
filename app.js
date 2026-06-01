@@ -3215,22 +3215,22 @@ async function calcularIndicadores() {
                     break;
                 }
             }
+        }
+        
+        // Fallback: Emparejamiento por nombre y apellido (AUN SI NO HAY EMAIL)
+        if (!stats && gestorName) {
+            const parts = gestorName.toLowerCase().split(' ');
+            const firstName = parts[0];
+            const secondPart = parts.length > 1 ? parts[1].substring(0, 4) : null;
             
-            // Fallback: Emparejamiento por nombre y apellido
-            if (!stats && gestorName) {
-                const parts = gestorName.toLowerCase().split(' ');
-                const firstName = parts[0];
-                const secondPart = parts.length > 1 ? parts[1].substring(0, 4) : null;
-                
-                for (let excelEmail in window.retirosGlobalData) {
-                    if (excelEmail.includes(firstName)) {
-                        if (secondPart && excelEmail.includes(secondPart)) {
-                            stats = window.retirosGlobalData[excelEmail];
-                            break;
-                        } else if (!secondPart) {
-                            stats = window.retirosGlobalData[excelEmail];
-                            break;
-                        }
+            for (let excelEmail in window.retirosGlobalData) {
+                if (excelEmail.includes(firstName)) {
+                    if (secondPart && excelEmail.includes(secondPart)) {
+                        stats = window.retirosGlobalData[excelEmail];
+                        break;
+                    } else if (!secondPart) {
+                        stats = window.retirosGlobalData[excelEmail];
+                        break;
                     }
                 }
             }
