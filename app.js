@@ -3094,10 +3094,10 @@ async function calcularIndicadores() {
     }
     
     if (shiftReports.length === 0) {
-        alert(`No hay registros en los últimos 7 días para ${gestorName}.`);
-        return;
+        console.warn(`No hay reportes de turno para ${gestorName} en esta fecha/periodo.`);
+        // No hacer return, permitir que el código continúe para cargar los datos de Retiros
     }
-    
+
     let totalFinalizadas = 0;
     let totalNoRealizadas = 0;
     let totalPendientes = 0;
