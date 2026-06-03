@@ -2060,11 +2060,11 @@ async function renderPendingUsers() {
     
     tbody.innerHTML = '';
     
-    // Mostramos primero los pendientes, luego los aprobados, ordenados por fecha de registro (más antiguo a más reciente)
+    // Mostramos primero los pendientes, luego los aprobados, ordenados por fecha de registro (más reciente a más antiguo)
     const allDisplayUsers = [...pending, ...approved].sort((a, b) => {
         const dateA = a.registrationDate ? new Date(a.registrationDate).getTime() : 0;
         const dateB = b.registrationDate ? new Date(b.registrationDate).getTime() : 0;
-        return dateA - dateB;
+        return dateB - dateA;
     });
     
     if (allDisplayUsers.length === 0) {
