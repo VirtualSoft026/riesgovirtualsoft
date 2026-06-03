@@ -1629,8 +1629,6 @@ async function initApp() {
                 document.getElementById('view-workspace').style.display = 'block';
             } else if (item.id === 'navHorario') {
                 document.getElementById('view-horario').style.display = 'block';
-            } else if (item.id === 'navTeletrabajo') {
-                document.getElementById('view-teletrabajo').style.display = 'block';
             } else if (item.id === 'navDocs') {
                 document.getElementById('view-docs').style.display = 'block';
             } else if (item.id === 'navPermisos') {

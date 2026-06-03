@@ -39,8 +39,7 @@
                     <span><i class='bx bx-news'></i> Comunicados</span>
                     <span id="unreadAnnouncementsBadge" style="display: none; background: var(--danger); color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: bold;">0</span>
                 </a>
-                <a href="#" class="nav-item" id="navHorario"><i class='bx bx-calendar'></i> Horario</a>
-                <a href="#" class="nav-item" id="navTeletrabajo"><i class='bx bx-home-alt'></i> Teletrabajo</a>
+                <a href="#" class="nav-item" id="navHorario"><i class='bx bx-calendar'></i> Mi Jornada</a>
                 <a href="#" class="nav-item" id="navDocs"><i class='bx bx-folder-open'></i> Documentación</a>
                 <a href="#" class="nav-item" id="navPermisos"><i class='bx bx-check-shield'></i> Historial de permisos</a>
                 <div id="adminNavGroup" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
@@ -169,12 +168,12 @@
                 </div>
             </div>
 
-            <!-- Vista: Horario -->
+            <!-- Vista: Mi Jornada (Horario + Teletrabajo) -->
             <div id="view-horario" class="view-panel" style="display: none; padding: 20px;">
-                <h2 class="panel-title" style="margin-bottom: 20px;"><i class='bx bx-calendar'></i> Horario Semanal</h2>
-                <div class="glass-panel" style="padding: 20px; overflow-x: auto; position: relative;">
-                    <p style="color: var(--text-secondary); margin-bottom: 20px;">Datos leídos desde 'Horario/Horario 2026.xlsx'</p>
-                    
+                <h2 class="panel-title" style="margin-bottom: 20px;"><i class='bx bx-calendar'></i> Mi Jornada</h2>
+                
+                <div class="glass-panel" style="padding: 20px; overflow-x: auto; margin-bottom: 20px; position: relative;">
+                    <h3 style="color: var(--accent-primary); margin-bottom: 15px; font-size: 16px;">Horario Semanal</h3>
                     <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 15px;">
                         <label style="color: var(--text-secondary); font-size: 14px;">Seleccionar Semana:</label>
                         <select id="weekSelector" class="modern-input" style="padding: 8px; width: auto; min-width: 250px; background: var(--bg-dark);">
@@ -187,14 +186,9 @@
                         <tbody id="scheduleTableBody"></tbody>
                     </table>
                 </div>
-            </div>
 
-            <!-- Vista: Teletrabajo -->
-            <div id="view-teletrabajo" class="view-panel" style="display: none; padding: 20px;">
-                <h2 class="panel-title" style="margin-bottom: 20px;"><i class='bx bx-home-alt'></i> Cronograma de Teletrabajo</h2>
                 <div class="glass-panel" style="padding: 20px; overflow-x: auto;">
-                    <p style="color: var(--text-secondary); margin-bottom: 20px;">Datos leídos desde 'Teletrabajo/Teletrabajo.xlsx'</p>
-                    
+                    <h3 style="color: var(--success); margin-bottom: 15px; font-size: 16px;">Cronograma de Teletrabajo</h3>
                     <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 15px;">
                         <label style="color: var(--text-secondary); font-size: 14px;">Seleccionar Semana:</label>
                         <select id="teletrabajoWeekSelector" class="modern-input" style="padding: 8px; width: auto; min-width: 250px; background: var(--bg-dark);">
