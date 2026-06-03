@@ -872,3 +872,18 @@ select.modern-input option { background-color: #ffffff; color: #000000; }
     box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
     animation: pulse-ring 1.6s infinite;
 }
+
+/* Rich Text Editor Styles */
+.rich-text ul, .rich-text ol {
+    margin-left: 20px;
+    padding-left: 20px;
+}
+.rich-text li {
+    list-style-position: outside;
+}
+.rich-text ul {
+    list-style-type: disc;
+}
+.rich-text ol {
+    list-style-type: decimal;
+}

@@ -2612,7 +2612,7 @@ function setupSidebar() {
         if (navAprobaciones) { navAprobaciones.style.display = 'flex'; adminNavGroup.appendChild(navAprobaciones); }
         
         if (navWorkspace) { navWorkspace.style.display = 'flex'; sidebarNav.insertBefore(navWorkspace, adminNavGroup); }
-        if (navComunicados) { navComunicados.style.display = 'flex'; sidebarNav.insertBefore(navComunicados, adminNavGroup); }
+        if (navComunicados) { navComunicados.style.display = 'none'; }
         if (navHorario) { navHorario.style.display = 'flex'; sidebarNav.insertBefore(navHorario, adminNavGroup); }
         if (navTeletrabajo) { navTeletrabajo.style.display = 'flex'; sidebarNav.insertBefore(navTeletrabajo, adminNavGroup); }
         if (navDocs) { navDocs.style.display = 'flex'; sidebarNav.insertBefore(navDocs, adminNavGroup); }
@@ -3685,7 +3685,7 @@ function renderGestorComunicados() {
                     <h3 style="color: ${isRead ? 'var(--text-primary)' : 'var(--danger)'}; margin: 0; font-size: 18px;">${c.title}</h3>
                     <span style="font-size: 11px; color: var(--text-secondary); background: rgba(0,0,0,0.1); padding: 3px 8px; border-radius: 10px;">${formattedDate} por ${c.author}</span>
                 </div>
-                <div style="font-size: 14px; color: var(--text-secondary); margin-top: 10px; line-height: 1.5; overflow-wrap: break-word;">${c.content}</div>
+                <div class="rich-text" style="font-size: 14px; color: var(--text-secondary); margin-top: 10px; line-height: 1.5; overflow-wrap: break-word;">${c.content}</div>
                 ${actionsHtml}
             </div>
         `;
