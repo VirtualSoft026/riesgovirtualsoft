@@ -3593,7 +3593,7 @@ function initComunicadosListener() {
 function openNewComunicadoModal() {
     document.getElementById('comunicadoTitle').value = '';
     document.getElementById('comunicadoContent').value = '';
-    document.getElementById('newComunicadoModal').style.display = 'flex';
+    document.getElementById('newComunicadoModal').classList.add('active');
 }
 
 async function saveNewComunicado() {
@@ -3743,7 +3743,7 @@ async function viewComunicadoLecturas(id) {
     const c = globalComunicados[id];
     if (!c) return;
     
-    document.getElementById('comunicadoLecturasModal').style.display = 'flex';
+    document.getElementById('comunicadoLecturasModal').classList.add('active');
     const readList = document.getElementById('comunicadoReadList');
     const unreadList = document.getElementById('comunicadoUnreadList');
     
