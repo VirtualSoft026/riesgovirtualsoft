@@ -1064,25 +1064,22 @@ function syncActiveSessionToFirebase() {
         // Preserve the loginTime from Firebase if it already exists, otherwise use the one from localStorage
         const loginTime = (existing && existing.loginTime) ? existing.loginTime : (currentUser.loginTime || new Date().toISOString());
         
-        // --- INACTIVITY LOGIC (ONLY FOR ORIANA) ---
+        // --- INACTIVITY LOGIC ---
         let newLastActive = Date.now();
         let currentStatus = existing ? existing.status : 'Activo';
         
-        const isOriana = currentUser.name && currentUser.name.toLowerCase().trim().includes('oriana');
-        if (isOriana) {
-            const timeSinceLastActivity = Date.now() - lastLocalActivityTimestamp;
-            const isIdle = timeSinceLastActivity > (5 * 60 * 1000); // 5 minutes
-            const isSuspended = document.visibilityState === 'hidden';
-            
-            if (isLunchBreak) {
-                newLastActive = (existing && existing.lastActive) ? existing.lastActive : Date.now();
-                currentStatus = 'En Almuerzo';
-            } else if (isIdle || isSuspended) {
-                newLastActive = (existing && existing.lastActive) ? existing.lastActive : Date.now();
-                currentStatus = 'Inactivo';
-            } else {
-                currentStatus = 'En Línea';
-            }
+        const timeSinceLastActivity = Date.now() - lastLocalActivityTimestamp;
+        const isIdle = timeSinceLastActivity > (5 * 60 * 1000); // 5 minutes
+        const isSuspended = document.visibilityState === 'hidden';
+        
+        if (isLunchBreak) {
+            newLastActive = (existing && existing.lastActive) ? existing.lastActive : Date.now();
+            currentStatus = 'En Almuerzo';
+        } else if (isIdle || isSuspended) {
+            newLastActive = (existing && existing.lastActive) ? existing.lastActive : Date.now();
+            currentStatus = 'Inactivo';
+        } else {
+            currentStatus = 'En Línea';
         }
         
         sessionRef.set({
@@ -2768,10 +2765,9 @@ function setupSidebar() {
         
         if (navSoporte) { navSoporte.style.display = 'flex'; sidebarNav.appendChild(navSoporte); }
         
-        // --- LUNCH BUTTON VISIBILITY (ONLY ORIANA) ---
+        // --- LUNCH BUTTON VISIBILITY ---
         const toggleLunchBtn = document.getElementById('toggleLunchBtn');
-        const isOrianaBtn = currentUser && currentUser.name && currentUser.name.toLowerCase().trim().includes('oriana');
-        if (toggleLunchBtn && isOrianaBtn) {
+        if (toggleLunchBtn) {
             toggleLunchBtn.style.display = 'flex';
         }
     }
