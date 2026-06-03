@@ -219,6 +219,55 @@ function getCronogramaColumnsForToday(targetDate, shiftText, rows = []) {
     }
 }
 
+let globalCronogramaData = null;
+async function preloadCronograma() {
+    try {
+        const url = encodeURI('Cronograma de Tareas/Cronograma Junio.xlsx') + '?t=' + Date.now();
+        const response = await fetch(url);
+        if (!response.ok) return;
+        const arrayBuffer = await response.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, {type: 'array'});
+        const today = new Date();
+        const sheetName = getWeekSheet(workbook.SheetNames, today);
+        if (sheetName) {
+            globalCronogramaData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "" });
+            // Re-render dashboard just in case it loaded before this finished
+            if (document.getElementById('monitoreoView').style.display !== 'none') {
+                renderDashboardCards();
+            }
+        }
+    } catch(e) {
+        console.error("preloadCronograma error", e);
+    }
+}
+
+function getAssignedTasksForGestor(gestorName, shiftText) {
+    if (!globalCronogramaData) return [];
+    let assignments = [];
+    const today = new Date();
+    const colGroups = getCronogramaColumnsForToday(today, shiftText, globalCronogramaData);
+    
+    for (let colGroup of colGroups) {
+        const tCol = colGroup[0];
+        const gCol = colGroup[1];
+        for (let rIdx = 0; rIdx < globalCronogramaData.length; rIdx++) {
+            const row = globalCronogramaData[rIdx];
+            if (!row) continue;
+            const taskVal = row[tCol];
+            const gestorVal = row[gCol];
+            if (taskVal !== undefined && taskVal !== null && String(taskVal).trim() !== "") {
+                const tStrLower = String(taskVal).trim().toLowerCase();
+                if (!tStrLower.startsWith("set ") && !tStrLower.includes("cronograma") && gestorVal !== "Gestor") {
+                    if (gestorVal !== undefined && gestorVal !== null && namesMatch(String(gestorVal).trim(), gestorName)) {
+                        assignments.push(String(taskVal).trim());
+                    }
+                }
+            }
+        }
+    }
+    return assignments;
+}
+
 let gestorCronogramaAssignments = null;
 
 async function loadCronogramaAssignments(gestorName, gestorShift) {
@@ -2724,20 +2773,42 @@ function renderActiveSessionsDashboard() {
         const percentage = session.percentage || 0;
 
         const tasks = session.tasks || {};
+        
+        let assignedTasks = [];
+        if (globalCronogramaData) {
+            assignedTasks = getAssignedTasksForGestor(fullName, session.shift || 'Mañana');
+        }
+
         let tasksHtml = '';
-        const taskIds = Object.keys(tasks);
-        if (taskIds.length > 0) {
+        if (assignedTasks.length > 0) {
             tasksHtml = '<div style="margin-top: 15px; max-height: 80px; overflow-y: auto; font-size: 11px; border: 1px solid var(--border-color); border-radius: 4px; padding: 5px; background: rgba(0,0,0,0.02);">';
-            taskIds.forEach(id => {
-                const t = tasks[id];
-                let icon = t.status === 'Finalizada' ? "<i class='bx bx-check-circle' style='color: var(--success-color)'></i>" : 
-                          (t.status === 'En Proceso' ? "<i class='bx bx-time-five' style='color: var(--warning-color)'></i>" : 
-                          "<i class='bx bx-x-circle' style='color: var(--danger-color)'></i>");
-                tasksHtml += `<div style="display: flex; align-items: center; gap: 5px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${icon} <span title="${t.name}">${t.name}</span></div>`;
+            assignedTasks.forEach(taskName => {
+                // Find if the gestor has interacted with this task
+                let taskStatus = 'Pendiente';
+                let icon = "<i class='bx bx-radio-circle' style='color: var(--text-secondary)'></i>";
+                
+                // Buscar si existe en session.tasks (por valor de objeto)
+                for (let key in tasks) {
+                    if (tasks[key].name === taskName) {
+                        taskStatus = tasks[key].status;
+                        break;
+                    }
+                }
+
+                if (taskStatus === 'Finalizada') {
+                    icon = "<i class='bx bx-check-circle' style='color: var(--success-color)'></i>";
+                } else if (taskStatus === 'En Proceso') {
+                    icon = "<i class='bx bx-time-five' style='color: var(--warning-color)'></i>";
+                } else if (taskStatus === 'No Realizada') {
+                    icon = "<i class='bx bx-x-circle' style='color: var(--danger-color)'></i>";
+                }
+
+                tasksHtml += `<div style="display: flex; align-items: center; gap: 5px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: ${taskStatus==='Pendiente'?0.7:1};">${icon} <span title="${taskName}">${taskName}</span></div>`;
             });
             tasksHtml += '</div>';
         } else {
-            tasksHtml = '<div style="margin-top: 15px; font-size: 11px; color: var(--text-secondary); text-align: center; font-style: italic;">Aún no ha iniciado tareas</div>';
+            tasksHtml = '<div style="margin-top: 15px; font-size: 11px; color: var(--text-secondary); text-align: center; font-style: italic;">' + 
+                        (globalCronogramaData ? 'No tiene tareas asignadas en este turno' : 'Cargando cronograma...') + '</div>';
         }
 
         const card = document.createElement('div');
@@ -3462,6 +3533,7 @@ function closeKpiTaskDetails() {
 
 // Inicialización al cargar el DOM
 document.addEventListener('DOMContentLoaded', () => {
+    preloadCronograma();
     loadRetirosData();
     
     const periodoSelect = document.getElementById('kpiPeriodoSelect');
