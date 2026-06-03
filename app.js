@@ -1068,7 +1068,8 @@ function syncActiveSessionToFirebase() {
         let newLastActive = Date.now();
         let currentStatus = existing ? existing.status : 'Activo';
         
-        if (currentUser.name === 'Oriana Borja' || currentUser.name === 'Oriana') {
+        const isOriana = currentUser.name && currentUser.name.toLowerCase().trim().includes('oriana');
+        if (isOriana) {
             const timeSinceLastActivity = Date.now() - lastLocalActivityTimestamp;
             const isIdle = timeSinceLastActivity > (5 * 60 * 1000); // 5 minutes
             const isSuspended = document.visibilityState === 'hidden';
@@ -2769,7 +2770,8 @@ function setupSidebar() {
         
         // --- LUNCH BUTTON VISIBILITY (ONLY ORIANA) ---
         const toggleLunchBtn = document.getElementById('toggleLunchBtn');
-        if (toggleLunchBtn && currentUser && (currentUser.name === 'Oriana Borja' || currentUser.name === 'Oriana')) {
+        const isOrianaBtn = currentUser && currentUser.name && currentUser.name.toLowerCase().trim().includes('oriana');
+        if (toggleLunchBtn && isOrianaBtn) {
             toggleLunchBtn.style.display = 'flex';
         }
     }
