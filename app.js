@@ -2868,7 +2868,10 @@ function renderActiveSessionsDashboard() {
         const fullName = (session.name || '').trim();
         const email = (session.email || '');
         const shift = session.shift || 'Mañana';
-        const isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
+        let isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
+        if (session.status === 'En Almuerzo' || session.status === 'Inactivo') {
+            isOnline = false;
+        }
 
         // Search match (accent-insensitive substring)
         if (searchQuery && !normalizeName(fullName).includes(searchQuery) && !normalizeName(email).includes(searchQuery)) {
@@ -2906,7 +2909,20 @@ function renderActiveSessionsDashboard() {
         const session = allActiveSessions[uid];
         if (!session) return;
         
-        const isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 43200000) : false;
+        let isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
+        let displayStatus = isOnline ? 'En Línea' : 'Inactivo';
+        
+        if (session.status === 'En Almuerzo') {
+            isOnline = false;
+            displayStatus = 'En Almuerzo 🍽️';
+        } else if (session.status === 'Inactivo') {
+            isOnline = false;
+            displayStatus = 'Inactivo 💤';
+        } else if (session.status === 'En Línea') {
+            isOnline = true;
+            displayStatus = 'En Línea';
+        }
+        
         const lastActiveTime = session.lastActive ? new Date(session.lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Nunca';
         const loginTimeStr = session.loginTime ? new Date(session.loginTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Pendiente (Falta actualizar)';
         const delayBadge = calculateShiftDelay(session);
@@ -2971,7 +2987,7 @@ function renderActiveSessionsDashboard() {
                 </div>
                 <div class="status-indicator-badge ${isOnline ? 'status-online' : 'status-offline'}">
                     <div class="pulse-dot ${isOnline ? '' : 'offline'}"></div>
-                    ${isOnline ? 'En Línea' : 'Inactivo'}
+                    ${displayStatus}
                 </div>
             </div>
             
