@@ -5,6 +5,29 @@ if (!currentUserObj && !window.location.href.includes('login.html')) {
 }
 
 let currentUser = null;
+let currentTaskRef = null;
+let activeSessionRef = null;
+
+// --- INACTIVITY & LUNCH TRACKING GLOBALS ---
+let lastLocalActivityTimestamp = Date.now();
+let isLunchBreak = false;
+let lunchStartTime = null;
+let totalLunchTimeMs = 0;
+
+// Activity listeners
+function updateActivity() {
+    lastLocalActivityTimestamp = Date.now();
+}
+document.addEventListener('mousemove', updateActivity);
+document.addEventListener('keydown', updateActivity);
+document.addEventListener('click', updateActivity);
+document.addEventListener('scroll', updateActivity);
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        updateActivity();
+    }
+});
+
 try {
     currentUser = currentUserObj ? JSON.parse(currentUserObj) : null;
 } catch(e) {
@@ -1041,12 +1064,33 @@ function syncActiveSessionToFirebase() {
         // Preserve the loginTime from Firebase if it already exists, otherwise use the one from localStorage
         const loginTime = (existing && existing.loginTime) ? existing.loginTime : (currentUser.loginTime || new Date().toISOString());
         
+        // --- INACTIVITY LOGIC (ONLY FOR ORIANA) ---
+        let newLastActive = Date.now();
+        let currentStatus = existing ? existing.status : 'Activo';
+        
+        if (currentUser.name === 'Oriana Borja' || currentUser.name === 'Oriana') {
+            const timeSinceLastActivity = Date.now() - lastLocalActivityTimestamp;
+            const isIdle = timeSinceLastActivity > (5 * 60 * 1000); // 5 minutes
+            const isSuspended = document.visibilityState === 'hidden';
+            
+            if (isLunchBreak) {
+                newLastActive = (existing && existing.lastActive) ? existing.lastActive : Date.now();
+                currentStatus = 'En Almuerzo';
+            } else if (isIdle || isSuspended) {
+                newLastActive = (existing && existing.lastActive) ? existing.lastActive : Date.now();
+                currentStatus = 'Inactivo';
+            } else {
+                currentStatus = 'En Línea';
+            }
+        }
+        
         sessionRef.set({
             name: currentUser.name,
             email: currentUser.email,
             shift: currentUser.shift || 'Por Asignar',
             loginTime: loginTime,
-            lastActive: Date.now(),
+            lastActive: newLastActive,
+            status: currentStatus,
             totalTasks: totalTasks,
             finalizedTasks: finalized,
             percentage: percentage,
@@ -1846,9 +1890,46 @@ async function initApp() {
     }
 }
 
+// Lógica de Almuerzo
+function toggleLunchBreak() {
+    if (!currentUser) return;
+    const btn = document.getElementById('toggleLunchBtn');
+    
+    if (!isLunchBreak) {
+        isLunchBreak = true;
+        lunchStartTime = Date.now();
+        if(btn) {
+            btn.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Almuerzo";
+            btn.classList.remove('btn-outline');
+            btn.classList.add('btn-success');
+            btn.style.color = "white";
+            btn.style.borderColor = "transparent";
+        }
+        syncActiveSessionToFirebase();
+    } else {
+        isLunchBreak = false;
+        if(lunchStartTime) {
+            totalLunchTimeMs += (Date.now() - lunchStartTime);
+        }
+        lunchStartTime = null;
+        if(btn) {
+            btn.innerHTML = "<i class='bx bx-restaurant'></i> Tomar Almuerzo";
+            btn.classList.add('btn-outline');
+            btn.classList.remove('btn-success');
+            btn.style.color = "var(--text-primary)";
+            btn.style.borderColor = "rgba(255,255,255,0.2)";
+        }
+        updateActivity();
+        syncActiveSessionToFirebase();
+    }
+}
+
 // Lógica explícita para el botón (llamado desde onclick en html)
 function handleEndShift() {
     if(confirm("¿Estás seguro que deseas finalizar tu turno actual? Se enviará un resumen al supervisor.")) {
+        // Cerrar almuerzo si quedó abierto
+        if (isLunchBreak) toggleLunchBreak();
+
         
         let localUser = null;
         try { localUser = JSON.parse(localStorage.getItem('riskOps_currentUser')); } catch(e) {}
@@ -1865,12 +1946,21 @@ function handleEndShift() {
             
             // Format login time
             const loginDate = new Date(localUser.loginTime);
+            const endDate = new Date();
+            
+            // Calculo de tiempo efectivo
+            const totalShiftMs = endDate.getTime() - loginDate.getTime();
+            const effectiveShiftMs = totalShiftMs - totalLunchTimeMs;
+            const effectiveHours = (effectiveShiftMs / (1000 * 60 * 60)).toFixed(2);
+            const lunchMinutes = (totalLunchTimeMs / (1000 * 60)).toFixed(1);
             
             formData.append("Usuario", localUser.name);
             formData.append("Rol", localUser.role);
             formData.append("Reporte", "CIERRE DE TURNO Y RESUMEN DE TAREAS");
             formData.append("Hora_Inicio_Turno", loginDate.toLocaleString());
-            formData.append("Hora_Fin_Turno", new Date().toLocaleString());
+            formData.append("Hora_Fin_Turno", endDate.toLocaleString());
+            formData.append("Tiempo_Almuerzo_Descontado", lunchMinutes + " minutos");
+            formData.append("Horas_Efectivas_Trabajadas", effectiveHours + " hrs");
             
             if(setSelect) {
                 formData.append("SET_Principal_Trabajado", setSelect.value);
@@ -2676,6 +2766,12 @@ function setupSidebar() {
         if (adminNavGroup) adminNavGroup.style.display = 'none';
         
         if (navSoporte) { navSoporte.style.display = 'flex'; sidebarNav.appendChild(navSoporte); }
+        
+        // --- LUNCH BUTTON VISIBILITY (ONLY ORIANA) ---
+        const toggleLunchBtn = document.getElementById('toggleLunchBtn');
+        if (toggleLunchBtn && currentUser && (currentUser.name === 'Oriana Borja' || currentUser.name === 'Oriana')) {
+            toggleLunchBtn.style.display = 'flex';
+        }
     }
 }
 
