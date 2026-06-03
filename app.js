@@ -2723,6 +2723,23 @@ function renderActiveSessionsDashboard() {
         const totalTasks = session.totalTasks || 0;
         const percentage = session.percentage || 0;
 
+        const tasks = session.tasks || {};
+        let tasksHtml = '';
+        const taskIds = Object.keys(tasks);
+        if (taskIds.length > 0) {
+            tasksHtml = '<div style="margin-top: 15px; max-height: 80px; overflow-y: auto; font-size: 11px; border: 1px solid var(--border-color); border-radius: 4px; padding: 5px; background: rgba(0,0,0,0.02);">';
+            taskIds.forEach(id => {
+                const t = tasks[id];
+                let icon = t.status === 'Finalizada' ? "<i class='bx bx-check-circle' style='color: var(--success-color)'></i>" : 
+                          (t.status === 'En Proceso' ? "<i class='bx bx-time-five' style='color: var(--warning-color)'></i>" : 
+                          "<i class='bx bx-x-circle' style='color: var(--danger-color)'></i>");
+                tasksHtml += `<div style="display: flex; align-items: center; gap: 5px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${icon} <span title="${t.name}">${t.name}</span></div>`;
+            });
+            tasksHtml += '</div>';
+        } else {
+            tasksHtml = '<div style="margin-top: 15px; font-size: 11px; color: var(--text-secondary); text-align: center; font-style: italic;">Aún no ha iniciado tareas</div>';
+        }
+
         const card = document.createElement('div');
         card.className = 'monitoreo-card';
         card.innerHTML = `
@@ -2764,9 +2781,11 @@ function renderActiveSessionsDashboard() {
                 </div>
             </div>
 
+            ${tasksHtml}
+
             <div style="margin-top: 15px; display: flex; justify-content: flex-end;">
-                <button class="btn btn-outline" style="width: auto; padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;" onclick="openMonitoreoDetails('${uid}')">
-                    <i class='bx bx-search-alt-2'></i> Ver Tareas
+                <button class="btn btn-outline" style="width: 100%; padding: 6px 12px; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="openMonitoreoDetails('${uid}')">
+                    <i class='bx bx-search-alt-2'></i> Ver Detalles y Novedades
                 </button>
             </div>
         `;
