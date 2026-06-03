@@ -3781,7 +3781,7 @@ async function viewComunicadoLecturas(id) {
                     if (!readers[uKey]) {
                         unreadCount++;
                         unreadList.innerHTML += `<li style="margin-bottom: 8px; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;">
-                            <div style="font-weight: 500; color: var(--danger); font-size: 13px;"><i class='bx bx-x'></i> ${u.fullName}</div>
+                            <div style="font-weight: 500; color: var(--danger); font-size: 13px;"><i class='bx bx-x'></i> ${u.name || 'Sin nombre'}</div>
                         </li>`;
                     }
                 }
