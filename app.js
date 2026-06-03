@@ -3754,11 +3754,13 @@ async function viewComunicadoLecturas(id) {
     const readers = c.readBy || {};
     const readerUids = Object.keys(readers).sort((a,b) => new Date(readers[b].readAt) - new Date(readers[a].readAt));
     
+    const readNames = new Set();
     if (readerUids.length === 0) {
         readList.innerHTML = '<li style="color: var(--text-secondary); margin-bottom: 5px;">Nadie ha leído esto aún.</li>';
     } else {
         readerUids.forEach(uid => {
             const r = readers[uid];
+            if (r.name) readNames.add(r.name.trim().toLowerCase());
             readList.innerHTML += `<li style="margin-bottom: 8px; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
                 <div style="font-weight: 500; font-size: 13px;">${r.name}</div>
                 <div style="font-size: 11px; color: var(--text-secondary);">${new Date(r.readAt).toLocaleString('es-CO')}</div>
@@ -3778,11 +3780,15 @@ async function viewComunicadoLecturas(id) {
                 const u = allUsers[uKey];
                 // Solo listamos como pendientes a los gestores aprobados
                 if (u.approved === true && (u.role === 'Gestor' || u.role === undefined)) {
-                    if (!readers[uKey]) {
+                    const uName = (u.name || '').trim().toLowerCase();
+                    // Verificar que el UID no haya leído Y que el nombre no esté en la lista de los que ya leyeron (evita duplicados de cuentas)
+                    if (!readers[uKey] && !readNames.has(uName)) {
                         unreadCount++;
                         unreadList.innerHTML += `<li style="margin-bottom: 8px; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;">
                             <div style="font-weight: 500; color: var(--danger); font-size: 13px;"><i class='bx bx-x'></i> ${u.name || 'Sin nombre'}</div>
                         </li>`;
+                        // Añadimos el nombre al set para evitar imprimir al mismo usuario varias veces si tiene múltiples cuentas viejas
+                        if (uName) readNames.add(uName);
                     }
                 }
             });
