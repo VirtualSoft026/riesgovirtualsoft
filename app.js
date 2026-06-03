@@ -1652,6 +1652,14 @@ async function initApp() {
                 if (viewIndicadores) viewIndicadores.style.display = 'block';
                 if (topHeader) topHeader.style.display = 'none'; // Ocultar header según solicitud
                 loadGestoresForKPIs();
+            } else if (item.id === 'navComunicados') {
+                const viewComunicados = document.getElementById('view-comunicados');
+                if (viewComunicados) viewComunicados.style.display = 'block';
+                renderGestorComunicados();
+            } else if (item.id === 'navAdminComunicados') {
+                const viewAdminComunicados = document.getElementById('view-gestion-comunicados');
+                if (viewAdminComunicados) viewAdminComunicados.style.display = 'block';
+                renderAdminComunicados();
             }
         });
     });
@@ -2583,54 +2591,45 @@ function setupSidebar() {
     const navTeletrabajo = document.getElementById('navTeletrabajo');
     const navDocs = document.getElementById('navDocs');
     const navPermisos = document.getElementById('navPermisos');
+    const navComunicados = document.getElementById('navComunicados');
+    
+    const adminNavGroup = document.getElementById('adminNavGroup');
+    const navAdminComunicados = document.getElementById('navAdminComunicados');
     const navTurnos = document.getElementById('navTurnos');
     const navAprobaciones = document.getElementById('navAprobaciones');
     const navMonitoreo = document.getElementById('navMonitoreo');
     const navIndicadores = document.getElementById('navIndicadores');
+    
     const navSoporte = document.getElementById('navSoporte');
 
     if (currentUser && (currentUser.role === 'Admin' || currentUser.role === 'Supervisor')) {
-        // Admin/Supervisor Order:
-        // 1. Monitoreo
-        // 2. Historial de turnos
-        // 3. Aprobaciones
-        // 4. Historial de permisos
-        // 5. Horario
-        // 6. Teletrabajo
-        // 7. Documentación
-        // 8. Mis Tareas
-        // 9. Soporte
+        // Admin/Supervisor Order
+        if (adminNavGroup) { adminNavGroup.style.display = 'block'; sidebarNav.appendChild(adminNavGroup); }
+        if (navMonitoreo) { navMonitoreo.style.display = 'flex'; adminNavGroup.appendChild(navMonitoreo); }
+        if (navIndicadores) { navIndicadores.style.display = 'flex'; adminNavGroup.appendChild(navIndicadores); }
+        if (navAdminComunicados) { navAdminComunicados.style.display = 'flex'; adminNavGroup.appendChild(navAdminComunicados); }
+        if (navTurnos) { navTurnos.style.display = 'flex'; adminNavGroup.appendChild(navTurnos); }
+        if (navAprobaciones) { navAprobaciones.style.display = 'flex'; adminNavGroup.appendChild(navAprobaciones); }
         
-        if (navMonitoreo) { navMonitoreo.style.display = 'flex'; sidebarNav.appendChild(navMonitoreo); }
-        if (navIndicadores) { navIndicadores.style.display = 'flex'; sidebarNav.appendChild(navIndicadores); }
-        if (navTurnos) { navTurnos.style.display = 'flex'; sidebarNav.appendChild(navTurnos); }
-        if (navAprobaciones) { navAprobaciones.style.display = 'flex'; sidebarNav.appendChild(navAprobaciones); }
-        if (navPermisos) { navPermisos.style.display = 'flex'; sidebarNav.appendChild(navPermisos); }
-        if (navHorario) { navHorario.style.display = 'flex'; sidebarNav.appendChild(navHorario); }
-        if (navTeletrabajo) { navTeletrabajo.style.display = 'flex'; sidebarNav.appendChild(navTeletrabajo); }
-        if (navDocs) { navDocs.style.display = 'flex'; sidebarNav.appendChild(navDocs); }
-        if (navWorkspace) { navWorkspace.style.display = 'flex'; sidebarNav.appendChild(navWorkspace); }
+        if (navWorkspace) { navWorkspace.style.display = 'flex'; sidebarNav.insertBefore(navWorkspace, adminNavGroup); }
+        if (navComunicados) { navComunicados.style.display = 'flex'; sidebarNav.insertBefore(navComunicados, adminNavGroup); }
+        if (navHorario) { navHorario.style.display = 'flex'; sidebarNav.insertBefore(navHorario, adminNavGroup); }
+        if (navTeletrabajo) { navTeletrabajo.style.display = 'flex'; sidebarNav.insertBefore(navTeletrabajo, adminNavGroup); }
+        if (navDocs) { navDocs.style.display = 'flex'; sidebarNav.insertBefore(navDocs, adminNavGroup); }
+        if (navPermisos) { navPermisos.style.display = 'flex'; sidebarNav.insertBefore(navPermisos, adminNavGroup); }
+        
         if (navSoporte) { navSoporte.style.display = 'flex'; sidebarNav.appendChild(navSoporte); }
     } else {
-        // Gestor Order:
-        // 1. Mis Tareas
-        // 2. Horario
-        // 3. Teletrabajo
-        // 4. Documentación
-        // 5. Historial de permisos (Permisos)
-        // 6. Soporte
-        
+        // Gestor Order
         if (navWorkspace) { navWorkspace.style.display = 'flex'; sidebarNav.appendChild(navWorkspace); }
+        if (navComunicados) { navComunicados.style.display = 'flex'; sidebarNav.appendChild(navComunicados); }
         if (navHorario) { navHorario.style.display = 'flex'; sidebarNav.appendChild(navHorario); }
         if (navTeletrabajo) { navTeletrabajo.style.display = 'flex'; sidebarNav.appendChild(navTeletrabajo); }
         if (navDocs) { navDocs.style.display = 'flex'; sidebarNav.appendChild(navDocs); }
         if (navPermisos) { navPermisos.style.display = 'flex'; sidebarNav.appendChild(navPermisos); }
         
         // Hide Admin tabs for Gestor
-        if (navTurnos) navTurnos.style.display = 'none';
-        if (navAprobaciones) navAprobaciones.style.display = 'none';
-        if (navMonitoreo) navMonitoreo.style.display = 'none';
-        if (navIndicadores) navIndicadores.style.display = 'none';
+        if (adminNavGroup) adminNavGroup.style.display = 'none';
         
         if (navSoporte) { navSoporte.style.display = 'flex'; sidebarNav.appendChild(navSoporte); }
     }
@@ -3543,6 +3542,8 @@ function closeKpiTaskDetails() {
 document.addEventListener('DOMContentLoaded', () => {
     preloadCronograma();
     loadRetirosData();
+    // Iniciar Módulo de Comunicados
+    initComunicadosListener();
     
     const periodoSelect = document.getElementById('kpiPeriodoSelect');
     if (periodoSelect) {
@@ -3567,3 +3568,243 @@ window.onclick = function(event) {
         closeKpiTaskDetails();
     }
 };
+
+// --- MÓDULO DE COMUNICADOS ---
+let globalComunicados = {};
+
+function initComunicadosListener() {
+    database.ref('announcements').on('value', snapshot => {
+        globalComunicados = snapshot.val() || {};
+        updateUnreadBadge();
+        
+        // Re-render views if they are open
+        const viewGestor = document.getElementById('view-comunicados');
+        if (viewGestor && viewGestor.style.display === 'block') {
+            renderGestorComunicados();
+        }
+        
+        const viewAdmin = document.getElementById('view-gestion-comunicados');
+        if (viewAdmin && viewAdmin.style.display === 'block') {
+            renderAdminComunicados();
+        }
+    });
+}
+
+function openNewComunicadoModal() {
+    document.getElementById('comunicadoTitle').value = '';
+    document.getElementById('comunicadoContent').value = '';
+    document.getElementById('newComunicadoModal').style.display = 'flex';
+}
+
+async function saveNewComunicado() {
+    const title = document.getElementById('comunicadoTitle').value.trim();
+    const content = document.getElementById('comunicadoContent').value.trim();
+    
+    if (!title || !content) {
+        alert("Por favor llena todos los campos.");
+        return;
+    }
+    
+    try {
+        const newRef = database.ref('announcements').push();
+        await newRef.set({
+            title: title,
+            content: content,
+            date: new Date().toISOString(),
+            author: currentUser.name || 'Admin',
+            readBy: {}
+        });
+        
+        alert("Comunicado publicado exitosamente.");
+        closeModal('newComunicadoModal');
+    } catch(e) {
+        console.error(e);
+        alert("Error al publicar.");
+    }
+}
+
+function updateUnreadBadge() {
+    if (!currentUser || currentUser.role === 'Admin' || currentUser.role === 'Supervisor') {
+        const badge = document.getElementById('unreadAnnouncementsBadge');
+        if (badge) badge.style.display = 'none';
+        return;
+    }
+    
+    let unreadCount = 0;
+    const uid = firebase.auth().currentUser.uid;
+    
+    Object.keys(globalComunicados).forEach(key => {
+        const c = globalComunicados[key];
+        if (!c.readBy || !c.readBy[uid]) {
+            unreadCount++;
+        }
+    });
+    
+    const badge = document.getElementById('unreadAnnouncementsBadge');
+    if (badge) {
+        if (unreadCount > 0) {
+            badge.textContent = unreadCount;
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+}
+
+function renderGestorComunicados() {
+    const list = document.getElementById('gestorComunicadosList');
+    if (!list) return;
+    
+    list.innerHTML = '';
+    const keys = Object.keys(globalComunicados).sort((a,b) => {
+        return new Date(globalComunicados[b].date) - new Date(globalComunicados[a].date);
+    });
+    
+    if (keys.length === 0) {
+        list.innerHTML = `<div class="glass-panel" style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay comunicados activos.</div>`;
+        return;
+    }
+    
+    const uid = firebase.auth().currentUser.uid;
+    
+    keys.forEach(key => {
+        const c = globalComunicados[key];
+        const isRead = c.readBy && c.readBy[uid];
+        const formattedDate = new Date(c.date).toLocaleString('es-CO');
+        
+        let actionsHtml = '';
+        if (isRead) {
+            actionsHtml = `<div style="color: var(--success); font-size: 13px; margin-top: 15px; font-weight: 500;"><i class='bx bx-check-double'></i> Leído el ${new Date(c.readBy[uid].readAt).toLocaleString('es-CO')}</div>`;
+        } else {
+            actionsHtml = `<button class="btn btn-primary" style="margin-top: 15px; width: 100%; max-width: 300px; background: var(--success); border-color: var(--success);" onclick="markComunicadoAsRead('${key}')"><i class='bx bx-check'></i> Marcar como Leído y Entendido</button>`;
+        }
+        
+        list.innerHTML += `
+            <div class="glass-panel" style="padding: 20px; border-left: 4px solid ${isRead ? 'var(--glass-border)' : 'var(--danger)'};">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                    <h3 style="color: ${isRead ? 'var(--text-primary)' : 'var(--danger)'}; margin: 0; font-size: 18px;">${c.title}</h3>
+                    <span style="font-size: 11px; color: var(--text-secondary); background: rgba(0,0,0,0.1); padding: 3px 8px; border-radius: 10px;">${formattedDate} por ${c.author}</span>
+                </div>
+                <div style="font-size: 14px; color: var(--text-secondary); white-space: pre-wrap; margin-top: 10px; line-height: 1.5;">${c.content}</div>
+                ${actionsHtml}
+            </div>
+        `;
+    });
+}
+
+async function markComunicadoAsRead(id) {
+    try {
+        const uid = firebase.auth().currentUser.uid;
+        await database.ref(`announcements/${id}/readBy/${uid}`).set({
+            name: currentUser.name,
+            readAt: new Date().toISOString()
+        });
+    } catch(e) {
+        console.error(e);
+        alert("Error al marcar como leído.");
+    }
+}
+
+function renderAdminComunicados() {
+    const tbody = document.getElementById('adminComunicadosTableBody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    const keys = Object.keys(globalComunicados).sort((a,b) => {
+        return new Date(globalComunicados[b].date) - new Date(globalComunicados[a].date);
+    });
+    
+    if (keys.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay comunicados creados.</td></tr>`;
+        return;
+    }
+    
+    keys.forEach(key => {
+        const c = globalComunicados[key];
+        const formattedDate = new Date(c.date).toLocaleString('es-CO');
+        const readCount = c.readBy ? Object.keys(c.readBy).length : 0;
+        
+        tbody.innerHTML += `
+            <tr style="border-bottom: 1px solid var(--glass-border);">
+                <td style="padding: 12px; font-size: 13px;">${formattedDate}</td>
+                <td style="padding: 12px; font-weight: 500;">${c.title}</td>
+                <td style="padding: 12px; color: var(--text-secondary); font-size: 13px;">${c.author}</td>
+                <td style="padding: 12px; text-align: center;"><span class="badge" style="background: var(--success);">${readCount} lecturas</span></td>
+                <td style="padding: 12px; text-align: center;">
+                    <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px;" onclick="viewComunicadoLecturas('${key}')"><i class='bx bx-search'></i> Ver</button>
+                    <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px; margin-left: 5px;" onclick="deleteComunicado('${key}')"><i class='bx bx-trash'></i></button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+async function viewComunicadoLecturas(id) {
+    const c = globalComunicados[id];
+    if (!c) return;
+    
+    document.getElementById('comunicadoLecturasModal').style.display = 'flex';
+    const readList = document.getElementById('comunicadoReadList');
+    const unreadList = document.getElementById('comunicadoUnreadList');
+    
+    readList.innerHTML = '';
+    unreadList.innerHTML = '<li style="color: var(--text-secondary);">Cargando usuarios...</li>';
+    
+    // Poblar leídos
+    const readers = c.readBy || {};
+    const readerUids = Object.keys(readers).sort((a,b) => new Date(readers[b].readAt) - new Date(readers[a].readAt));
+    
+    if (readerUids.length === 0) {
+        readList.innerHTML = '<li style="color: var(--text-secondary); margin-bottom: 5px;">Nadie ha leído esto aún.</li>';
+    } else {
+        readerUids.forEach(uid => {
+            const r = readers[uid];
+            readList.innerHTML += `<li style="margin-bottom: 8px; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-weight: 500; font-size: 13px;">${r.name}</div>
+                <div style="font-size: 11px; color: var(--text-secondary);">${new Date(r.readAt).toLocaleString('es-CO')}</div>
+            </li>`;
+        });
+    }
+    
+    // Fetch all active gestores to find who hasn't read
+    try {
+        const snap = await database.ref('users').once('value');
+        if (snap.exists()) {
+            const allUsers = snap.val();
+            unreadList.innerHTML = '';
+            
+            let unreadCount = 0;
+            Object.keys(allUsers).forEach(uKey => {
+                const u = allUsers[uKey];
+                // Solo listamos como pendientes a los gestores aprobados
+                if (u.approved === true && (u.role === 'Gestor' || u.role === undefined)) {
+                    if (!readers[uKey]) {
+                        unreadCount++;
+                        unreadList.innerHTML += `<li style="margin-bottom: 8px; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;">
+                            <div style="font-weight: 500; color: var(--danger); font-size: 13px;"><i class='bx bx-x'></i> ${u.fullName}</div>
+                        </li>`;
+                    }
+                }
+            });
+            
+            if (unreadCount === 0) {
+                unreadList.innerHTML = '<li style="color: var(--success); margin-bottom: 5px; text-align: center; font-weight: 500;"><i class="bx bx-check-double"></i> ¡Todos han leído!</li>';
+            }
+        }
+    } catch(e) {
+        console.error(e);
+        unreadList.innerHTML = '<li style="color: var(--danger);">Error al cargar usuarios.</li>';
+    }
+}
+
+async function deleteComunicado(id) {
+    if (confirm("¿Estás seguro de eliminar este comunicado? Ya no aparecerá para nadie.")) {
+        try {
+            await database.ref('announcements/' + id).remove();
+            alert("Eliminado con éxito.");
+        } catch(e) {
+            console.error(e);
+            alert("No se pudo eliminar.");
+        }
+    }
+}

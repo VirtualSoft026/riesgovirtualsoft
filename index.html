@@ -35,14 +35,22 @@
             
             <nav class="sidebar-nav">
                 <a href="#" class="nav-item active" id="navWorkspace"><i class='bx bx-grid-alt'></i> Mis Tareas</a>
+                <a href="#" class="nav-item" id="navComunicados" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span><i class='bx bx-news'></i> Comunicados</span>
+                    <span id="unreadAnnouncementsBadge" style="display: none; background: var(--danger); color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: bold;">0</span>
+                </a>
                 <a href="#" class="nav-item" id="navHorario"><i class='bx bx-calendar'></i> Horario</a>
                 <a href="#" class="nav-item" id="navTeletrabajo"><i class='bx bx-home-alt'></i> Teletrabajo</a>
                 <a href="#" class="nav-item" id="navDocs"><i class='bx bx-folder-open'></i> Documentación</a>
                 <a href="#" class="nav-item" id="navPermisos"><i class='bx bx-check-shield'></i> Historial de permisos</a>
-                <a href="#" class="nav-item" id="navTurnos" style="display: none;"><i class='bx bx-history'></i> Historial de turnos</a>
-                <a href="#" class="nav-item" id="navAprobaciones" style="display: none;"><i class='bx bx-user-check'></i> Aprobaciones</a>
-                <a href="#" class="nav-item" id="navMonitoreo" style="display: none;"><i class='bx bx-pulse'></i> Monitoreo</a>
-                <a href="#" class="nav-item" id="navIndicadores" style="display: none;"><i class='bx bx-pie-chart-alt-2'></i> Indicadores (KPIs)</a>
+                <div id="adminNavGroup" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
+                    <div style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; padding-left: 15px;">Supervisión</div>
+                    <a href="#" class="nav-item" id="navAdminComunicados" style="display: none;"><i class='bx bx-broadcast'></i> Gestión Comunicados</a>
+                    <a href="#" class="nav-item" id="navTurnos" style="display: none;"><i class='bx bx-history'></i> Historial de turnos</a>
+                    <a href="#" class="nav-item" id="navAprobaciones" style="display: none;"><i class='bx bx-user-check'></i> Aprobaciones</a>
+                    <a href="#" class="nav-item" id="navMonitoreo" style="display: none;"><i class='bx bx-pulse'></i> Monitoreo</a>
+                    <a href="#" class="nav-item" id="navIndicadores" style="display: none;"><i class='bx bx-pie-chart-alt-2'></i> Indicadores (KPIs)</a>
+                </div>
                 <a href="#" class="nav-item" id="navSoporte"><i class='bx bx-help-circle'></i> Soporte</a>
             </nav>
 
@@ -547,6 +555,39 @@
                     </div>
                 <!-- Cierre del Contenedor view-indicadores -->
                 </div>
+
+                <!-- Vista: Comunicados (Gestores) -->
+                <div id="view-comunicados" class="view-panel" style="display: none; padding: 20px;">
+                    <h2 class="panel-title" style="margin-bottom: 20px; color: var(--accent-primary);"><i class='bx bx-news'></i> Comunicados e Información Importante</h2>
+                    <div id="gestorComunicadosList" style="display: flex; flex-direction: column; gap: 15px;">
+                        <!-- Comunicados dinámicos irán aquí -->
+                    </div>
+                </div>
+
+                <!-- Vista: Gestión de Comunicados (Admin) -->
+                <div id="view-gestion-comunicados" class="view-panel" style="display: none; padding: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2 class="panel-title" style="color: var(--warning);"><i class='bx bx-broadcast'></i> Gestión de Comunicados</h2>
+                        <button class="btn btn-primary" onclick="openNewComunicadoModal()"><i class='bx bx-plus'></i> Nuevo Comunicado</button>
+                    </div>
+                    
+                    <div class="glass-panel" style="padding: 20px; border: 1px solid var(--warning);">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid var(--glass-border);">
+                                    <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Fecha</th>
+                                    <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Título</th>
+                                    <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Autor</th>
+                                    <th style="padding: 12px; color: var(--accent-primary); text-align: center;">Lecturas</th>
+                                    <th style="padding: 12px; color: var(--accent-primary); text-align: center;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminComunicadosTableBody">
+                                <!-- Filas dinámicas -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
         </main>
     </div>
 
@@ -573,6 +614,42 @@
             <div class="modal-actions" style="margin-top: 5px;">
                 <button class="btn btn-outline" onclick="closeModal('extraTaskModal')">Cancelar</button>
                 <button class="btn btn-primary" onclick="saveExtraTask()"><i class='bx bx-save'></i> Guardar Tarea</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modales de Comunicados -->
+    <div id="newComunicadoModal" class="modal-overlay">
+        <div class="modal glass-panel" style="max-width: 600px; width: 90%;">
+            <h2 style="color: var(--warning);"><i class='bx bx-edit'></i> Redactar Nuevo Comunicado</h2>
+            <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 5px;">Título del Comunicado:</label>
+            <input type="text" id="comunicadoTitle" class="modern-input" placeholder="Ej: Nueva Política de Permisos" style="margin-bottom: 15px; width: 100%;">
+            
+            <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 5px;">Contenido / Mensaje:</label>
+            <textarea id="comunicadoContent" class="modern-input" placeholder="Escribe aquí toda la información que los gestores deben conocer..." style="min-height: 150px; margin-bottom: 15px; width: 100%;"></textarea>
+            
+            <div class="modal-actions" style="margin-top: 5px;">
+                <button class="btn btn-outline" onclick="closeModal('newComunicadoModal')">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveNewComunicado()" style="background: var(--warning); border-color: var(--warning);"><i class='bx bx-send'></i> Publicar Comunicado</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="comunicadoLecturasModal" class="modal-overlay">
+        <div class="modal glass-panel" style="max-width: 700px; width: 95%;">
+            <h2 style="color: var(--accent-primary); margin-bottom: 20px;"><i class='bx bx-check-double'></i> Control de Lecturas</h2>
+            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 250px;">
+                    <h3 style="color: var(--success); font-size: 14px; margin-bottom: 10px; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;"><i class='bx bx-check-circle'></i> Leyeron y Aceptaron</h3>
+                    <ul id="comunicadoReadList" style="list-style: none; padding: 0; margin: 0; max-height: 300px; overflow-y: auto; font-size: 12px;"></ul>
+                </div>
+                <div style="flex: 1; min-width: 250px;">
+                    <h3 style="color: var(--danger); font-size: 14px; margin-bottom: 10px; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;"><i class='bx bx-error-circle'></i> Faltan por Leer</h3>
+                    <ul id="comunicadoUnreadList" style="list-style: none; padding: 0; margin: 0; max-height: 300px; overflow-y: auto; font-size: 12px;"></ul>
+                </div>
+            </div>
+            <div class="modal-actions" style="margin-top: 20px;">
+                <button class="btn btn-outline" onclick="closeModal('comunicadoLecturasModal')">Cerrar</button>
             </div>
         </div>
     </div>
