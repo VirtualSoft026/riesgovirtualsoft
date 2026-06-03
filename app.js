@@ -3592,13 +3592,13 @@ function initComunicadosListener() {
 
 function openNewComunicadoModal() {
     document.getElementById('comunicadoTitle').value = '';
-    document.getElementById('comunicadoContent').value = '';
+    document.getElementById('comunicadoContent').innerHTML = '';
     document.getElementById('newComunicadoModal').classList.add('active');
 }
 
 async function saveNewComunicado() {
     const title = document.getElementById('comunicadoTitle').value.trim();
-    const content = document.getElementById('comunicadoContent').value.trim();
+    const content = document.getElementById('comunicadoContent').innerHTML.trim();
     
     if (!title || !content) {
         alert("Por favor llena todos los campos.");
@@ -3685,7 +3685,7 @@ function renderGestorComunicados() {
                     <h3 style="color: ${isRead ? 'var(--text-primary)' : 'var(--danger)'}; margin: 0; font-size: 18px;">${c.title}</h3>
                     <span style="font-size: 11px; color: var(--text-secondary); background: rgba(0,0,0,0.1); padding: 3px 8px; border-radius: 10px;">${formattedDate} por ${c.author}</span>
                 </div>
-                <div style="font-size: 14px; color: var(--text-secondary); white-space: pre-wrap; margin-top: 10px; line-height: 1.5;">${c.content}</div>
+                <div style="font-size: 14px; color: var(--text-secondary); margin-top: 10px; line-height: 1.5; overflow-wrap: break-word;">${c.content}</div>
                 ${actionsHtml}
             </div>
         `;

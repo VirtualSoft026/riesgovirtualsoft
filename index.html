@@ -626,7 +626,23 @@
             <input type="text" id="comunicadoTitle" class="modern-input" placeholder="Ej: Nueva Política de Permisos" style="margin-bottom: 15px; width: 100%;">
             
             <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 5px;">Contenido / Mensaje:</label>
-            <textarea id="comunicadoContent" class="modern-input" placeholder="Escribe aquí toda la información que los gestores deben conocer..." style="min-height: 150px; margin-bottom: 15px; width: 100%;"></textarea>
+            <div style="border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; margin-bottom: 15px; overflow: hidden;">
+                <!-- Barra de herramientas del editor -->
+                <div style="background: rgba(0,0,0,0.2); padding: 8px; display: flex; gap: 5px; border-bottom: 1px solid rgba(255,255,255,0.1); flex-wrap: wrap; align-items: center;">
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px;" onclick="document.execCommand('bold', false, null)" title="Negrita"><i class='bx bx-bold'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px;" onclick="document.execCommand('italic', false, null)" title="Cursiva"><i class='bx bx-italic'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px;" onclick="document.execCommand('underline', false, null)" title="Subrayado"><i class='bx bx-underline'></i></button>
+                    <span style="border-left: 1px solid rgba(255,255,255,0.1); height: 20px; margin: 0 5px;"></span>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px;" onclick="document.execCommand('insertUnorderedList', false, null)" title="Lista de viñetas"><i class='bx bx-list-ul'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px;" onclick="document.execCommand('insertOrderedList', false, null)" title="Lista numerada"><i class='bx bx-list-ol'></i></button>
+                    <span style="border-left: 1px solid rgba(255,255,255,0.1); height: 20px; margin: 0 5px;"></span>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; color: #ff5a5a; border-color: rgba(255,90,90,0.3);" onclick="document.execCommand('foreColor', false, '#ff5a5a')" title="Texto Rojo"><i class='bx bx-font-color'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; color: #4ade80; border-color: rgba(74,222,128,0.3);" onclick="document.execCommand('foreColor', false, '#4ade80')" title="Texto Verde"><i class='bx bx-font-color'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; color: #e2e8f0; border-color: rgba(255,255,255,0.3);" onclick="document.execCommand('foreColor', false, '#e2e8f0')" title="Texto Blanco"><i class='bx bx-font-color'></i></button>
+                </div>
+                <!-- Área de contenido editable -->
+                <div id="comunicadoContent" contenteditable="true" style="min-height: 150px; padding: 15px; font-size: 14px; outline: none; background: rgba(0,0,0,0.1); color: var(--text-primary); max-height: 300px; overflow-y: auto;" placeholder="Escribe aquí toda la información que los gestores deben conocer..."></div>
+            </div>
             
             <div class="modal-actions" style="margin-top: 5px;">
                 <button class="btn btn-outline" onclick="closeModal('newComunicadoModal')">Cancelar</button>
