@@ -2190,7 +2190,11 @@ async function renderPendingPermissions() {
                 <td style="padding: 12px; font-weight: 500;">${p.gestor}</td>
                 <td style="padding: 12px;"><span class="badge pending">${p.tipo}</span></td>
                 <td style="padding: 12px; color: var(--text-secondary); font-size: 13px;">${p.fecha}<br>${p.horaInicio} a ${p.horaFin}</td>
-                <td style="padding: 12px; font-size: 13px; max-width: 350px; word-wrap: break-word; white-space: normal;">${p.motivo}</td>
+                <td style="padding: 12px; font-size: 13px;">
+                    <div style="max-width: 250px; max-height: 60px; overflow-y: auto; white-space: normal; word-wrap: break-word; padding-right: 5px; font-style: italic; color: var(--text-secondary);">
+                        ${p.motivo}
+                    </div>
+                </td>
                 <td style="padding: 12px; text-align: center;">
                     <div id="perm-action-btns-${p.fb_id}">
                         <button class="btn btn-success" style="padding: 5px 10px; font-size: 12px; margin-right: 5px;" onclick="showPermApproveBox('${p.fb_id}')"><i class='bx bx-check'></i></button>
