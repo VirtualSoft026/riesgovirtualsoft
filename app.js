@@ -1243,7 +1243,7 @@ async function initApp() {
             const availableAvatars = [
                 "Alexander Villada.png",
                 "Camilo Espinosa.png",
-                "Daniel Benavidez.png",
+                "Daniel Benavides.png",
                 "Josue Alvarez.png",
                 "Juan Jose Diaz.png",
                 "Maria Sanchez.png",
@@ -2584,7 +2584,7 @@ let allActiveSessions = {};
 const availableAvatars = [
     "Alexander Villada.png",
     "Camilo Espinosa.png",
-    "Daniel Benavidez.png",
+    "Daniel Benavides.png",
     "Josue Alvarez.png",
     "Juan Jose Diaz.png",
     "Maria Sanchez.png",
