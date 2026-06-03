@@ -2060,8 +2060,12 @@ async function renderPendingUsers() {
     
     tbody.innerHTML = '';
     
-    // Mostramos primero los pendientes, luego los aprobados
-    const allDisplayUsers = [...pending, ...approved];
+    // Mostramos primero los pendientes, luego los aprobados, ordenados por fecha de registro (más antiguo a más reciente)
+    const allDisplayUsers = [...pending, ...approved].sort((a, b) => {
+        const dateA = a.registrationDate ? new Date(a.registrationDate).getTime() : 0;
+        const dateB = b.registrationDate ? new Date(b.registrationDate).getTime() : 0;
+        return dateA - dateB;
+    });
     
     if (allDisplayUsers.length === 0) {
         tbody.innerHTML = `<tr><td colspan="4" style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay usuarios registrados en el sistema.</td></tr>`;
