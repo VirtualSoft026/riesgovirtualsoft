@@ -223,7 +223,7 @@ let gestorCronogramaAssignments = null;
 
 async function loadCronogramaAssignments(gestorName, gestorShift) {
     try {
-        const url = encodeURI('Cronograma de Tareas/Cronograma Mayo.xlsx') + '?t=' + Date.now();
+        const url = encodeURI('Cronograma de Tareas/Cronograma Junio.xlsx') + '?t=' + Date.now();
         const response = await fetch(url);
         if (!response.ok) throw new Error("Fallo al cargar cronograma");
         const arrayBuffer = await response.arrayBuffer();
