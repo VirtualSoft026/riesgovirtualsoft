@@ -4079,6 +4079,16 @@ window.onclick = function(event) {
     }
 };
 
+// Cerrar modales con la tecla Escape
+window.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const activeModals = document.querySelectorAll('.modal-overlay.active');
+        activeModals.forEach(modal => {
+            modal.classList.remove('active');
+        });
+    }
+});
+
 // --- MÓDULO DE COMUNICADOS ---
 let globalComunicados = {};
 
