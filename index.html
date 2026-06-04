@@ -265,7 +265,7 @@
                 <div class="glass-panel" style="padding: 10px; margin-bottom: 15px; display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; border: 1px solid var(--glass-border);">
                     <div style="flex: 1; min-width: 180px;">
                         <label style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; display: block; font-weight: 500;">Buscar por Nombre o Email:</label>
-                        <input type="text" id="filterAprobacionesSearch" placeholder="🔍 Escriba para buscar..." class="modern-input" style="min-height: 32px; padding: 6px 10px; font-size: 12px; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 6px; width: 100%;" oninput="renderPendingUsers()">
+                        <input type="text" id="filterAprobacionesSearch" placeholder="🔍 Escriba para buscar todos los registros..." class="modern-input" style="min-height: 32px; padding: 6px 10px; font-size: 12px; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 6px; width: 100%;" oninput="renderPendingUsers()">
                     </div>
                     <div style="flex: 1; min-width: 180px;">
                         <label style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; display: block; font-weight: 500;">Filtrar por Estado:</label>
@@ -277,16 +277,16 @@
                     </div>
                 </div>
 
-                <div class="glass-panel" style="padding: 0; border: 1px solid var(--warning); overflow-x: auto; max-height: 250px; overflow-y: auto; margin-bottom: 25px; border-radius: 8px;">
+                <div class="glass-panel" style="padding: 0; border: 1px solid var(--warning); overflow-x: auto; margin-bottom: 25px; border-radius: 8px;">
                     <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-                        <thead style="position: sticky; top: 0; z-index: 10; background: var(--bg-dark); box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                        <thead>
                             <tr style="border-bottom: 1px solid var(--glass-border);">
-                                <th style="padding: 8px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Nombre</th>
-                                <th style="padding: 8px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Email</th>
-                                <th style="padding: 8px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Rol</th>
-                                <th style="padding: 8px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">F. Solicitud</th>
-                                <th style="padding: 8px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">F. Aprobación</th>
-                                <th style="padding: 8px 10px; color: var(--accent-primary); text-align: center; background: var(--bg-dark);">Acción</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: rgba(0,0,0,0.2);">Nombre</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: rgba(0,0,0,0.2);">Email</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: rgba(0,0,0,0.2);">Rol</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: rgba(0,0,0,0.2);">F. Solicitud</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: rgba(0,0,0,0.2);">F. Aprobación</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: center; background: rgba(0,0,0,0.2);">Acción</th>
                             </tr>
                         </thead>
                         <tbody id="pendingUsersTableBody" style="background: rgba(255,255,255,0.02);"></tbody>
@@ -303,15 +303,15 @@
                     </div>
                 </div>
 
-                <div class="glass-panel" style="padding: 0; border: 1px solid var(--accent-primary); overflow-x: auto; max-height: 250px; overflow-y: auto; border-radius: 8px;">
+                <div class="glass-panel" style="padding: 0; border: 1px solid var(--accent-primary); overflow-x: auto; border-radius: 8px;">
                     <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-                        <thead style="position: sticky; top: 0; z-index: 10; background: var(--bg-dark); box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                        <thead>
                             <tr style="border-bottom: 1px solid var(--glass-border);">
-                                <th style="padding: 8px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Gestor</th>
-                                <th style="padding: 8px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Tipo</th>
-                                <th style="padding: 8px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Fecha</th>
-                                <th style="padding: 8px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Motivo</th>
-                                <th style="padding: 8px 10px; color: var(--accent-primary); text-align: center; background: var(--bg-dark);">Acción</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: rgba(0,0,0,0.2);">Gestor</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: rgba(0,0,0,0.2);">Tipo</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: rgba(0,0,0,0.2);">Fecha</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: rgba(0,0,0,0.2);">Motivo</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: center; background: rgba(0,0,0,0.2);">Acción</th>
                             </tr>
                         </thead>
                         <tbody id="pendingPermissionsTableBody" style="background: rgba(255,255,255,0.02);"></tbody>
