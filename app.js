@@ -4054,12 +4054,25 @@ function renderAdminComunicados() {
                 <td style="padding: 12px; color: var(--text-secondary); font-size: 13px;">${c.author}</td>
                 <td style="padding: 12px; text-align: center;"><span class="badge" style="background: var(--success);">${readCount} lecturas</span></td>
                 <td style="padding: 12px; text-align: center;">
-                    <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px;" onclick="viewComunicadoLecturas('${key}')"><i class='bx bx-search'></i> Ver</button>
+                    <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px;" onclick="viewComunicadoContent('${key}')"><i class='bx bx-book-open'></i> Leer</button>
+                    <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px; margin-left: 5px;" onclick="viewComunicadoLecturas('${key}')"><i class='bx bx-user-check'></i> Lecturas</button>
                     <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px; margin-left: 5px;" onclick="deleteComunicado('${key}')"><i class='bx bx-trash'></i></button>
                 </td>
             </tr>
         `;
     });
+}
+
+function viewComunicadoContent(id) {
+    const c = globalComunicados[id];
+    if (!c) return;
+    
+    document.getElementById('viewComunicadoContentTitle').innerText = c.title;
+    document.getElementById('viewComunicadoContentAuthor').innerText = c.author;
+    document.getElementById('viewComunicadoContentDate').innerText = new Date(c.date).toLocaleString('es-CO');
+    document.getElementById('viewComunicadoContentBody').innerText = c.content;
+    
+    document.getElementById('viewComunicadoContentModal').classList.add('active');
 }
 
 async function viewComunicadoLecturas(id) {

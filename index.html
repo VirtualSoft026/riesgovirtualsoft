@@ -613,6 +613,20 @@
         </main>
     </div>
 
+    <!-- View Comunicado Content Modal -->
+    <div id="viewComunicadoContentModal" class="modal-overlay">
+        <div class="modal glass-panel" style="max-width: 600px; width: 90%;">
+            <h2 id="viewComunicadoContentTitle" style="color: var(--accent-primary); border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; margin-bottom: 15px;">Título del Comunicado</h2>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 15px;">
+                Por: <span id="viewComunicadoContentAuthor" style="color: var(--text-primary);"></span> | Fecha: <span id="viewComunicadoContentDate"></span>
+            </div>
+            <div id="viewComunicadoContentBody" style="font-size: 14px; line-height: 1.6; color: var(--text-primary); white-space: pre-wrap; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 8px; max-height: 300px; overflow-y: auto; margin-bottom: 20px;"></div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="closeModal('viewComunicadoContentModal')">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Exception Modal -->
     <div id="extraTaskModal" class="modal-overlay">
         <div class="modal glass-panel">
