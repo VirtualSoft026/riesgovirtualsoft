@@ -43,7 +43,19 @@ let localStatus = 'En Línea';
 
 try {
     const savedTimeline = localStorage.getItem('riskOps_timeline');
-    if (savedTimeline) shiftTimeline = JSON.parse(savedTimeline);
+    if (savedTimeline) {
+        shiftTimeline = JSON.parse(savedTimeline);
+        let changed = false;
+        shiftTimeline.forEach(ev => {
+            if (ev.type === 'Inactividad' && ev.end === null) {
+                ev.end = Date.now();
+                changed = true;
+            }
+        });
+        if (changed) {
+            localStorage.setItem('riskOps_timeline', JSON.stringify(shiftTimeline));
+        }
+    }
 } catch(e) {}
 
 function pushTimelineEvent(type, action) {
