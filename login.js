@@ -242,16 +242,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     uid: user.uid
                 };
 
-                localStorage.setItem('riskOps_currentUser', JSON.stringify(sessionData));
-                
                 // Save login record to Firebase for history tracking
                 try {
-                    await database.ref('login_logs').push({
+                    const logRef = database.ref('login_logs').push();
+                    await logRef.set({
                         name: dbUser.name,
                         role: dbUser.role || "Gestor",
                         email: dbUser.email,
-                        timestamp: Date.now()
+                        timestamp: Date.now(),
+                        logoutTime: null
                     });
+                    
+                    sessionData.loginLogId = logRef.key;
+                    localStorage.setItem('riskOps_currentUser', JSON.stringify(sessionData));
                 } catch(errLog) {
                     console.error("Error saving login log:", errLog);
                 }
