@@ -18,6 +18,29 @@ let breakfastStartTime = null;
 let totalBreakfastTimeMs = 0;
 let globalIdleState = false; // Tracks if the OS/PC is idle or locked via IdleDetector
 
+let shiftTimeline = [];
+let localStatus = 'En Línea';
+
+try {
+    const savedTimeline = localStorage.getItem('riskOps_timeline');
+    if (savedTimeline) shiftTimeline = JSON.parse(savedTimeline);
+} catch(e) {}
+
+function pushTimelineEvent(type, action) {
+    const now = Date.now();
+    if (action === 'start') {
+        shiftTimeline.push({ type, start: now, end: null });
+    } else if (action === 'end') {
+        for (let i = shiftTimeline.length - 1; i >= 0; i--) {
+            if (shiftTimeline[i].type === type && shiftTimeline[i].end === null) {
+                shiftTimeline[i].end = now;
+                break;
+            }
+        }
+    }
+    localStorage.setItem('riskOps_timeline', JSON.stringify(shiftTimeline));
+}
+
 async function initIdleDetector() {
     if ('IdleDetector' in window) {
         try {
@@ -1123,6 +1146,14 @@ function syncActiveSessionToFirebase() {
             currentStatus = 'En Línea';
         }
         
+        // Timeline transitions for Inactivity
+        if (currentStatus === 'Inactivo' && localStatus !== 'Inactivo') {
+            pushTimelineEvent('Inactividad', 'start');
+        } else if (currentStatus !== 'Inactivo' && localStatus === 'Inactivo') {
+            pushTimelineEvent('Inactividad', 'end');
+        }
+        localStatus = currentStatus;
+        
         sessionRef.set({
             name: currentUser.name,
             email: currentUser.email,
@@ -1133,7 +1164,8 @@ function syncActiveSessionToFirebase() {
             totalTasks: totalTasks,
             finalizedTasks: finalized,
             percentage: percentage,
-            tasks: taskStateCache || {}
+            tasks: taskStateCache || {},
+            timeline: shiftTimeline || []
         }).catch(e => console.error("Error syncing active session to Firebase:", e));
     }).catch(e => console.error("Error reading session from Firebase:", e));
 }
@@ -1938,6 +1970,7 @@ function toggleBreakfastBreak() {
         if (isLunchBreak) { alert("Debes volver del almuerzo primero."); return; }
         isBreakfastBreak = true;
         breakfastStartTime = Date.now();
+        pushTimelineEvent('Desayuno', 'start');
         if(btn) {
             btn.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Desayuno";
             btn.classList.remove('btn-outline');
@@ -1952,6 +1985,7 @@ function toggleBreakfastBreak() {
             totalBreakfastTimeMs += (Date.now() - breakfastStartTime);
         }
         breakfastStartTime = null;
+        pushTimelineEvent('Desayuno', 'end');
         if(btn) {
             btn.innerHTML = "<i class='bx bx-coffee'></i> Tomar Desayuno";
             btn.classList.add('btn-outline');
@@ -1973,6 +2007,7 @@ function toggleLunchBreak() {
         if (isBreakfastBreak) { alert("Debes volver del desayuno primero."); return; }
         isLunchBreak = true;
         lunchStartTime = Date.now();
+        pushTimelineEvent('Almuerzo', 'start');
         if(btn) {
             btn.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Almuerzo";
             btn.classList.remove('btn-outline');
@@ -1987,6 +2022,7 @@ function toggleLunchBreak() {
             totalLunchTimeMs += (Date.now() - lunchStartTime);
         }
         lunchStartTime = null;
+        pushTimelineEvent('Almuerzo', 'end');
         if(btn) {
             btn.innerHTML = "<i class='bx bx-restaurant'></i> Tomar Almuerzo";
             btn.classList.add('btn-outline');
@@ -2051,6 +2087,19 @@ function handleEndShift() {
             formData.append("Exceso_Pausas_Penalidad", penalidadConectividadMins + " minutos");
             formData.append("Horas_Efectivas_Trabajadas", effectiveHours + " hrs");
             
+            // Construir reporte de bitácora
+            let bitacoraTexto = "";
+            if (shiftTimeline.length > 0) {
+                shiftTimeline.forEach(ev => {
+                    const s = new Date(ev.start).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'});
+                    const eTime = ev.end ? new Date(ev.end).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'}) : "No regresó";
+                    bitacoraTexto += `- ${ev.type}: inicio ${s} fin ${eTime}\n`;
+                });
+            } else {
+                bitacoraTexto = "No se registraron pausas o inactividades.";
+            }
+            formData.append("Bitacora_de_Tiempos", bitacoraTexto);
+            
             if(setSelect) {
                 formData.append("SET_Principal_Trabajado", setSelect.value);
             }
@@ -2070,6 +2119,7 @@ function handleEndShift() {
                     report += `\n[ ${t.status.toUpperCase()} ] - ${t.name}\nObservación: ${t.observation || 'N/A'}\n`;
                 });
             }
+            report += "\n\n=== BITÁCORA DE TIEMPOS ===\n" + bitacoraTexto;
             formData.append("Resumen_de_Tareas", report);
             
             // Reemplazar texto del botón para feedback visual
@@ -3184,9 +3234,12 @@ function renderActiveSessionsDashboard() {
 
             ${tasksHtml}
 
-            <div style="margin-top: 15px; display: flex; justify-content: flex-end;">
-                <button class="btn btn-outline" style="width: 100%; padding: 6px 12px; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="openMonitoreoDetails('${uid}')">
-                    <i class='bx bx-search-alt-2'></i> Ver Detalles y Novedades
+            <div style="margin-top: 15px; display: flex; gap: 5px; justify-content: flex-end;">
+                <button class="btn btn-outline" style="flex: 1; padding: 6px 10px; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="openMonitoreoDetails('${uid}')">
+                    <i class='bx bx-search-alt-2'></i> Detalles
+                </button>
+                <button class="btn btn-outline" style="flex: 1; padding: 6px 10px; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px; border-color: var(--warning); color: var(--warning);" onclick="viewTimelineInMonitoreo('${uid}')">
+                    <i class='bx bx-time'></i> Bitácora
                 </button>
             </div>
         `;
@@ -3194,6 +3247,49 @@ function renderActiveSessionsDashboard() {
     });
 
     updateGlobalStats();
+}
+
+function viewTimelineInMonitoreo(uid) {
+    const session = allActiveSessions[uid];
+    if (!session) return;
+    
+    const modal = document.getElementById('timelineModal');
+    const tbody = document.getElementById('timelineTableBody');
+    if (!modal || !tbody) return;
+    
+    document.getElementById('timelineModalName').innerText = session.name || 'Gestor';
+    
+    const timeline = session.timeline || [];
+    if (timeline.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center;">No hay pausas ni inactividades registradas en este turno.</td></tr>';
+    } else {
+        tbody.innerHTML = '';
+        timeline.forEach(ev => {
+            const s = new Date(ev.start).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'});
+            let eTime = "No regresó";
+            let durationStr = "En curso...";
+            if (ev.end) {
+                eTime = new Date(ev.end).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'});
+                const mins = Math.round((ev.end - ev.start) / 60000);
+                durationStr = `${mins} min`;
+            }
+            
+            let icon = "<i class='bx bx-time'></i>";
+            if (ev.type === 'Almuerzo') icon = "<i class='bx bx-restaurant' style='color: var(--success)'></i>";
+            if (ev.type === 'Desayuno') icon = "<i class='bx bx-coffee' style='color: var(--warning)'></i>";
+            if (ev.type === 'Inactividad') icon = "<i class='bx bx-sleepy' style='color: var(--danger)'></i>";
+
+            tbody.innerHTML += `
+                <tr style="border-bottom: 1px solid var(--glass-border);">
+                    <td style="padding: 10px; font-weight: 500;">${icon} ${ev.type}</td>
+                    <td style="padding: 10px; font-size: 13px;">${s} - ${eTime}</td>
+                    <td style="padding: 10px; text-align: center;"><span class="badge" style="background: rgba(255,255,255,0.05);">${durationStr}</span></td>
+                </tr>
+            `;
+        });
+    }
+    
+    modal.classList.add('active');
 }
 
 function updateGlobalStats() {
