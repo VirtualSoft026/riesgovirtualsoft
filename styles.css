@@ -240,12 +240,6 @@ a { text-decoration: none; color: inherit; }
     overflow: hidden;
 }
 
-.view-panel {
-    flex-grow: 1;
-    overflow-y: auto;
-    height: 100%;
-}
-
 /* Top Header */
 .top-header {
     height: 70px;

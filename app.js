@@ -88,7 +88,20 @@ document.addEventListener('click', () => {
 
 // Activity listeners
 function updateActivity() {
-    lastLocalActivityTimestamp = Date.now();
+    const now = Date.now();
+    const timeSinceLastActivity = now - lastLocalActivityTimestamp;
+    
+    // Si la inactividad supera los 5 minutos, registrarla retroactivamente.
+    // Esto atrapa los casos donde el PC se suspende, se apaga la pantalla, 
+    // o el navegador congela la pestaña impidiendo que el setInterval lo detecte.
+    if (timeSinceLastActivity > (5 * 60 * 1000)) {
+        if (localStatus !== 'Inactivo') {
+            shiftTimeline.push({ type: 'Inactividad', start: lastLocalActivityTimestamp, end: now });
+            localStorage.setItem('riskOps_timeline', JSON.stringify(shiftTimeline));
+        }
+    }
+    
+    lastLocalActivityTimestamp = now;
 }
 document.addEventListener('mousemove', updateActivity);
 document.addEventListener('keydown', updateActivity);
@@ -1147,8 +1160,10 @@ function syncActiveSessionToFirebase() {
         let isInactive = false;
         if (globalIdleState) {
             isInactive = true; // PC is locked or idle globally (via IdleDetector)
-        } else if (isDomIdle) {
-            isInactive = true; // 5 minutos sin tocar la app = Inactivo
+        } else if (isDomIdle && isPageVisible) {
+            isInactive = true; // Left the tab open and walked away
+        } else if (isDomIdle && !isPageVisible) {
+            isInactive = false; // Tab is hidden, they are probably working in Jira/Email
         }
         
         if (isLunchBreak) {
