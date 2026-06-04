@@ -50,6 +50,7 @@
                     <a href="#" class="nav-item" id="navAprobaciones" style="display: none;"><i class='bx bx-user-check'></i> Aprobaciones</a>
                     <a href="#" class="nav-item" id="navMonitoreo" style="display: none;"><i class='bx bx-pulse'></i> Monitoreo</a>
                     <a href="#" class="nav-item" id="navIndicadores" style="display: none;"><i class='bx bx-pie-chart-alt-2'></i> Indicadores (KPIs)</a>
+                    <a href="#" class="nav-item" id="navLogins" style="display: none;"><i class='bx bx-log-in-circle'></i> Registro de Sesiones</a>
                 </div>
                 <a href="#" class="nav-item" id="navSoporte"><i class='bx bx-help-circle'></i> Soporte</a>
             </nav>
@@ -621,7 +622,34 @@
                 </div>
 
                 <!-- Vista: Comunicados (Gestores) -->
-                <div id="view-comunicados" class="view-panel" style="display: none; padding: 20px;">
+            <!-- Panel de Inicios de Sesión (Logins) -->
+            <div id="view-logins" class="view-panel" style="display: none; padding: 20px; overflow-y: auto; width: 100%; box-sizing: border-box; flex: 1;">
+                <div class="header-with-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div>
+                        <h2 style="margin: 0; font-size: 24px; color: var(--text-primary);"><i class='bx bx-history'></i> Registro de Inicios de Sesión</h2>
+                        <p style="margin: 5px 0 0 0; color: var(--text-secondary); font-size: 14px;">Consulta el historial histórico de todos los gestores que han iniciado sesión en el sistema.</p>
+                    </div>
+                    <button class="btn btn-outline" onclick="loadLoginHistory()"><i class='bx bx-refresh'></i> Actualizar Lista</button>
+                </div>
+                
+                <div class="glass-panel" style="padding: 0; border: 1px solid var(--glass-border); overflow-x: auto; border-radius: 8px;">
+                    <table class="data-table" style="width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>Fecha y Hora de Ingreso</th>
+                                <th>Gestor</th>
+                                <th>Rol Asignado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="loginHistoryTableBody">
+                            <!-- Llenado dinámicamente desde app.js -->
+                            <tr><td colspan="3" style="text-align: center; padding: 30px;">Cargando historial de sesiones...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="view-comunicados" class="view-panel" style="display: none; padding: 20px;">
                     <h2 class="panel-title" style="margin-bottom: 20px; color: var(--accent-primary);"><i class='bx bx-news'></i> Comunicados e Información Importante</h2>
                     <div id="gestorComunicadosList" style="display: flex; flex-direction: column; gap: 15px;">
                         <!-- Comunicados dinámicos irán aquí -->
@@ -865,30 +893,7 @@
         </div>
     </div>
 
-    <!-- Login History Modal -->
-    <div id="loginHistoryModal" class="modal-overlay">
-        <div class="modal glass-panel" style="max-width: 700px; width: 90%;">
-            <div class="modal-header">
-                <h2><i class='bx bx-history'></i> Registro de Inicios de Sesión</h2>
-                <span class="close-modal" onclick="closeModal('loginHistoryModal')">&times;</span>
-            </div>
-            <div class="modal-body" style="max-height: 500px; overflow-y: auto; padding-right: 5px;">
-                <table class="data-table" style="width: 100%;">
-                    <thead>
-                        <tr>
-                            <th>Fecha y Hora</th>
-                            <th>Gestor</th>
-                            <th>Rol</th>
-                        </tr>
-                    </thead>
-                    <tbody id="loginHistoryTableBody">
-                        <!-- Llenado dinámicamente -->
-                        <tr><td colspan="3" style="text-align: center;">Cargando...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Timeline Modal para Monitoreo -->
     <div id="timelineModal" class="modal-overlay">

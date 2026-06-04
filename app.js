@@ -1476,12 +1476,14 @@ async function initApp() {
             const viewAprobaciones = document.getElementById('view-aprobaciones');
             const viewTurnos = document.getElementById('view-turnos');
             const permissionForm = document.getElementById('permissionForm');
+            const navLogins = document.getElementById('navLogins');
             const endShiftBtn = document.getElementById('endShiftBtn');
 
             if(navAprobaciones) navAprobaciones.style.display = 'flex';
             if(navTurnos) navTurnos.style.display = 'flex';
             if(navMonitoreo) navMonitoreo.style.display = 'flex';
             if(navIndicadores) navIndicadores.style.display = 'flex';
+            if(navLogins) navLogins.style.display = 'flex';
             if(navWorkspace) navWorkspace.style.display = 'flex'; // Keep Mis Tareas visible
             
             // Ocultar el panel de Progreso del Turno / Documentos de Acceso Rápido en Mis Tareas para Admin o Supervisor
@@ -1795,6 +1797,10 @@ async function initApp() {
                 const viewAdminComunicados = document.getElementById('view-gestion-comunicados');
                 if (viewAdminComunicados) viewAdminComunicados.style.display = 'block';
                 renderAdminComunicados();
+            } else if (item.id === 'navLogins') {
+                const viewLogins = document.getElementById('view-logins');
+                if (viewLogins) viewLogins.style.display = 'block';
+                loadLoginHistory();
             }
         });
     });
@@ -2919,6 +2925,7 @@ function setupSidebar() {
     const navAprobaciones = document.getElementById('navAprobaciones');
     const navMonitoreo = document.getElementById('navMonitoreo');
     const navIndicadores = document.getElementById('navIndicadores');
+    const navLogins = document.getElementById('navLogins');
     
     const navSoporte = document.getElementById('navSoporte');
 
@@ -2930,6 +2937,7 @@ function setupSidebar() {
         if (navAdminComunicados) { navAdminComunicados.style.display = 'flex'; adminNavGroup.appendChild(navAdminComunicados); }
         if (navTurnos) { navTurnos.style.display = 'flex'; adminNavGroup.appendChild(navTurnos); }
         if (navAprobaciones) { navAprobaciones.style.display = 'flex'; adminNavGroup.appendChild(navAprobaciones); }
+        if (navLogins) { navLogins.style.display = 'flex'; adminNavGroup.appendChild(navLogins); }
         
         if (navWorkspace) { navWorkspace.style.display = 'flex'; sidebarNav.insertBefore(navWorkspace, adminNavGroup); }
         if (navComunicados) { navComunicados.style.display = 'none'; }
