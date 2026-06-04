@@ -3579,13 +3579,16 @@ async function calcularIndicadores() {
             const shiftDateStr = new Date(report.timestamp || report.loginTime || Date.now()).toLocaleDateString();
             const taskObj = { name: task.name, date: shiftDateStr, type: task.type || 'N/A', observation: task.observation || 'N/A' };
             
-            if (task.status === 'finalizada') {
+            if (!task.status) continue;
+            const tStatus = task.status.toLowerCase().trim();
+            
+            if (tStatus === 'finalizada') {
                 totalFinalizadas++;
                 window.kpiTaskLists.finalizadas.push(taskObj);
-            } else if (task.status === 'no_realizada' || task.status === 'no realizada') {
+            } else if (tStatus === 'no_realizada' || tStatus === 'no realizada') {
                 totalNoRealizadas++;
                 window.kpiTaskLists.no_realizadas.push(taskObj);
-            } else if (task.status === 'pendiente' || task.status === 'en_proceso') {
+            } else if (tStatus === 'pendiente' || tStatus === 'en_proceso' || tStatus === 'en proceso') {
                 totalPendientes++;
                 window.kpiTaskLists.pendientes.push(taskObj);
             }
