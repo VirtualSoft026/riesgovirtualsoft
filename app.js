@@ -18,6 +18,26 @@ let breakfastStartTime = null;
 let totalBreakfastTimeMs = 0;
 let globalIdleState = false; // Tracks if the OS/PC is idle or locked via IdleDetector
 
+function saveBreakState() {
+    localStorage.setItem('riskOps_breakState', JSON.stringify({
+        isLunchBreak, lunchStartTime, totalLunchTimeMs,
+        isBreakfastBreak, breakfastStartTime, totalBreakfastTimeMs
+    }));
+}
+
+try {
+    const savedState = localStorage.getItem('riskOps_breakState');
+    if (savedState) {
+        const parsed = JSON.parse(savedState);
+        isLunchBreak = parsed.isLunchBreak || false;
+        lunchStartTime = parsed.lunchStartTime || null;
+        totalLunchTimeMs = parsed.totalLunchTimeMs || 0;
+        isBreakfastBreak = parsed.isBreakfastBreak || false;
+        breakfastStartTime = parsed.breakfastStartTime || null;
+        totalBreakfastTimeMs = parsed.totalBreakfastTimeMs || 0;
+    }
+} catch(e) {}
+
 let shiftTimeline = [];
 let localStatus = 'En Línea';
 
@@ -1971,6 +1991,7 @@ function toggleBreakfastBreak() {
         isBreakfastBreak = true;
         breakfastStartTime = Date.now();
         pushTimelineEvent('Desayuno', 'start');
+        saveBreakState();
         if(btn) {
             btn.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Desayuno";
             btn.classList.remove('btn-outline');
@@ -1986,6 +2007,7 @@ function toggleBreakfastBreak() {
         }
         breakfastStartTime = null;
         pushTimelineEvent('Desayuno', 'end');
+        saveBreakState();
         if(btn) {
             btn.innerHTML = "<i class='bx bx-coffee'></i> Tomar Desayuno";
             btn.classList.add('btn-outline');
@@ -2008,6 +2030,7 @@ function toggleLunchBreak() {
         isLunchBreak = true;
         lunchStartTime = Date.now();
         pushTimelineEvent('Almuerzo', 'start');
+        saveBreakState();
         if(btn) {
             btn.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Almuerzo";
             btn.classList.remove('btn-outline');
@@ -2023,6 +2046,7 @@ function toggleLunchBreak() {
         }
         lunchStartTime = null;
         pushTimelineEvent('Almuerzo', 'end');
+        saveBreakState();
         if(btn) {
             btn.innerHTML = "<i class='bx bx-restaurant'></i> Tomar Almuerzo";
             btn.classList.add('btn-outline');
@@ -2156,6 +2180,8 @@ function handleEndShift() {
             // Antes de enviar, limpiamos la sesión y el caché
             localStorage.removeItem('riskOps_currentUser');
             localStorage.removeItem('riskOps_cache');
+            localStorage.removeItem('riskOps_breakState');
+            localStorage.removeItem('riskOps_timeline');
             
             // Set the global currentUser to null so syncActiveSessionToFirebase stops firing
             currentUser = null;
@@ -4002,6 +4028,24 @@ document.addEventListener('DOMContentLoaded', () => {
     loadRetirosData();
     // Iniciar Módulo de Comunicados
     initComunicadosListener();
+    
+    // Restaurar botones de pausas
+    const btnLunch = document.getElementById('toggleLunchBtn');
+    if (btnLunch && isLunchBreak) {
+        btnLunch.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Almuerzo";
+        btnLunch.classList.remove('btn-outline');
+        btnLunch.classList.add('btn-success');
+        btnLunch.style.color = "white";
+        btnLunch.style.borderColor = "transparent";
+    }
+    const btnBreak = document.getElementById('toggleBreakfastBtn');
+    if (btnBreak && isBreakfastBreak) {
+        btnBreak.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Desayuno";
+        btnBreak.classList.remove('btn-outline');
+        btnBreak.classList.add('btn-warning');
+        btnBreak.style.color = "white";
+        btnBreak.style.borderColor = "transparent";
+    }
     
     const periodoSelect = document.getElementById('kpiPeriodoSelect');
     if (periodoSelect) {
