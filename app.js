@@ -3647,14 +3647,15 @@ async function calcularIndicadores() {
         if (!stats && gestorName) {
             const parts = gestorName.toLowerCase().split(' ');
             const firstName = parts[0];
-            const secondPart = parts.length > 1 ? parts[1].substring(0, 4) : null;
+            const lastName = parts.length > 1 ? parts[1] : '';
             
             for (let excelEmail in window.retirosGlobalData) {
-                if (excelEmail.includes(firstName)) {
-                    if (secondPart && excelEmail.includes(secondPart)) {
+                const eLower = excelEmail.toLowerCase();
+                if (eLower.includes(firstName)) {
+                    if (lastName && lastName.length >= 3 && eLower.includes(lastName.substring(0,3))) {
                         stats = window.retirosGlobalData[excelEmail];
                         break;
-                    } else if (!secondPart) {
+                    } else if (lastName.length < 3) {
                         stats = window.retirosGlobalData[excelEmail];
                         break;
                     }
