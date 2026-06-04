@@ -2089,6 +2089,9 @@ function handleEndShift() {
                 setTrabajado: setSelect ? setSelect.value : 'N/A',
                 reporte: report,
                 tasks: taskStateCache,
+                penalidadConectividadMins: penalidadConectividadMins,
+                tiempoAlmuerzoMins: lunchMinutes,
+                tiempoDesayunoMins: breakfastMinutes,
                 timestamp: Date.now()
             };
 
@@ -3602,15 +3605,28 @@ async function calcularIndicadores() {
     });
     
     const totalTareas = totalFinalizadas + totalNoRealizadas + totalPendientes;
-    let porcentaje = 0;
+    let porcentajeActividades = 0;
     
     if (totalTareas > 0) {
-        porcentaje = (totalFinalizadas / totalTareas) * 100;
+        porcentajeActividades = (totalFinalizadas / totalTareas) * 100;
     } else {
-        porcentaje = 100; // Si no hay tareas marcadas, no se penaliza
+        porcentajeActividades = 0; // Regla confirmada: 0% si no marcó nada
     }
     
-    porcentaje = Math.round(porcentaje);
+    porcentajeActividades = Math.round(porcentajeActividades);
+    
+    // Calcular Penalidad de Conectividad
+    let totalPenalidadConectividad = 0;
+    shiftReports.forEach(report => {
+        if (report.penalidadConectividadMins) {
+            // Regla confirmada: 1% menos por cada minuto sobrepasado
+            totalPenalidadConectividad += report.penalidadConectividadMins;
+        }
+    });
+    
+    let porcentajeConectividad = 100 - totalPenalidadConectividad;
+    if (porcentajeConectividad < 0) porcentajeConectividad = 0;
+    porcentajeConectividad = Math.round(porcentajeConectividad);
     
     // Aplicar penalidad de retiros si existe la data y llenar nuevas tarjetas
     let penalidadRetiros = 0;
@@ -3736,12 +3752,9 @@ async function calcularIndicadores() {
                     if (penalidadRetiros > 30) penalidadRetiros = 30; // Cap
                 }
                 
-                porcentaje -= penalidadRetiros;
-                if (porcentaje < 0) porcentaje = 0;
-                
                 if (cardRetiros) cardRetiros.style.display = 'flex';
                 if (textPenalidad) textPenalidad.textContent = `-${penalidadRetiros}%`;
-                if (textDemora) textDemora.textContent = `Promedio: ${Math.round(avgDemoraMins)} min / ${stats.retirosConTiempo} retiros`;
+                if (textDemora) textDemora.textContent = `Promedio: ${Math.round(avgDemoraMins)} min / ${finalStats.retirosConTiempo} retiros`;
             } else {
                 if (cardRetiros) cardRetiros.style.display = 'none';
             }
@@ -3759,6 +3772,9 @@ async function calcularIndicadores() {
         if (cardMonto) cardMonto.textContent = "$0";
         if (cardRetiros) cardRetiros.style.display = 'none';
     }
+    
+    let porcentajeRetiros = 100 - penalidadRetiros;
+    if (porcentajeRetiros < 0) porcentajeRetiros = 0;
     
     // SIEMPRE mostrar las tarjetas de retiros base, independientemente de si hay datos (excluyendo la de penalidad que es dinámica)
     retirosCardsElements.forEach(el => el.style.display = 'flex');
@@ -3779,41 +3795,46 @@ async function calcularIndicadores() {
     document.getElementById('kpiTurnosAnalizados').textContent = turnosAnalizados;
     document.getElementById('kpiDuracionPromedio').textContent = turnosValidosParaTiempo > 0 ? `${promedioHoras}h ${promedioMinutosRestantes}m` : 'N/A';
     
-    const ring = document.getElementById('kpiScoreRing');
-    const textPercent = document.getElementById('kpiScoreText');
-    const badge = document.getElementById('kpiVerdictBadge');
-    
-    // Circumference = 2 * pi * r = 2 * 3.14159 * 50 = 314.159
-    const circumference = 314.159;
-    const offset = circumference - (porcentaje / 100) * circumference;
-    
-    // Reset ring for animation
-    ring.style.transition = 'none';
-    ring.style.strokeDashoffset = circumference;
-    
-    // Trigger animation flow
-    setTimeout(() => {
-        ring.style.transition = 'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)';
-        ring.style.strokeDashoffset = offset;
-        textPercent.textContent = porcentaje + '%';
+    // Animar anillos independientes
+    const animateRing = (ringId, textId, badgeId, percentage) => {
+        const ring = document.getElementById(ringId);
+        const textPercent = document.getElementById(textId);
+        const badge = document.getElementById(badgeId);
+        if(!ring || !textPercent || !badge) return;
         
-        if (porcentaje >= 90) {
-            ring.style.stroke = 'var(--success)';
-            badge.style.background = 'rgba(16, 185, 129, 0.2)';
-            badge.style.color = 'var(--success)';
-            badge.textContent = 'Excelente Rendimiento';
-        } else if (porcentaje >= 75) {
-            ring.style.stroke = 'var(--warning)';
-            badge.style.background = 'rgba(245, 158, 11, 0.2)';
-            badge.style.color = 'var(--warning)';
-            badge.textContent = 'Rendimiento Aceptable';
-        } else {
-            ring.style.stroke = 'var(--danger)';
-            badge.style.background = 'rgba(239, 68, 68, 0.2)';
-            badge.style.color = 'var(--danger)';
-            badge.textContent = 'Rendimiento Crítico';
-        }
-    }, 50);
+        const circumference = 251.2;
+        const offset = circumference - (percentage / 100) * circumference;
+        
+        ring.style.transition = 'none';
+        ring.style.strokeDashoffset = circumference;
+        
+        setTimeout(() => {
+            ring.style.transition = 'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)';
+            ring.style.strokeDashoffset = offset;
+            textPercent.textContent = percentage + '%';
+            
+            if (percentage >= 90) {
+                ring.style.stroke = 'var(--success)';
+                badge.style.background = 'rgba(16, 185, 129, 0.2)';
+                badge.style.color = 'var(--success)';
+                badge.textContent = 'Excelente';
+            } else if (percentage >= 75) {
+                ring.style.stroke = 'var(--warning)';
+                badge.style.background = 'rgba(245, 158, 11, 0.2)';
+                badge.style.color = 'var(--warning)';
+                badge.textContent = 'Aceptable';
+            } else {
+                ring.style.stroke = 'var(--danger)';
+                badge.style.background = 'rgba(239, 68, 68, 0.2)';
+                badge.style.color = 'var(--danger)';
+                badge.textContent = 'Crítico';
+            }
+        }, 50);
+    };
+
+    animateRing('kpiScoreRingActividades', 'kpiScoreTextActividades', 'kpiVerdictBadgeActividades', porcentajeActividades);
+    animateRing('kpiScoreRingConectividad', 'kpiScoreTextConectividad', 'kpiVerdictBadgeConectividad', porcentajeConectividad);
+    animateRing('kpiScoreRingRetiros', 'kpiScoreTextRetiros', 'kpiVerdictBadgeRetiros', porcentajeRetiros);
     
     resultsContainer.style.display = 'flex';
 }
