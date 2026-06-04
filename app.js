@@ -4050,7 +4050,9 @@ function renderAdminComunicados() {
         tbody.innerHTML += `
             <tr style="border-bottom: 1px solid var(--glass-border);">
                 <td style="padding: 12px; font-size: 13px;">${formattedDate}</td>
-                <td style="padding: 12px; font-weight: 500;">${c.title}</td>
+                <td style="padding: 12px; font-weight: 500;">
+                    <a href="javascript:void(0)" onclick="viewComunicadoContent('${key}')" style="color: var(--accent-primary); text-decoration: none; cursor: pointer; transition: color 0.2s;" onmouseover="this.style.textDecoration='underline'; this.style.color='var(--text-primary)'" onmouseout="this.style.textDecoration='none'; this.style.color='var(--accent-primary)'">${c.title}</a>
+                </td>
                 <td style="padding: 12px; color: var(--text-secondary); font-size: 13px;">${c.author}</td>
                 <td style="padding: 12px; text-align: center;"><span class="badge" style="background: var(--success);">${readCount} lecturas</span></td>
                 <td style="padding: 12px; text-align: center;">
