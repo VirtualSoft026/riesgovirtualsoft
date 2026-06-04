@@ -1147,10 +1147,8 @@ function syncActiveSessionToFirebase() {
         let isInactive = false;
         if (globalIdleState) {
             isInactive = true; // PC is locked or idle globally (via IdleDetector)
-        } else if (isDomIdle && isPageVisible) {
-            isInactive = true; // Left the tab open and walked away
-        } else if (isDomIdle && !isPageVisible) {
-            isInactive = false; // Tab is hidden, they are probably working in Jira/Email
+        } else if (isDomIdle) {
+            isInactive = true; // 5 minutos sin tocar la app = Inactivo
         }
         
         if (isLunchBreak) {
