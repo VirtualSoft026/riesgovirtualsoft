@@ -13,6 +13,9 @@ let lastLocalActivityTimestamp = Date.now();
 let isLunchBreak = false;
 let lunchStartTime = null;
 let totalLunchTimeMs = 0;
+let isBreakfastBreak = false;
+let breakfastStartTime = null;
+let totalBreakfastTimeMs = 0;
 let globalIdleState = false; // Tracks if the OS/PC is idle or locked via IdleDetector
 
 async function initIdleDetector() {
@@ -1110,6 +1113,9 @@ function syncActiveSessionToFirebase() {
         if (isLunchBreak) {
             newLastActive = (existing && existing.lastActive) ? existing.lastActive : Date.now();
             currentStatus = 'En Almuerzo';
+        } else if (isBreakfastBreak) {
+            newLastActive = (existing && existing.lastActive) ? existing.lastActive : Date.now();
+            currentStatus = 'En Desayuno';
         } else if (isInactive) {
             newLastActive = (existing && existing.lastActive) ? existing.lastActive : Date.now();
             currentStatus = 'Inactivo';
@@ -1923,12 +1929,48 @@ async function initApp() {
     }
 }
 
+// Lógica de Desayuno
+function toggleBreakfastBreak() {
+    if (!currentUser) return;
+    const btn = document.getElementById('toggleBreakfastBtn');
+    
+    if (!isBreakfastBreak) {
+        if (isLunchBreak) { alert("Debes volver del almuerzo primero."); return; }
+        isBreakfastBreak = true;
+        breakfastStartTime = Date.now();
+        if(btn) {
+            btn.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Desayuno";
+            btn.classList.remove('btn-outline');
+            btn.classList.add('btn-warning');
+            btn.style.color = "white";
+            btn.style.borderColor = "transparent";
+        }
+        syncActiveSessionToFirebase();
+    } else {
+        isBreakfastBreak = false;
+        if(breakfastStartTime) {
+            totalBreakfastTimeMs += (Date.now() - breakfastStartTime);
+        }
+        breakfastStartTime = null;
+        if(btn) {
+            btn.innerHTML = "<i class='bx bx-coffee'></i> Tomar Desayuno";
+            btn.classList.add('btn-outline');
+            btn.classList.remove('btn-warning');
+            btn.style.color = "var(--text-primary)";
+            btn.style.borderColor = "rgba(255,255,255,0.2)";
+        }
+        updateActivity();
+        syncActiveSessionToFirebase();
+    }
+}
+
 // Lógica de Almuerzo
 function toggleLunchBreak() {
     if (!currentUser) return;
     const btn = document.getElementById('toggleLunchBtn');
     
     if (!isLunchBreak) {
+        if (isBreakfastBreak) { alert("Debes volver del desayuno primero."); return; }
         isLunchBreak = true;
         lunchStartTime = Date.now();
         if(btn) {
@@ -1957,11 +1999,11 @@ function toggleLunchBreak() {
     }
 }
 
-// Lógica explícita para el botón (llamado desde onclick en html)
 function handleEndShift() {
     if(confirm("¿Estás seguro que deseas finalizar tu turno actual? Se enviará un resumen al supervisor.")) {
-        // Cerrar almuerzo si quedó abierto
+        // Cerrar almuerzo o desayuno si quedó abierto
         if (isLunchBreak) toggleLunchBreak();
+        if (isBreakfastBreak) toggleBreakfastBreak();
 
         
         let localUser = null;
@@ -1981,11 +2023,23 @@ function handleEndShift() {
             const loginDate = new Date(localUser.loginTime);
             const endDate = new Date();
             
+            // Calculo de tiempos tomados
+            const lunchMinutes = parseFloat((totalLunchTimeMs / (1000 * 60)).toFixed(1));
+            const breakfastMinutes = parseFloat((totalBreakfastTimeMs / (1000 * 60)).toFixed(1));
+            
+            // Calculo de penalidades (excesos)
+            const allowedLunch = 60;
+            const allowedBreakfast = 15;
+            
+            let extraLunch = Math.max(0, lunchMinutes - allowedLunch);
+            let extraBreakfast = Math.max(0, breakfastMinutes - allowedBreakfast);
+            let penalidadConectividadMins = parseFloat((extraLunch + extraBreakfast).toFixed(1));
+
             // Calculo de tiempo efectivo
             const totalShiftMs = endDate.getTime() - loginDate.getTime();
-            const effectiveShiftMs = totalShiftMs - totalLunchTimeMs;
-            const effectiveHours = (effectiveShiftMs / (1000 * 60 * 60)).toFixed(2);
-            const lunchMinutes = (totalLunchTimeMs / (1000 * 60)).toFixed(1);
+            // Restamos TODAS las pausas, pero además la penalidad adicional sobre las horas efectivas
+            const effectiveShiftMs = totalShiftMs - totalLunchTimeMs - totalBreakfastTimeMs - (penalidadConectividadMins * 60 * 1000);
+            const effectiveHours = Math.max(0, (effectiveShiftMs / (1000 * 60 * 60))).toFixed(2);
             
             formData.append("Usuario", localUser.name);
             formData.append("Rol", localUser.role);
@@ -1993,6 +2047,8 @@ function handleEndShift() {
             formData.append("Hora_Inicio_Turno", loginDate.toLocaleString());
             formData.append("Hora_Fin_Turno", endDate.toLocaleString());
             formData.append("Tiempo_Almuerzo_Descontado", lunchMinutes + " minutos");
+            formData.append("Tiempo_Desayuno_Descontado", breakfastMinutes + " minutos");
+            formData.append("Exceso_Pausas_Penalidad", penalidadConectividadMins + " minutos");
             formData.append("Horas_Efectivas_Trabajadas", effectiveHours + " hrs");
             
             if(setSelect) {
@@ -2873,6 +2929,11 @@ function setupSidebar() {
         if (toggleLunchBtn) {
             toggleLunchBtn.style.display = 'flex';
         }
+        
+        const toggleBreakfastBtn = document.getElementById('toggleBreakfastBtn');
+        if (toggleBreakfastBtn) {
+            toggleBreakfastBtn.style.display = 'flex';
+        }
     }
 }
 
@@ -2970,7 +3031,7 @@ function renderActiveSessionsDashboard() {
         const email = (session.email || '');
         const shift = session.shift || 'Mañana';
         let isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
-        if (session.status === 'En Almuerzo' || session.status === 'Inactivo') {
+        if (session.status === 'En Almuerzo' || session.status === 'En Desayuno' || session.status === 'Inactivo') {
             isOnline = false;
         }
 
@@ -3013,9 +3074,17 @@ function renderActiveSessionsDashboard() {
         let isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
         let displayStatus = isOnline ? 'En Línea' : 'Inactivo';
         
+        let statusBadge = '';
+        let statusDot = isOnline ? '<div class="pulse-dot"></div>' : '<div class="pulse-dot offline"></div>';
+
         if (session.status === 'En Almuerzo') {
-            isOnline = false;
+            statusBadge = '<span style="background: rgba(40,167,69,0.2); color: #28a745; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;"><i class="bx bx-restaurant"></i> Almuerzo</span>';
             displayStatus = 'En Almuerzo 🍽️';
+            statusDot = '<div style="width: 8px; height: 8px; border-radius: 50%; background: #28a745; margin-right: 6px;"></div>';
+        } else if (session.status === 'En Desayuno') {
+            statusBadge = '<span style="background: rgba(255,193,7,0.2); color: #ffc107; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;"><i class="bx bx-coffee"></i> Desayuno</span>';
+            displayStatus = 'En Desayuno ☕';
+            statusDot = '<div style="width: 8px; height: 8px; border-radius: 50%; background: #ffc107; margin-right: 6px;"></div>';
         } else if (session.status === 'Inactivo') {
             isOnline = false;
             displayStatus = 'Inactivo 💤';
