@@ -259,7 +259,24 @@
             <!-- Vista: Aprobaciones (Admin) -->
             <div id="view-aprobaciones" class="view-panel" style="display: none; padding: 20px;">
                 <h2 class="panel-title" style="margin-bottom: 20px; color: var(--warning);"><i class='bx bx-user-check'></i> Gestión de Usuarios</h2>
-                <div class="glass-panel" style="padding: 20px; border: 1px solid var(--warning); overflow-x: auto;">
+                
+                <!-- Filtros para Gestión de Usuarios -->
+                <div class="glass-panel" style="padding: 15px; margin-bottom: 20px; display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; border: 1px solid var(--glass-border);">
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; display: block; font-weight: 500;">Buscar por Nombre o Email:</label>
+                        <input type="text" id="filterAprobacionesSearch" placeholder="Escriba para buscar..." class="modern-input" style="min-height: 40px; padding: 10px;" oninput="renderPendingUsers()">
+                    </div>
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; display: block; font-weight: 500;">Filtrar por Estado:</label>
+                        <select id="filterAprobacionesStatus" class="modern-input" style="min-height: 40px; padding: 10px;" onchange="renderPendingUsers()">
+                            <option value="Todos">Todos</option>
+                            <option value="Pendiente">Pendientes de Aprobación</option>
+                            <option value="Aprobado">Aprobados</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="glass-panel" style="padding: 20px; border: 1px solid var(--warning); overflow-x: auto; max-height: 400px; overflow-y: auto;">
                     <table style="width: 100%; border-collapse: collapse;">
                         <thead>
                             <tr style="border-bottom: 1px solid var(--glass-border);">
@@ -276,7 +293,16 @@
                 </div>
 
                 <h2 class="panel-title" style="margin-top: 30px; margin-bottom: 20px; color: var(--accent-primary);"><i class='bx bx-time-five'></i> Permisos Pendientes</h2>
-                <div class="glass-panel" style="padding: 20px; border: 1px solid var(--accent-primary); overflow-x: auto;">
+                
+                <!-- Filtros para Permisos Pendientes -->
+                <div class="glass-panel" style="padding: 15px; margin-bottom: 20px; border: 1px solid var(--glass-border);">
+                    <div>
+                        <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; display: block; font-weight: 500;">Buscar Gestor:</label>
+                        <input type="text" id="filterPermisosSearch" placeholder="Nombre del gestor..." class="modern-input" style="min-height: 40px; padding: 10px; width: 100%; max-width: 400px;" oninput="renderPendingPermissions()">
+                    </div>
+                </div>
+
+                <div class="glass-panel" style="padding: 20px; border: 1px solid var(--accent-primary); overflow-x: auto; max-height: 400px; overflow-y: auto;">
                     <table style="width: 100%; border-collapse: collapse;">
                         <thead>
                             <tr style="border-bottom: 1px solid var(--glass-border);">

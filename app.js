@@ -1070,12 +1070,11 @@ function syncActiveSessionToFirebase() {
         
         const timeSinceLastActivity = Date.now() - lastLocalActivityTimestamp;
         const isIdle = timeSinceLastActivity > (5 * 60 * 1000); // 5 minutes
-        const isSuspended = document.visibilityState === 'hidden';
         
         if (isLunchBreak) {
             newLastActive = (existing && existing.lastActive) ? existing.lastActive : Date.now();
             currentStatus = 'En Almuerzo';
-        } else if (isIdle || isSuspended) {
+        } else if (isIdle) {
             newLastActive = (existing && existing.lastActive) ? existing.lastActive : Date.now();
             currentStatus = 'Inactivo';
         } else {
@@ -2156,15 +2155,29 @@ async function renderPendingUsers() {
     
     tbody.innerHTML = '';
     
+    const searchInput = document.getElementById('filterAprobacionesSearch');
+    const statusSelect = document.getElementById('filterAprobacionesStatus');
+    const searchVal = searchInput ? normalizeName(searchInput.value) : '';
+    const statusVal = statusSelect ? statusSelect.value : 'Todos';
+
     // Mostramos primero los pendientes, luego los aprobados, ordenados por fecha de registro (más reciente a más antiguo)
-    const allDisplayUsers = [...pending, ...approved].sort((a, b) => {
+    let allDisplayUsers = [...pending, ...approved].sort((a, b) => {
         const dateA = a.registrationDate ? new Date(a.registrationDate).getTime() : 0;
         const dateB = b.registrationDate ? new Date(b.registrationDate).getTime() : 0;
         return dateB - dateA;
     });
     
+    // Apply filters
+    allDisplayUsers = allDisplayUsers.filter(u => {
+        const matchSearch = searchVal === '' || normalizeName(u.name || '').includes(searchVal) || normalizeName(u.email || '').includes(searchVal);
+        let matchStatus = true;
+        if (statusVal === 'Pendiente') matchStatus = (u.approved === false);
+        if (statusVal === 'Aprobado') matchStatus = (u.approved === true);
+        return matchSearch && matchStatus;
+    });
+    
     if (allDisplayUsers.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay usuarios registrados en el sistema.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay usuarios que coincidan con los filtros.</td></tr>`;
         return;
     }
     
@@ -2271,7 +2284,15 @@ async function renderPendingPermissions() {
         console.error(e);
     }
     
-    const pending = permisos.filter(p => p.status === 'Pendiente');
+    const searchInput = document.getElementById('filterPermisosSearch');
+    const searchVal = searchInput ? normalizeName(searchInput.value) : '';
+
+    let pending = permisos.filter(p => p.status === 'Pendiente');
+    
+    // Apply filter
+    if (searchVal) {
+        pending = pending.filter(p => normalizeName(p.gestor || '').includes(searchVal));
+    }
     
     tbody.innerHTML = '';
     
