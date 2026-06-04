@@ -3668,33 +3668,44 @@ async function calcularIndicadores() {
                 finalStats = { totalAprobados: 0, totalRechazados: 0, montoProcesado: 0, minutosDemoraTotales: 0, retirosConTiempo: 0 };
                 let targetDates = [];
                 const getLocalYYYYMMDD = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                const getLocalMDYYYY = (d) => (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
                 
                 const now = new Date();
                 const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                 
+                const addDates = (d) => {
+                    targetDates.push(getLocalYYYYMMDD(d));
+                    targetDates.push(getLocalMDYYYY(d));
+                };
+
                 if (periodo === 'hoy') {
-                    targetDates.push(getLocalYYYYMMDD(todayStart));
+                    addDates(todayStart);
                 } else if (periodo === 'ayer') {
                     const ayer = new Date(todayStart.getTime() - 86400000);
-                    targetDates.push(getLocalYYYYMMDD(ayer));
+                    addDates(ayer);
                 } else if (periodo === 'semanal') {
                     for(let i=0; i<7; i++){
-                        targetDates.push(getLocalYYYYMMDD(new Date(todayStart.getTime() - (i * 86400000))));
+                        addDates(new Date(todayStart.getTime() - (i * 86400000)));
                     }
                 } else if (periodo === '30dias') {
                     for(let i=0; i<30; i++){
-                        targetDates.push(getLocalYYYYMMDD(new Date(todayStart.getTime() - (i * 86400000))));
+                        addDates(new Date(todayStart.getTime() - (i * 86400000)));
                     }
                 } else if (periodo === 'mes') {
                     for(let i=1; i<=31; i++){
                         const dt = new Date(todayStart.getFullYear(), todayStart.getMonth(), i);
                         if (dt.getMonth() === todayStart.getMonth() && dt <= todayStart) {
-                            targetDates.push(getLocalYYYYMMDD(dt));
+                            addDates(dt);
                         }
                     }
                 } else if (periodo === 'custom') {
                     const customDateStr = document.getElementById('kpiCustomDateInput').value;
-                    if (customDateStr) targetDates.push(customDateStr);
+                    if (customDateStr) {
+                        targetDates.push(customDateStr);
+                        // Also parse and add M/D/YYYY if possible
+                        let d = new Date(customDateStr + 'T12:00:00');
+                        if(!isNaN(d.getTime())) targetDates.push(getLocalMDYYYY(d));
+                    }
                 }
                 
                 for (let td of targetDates) {
