@@ -4072,7 +4072,7 @@ function viewComunicadoContent(id) {
     document.getElementById('viewComunicadoContentTitle').innerText = c.title;
     document.getElementById('viewComunicadoContentAuthor').innerText = c.author;
     document.getElementById('viewComunicadoContentDate').innerText = new Date(c.date).toLocaleString('es-CO');
-    document.getElementById('viewComunicadoContentBody').innerText = c.content;
+    document.getElementById('viewComunicadoContentBody').innerHTML = c.content;
     
     document.getElementById('viewComunicadoContentModal').classList.add('active');
 }
