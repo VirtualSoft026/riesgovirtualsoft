@@ -3528,6 +3528,9 @@ async function calcularIndicadores() {
             const baseMs = report.timestamp || report.loginTime || Date.now();
             
             const parseTime = (timeStr, baseDateMs) => {
+                if (typeof timeStr === 'string') {
+                    timeStr = timeStr.replace(/a\.\s*m\./i, 'AM').replace(/p\.\s*m\./i, 'PM');
+                }
                 let d = new Date(timeStr);
                 if (!isNaN(d.getTime())) return d.getTime();
                 
@@ -3535,7 +3538,10 @@ async function calcularIndicadores() {
                     const parts = timeStr.match(/(\d+):(\d+)/);
                     if (parts) {
                         const base = new Date(baseDateMs);
-                        base.setHours(parseInt(parts[1], 10), parseInt(parts[2], 10), 0, 0);
+                        let hours = parseInt(parts[1], 10);
+                        if (timeStr.toUpperCase().includes('PM') && hours < 12) hours += 12;
+                        if (timeStr.toUpperCase().includes('AM') && hours === 12) hours = 0;
+                        base.setHours(hours, parseInt(parts[2], 10), 0, 0);
                         return base.getTime();
                     }
                 }
