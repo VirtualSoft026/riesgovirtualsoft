@@ -898,9 +898,9 @@
     <!-- Timeline Modal para Monitoreo -->
     <div id="timelineModal" class="modal-overlay">
         <div class="modal glass-panel" style="max-width: 600px; width: 90%;">
-            <div class="modal-header">
-                <h2><i class='bx bx-time'></i> Bitácora de Tiempos: <span id="timelineModalName" style="color: var(--accent-primary);"></span></h2>
-                <span class="close-modal" onclick="closeModal('timelineModal')">&times;</span>
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                <h2 style="margin: 0; font-size: 20px; color: var(--text-primary); padding-right: 20px;"><i class='bx bx-time'></i> Bitácora de Tiempos: <br><span id="timelineModalName" style="color: var(--accent-primary); font-size: 16px;"></span></h2>
+                <span class="close-modal" onclick="closeModal('timelineModal')" style="cursor: pointer; font-size: 24px; color: var(--text-secondary); line-height: 1;">&times;</span>
             </div>
             <div class="modal-body" style="max-height: 500px; overflow-y: auto; padding-right: 5px;">
                 <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 15px;">Aquí se muestran las pausas activas (Almuerzo/Desayuno) y la inactividad detectada (PC bloqueado, cambio de ventana por más de 5 minutos, etc.) durante el turno actual de este gestor.</p>
