@@ -259,62 +259,62 @@
             <!-- Vista: Aprobaciones (Admin) -->
             <div id="view-aprobaciones" class="view-panel" style="display: none; padding: 20px;">
                 
-                <!-- SECCION 1: PERMISOS PENDIENTES (Movido arriba por prioridad) -->
-                <h2 class="panel-title" style="margin-bottom: 20px; color: var(--accent-primary);"><i class='bx bx-time-five'></i> Permisos Pendientes</h2>
-                
-                <div class="glass-panel" style="padding: 15px; margin-bottom: 20px; border: 1px solid var(--glass-border);">
-                    <div>
-                        <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; display: block; font-weight: 500;">Buscar Gestor:</label>
-                        <input type="text" id="filterPermisosSearch" placeholder="Nombre del gestor..." class="modern-input" style="min-height: 40px; padding: 10px; width: 100%; max-width: 400px;" oninput="renderPendingPermissions()">
-                    </div>
-                </div>
-
-                <div class="glass-panel" style="padding: 20px; border: 1px solid var(--accent-primary); overflow-x: auto; max-height: 400px; overflow-y: auto; margin-bottom: 40px;">
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <thead>
-                            <tr style="border-bottom: 1px solid var(--glass-border);">
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Gestor</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Tipo</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Fecha</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Motivo</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: center;">Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pendingPermissionsTableBody"></tbody>
-                    </table>
-                </div>
-
-                <!-- SECCION 2: GESTION DE USUARIOS -->
+                <!-- SECCION 1: GESTION DE USUARIOS -->
                 <h2 class="panel-title" style="margin-bottom: 20px; color: var(--warning);"><i class='bx bx-user-check'></i> Gestión de Usuarios</h2>
                 
                 <div class="glass-panel" style="padding: 15px; margin-bottom: 20px; display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; border: 1px solid var(--glass-border);">
                     <div style="flex: 1; min-width: 200px;">
-                        <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; display: block; font-weight: 500;">Buscar por Nombre o Email:</label>
-                        <input type="text" id="filterAprobacionesSearch" placeholder="Escriba para buscar..." class="modern-input" style="min-height: 40px; padding: 10px;" oninput="renderPendingUsers()">
+                        <label style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 500;">Buscar por Nombre o Email:</label>
+                        <input type="text" id="filterAprobacionesSearch" placeholder="🔍 Escriba para buscar..." class="modern-input" style="min-height: 40px; padding: 10px; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 8px; width: 100%;" oninput="renderPendingUsers()">
                     </div>
                     <div style="flex: 1; min-width: 200px;">
-                        <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; display: block; font-weight: 500;">Filtrar por Estado:</label>
-                        <select id="filterAprobacionesStatus" class="modern-input" style="min-height: 40px; padding: 10px;" onchange="renderPendingUsers()">
-                            <option value="Todos">Todos</option>
-                            <option value="Pendiente">Pendientes de Aprobación</option>
-                            <option value="Aprobado">Aprobados</option>
+                        <label style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 500;">Filtrar por Estado:</label>
+                        <select id="filterAprobacionesStatus" class="modern-input" style="min-height: 40px; padding: 10px; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 8px; width: 100%;" onchange="renderPendingUsers()">
+                            <option value="Todos" style="color: black;">Todos</option>
+                            <option value="Pendiente" style="color: black;">Pendientes de Aprobación</option>
+                            <option value="Aprobado" style="color: black;">Aprobados</option>
                         </select>
                     </div>
                 </div>
 
-                <div class="glass-panel" style="padding: 20px; border: 1px solid var(--warning); overflow-x: auto; max-height: 400px; overflow-y: auto;">
+                <div class="glass-panel" style="padding: 0; border: 1px solid var(--warning); overflow-x: auto; max-height: 350px; overflow-y: auto; margin-bottom: 40px; border-radius: 12px;">
                     <table style="width: 100%; border-collapse: collapse;">
-                        <thead>
+                        <thead style="position: sticky; top: 0; z-index: 10; background: var(--bg-dark); box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
                             <tr style="border-bottom: 1px solid var(--glass-border);">
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Nombre</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Email</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Rol</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">F. Solicitud</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">F. Aprobación</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: center;">Acción</th>
+                                <th style="padding: 15px 12px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Nombre</th>
+                                <th style="padding: 15px 12px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Email</th>
+                                <th style="padding: 15px 12px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Rol</th>
+                                <th style="padding: 15px 12px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">F. Solicitud</th>
+                                <th style="padding: 15px 12px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">F. Aprobación</th>
+                                <th style="padding: 15px 12px; color: var(--accent-primary); text-align: center; background: var(--bg-dark);">Acción</th>
                             </tr>
                         </thead>
-                        <tbody id="pendingUsersTableBody"></tbody>
+                        <tbody id="pendingUsersTableBody" style="background: rgba(255,255,255,0.02);"></tbody>
+                    </table>
+                </div>
+
+                <!-- SECCION 2: PERMISOS PENDIENTES -->
+                <h2 class="panel-title" style="margin-bottom: 20px; color: var(--accent-primary);"><i class='bx bx-time-five'></i> Permisos Pendientes</h2>
+                
+                <div class="glass-panel" style="padding: 15px; margin-bottom: 20px; border: 1px solid var(--glass-border);">
+                    <div>
+                        <label style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 500;">Buscar Gestor:</label>
+                        <input type="text" id="filterPermisosSearch" placeholder="🔍 Nombre del gestor..." class="modern-input" style="min-height: 40px; padding: 10px; width: 100%; max-width: 400px; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 8px;" oninput="renderPendingPermissions()">
+                    </div>
+                </div>
+
+                <div class="glass-panel" style="padding: 0; border: 1px solid var(--accent-primary); overflow-x: auto; max-height: 350px; overflow-y: auto; border-radius: 12px;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead style="position: sticky; top: 0; z-index: 10; background: var(--bg-dark); box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                            <tr style="border-bottom: 1px solid var(--glass-border);">
+                                <th style="padding: 15px 12px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Gestor</th>
+                                <th style="padding: 15px 12px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Tipo</th>
+                                <th style="padding: 15px 12px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Fecha</th>
+                                <th style="padding: 15px 12px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Motivo</th>
+                                <th style="padding: 15px 12px; color: var(--accent-primary); text-align: center; background: var(--bg-dark);">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingPermissionsTableBody" style="background: rgba(255,255,255,0.02);"></tbody>
                     </table>
                 </div>
             </div>
