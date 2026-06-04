@@ -13,6 +13,32 @@ let lastLocalActivityTimestamp = Date.now();
 let isLunchBreak = false;
 let lunchStartTime = null;
 let totalLunchTimeMs = 0;
+let globalIdleState = false; // Tracks if the OS/PC is idle or locked via IdleDetector
+
+async function initIdleDetector() {
+    if ('IdleDetector' in window) {
+        try {
+            const state = await IdleDetector.requestPermission();
+            if (state === 'granted') {
+                const idleDetector = new IdleDetector();
+                idleDetector.addEventListener('change', () => {
+                    globalIdleState = (idleDetector.userState === 'idle') || (idleDetector.screenState === 'locked');
+                });
+                await idleDetector.start({ threshold: 5 * 60 * 1000 }); // 5 minutes
+            }
+        } catch (err) {
+            console.error('IdleDetector init failed:', err);
+        }
+    }
+}
+
+// Pedir permiso en el primer clic del usuario en la página
+document.addEventListener('click', () => {
+    if (!window.idleDetectorRequested) {
+        window.idleDetectorRequested = true;
+        initIdleDetector();
+    }
+}, { once: true });
 
 // Activity listeners
 function updateActivity() {
@@ -1069,12 +1095,22 @@ function syncActiveSessionToFirebase() {
         let currentStatus = existing ? existing.status : 'Activo';
         
         const timeSinceLastActivity = Date.now() - lastLocalActivityTimestamp;
-        const isIdle = timeSinceLastActivity > (5 * 60 * 1000); // 5 minutes
+        const isDomIdle = timeSinceLastActivity > (5 * 60 * 1000); // 5 minutes local DOM idle
+        const isPageVisible = document.visibilityState === 'visible';
+        
+        let isInactive = false;
+        if (globalIdleState) {
+            isInactive = true; // PC is locked or idle globally (via IdleDetector)
+        } else if (isDomIdle && isPageVisible) {
+            isInactive = true; // Left the tab open and walked away
+        } else if (isDomIdle && !isPageVisible) {
+            isInactive = false; // Tab is hidden, they are probably working in Jira/Email
+        }
         
         if (isLunchBreak) {
             newLastActive = (existing && existing.lastActive) ? existing.lastActive : Date.now();
             currentStatus = 'En Almuerzo';
-        } else if (isIdle) {
+        } else if (isInactive) {
             newLastActive = (existing && existing.lastActive) ? existing.lastActive : Date.now();
             currentStatus = 'Inactivo';
         } else {
