@@ -2408,14 +2408,8 @@ async function renderPendingPermissions() {
         return new Date(b.fecha).getTime() - new Date(a.fecha).getTime();
     });
     
-    // Apply filter
-    const hasFilter = searchVal !== '';
-    if (hasFilter) {
-        pending = pending.filter(p => normalizeName(p.gestor || '').includes(searchVal));
-    }
-    
     // Limit to 5
-    if (!hasFilter && pending.length > 5) {
+    if (pending.length > 5) {
         const total = pending.length;
         pending = pending.slice(0, 5);
         setTimeout(() => {
@@ -2423,7 +2417,7 @@ async function renderPendingPermissions() {
             const msg = document.createElement('div');
             msg.id = 'pendingPermsMostrandoMsg';
             msg.style = 'text-align: center; font-size: 11px; color: var(--text-secondary); margin-top: 10px; margin-bottom: 15px; font-style: italic;';
-            msg.innerText = `Mostrando los 5 permisos más recientes de ${total} pendientes. Usa el filtro de arriba para buscar más.`;
+            msg.innerText = `Mostrando los 5 permisos más recientes de ${total} pendientes.`;
             document.getElementById('pendingPermissionsTableBody').parentElement.parentElement.appendChild(msg);
         }, 100);
     } else {

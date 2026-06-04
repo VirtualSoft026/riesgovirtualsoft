@@ -284,12 +284,12 @@
                     <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                         <thead>
                             <tr style="border-bottom: 1px solid var(--glass-border);">
-                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: rgba(0,0,0,0.2);">Nombre</th>
-                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: rgba(0,0,0,0.2);">Email</th>
-                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: rgba(0,0,0,0.2);">Rol</th>
-                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: rgba(0,0,0,0.2);">F. Solicitud</th>
-                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: rgba(0,0,0,0.2);">F. Aprobación</th>
-                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: center; background: rgba(0,0,0,0.2);">Acción</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Nombre</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Email</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Rol</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">F. Solicitud</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">F. Aprobación</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: center; background: var(--bg-dark);">Acción</th>
                             </tr>
                         </thead>
                         <tbody id="pendingUsersTableBody" style="background: rgba(255,255,255,0.02);"></tbody>
@@ -298,23 +298,16 @@
 
                 <!-- SECCION 2: PERMISOS PENDIENTES -->
                 <h2 class="panel-title" style="margin-bottom: 15px; color: var(--accent-primary); font-size: 18px;"><i class='bx bx-time-five'></i> Permisos Pendientes</h2>
-                
-                <div class="glass-panel" style="padding: 10px; margin-bottom: 15px; border: 1px solid var(--glass-border);">
-                    <div>
-                        <label style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; display: block; font-weight: 500;">Buscar Gestor:</label>
-                        <input type="text" id="filterPermisosSearch" placeholder="🔍 Nombre del gestor..." class="modern-input" style="min-height: 32px; padding: 6px 10px; font-size: 12px; width: 100%; max-width: 300px; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 6px;" oninput="renderPendingPermissions()">
-                    </div>
-                </div>
 
                 <div class="glass-panel" style="padding: 0; border: 1px solid var(--accent-primary); overflow-x: auto; border-radius: 8px;">
                     <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                         <thead>
                             <tr style="border-bottom: 1px solid var(--glass-border);">
-                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: rgba(0,0,0,0.2);">Gestor</th>
-                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: rgba(0,0,0,0.2);">Tipo</th>
-                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: rgba(0,0,0,0.2);">Fecha</th>
-                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: rgba(0,0,0,0.2);">Motivo</th>
-                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: center; background: rgba(0,0,0,0.2);">Acción</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Gestor</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Tipo</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Fecha</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Motivo</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: center; background: var(--bg-dark);">Acción</th>
                             </tr>
                         </thead>
                         <tbody id="pendingPermissionsTableBody" style="background: rgba(255,255,255,0.02);"></tbody>
