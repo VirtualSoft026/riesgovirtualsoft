@@ -408,9 +408,14 @@
                         </select>
                     </div>
                     
-                    <button class="btn btn-outline" id="clearMonitoreoFiltersBtn" style="height: 40px; padding: 0 15px; display: flex; align-items: center; gap: 8px; width: auto;">
-                        <i class='bx bx-filter-alt'></i> Limpiar Filtros
-                    </button>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <button class="btn btn-outline" id="clearMonitoreoFiltersBtn" style="height: 40px; padding: 0 15px; display: flex; align-items: center; gap: 8px; width: auto;">
+                            <i class='bx bx-filter-alt'></i> Limpiar Filtros
+                        </button>
+                        <button class="btn btn-outline" onclick="openLoginHistoryModal()" style="height: 40px; padding: 0 15px; display: flex; align-items: center; gap: 8px; width: auto; background: rgba(59, 130, 246, 0.1); border-color: var(--accent-primary); color: var(--accent-primary);">
+                            <i class='bx bx-history'></i> Historial de Accesos
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Grid layout of active managers -->
@@ -841,6 +846,46 @@
             </div>
             <div class="modal-footer" style="text-align: right; margin-top: 20px;">
                 <button class="btn btn-outline" onclick="closeKpiTaskDetails()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="confirmDeleteModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <div style="font-size: 50px; color: var(--danger); margin-bottom: 15px;">
+                <i class='bx bx-error-circle'></i>
+            </div>
+            <h3 style="color: var(--text-primary); margin-bottom: 10px; font-size: 20px;">¿Eliminar Comunicado?</h3>
+            <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 25px;">Esta acción es irreversible y el comunicado desaparecerá para todos los gestores.</p>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button class="btn btn-outline" onclick="closeModal('confirmDeleteModal')" style="flex: 1;">Cancelar</button>
+                <button class="btn btn-danger" id="confirmDeleteBtn" style="flex: 1;">Sí, Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login History Modal -->
+    <div id="loginHistoryModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2><i class='bx bx-history'></i> Registro de Inicios de Sesión</h2>
+                <span class="close-modal" onclick="closeModal('loginHistoryModal')">&times;</span>
+            </div>
+            <div class="modal-body" style="max-height: 500px; overflow-y: auto; padding-right: 5px;">
+                <table class="data-table" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Fecha y Hora</th>
+                            <th>Gestor</th>
+                            <th>Rol</th>
+                        </tr>
+                    </thead>
+                    <tbody id="loginHistoryTableBody">
+                        <!-- Llenado dinámicamente -->
+                        <tr><td colspan="3" style="text-align: center;">Cargando...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

@@ -4180,14 +4180,68 @@ async function viewComunicadoLecturas(id) {
     }
 }
 
-async function deleteComunicado(id) {
-    if (confirm("¿Estás seguro de eliminar este comunicado? Ya no aparecerá para nadie.")) {
-        try {
-            await database.ref('announcements/' + id).remove();
-            alert("Eliminado con éxito.");
-        } catch(e) {
-            console.error(e);
-            alert("No se pudo eliminar.");
+let pendingDeleteComunicadoId = null;
+
+function deleteComunicado(id) {
+    pendingDeleteComunicadoId = id;
+    document.getElementById('confirmDeleteModal').classList.add('active');
+}
+
+document.getElementById('confirmDeleteBtn')?.addEventListener('click', async () => {
+    if (!pendingDeleteComunicadoId) return;
+    
+    const btn = document.getElementById('confirmDeleteBtn');
+    const prevText = btn.innerHTML;
+    btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Eliminando...";
+    btn.disabled = true;
+    
+    try {
+        await database.ref('announcements/' + pendingDeleteComunicadoId).remove();
+        closeModal('confirmDeleteModal');
+    } catch(e) {
+        console.error(e);
+        alert("No se pudo eliminar.");
+    } finally {
+        btn.innerHTML = prevText;
+        btn.disabled = false;
+        pendingDeleteComunicadoId = null;
+    }
+});
+
+// Login History Logic
+async function openLoginHistoryModal() {
+    const modal = document.getElementById('loginHistoryModal');
+    const tbody = document.getElementById('loginHistoryTableBody');
+    if (!modal || !tbody) return;
+    
+    modal.classList.add('active');
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align: center;"><i class="bx bx-loader-alt bx-spin"></i> Cargando historial...</td></tr>';
+    
+    try {
+        const snapshot = await database.ref('login_logs').orderByChild('timestamp').limitToLast(100).once('value');
+        const logs = snapshot.val();
+        
+        if (!logs) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center;">No hay registros de inicio de sesión aún.</td></tr>';
+            return;
         }
+        
+        // Convert to array and sort descending
+        const logsArray = Object.keys(logs).map(k => logs[k]).sort((a, b) => b.timestamp - a.timestamp);
+        
+        tbody.innerHTML = '';
+        logsArray.forEach(log => {
+            const dateStr = new Date(log.timestamp).toLocaleString('es-CO');
+            tbody.innerHTML += `
+                <tr style="border-bottom: 1px solid var(--glass-border);">
+                    <td style="padding: 10px; font-size: 13px;">${dateStr}</td>
+                    <td style="padding: 10px; font-weight: 500;">${log.name}</td>
+                    <td style="padding: 10px;"><span class="badge" style="background: rgba(59, 130, 246, 0.1); color: var(--accent-primary);">${log.role}</span></td>
+                </tr>
+            `;
+        });
+    } catch(e) {
+        console.error(e);
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--danger);">Error al cargar los registros.</td></tr>';
     }
 }
