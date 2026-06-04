@@ -3209,15 +3209,19 @@ function renderActiveSessionsDashboard() {
                     }
                 }
 
+                let textStyle = '';
                 if (taskStatus === 'Finalizada') {
-                    icon = "<i class='bx bx-check-circle' style='color: var(--success-color)'></i>";
+                    icon = "<i class='bx bx-check-circle' style='color: var(--success)'></i>";
+                    textStyle = "color: var(--success); font-weight: bold;";
                 } else if (taskStatus === 'En Proceso') {
-                    icon = "<i class='bx bx-time-five' style='color: var(--warning-color)'></i>";
+                    icon = "<i class='bx bx-time-five' style='color: var(--warning)'></i>";
+                    textStyle = "color: var(--warning);";
                 } else if (taskStatus === 'No Realizada') {
-                    icon = "<i class='bx bx-x-circle' style='color: var(--danger-color)'></i>";
+                    icon = "<i class='bx bx-x-circle' style='color: var(--danger)'></i>";
+                    textStyle = "color: var(--danger); text-decoration: line-through;";
                 }
 
-                tasksHtml += `<div style="display: flex; align-items: center; gap: 5px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: ${taskStatus==='Pendiente'?0.7:1};">${icon} <span title="${taskName}">${taskName}</span></div>`;
+                tasksHtml += `<div style="display: flex; align-items: center; gap: 5px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: ${taskStatus==='Pendiente'?0.7:1};">${icon} <span title="${taskName}" style="${textStyle}">${taskName}</span></div>`;
             });
             tasksHtml += '</div>';
         } else {
