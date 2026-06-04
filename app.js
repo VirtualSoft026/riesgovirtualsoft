@@ -2939,12 +2939,12 @@ function setupSidebar() {
         if (navAprobaciones) { navAprobaciones.style.display = 'flex'; adminNavGroup.appendChild(navAprobaciones); }
         if (navLogins) { navLogins.style.display = 'flex'; adminNavGroup.appendChild(navLogins); }
         
-        if (navWorkspace) { navWorkspace.style.display = 'flex'; sidebarNav.insertBefore(navWorkspace, adminNavGroup); }
+        if (navWorkspace) { navWorkspace.style.display = 'flex'; sidebarNav.appendChild(navWorkspace); }
         if (navComunicados) { navComunicados.style.display = 'none'; }
-        if (navHorario) { navHorario.style.display = 'flex'; sidebarNav.insertBefore(navHorario, adminNavGroup); }
-        if (navTeletrabajo) { navTeletrabajo.style.display = 'flex'; sidebarNav.insertBefore(navTeletrabajo, adminNavGroup); }
-        if (navDocs) { navDocs.style.display = 'flex'; sidebarNav.insertBefore(navDocs, adminNavGroup); }
-        if (navPermisos) { navPermisos.style.display = 'flex'; sidebarNav.insertBefore(navPermisos, adminNavGroup); }
+        if (navHorario) { navHorario.style.display = 'flex'; sidebarNav.appendChild(navHorario); }
+        if (navTeletrabajo) { navTeletrabajo.style.display = 'flex'; sidebarNav.appendChild(navTeletrabajo); }
+        if (navDocs) { navDocs.style.display = 'flex'; sidebarNav.appendChild(navDocs); }
+        if (navPermisos) { navPermisos.style.display = 'flex'; sidebarNav.appendChild(navPermisos); }
         
         if (navSoporte) { navSoporte.style.display = 'flex'; sidebarNav.appendChild(navSoporte); }
     } else {
