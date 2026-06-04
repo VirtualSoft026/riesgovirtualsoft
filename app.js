@@ -4420,3 +4420,50 @@ async function openLoginHistoryModal() {
         tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--danger);">Error al cargar los registros.</td></tr>';
     }
 }
+
+window.loadLoginHistory = function() {
+    const tbody = document.getElementById('loginHistoryTableBody');
+    if(!tbody) return;
+    
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 30px;">Cargando historial de sesiones...</td></tr>';
+    
+    database.ref('login_logs').orderByChild('timestamp').limitToLast(100).once('value').then(snap => {
+        const logs = snap.val();
+        if(!logs) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 30px; color: var(--text-secondary);">No hay sesiones registradas aún.</td></tr>';
+            return;
+        }
+        
+        const logsArray = Object.keys(logs).map(k => logs[k]).sort((a, b) => b.timestamp - a.timestamp);
+        
+        let html = '';
+        logsArray.forEach(log => {
+            const dateObj = new Date(log.timestamp);
+            const dateStr = dateObj.toLocaleDateString();
+            const timeStr = dateObj.toLocaleTimeString();
+            
+            html += `
+                <tr>
+                    <td style="font-weight: 500; font-size: 13px;">
+                        <i class='bx bx-calendar' style="color: var(--accent-primary); margin-right: 5px;"></i>
+                        ${dateStr} ${timeStr}
+                    </td>
+                    <td style="font-size: 13px;">
+                        <i class='bx bx-user' style="color: var(--text-secondary); margin-right: 5px;"></i>
+                        ${log.name || log.email || 'Desconocido'}
+                    </td>
+                    <td>
+                        <span class="badge ${log.role === 'Admin' || log.role === 'Supervisor' ? 'vacaciones-badge' : 'pending'}" style="font-size: 11px;">
+                            ${log.role || 'Gestor'}
+                        </span>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        tbody.innerHTML = html;
+    }).catch(err => {
+        console.error("Error cargando el historial:", err);
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 30px; color: var(--danger);">Error al cargar el historial.</td></tr>';
+    });
+};
