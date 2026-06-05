@@ -3854,8 +3854,20 @@ async function calcularIndicadores() {
             // Regla confirmada: 1% menos por cada minuto sobrepasado
             totalPenalidadConectividad += report.penalidadConectividadMins;
         }
-        if (report.inactividadTotalMins) {
+        
+        if (report.inactividadTotalMins !== undefined) {
             totalInactividadMins += report.inactividadTotalMins;
+        } else if (report.timeline && report.timeline.length > 0) {
+            // Fallback para reportes antiguos que no tienen inactividadTotalMins guardado
+            let fallbackMins = 0;
+            const now = Date.now();
+            report.timeline.forEach(ev => {
+                if (ev.type === 'Inactividad') {
+                    let eTime = ev.end ? ev.end : now;
+                    fallbackMins += (eTime - ev.start) / (1000 * 60);
+                }
+            });
+            totalInactividadMins += fallbackMins;
         }
     });
     
