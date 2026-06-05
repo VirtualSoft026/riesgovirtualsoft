@@ -1534,14 +1534,12 @@ async function initApp() {
             const viewAprobaciones = document.getElementById('view-aprobaciones');
             const viewTurnos = document.getElementById('view-turnos');
             const permissionForm = document.getElementById('permissionForm');
-            const navLogins = document.getElementById('navLogins');
             const endShiftBtn = document.getElementById('endShiftBtn');
 
             if(navAprobaciones) navAprobaciones.style.display = 'flex';
             if(navTurnos) navTurnos.style.display = 'flex';
             if(navMonitoreo) navMonitoreo.style.display = 'flex';
             if(navIndicadores) navIndicadores.style.display = 'flex';
-            if(navLogins) navLogins.style.display = 'flex';
             if(navWorkspace) navWorkspace.style.display = 'flex'; // Keep Mis Tareas visible
             
             // Ocultar el panel de Progreso del Turno / Documentos de Acceso Rápido en Mis Tareas para Admin o Supervisor
@@ -1855,10 +1853,6 @@ async function initApp() {
                 const viewAdminComunicados = document.getElementById('view-gestion-comunicados');
                 if (viewAdminComunicados) viewAdminComunicados.style.display = 'block';
                 renderAdminComunicados();
-            } else if (item.id === 'navLogins') {
-                const viewLogins = document.getElementById('view-logins');
-                if (viewLogins) viewLogins.style.display = 'block';
-                loadLoginHistory();
             }
         });
     });
@@ -3006,7 +3000,6 @@ function setupSidebar() {
     const navAprobaciones = document.getElementById('navAprobaciones');
     const navMonitoreo = document.getElementById('navMonitoreo');
     const navIndicadores = document.getElementById('navIndicadores');
-    const navLogins = document.getElementById('navLogins');
     
     const navSoporte = document.getElementById('navSoporte');
 
@@ -3018,7 +3011,6 @@ function setupSidebar() {
         if (navAdminComunicados) { navAdminComunicados.style.display = 'flex'; adminNavGroup.appendChild(navAdminComunicados); }
         if (navTurnos) { navTurnos.style.display = 'flex'; adminNavGroup.appendChild(navTurnos); }
         if (navAprobaciones) { navAprobaciones.style.display = 'flex'; adminNavGroup.appendChild(navAprobaciones); }
-        if (navLogins) { navLogins.style.display = 'flex'; adminNavGroup.appendChild(navLogins); }
         
         if (navWorkspace) { navWorkspace.style.display = 'flex'; sidebarNav.appendChild(navWorkspace); }
         if (navComunicados) { navComunicados.style.display = 'none'; }
@@ -4598,97 +4590,3 @@ document.getElementById('confirmDeleteBtn')?.addEventListener('click', async () 
     }
 });
 
-// Login History Logic
-async function openLoginHistoryModal() {
-    const modal = document.getElementById('loginHistoryModal');
-    const tbody = document.getElementById('loginHistoryTableBody');
-    if (!modal || !tbody) return;
-    
-    modal.classList.add('active');
-    tbody.innerHTML = '<tr><td colspan="3" style="text-align: center;"><i class="bx bx-loader-alt bx-spin"></i> Cargando historial...</td></tr>';
-    
-    try {
-        const snapshot = await database.ref('login_logs').orderByChild('timestamp').limitToLast(100).once('value');
-        const logs = snapshot.val();
-        
-        if (!logs) {
-            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center;">No hay registros de inicio de sesión aún.</td></tr>';
-            return;
-        }
-        
-        // Convert to array and sort descending
-        const logsArray = Object.keys(logs).map(k => logs[k]).sort((a, b) => b.timestamp - a.timestamp);
-        
-        tbody.innerHTML = '';
-        logsArray.forEach(log => {
-            const dateStr = new Date(log.timestamp).toLocaleString('es-CO');
-            tbody.innerHTML += `
-                <tr style="border-bottom: 1px solid var(--glass-border);">
-                    <td style="padding: 10px; font-size: 13px;">${dateStr}</td>
-                    <td style="padding: 10px; font-weight: 500;">${log.name}</td>
-                    <td style="padding: 10px;"><span class="badge" style="background: rgba(59, 130, 246, 0.1); color: var(--accent-primary);">${log.role}</span></td>
-                </tr>
-            `;
-        });
-    } catch(e) {
-        console.error(e);
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--danger);">Error al cargar los registros.</td></tr>';
-    }
-}
-
-window.loadLoginHistory = function() {
-    const tbody = document.getElementById('loginHistoryTableBody');
-    if(!tbody) return;
-    
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 30px;">Cargando historial de sesiones...</td></tr>';
-    
-    database.ref('login_logs').orderByChild('timestamp').limitToLast(100).once('value').then(snap => {
-        const logs = snap.val();
-        if(!logs) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 30px; color: var(--text-secondary);">No hay sesiones registradas aún.</td></tr>';
-            return;
-        }
-        
-        const logsArray = Object.keys(logs).map(k => logs[k]).sort((a, b) => b.timestamp - a.timestamp);
-        
-        let html = '';
-        logsArray.forEach(log => {
-            const dateObj = new Date(log.timestamp);
-            const dateStr = dateObj.toLocaleDateString();
-            const timeStr = dateObj.toLocaleTimeString();
-            
-            let logoutStr = '<span style="color: var(--success);"><i class="bx bx-radio-circle-marked bx-burst"></i> Sesión Activa</span>';
-            if (log.logoutTime) {
-                const outObj = new Date(log.logoutTime);
-                logoutStr = `${outObj.toLocaleDateString()} ${outObj.toLocaleTimeString()}`;
-            }
-            
-            html += `
-                <tr>
-                    <td style="font-weight: 500; font-size: 13px;">
-                        <i class='bx bx-log-in' style="color: var(--accent-primary); margin-right: 5px;"></i>
-                        ${dateStr} ${timeStr}
-                    </td>
-                    <td style="font-weight: 500; font-size: 13px; color: var(--text-secondary);">
-                        <i class='bx bx-log-out' style="margin-right: 5px;"></i>
-                        ${logoutStr}
-                    </td>
-                    <td style="font-size: 13px;">
-                        <i class='bx bx-user' style="color: var(--text-secondary); margin-right: 5px;"></i>
-                        ${log.name || log.email || 'Desconocido'}
-                    </td>
-                    <td>
-                        <span class="badge ${log.role === 'Admin' || log.role === 'Supervisor' ? 'vacaciones-badge' : 'pending'}" style="font-size: 11px;">
-                            ${log.role || 'Gestor'}
-                        </span>
-                    </td>
-                </tr>
-            `;
-        });
-        
-        tbody.innerHTML = html;
-    }).catch(err => {
-        console.error("Error cargando el historial:", err);
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 30px; color: var(--danger);">Error al cargar el historial.</td></tr>';
-    });
-};
