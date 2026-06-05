@@ -3265,6 +3265,12 @@ function renderActiveSessionsDashboard() {
         if (!session) return;
         
         let isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
+        
+        // Fix: If they stopped pinging Firebase for over 2 minutes and aren't on break, force them to Inactivo locally
+        if (!isOnline && session.status !== 'En Almuerzo' && session.status !== 'En Desayuno') {
+            session.status = 'Inactivo';
+        }
+
         let displayStatus = isOnline ? 'En Línea' : 'Inactivo';
         
         let statusBadge = '';
@@ -3281,8 +3287,8 @@ function renderActiveSessionsDashboard() {
         } else if (session.status === 'Inactivo') {
             isOnline = false;
             displayStatus = 'Inactivo 💤';
+            statusDot = '<div class="pulse-dot offline"></div>';
         } else if (session.status === 'En Línea') {
-            isOnline = true;
             displayStatus = 'En Línea';
         }
         
