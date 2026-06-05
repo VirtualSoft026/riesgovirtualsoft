@@ -20,14 +20,14 @@ except:
 count = 0
 if logs:
     for key, log in logs.items():
-        if not log.get("logoutTime"):
-            name = log.get("name", "").lower()
-            if name not in active_names:
-                # Mark as closed
-                url_update = f"https://riskops-75637-default-rtdb.firebaseio.com/login_logs/{key}.json"
-                patch_data = json.dumps({"logoutTime": current_time}).encode('utf-8')
-                req_update = urllib.request.Request(url_update, data=patch_data, method='PATCH')
+        name = log.get("name", "").lower()
+        if log.get("logoutTime"):
+            if name in active_names:
+                # Mark as open again
+                url_update = f"https://riskops-75637-default-rtdb.firebaseio.com/login_logs/{key}/logoutTime.json"
+                req_update = urllib.request.Request(url_update, method='DELETE')
                 urllib.request.urlopen(req_update)
                 count += 1
+                print(f"Re-opened session for: {name}")
 
-print(f"Finished closing {count} stuck sessions.")
+print(f"Finished opening {count} incorrectly closed sessions.")

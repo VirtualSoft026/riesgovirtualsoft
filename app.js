@@ -129,6 +129,9 @@ try {
     currentUser = currentUserObj ? JSON.parse(currentUserObj) : null;
     if (currentUser) {
         if (currentUser.loginLogId) {
+            // Eliminar cualquier falso logoutTime que se haya generado si el usuario simplemente refrescó la página (F5) o perdió red temporalmente
+            database.ref(`login_logs/${currentUser.loginLogId}/logoutTime`).remove();
+            
             database.ref(`login_logs/${currentUser.loginLogId}`).onDisconnect().update({
                 logoutTime: firebase.database.ServerValue.TIMESTAMP
             });
