@@ -101,18 +101,6 @@ document.addEventListener('click', () => {
 // Activity listeners
 function updateActivity() {
     const now = Date.now();
-    const timeSinceLastActivity = now - lastLocalActivityTimestamp;
-    
-    // Si la inactividad supera los 5 minutos, registrarla retroactivamente.
-    // Esto atrapa los casos donde el PC se suspende, se apaga la pantalla, 
-    // o el navegador congela la pestaña impidiendo que el setInterval lo detecte.
-    if (timeSinceLastActivity > (5 * 60 * 1000)) {
-        if (localStatus !== 'Inactivo') {
-            shiftTimeline.push({ type: 'Inactividad', start: lastLocalActivityTimestamp, end: now });
-            localStorage.setItem('riskOps_timeline', JSON.stringify(shiftTimeline));
-        }
-    }
-    
     lastLocalActivityTimestamp = now;
 }
 document.addEventListener('mousemove', updateActivity);
