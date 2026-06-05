@@ -3675,7 +3675,7 @@ async function calcularIndicadores() {
     
     // Resetear listas de detalle
     window.kpiTaskLists = { finalizadas: [], no_realizadas: [], pendientes: [] };
-    window.kpiBitacoraTexto = "";
+    window.kpiBitacoraHTML = "";
 
     // Limpiar UI anterior
     document.getElementById('kpiResultsContainer').style.display = 'none';
@@ -3815,26 +3815,47 @@ async function calcularIndicadores() {
             }
         }
 
-        // Construir texto de bitácora para el modal/tarjeta
+        // Construir HTML de bitácora para el modal/tarjeta
         const shiftDateStr = new Date(report.timestamp || report.loginTime || Date.now()).toLocaleDateString('es-CO');
-        window.kpiBitacoraTexto += `\n▶ TURNO DEL ${shiftDateStr} - Gestor: ${report.gestor || 'Desconocido'}\n`;
-        window.kpiBitacoraTexto += `Ingreso: ${report.horaInicio || 'N/A'} | Salida: ${report.horaFin || 'N/A'}\n`;
+        let html = `<div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 15px; margin-bottom: 15px;">`;
+        html += `<div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">`;
+        html += `<div style="font-weight: 600; color: var(--accent-primary);"><i class='bx bx-calendar-event'></i> Turno del ${shiftDateStr}</div>`;
+        html += `<div style="font-size: 12px; color: var(--text-secondary); background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 20px;"><i class='bx bx-user'></i> ${report.gestor || 'Desconocido'}</div>`;
+        html += `</div>`;
+        
+        let horaI = report.horaInicio ? report.horaInicio : (report.loginTime ? new Date(report.loginTime).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'}) : 'N/A');
+        let horaF = report.horaFin || (report.status === "En Línea" ? "<span style='color:var(--success)'><i class='bx bx-radio-circle-marked bx-flashing'></i> En Curso</span>" : 'N/A');
+        
+        html += `<div style="display: flex; gap: 20px; font-size: 13px; color: var(--text-secondary); margin-bottom: 15px; flex-wrap: wrap;">`;
+        html += `<div style="background: rgba(0,0,0,0.2); padding: 6px 12px; border-radius: 6px;"><i class='bx bx-log-in-circle' style="color: var(--accent-primary);"></i> Ingreso: <span style="color: var(--text-primary); font-weight: 500;">${horaI}</span></div>`;
+        html += `<div style="background: rgba(0,0,0,0.2); padding: 6px 12px; border-radius: 6px;"><i class='bx bx-log-out-circle' style="color: var(--warning);"></i> Salida: <span style="color: var(--text-primary); font-weight: 500;">${horaF}</span></div>`;
+        html += `</div>`;
+
+        html += `<div style="display: flex; flex-direction: column; gap: 8px;">`;
         
         if (report.timeline && report.timeline.length > 0) {
             report.timeline.forEach(ev => {
                 const s = new Date(ev.start).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'});
-                const eTime = ev.end ? new Date(ev.end).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'}) : "No regresó";
-                window.kpiBitacoraTexto += `  - ${ev.type}: de ${s} a ${eTime}\n`;
+                const eTime = ev.end ? new Date(ev.end).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'}) : "<span style='color:var(--warning)'>En Pausa</span>";
+                let icon = ev.type === 'Desayuno' ? "<i class='bx bx-coffee' style='color:#F59E0B'></i>" : (ev.type === 'Almuerzo' ? "<i class='bx bx-restaurant' style='color:#10B981'></i>" : "<i class='bx bx-time-five' style='color:#EF4444'></i>");
+                let color = ev.type === 'Desayuno' ? "#F59E0B" : (ev.type === 'Almuerzo' ? "#10B981" : "#EF4444");
+                
+                html += `<div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2); padding: 10px 15px; border-radius: 8px; border-left: 3px solid ${color};">`;
+                html += `<div style="display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 13px; color: var(--text-primary);">${icon} ${ev.type}</div>`;
+                html += `<div style="font-family: monospace; font-size: 12px; color: var(--text-secondary); background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 6px;"><i class='bx bx-time'></i> ${s} - ${eTime}</div>`;
+                html += `</div>`;
             });
         } else if (report.reporte && report.reporte.includes("=== BITÁCORA DE TIEMPOS ===")) {
             const parts = report.reporte.split("=== BITÁCORA DE TIEMPOS ===");
             if (parts.length > 1) {
-                window.kpiBitacoraTexto += parts[1].trim() + "\n";
+                html += `<div style="font-family: monospace; font-size: 12px; color: var(--text-secondary); white-space: pre-wrap; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">${parts[1].trim()}</div>`;
             }
         } else {
-            window.kpiBitacoraTexto += "  (No se registraron pausas)\n";
+            html += `<div style="text-align: center; padding: 15px; color: var(--text-secondary); font-size: 13px; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.1);"><i class='bx bx-info-circle'></i> No se registraron pausas en este turno</div>`;
         }
-        window.kpiBitacoraTexto += "\n";
+        html += `</div></div>`;
+        
+        window.kpiBitacoraHTML = (window.kpiBitacoraHTML || "") + html;
         
         let tasks = report.tasks;
         if (!tasks && report.reporte) {
@@ -4127,8 +4148,8 @@ async function calcularIndicadores() {
     const cardBitacora = document.getElementById('kpiBitacoraInlineCard');
     const listBitacora = document.getElementById('kpiBitacoraInlineList');
     if (cardBitacora && listBitacora) {
-        if (window.kpiBitacoraTexto && window.kpiBitacoraTexto.trim() !== '') {
-            listBitacora.textContent = window.kpiBitacoraTexto;
+        if (window.kpiBitacoraHTML && window.kpiBitacoraHTML.trim() !== '') {
+            listBitacora.innerHTML = window.kpiBitacoraHTML;
             cardBitacora.style.display = 'flex';
         } else {
             cardBitacora.style.display = 'none';
