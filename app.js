@@ -114,6 +114,14 @@ document.addEventListener('visibilitychange', () => {
 });
 
 try {
+    // TEMPORARY LOCAL CLEANUP: Remove false 'Inactividad' from localStorage so gestores don't re-upload it
+    let localTimeline = JSON.parse(localStorage.getItem('riskOps_timeline')) || [];
+    let initialLength = localTimeline.length;
+    localTimeline = localTimeline.filter(ev => ev.type !== 'Inactividad');
+    if (localTimeline.length !== initialLength) {
+        localStorage.setItem('riskOps_timeline', JSON.stringify(localTimeline));
+    }
+    
     currentUser = currentUserObj ? JSON.parse(currentUserObj) : null;
     if (currentUser) {
         if (currentUser.loginLogId) {
