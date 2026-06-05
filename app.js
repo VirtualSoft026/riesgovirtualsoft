@@ -3817,41 +3817,42 @@ async function calcularIndicadores() {
 
         // Construir HTML de bitácora para el modal/tarjeta
         const shiftDateStr = new Date(report.timestamp || report.loginTime || Date.now()).toLocaleDateString('es-CO');
-        let html = `<div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 15px; margin-bottom: 15px;">`;
-        html += `<div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">`;
-        html += `<div style="font-weight: 600; color: var(--accent-primary);"><i class='bx bx-calendar-event'></i> Turno del ${shiftDateStr}</div>`;
-        html += `<div style="font-size: 12px; color: var(--text-secondary); background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 20px;"><i class='bx bx-user'></i> ${report.gestor || 'Desconocido'}</div>`;
+        let html = `<div style="background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">`;
+        html += `<div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">`;
+        html += `<div style="font-weight: 600; color: var(--accent-primary); font-size: 14px;"><i class='bx bx-calendar-event'></i> Turno del ${shiftDateStr}</div>`;
+        html += `<div style="font-size: 12px; color: var(--text-primary); background: var(--glass-border); padding: 5px 12px; border-radius: 20px; font-weight: 500;"><i class='bx bx-user'></i> ${report.gestor || 'Desconocido'}</div>`;
         html += `</div>`;
         
         let horaI = report.horaInicio ? report.horaInicio : (report.loginTime ? new Date(report.loginTime).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'}) : 'N/A');
         let horaF = report.horaFin || (report.status === "En Línea" ? "<span style='color:var(--success)'><i class='bx bx-radio-circle-marked bx-flashing'></i> En Curso</span>" : 'N/A');
         
-        html += `<div style="display: flex; gap: 20px; font-size: 13px; color: var(--text-secondary); margin-bottom: 15px; flex-wrap: wrap;">`;
-        html += `<div style="background: rgba(0,0,0,0.2); padding: 6px 12px; border-radius: 6px;"><i class='bx bx-log-in-circle' style="color: var(--accent-primary);"></i> Ingreso: <span style="color: var(--text-primary); font-weight: 500;">${horaI}</span></div>`;
-        html += `<div style="background: rgba(0,0,0,0.2); padding: 6px 12px; border-radius: 6px;"><i class='bx bx-log-out-circle' style="color: var(--warning);"></i> Salida: <span style="color: var(--text-primary); font-weight: 500;">${horaF}</span></div>`;
+        html += `<div style="display: flex; gap: 15px; font-size: 13px; color: var(--text-secondary); margin-bottom: 15px; flex-wrap: wrap;">`;
+        html += `<div style="background: var(--bg-primary); border: 1px solid var(--glass-border); padding: 8px 15px; border-radius: 8px;"><i class='bx bx-log-in-circle' style="color: var(--accent-primary);"></i> Ingreso: <span style="color: var(--text-primary); font-weight: 600;">${horaI}</span></div>`;
+        html += `<div style="background: var(--bg-primary); border: 1px solid var(--glass-border); padding: 8px 15px; border-radius: 8px;"><i class='bx bx-log-out-circle' style="color: var(--warning);"></i> Salida: <span style="color: var(--text-primary); font-weight: 600;">${horaF}</span></div>`;
         html += `</div>`;
 
-        html += `<div style="display: flex; flex-direction: column; gap: 8px;">`;
+        html += `<div style="display: flex; flex-direction: column; gap: 10px;">`;
         
         if (report.timeline && report.timeline.length > 0) {
             report.timeline.forEach(ev => {
                 const s = new Date(ev.start).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'});
                 const eTime = ev.end ? new Date(ev.end).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'}) : "<span style='color:var(--warning)'>En Pausa</span>";
-                let icon = ev.type === 'Desayuno' ? "<i class='bx bx-coffee' style='color:#F59E0B'></i>" : (ev.type === 'Almuerzo' ? "<i class='bx bx-restaurant' style='color:#10B981'></i>" : "<i class='bx bx-time-five' style='color:#EF4444'></i>");
-                let color = ev.type === 'Desayuno' ? "#F59E0B" : (ev.type === 'Almuerzo' ? "#10B981" : "#EF4444");
+                let icon = ev.type === 'Desayuno' ? "<i class='bx bx-coffee'></i>" : (ev.type === 'Almuerzo' ? "<i class='bx bx-restaurant'></i>" : "<i class='bx bx-time-five'></i>");
+                let color = ev.type === 'Desayuno' ? "var(--warning)" : (ev.type === 'Almuerzo' ? "var(--success)" : "var(--danger)");
+                let bgLight = ev.type === 'Desayuno' ? "var(--warning-bg)" : (ev.type === 'Almuerzo' ? "var(--success-bg)" : "var(--danger-bg)");
                 
-                html += `<div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2); padding: 10px 15px; border-radius: 8px; border-left: 3px solid ${color};">`;
-                html += `<div style="display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 13px; color: var(--text-primary);">${icon} ${ev.type}</div>`;
-                html += `<div style="font-family: monospace; font-size: 12px; color: var(--text-secondary); background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 6px;"><i class='bx bx-time'></i> ${s} - ${eTime}</div>`;
+                html += `<div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-primary); padding: 12px 16px; border-radius: 10px; border-left: 4px solid ${color}; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">`;
+                html += `<div style="display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 13px; color: var(--text-primary);"><div style="background: ${bgLight}; color: ${color}; width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 16px;">${icon}</div> ${ev.type}</div>`;
+                html += `<div style="font-family: monospace; font-size: 12px; color: var(--text-primary); background: var(--bg-secondary); border: 1px solid var(--glass-border); padding: 5px 12px; border-radius: 8px; font-weight: 500;"><i class='bx bx-time' style="color: var(--text-secondary);"></i> ${s} - ${eTime}</div>`;
                 html += `</div>`;
             });
         } else if (report.reporte && report.reporte.includes("=== BITÁCORA DE TIEMPOS ===")) {
             const parts = report.reporte.split("=== BITÁCORA DE TIEMPOS ===");
             if (parts.length > 1) {
-                html += `<div style="font-family: monospace; font-size: 12px; color: var(--text-secondary); white-space: pre-wrap; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">${parts[1].trim()}</div>`;
+                html += `<div style="font-family: monospace; font-size: 13px; color: var(--text-secondary); white-space: pre-wrap; background: var(--bg-primary); border: 1px solid var(--glass-border); padding: 15px; border-radius: 10px;">${parts[1].trim()}</div>`;
             }
         } else {
-            html += `<div style="text-align: center; padding: 15px; color: var(--text-secondary); font-size: 13px; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.1);"><i class='bx bx-info-circle'></i> No se registraron pausas en este turno</div>`;
+            html += `<div style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 13px; background: var(--bg-primary); border-radius: 10px; border: 1px dashed var(--glass-border);"><i class='bx bx-info-circle' style="font-size: 18px; display: block; margin-bottom: 5px; opacity: 0.5;"></i> No se registraron pausas en este turno</div>`;
         }
         html += `</div></div>`;
         
