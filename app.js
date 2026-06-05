@@ -10,6 +10,7 @@ let activeSessionRef = null;
 
 // --- INACTIVITY & LUNCH TRACKING GLOBALS ---
 let lastLocalActivityTimestamp = Date.now();
+let lastSyncLoopTimestamp = Date.now();
 let isLunchBreak = false;
 let lunchStartTime = null;
 let totalLunchTimeMs = 0;
@@ -1223,6 +1224,19 @@ function syncActiveSessionToFirebase() {
         const loginTime = (existing && existing.loginTime) ? existing.loginTime : (currentUser.loginTime || new Date().toISOString());
         
         // --- INACTIVITY LOGIC ---
+        
+        // --- DETECT TIME JUMPS (OS SUSPENSION / SLEEP) ---
+        let nowMs = Date.now();
+        let loopDelta = nowMs - lastSyncLoopTimestamp;
+        lastSyncLoopTimestamp = nowMs;
+        
+        // If the 30s interval took more than 3 minutes to execute, the PC went to sleep or the browser was totally suspended.
+        if (loopDelta > (3 * 60 * 1000)) {
+            // Register an inactivity block for the exact missing time
+            shiftTimeline.push({ type: 'Inactividad', start: nowMs - loopDelta, end: nowMs });
+            localStorage.setItem('riskOps_timeline', JSON.stringify(shiftTimeline));
+        }
+
         let newLastActive = Date.now();
         let currentStatus = existing ? existing.status : 'Activo';
         
