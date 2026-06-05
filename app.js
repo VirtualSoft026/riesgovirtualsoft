@@ -128,6 +128,30 @@ try {
             database.ref(`active_sessions/${currentUser.uid}`).onDisconnect().remove();
         }
     }
+    
+    // TEMPORARY CLEANUP: Remove false 'Inactividad' records from the last 48 hours for all shift_reports
+    if (currentUser && currentUser.role === 'Administrador' && !window.cleanupDone) {
+        window.cleanupDone = true;
+        const ayer = Date.now() - (2 * 24 * 60 * 60 * 1000);
+        database.ref('shift_reports').once('value').then(snap => {
+            const data = snap.val();
+            if (data) {
+                for (let key in data) {
+                    let r = data[key];
+                    let t = r.timestamp || r.loginTime;
+                    if (t && t >= ayer && r.timeline) {
+                        let newTimeline = r.timeline.filter(ev => ev.type !== 'Inactividad');
+                        if (newTimeline.length !== r.timeline.length) {
+                            database.ref('shift_reports/' + key + '/timeline').set(newTimeline);
+                            // Set inactividadTotalMins to 0 so the fallback logic doesn't re-calculate from deleted blocks
+                            database.ref('shift_reports/' + key + '/inactividadTotalMins').set(0);
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
 } catch(e) {
     localStorage.removeItem('riskOps_currentUser');
     window.location.href = 'login.html';
