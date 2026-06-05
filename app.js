@@ -3696,27 +3696,27 @@ async function calcularIndicadores() {
     
     if (periodo === 'hoy') {
         const hoyStart = new Date().setHours(0,0,0,0);
-        shiftReports = shiftReports.filter(r => r.timestamp && r.timestamp >= hoyStart);
+        shiftReports = shiftReports.filter(r => { const t = r.timestamp || r.loginTime; return t && t >= hoyStart; });
     } else if (periodo === 'ayer') {
         const hoyStart = new Date().setHours(0,0,0,0);
         const ayerStart = hoyStart - (24 * 60 * 60 * 1000);
-        shiftReports = shiftReports.filter(r => r.timestamp && r.timestamp >= ayerStart && r.timestamp < hoyStart);
+        shiftReports = shiftReports.filter(r => { const t = r.timestamp || r.loginTime; return t && t >= ayerStart && t < hoyStart; });
     } else if (periodo === 'semanal') {
         const unaSemanaAtras = now - (7 * 24 * 60 * 60 * 1000);
-        shiftReports = shiftReports.filter(r => r.timestamp && r.timestamp >= unaSemanaAtras);
+        shiftReports = shiftReports.filter(r => { const t = r.timestamp || r.loginTime; return t && t >= unaSemanaAtras; });
     } else if (periodo === '30dias') {
         const unMesAtras = now - (30 * 24 * 60 * 60 * 1000);
-        shiftReports = shiftReports.filter(r => r.timestamp && r.timestamp >= unMesAtras);
+        shiftReports = shiftReports.filter(r => { const t = r.timestamp || r.loginTime; return t && t >= unMesAtras; });
     } else if (periodo === 'mes') {
         const esteMesStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
-        shiftReports = shiftReports.filter(r => r.timestamp && r.timestamp >= esteMesStart);
+        shiftReports = shiftReports.filter(r => { const t = r.timestamp || r.loginTime; return t && t >= esteMesStart; });
     } else if (periodo === 'custom') {
         const customDateStr = document.getElementById('kpiCustomDateInput').value;
         if (customDateStr) {
             const parts = customDateStr.split('-');
             const customStart = new Date(parts[0], parts[1]-1, parts[2]).getTime();
             const customEnd = customStart + 86400000;
-            shiftReports = shiftReports.filter(r => r.timestamp && r.timestamp >= customStart && r.timestamp < customEnd);
+            shiftReports = shiftReports.filter(r => { const t = r.timestamp || r.loginTime; return t && t >= customStart && t < customEnd; });
         } else {
             alert("Por favor selecciona una fecha específica en el calendario.");
             return;
@@ -3775,10 +3775,10 @@ async function calcularIndicadores() {
             }
         }
 
-        // Construir texto de bitácora para el modal
+        // Construir texto de bitácora para el modal/tarjeta
         const shiftDateStr = new Date(report.timestamp || report.loginTime || Date.now()).toLocaleDateString('es-CO');
-        window.kpiBitacoraTexto += `\n▶ TURNO DEL ${shiftDateStr}\n`;
-        window.kpiBitacoraTexto += `Ingreso: ${report.horaInicio} | Salida: ${report.horaFin}\n`;
+        window.kpiBitacoraTexto += `\n▶ TURNO DEL ${shiftDateStr} - Gestor: ${report.gestor || 'Desconocido'}\n`;
+        window.kpiBitacoraTexto += `Ingreso: ${report.horaInicio || 'N/A'} | Salida: ${report.horaFin || 'N/A'}\n`;
         
         if (report.timeline && report.timeline.length > 0) {
             report.timeline.forEach(ev => {
@@ -3874,41 +3874,74 @@ async function calcularIndicadores() {
     const retirosCardsElements = document.querySelectorAll('.retiros-card');
     
     if (window.retirosGlobalData) {
-        let gestorEmail = null;
-        for (let email in window.kpiUsersData) {
-            if (window.kpiUsersData[email] === gestorName) {
-                gestorEmail = email;
-                break;
-            }
-        }
-        
         let stats = null;
-        if (gestorEmail) {
-            const prefixDb = gestorEmail.split('@')[0].toLowerCase();
+        
+        if (gestorName === 'todos') {
+            // Aggregate all stats
+            stats = {
+                totalAprobados: 0,
+                totalRechazados: 0,
+                montoProcesado: 0,
+                minutosDemoraTotales: 0,
+                retirosConTiempo: 0,
+                diario: {}
+            };
             for (let excelEmail in window.retirosGlobalData) {
-                const prefixExcel = excelEmail.split('@')[0].toLowerCase();
-                if (prefixDb === prefixExcel || gestorEmail === excelEmail) {
-                    stats = window.retirosGlobalData[excelEmail];
+                const s = window.retirosGlobalData[excelEmail];
+                stats.totalAprobados += s.totalAprobados || 0;
+                stats.totalRechazados += s.totalRechazados || 0;
+                stats.montoProcesado += s.montoProcesado || 0;
+                stats.minutosDemoraTotales += s.minutosDemoraTotales || 0;
+                stats.retirosConTiempo += s.retirosConTiempo || 0;
+                if (s.diario) {
+                    for (let dStr in s.diario) {
+                        if (!stats.diario[dStr]) {
+                            stats.diario[dStr] = { totalAprobados: 0, totalRechazados: 0, montoProcesado: 0, minutosDemoraTotales: 0, retirosConTiempo: 0 };
+                        }
+                        stats.diario[dStr].totalAprobados += s.diario[dStr].totalAprobados || 0;
+                        stats.diario[dStr].totalRechazados += s.diario[dStr].totalRechazados || 0;
+                        stats.diario[dStr].montoProcesado += s.diario[dStr].montoProcesado || 0;
+                        stats.diario[dStr].minutosDemoraTotales += s.diario[dStr].minutosDemoraTotales || 0;
+                        stats.diario[dStr].retirosConTiempo += s.diario[dStr].retirosConTiempo || 0;
+                    }
+                }
+            }
+        } else {
+            let gestorEmail = null;
+            for (let email in window.kpiUsersData) {
+                if (window.kpiUsersData[email] === gestorName) {
+                    gestorEmail = email;
                     break;
                 }
             }
-        }
-        
-        // Fallback: Emparejamiento por nombre y apellido (AUN SI NO HAY EMAIL)
-        if (!stats && gestorName) {
-            const parts = gestorName.toLowerCase().split(' ');
-            const firstName = parts[0];
-            const lastName = parts.length > 1 ? parts[1] : '';
             
-            for (let excelEmail in window.retirosGlobalData) {
-                const eLower = excelEmail.toLowerCase();
-                if (eLower.includes(firstName)) {
-                    if (lastName && lastName.length >= 3 && eLower.includes(lastName.substring(0,3))) {
+            if (gestorEmail) {
+                const prefixDb = gestorEmail.split('@')[0].toLowerCase();
+                for (let excelEmail in window.retirosGlobalData) {
+                    const prefixExcel = excelEmail.split('@')[0].toLowerCase();
+                    if (prefixDb === prefixExcel || gestorEmail === excelEmail) {
                         stats = window.retirosGlobalData[excelEmail];
                         break;
-                    } else if (lastName.length < 3) {
-                        stats = window.retirosGlobalData[excelEmail];
-                        break;
+                    }
+                }
+            }
+            
+            // Fallback: Emparejamiento por nombre y apellido (AUN SI NO HAY EMAIL)
+            if (!stats && gestorName) {
+                const parts = gestorName.toLowerCase().split(' ');
+                const firstName = parts[0];
+                const lastName = parts.length > 1 ? parts[1] : '';
+                
+                for (let excelEmail in window.retirosGlobalData) {
+                    const eLower = excelEmail.toLowerCase();
+                    if (eLower.includes(firstName)) {
+                        if (lastName && lastName.length >= 3 && eLower.includes(lastName.substring(0,3))) {
+                            stats = window.retirosGlobalData[excelEmail];
+                            break;
+                        } else if (lastName.length < 3) {
+                            stats = window.retirosGlobalData[excelEmail];
+                            break;
+                        }
                     }
                 }
             }
