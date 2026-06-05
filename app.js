@@ -3291,35 +3291,46 @@ function renderActiveSessionsDashboard() {
             assignedTasks = getAssignedTasksForGestor(fullName, session.shift || 'Mañana');
         }
 
-        let tasksHtml = '';
-        if (assignedTasks.length > 0) {
-            tasksHtml = '<div style="margin-top: 15px; max-height: 80px; overflow-y: auto; font-size: 11px; border: 1px solid var(--border-color); border-radius: 4px; padding: 5px; background: rgba(0,0,0,0.02);">';
+        let displayTasks = [];
+        if (assignedTasks && assignedTasks.length > 0) {
             assignedTasks.forEach(taskName => {
-                // Find if the gestor has interacted with this task
                 let taskStatus = 'Pendiente';
-                let icon = "<i class='bx bx-radio-circle' style='color: var(--text-secondary)'></i>";
-                
-                // Buscar si existe en session.tasks (por valor de objeto)
                 for (let key in tasks) {
                     if (tasks[key].name === taskName) {
                         taskStatus = tasks[key].status;
                         break;
                     }
                 }
+                displayTasks.push({ name: taskName, status: taskStatus });
+            });
+        }
+        
+        // Agregar las tareas extras
+        for (let key in tasks) {
+            if (key.startsWith('extra_')) {
+                displayTasks.push({ name: tasks[key].name, status: tasks[key].status });
+            }
+        }
 
+        let tasksHtml = '';
+        if (displayTasks.length > 0) {
+            tasksHtml = '<div style="margin-top: 15px; max-height: 80px; overflow-y: auto; font-size: 11px; border: 1px solid var(--glass-border); border-radius: 4px; padding: 5px; background: rgba(0,0,0,0.02);">';
+            displayTasks.forEach(t => {
+                let icon = "<i class='bx bx-radio-circle' style='color: var(--text-secondary)'></i>";
+                
                 let textStyle = '';
-                if (taskStatus === 'Finalizada') {
+                if (t.status === 'Finalizada') {
                     icon = "<i class='bx bx-check-circle' style='color: var(--success)'></i>";
                     textStyle = "color: var(--success); font-weight: bold;";
-                } else if (taskStatus === 'En Proceso') {
+                } else if (t.status === 'En Proceso') {
                     icon = "<i class='bx bx-time-five' style='color: var(--warning)'></i>";
                     textStyle = "color: var(--warning);";
-                } else if (taskStatus === 'No Realizada') {
+                } else if (t.status === 'No Realizada') {
                     icon = "<i class='bx bx-x-circle' style='color: var(--danger)'></i>";
                     textStyle = "color: var(--danger); text-decoration: line-through;";
                 }
 
-                tasksHtml += `<div style="display: flex; align-items: center; gap: 5px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: ${taskStatus==='Pendiente'?0.7:1};">${icon} <span title="${taskName}" style="${textStyle}">${taskName}</span></div>`;
+                tasksHtml += `<div style="display: flex; align-items: center; gap: 5px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: ${t.status==='Pendiente'?0.7:1};">${icon} <span title="${t.name}" style="${textStyle}">${t.name}</span></div>`;
             });
             tasksHtml += '</div>';
         } else {
