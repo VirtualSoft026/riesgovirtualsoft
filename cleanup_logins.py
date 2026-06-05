@@ -9,25 +9,34 @@ req = urllib.request.Request(url)
 response = urllib.request.urlopen(req)
 logs = json.loads(response.read())
 
-url_active = "https://riskops-75637-default-rtdb.firebaseio.com/active_sessions.json"
-try:
-    response_active = urllib.request.urlopen(urllib.request.Request(url_active))
-    active = json.loads(response_active.read())
-    active_names = [v.get('name', '').lower() for k,v in active.items() if v] if active else []
-except:
-    active_names = []
+if not logs:
+    print("No logs found.")
+    exit(0)
+
+# Group open sessions by user name
+open_sessions = {}
+
+for key, log in logs.items():
+    if not log.get("logoutTime"):
+        name = log.get("name", "").lower()
+        if name not in open_sessions:
+            open_sessions[name] = []
+        open_sessions[name].append((key, log.get("timestamp", 0)))
 
 count = 0
-if logs:
-    for key, log in logs.items():
-        name = log.get("name", "").lower()
-        if log.get("logoutTime"):
-            if name in active_names:
-                # Mark as open again
-                url_update = f"https://riskops-75637-default-rtdb.firebaseio.com/login_logs/{key}/logoutTime.json"
-                req_update = urllib.request.Request(url_update, method='DELETE')
-                urllib.request.urlopen(req_update)
-                count += 1
-                print(f"Re-opened session for: {name}")
+for name, sessions in open_sessions.items():
+    if len(sessions) > 1:
+        # Sort by timestamp, oldest first
+        sessions.sort(key=lambda x: x[1])
+        
+        # All except the last one (most recent) should be closed
+        for i in range(len(sessions) - 1):
+            key_to_close = sessions[i][0]
+            url_update = f"https://riskops-75637-default-rtdb.firebaseio.com/login_logs/{key_to_close}.json"
+            patch_data = json.dumps({"logoutTime": current_time}).encode('utf-8')
+            req_update = urllib.request.Request(url_update, data=patch_data, method='PATCH')
+            urllib.request.urlopen(req_update)
+            count += 1
+            print(f"Closed old session for {name}")
 
-print(f"Finished opening {count} incorrectly closed sessions.")
+print(f"Finished closing {count} duplicate older sessions.")

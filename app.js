@@ -2137,7 +2137,18 @@ function handleEndShift() {
             
             let extraLunch = Math.max(0, lunchMinutes - allowedLunch);
             let extraBreakfast = Math.max(0, breakfastMinutes - allowedBreakfast);
-            let penalidadConectividadMins = parseFloat((extraLunch + extraBreakfast).toFixed(1));
+            
+            let inactividadMins = 0;
+            if (shiftTimeline && shiftTimeline.length > 0) {
+                shiftTimeline.forEach(ev => {
+                    if (ev.type === 'Inactividad') {
+                        let eTime = ev.end ? ev.end : Date.now();
+                        inactividadMins += (eTime - ev.start) / (1000 * 60);
+                    }
+                });
+            }
+            
+            let penalidadConectividadMins = parseFloat((extraLunch + extraBreakfast + inactividadMins).toFixed(1));
 
             // Calculo de tiempo efectivo
             const totalShiftMs = endDate.getTime() - loginDate.getTime();
@@ -2208,6 +2219,7 @@ function handleEndShift() {
                 reporte: report,
                 tasks: taskStateCache,
                 penalidadConectividadMins: penalidadConectividadMins,
+                inactividadTotalMins: inactividadMins,
                 tiempoAlmuerzoMins: lunchMinutes,
                 tiempoDesayunoMins: breakfastMinutes,
                 timestamp: Date.now()
@@ -3797,12 +3809,16 @@ async function calcularIndicadores() {
     
     porcentajeActividades = Math.round(porcentajeActividades);
     
-    // Calcular Penalidad de Conectividad
+    // Calcular Penalidad de Conectividad e Inactividad
     let totalPenalidadConectividad = 0;
+    let totalInactividadMins = 0;
     shiftReports.forEach(report => {
         if (report.penalidadConectividadMins) {
             // Regla confirmada: 1% menos por cada minuto sobrepasado
             totalPenalidadConectividad += report.penalidadConectividadMins;
+        }
+        if (report.inactividadTotalMins) {
+            totalInactividadMins += report.inactividadTotalMins;
         }
     });
     
@@ -3976,6 +3992,14 @@ async function calcularIndicadores() {
     document.getElementById('kpiTotalPendientes').textContent = totalPendientes;
     document.getElementById('kpiTurnosAnalizados').textContent = turnosAnalizados;
     document.getElementById('kpiDuracionPromedio').textContent = turnosValidosParaTiempo > 0 ? `${promedioHoras}h ${promedioMinutosRestantes}m` : 'N/A';
+    
+    // Inactividad
+    let inactividadHoras = Math.floor(totalInactividadMins / 60);
+    let inactividadMinutos = Math.round(totalInactividadMins % 60);
+    let inactividadStr = totalInactividadMins > 0 ? `${inactividadHoras}h ${inactividadMinutos}m` : '0h 0m';
+    if(document.getElementById('kpiTiempoInactivo')) {
+        document.getElementById('kpiTiempoInactivo').textContent = inactividadStr;
+    }
     
     // Animar anillos independientes
     const animateRing = (ringId, textId, badgeId, percentage) => {
