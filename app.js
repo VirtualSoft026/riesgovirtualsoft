@@ -2218,6 +2218,7 @@ function handleEndShift() {
                 setTrabajado: setSelect ? setSelect.value : 'N/A',
                 reporte: report,
                 tasks: taskStateCache,
+                timeline: shiftTimeline,
                 penalidadConectividadMins: penalidadConectividadMins,
                 inactividadTotalMins: inactividadMins,
                 tiempoAlmuerzoMins: lunchMinutes,
@@ -3646,6 +3647,7 @@ async function calcularIndicadores() {
     
     // Resetear listas de detalle
     window.kpiTaskLists = { finalizadas: [], no_realizadas: [], pendientes: [] };
+    window.kpiBitacoraTexto = "";
 
     // Limpiar UI anterior
     document.getElementById('kpiResultsContainer').style.display = 'none';
@@ -3758,6 +3760,27 @@ async function calcularIndicadores() {
                 }
             }
         }
+
+        // Construir texto de bitácora para el modal
+        const shiftDateStr = new Date(report.timestamp || report.loginTime || Date.now()).toLocaleDateString('es-CO');
+        window.kpiBitacoraTexto += `\n▶ TURNO DEL ${shiftDateStr}\n`;
+        window.kpiBitacoraTexto += `Ingreso: ${report.horaInicio} | Salida: ${report.horaFin}\n`;
+        
+        if (report.timeline && report.timeline.length > 0) {
+            report.timeline.forEach(ev => {
+                const s = new Date(ev.start).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'});
+                const eTime = ev.end ? new Date(ev.end).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'}) : "No regresó";
+                window.kpiBitacoraTexto += `  - ${ev.type}: de ${s} a ${eTime}\n`;
+            });
+        } else if (report.reporte && report.reporte.includes("=== BITÁCORA DE TIEMPOS ===")) {
+            const parts = report.reporte.split("=== BITÁCORA DE TIEMPOS ===");
+            if (parts.length > 1) {
+                window.kpiBitacoraTexto += parts[1].trim() + "\n";
+            }
+        } else {
+            window.kpiBitacoraTexto += "  (No se registraron pausas)\n";
+        }
+        window.kpiBitacoraTexto += "\n";
         
         let tasks = report.tasks;
         if (!tasks && report.reporte) {
@@ -4001,6 +4024,16 @@ async function calcularIndicadores() {
         document.getElementById('kpiTiempoInactivo').textContent = inactividadStr;
     }
     
+    // Mostrar botón de bitácora
+    const btnBitacora = document.getElementById('btnVerBitacoraKpi');
+    if (btnBitacora) {
+        if (window.kpiBitacoraTexto && window.kpiBitacoraTexto.trim() !== '') {
+            btnBitacora.style.display = 'block';
+        } else {
+            btnBitacora.style.display = 'none';
+        }
+    }
+    
     // Animar anillos independientes
     const animateRing = (ringId, textId, badgeId, percentage) => {
         const ring = document.getElementById(ringId);
@@ -4104,6 +4137,24 @@ function openKpiTaskDetails(tipo) {
 
 function closeKpiTaskDetails() {
     document.getElementById('kpiTaskDetailsModal').classList.remove('active');
+}
+
+// Modal de Bitácora de Tiempos (KPIs)
+function openKpiBitacoraModal() {
+    const modal = document.getElementById('kpiBitacoraModal');
+    const list = document.getElementById('kpiModalBitacoraList');
+    
+    if (window.kpiBitacoraTexto) {
+        list.textContent = window.kpiBitacoraTexto;
+    } else {
+        list.textContent = "No hay tiempos registrados.";
+    }
+    
+    modal.classList.add('active');
+}
+
+function closeKpiBitacoraModal() {
+    document.getElementById('kpiBitacoraModal').classList.remove('active');
 }
 
 // Inicialización al cargar el DOM

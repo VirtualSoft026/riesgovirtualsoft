@@ -452,7 +452,10 @@
                             <input type="date" id="kpiCustomDateInput" class="modern-input" style="padding: 12px; width: 100%; border-radius: var(--radius-md); background: rgba(0,0,0,0.2); margin-top: 10px; display: none;">
                         </div>
                     </div>
-                    <button class="btn btn-primary" onclick="calcularIndicadores()" style="height: 46px; padding: 0 30px; border-radius: var(--radius-md); font-weight: 600; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);"><i class='bx bx-search-alt-2'></i> Analizar Rendimiento</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-primary" onclick="calcularIndicadores()" style="height: 46px; padding: 0 30px; border-radius: var(--radius-md); font-weight: 600; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);"><i class='bx bx-search-alt-2'></i> Analizar Rendimiento</button>
+                        <button id="btnVerBitacoraKpi" class="btn btn-outline" onclick="openKpiBitacoraModal()" style="height: 46px; padding: 0 20px; border-radius: var(--radius-md); font-weight: 600; display: none;"><i class='bx bx-list-ol'></i> Ver Bitácora de Tiempos</button>
+                    </div>
                 </div>
 
                 <!-- Contenedor Principal de Resultados (Grid completo) -->
@@ -869,6 +872,22 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="firebase-config.js?v=59"></script>
     <!-- Modal de Detalles de Tareas KPI -->
+    <!-- Modal de Bitácora de Tiempos (KPIs) -->
+    <div id="kpiBitacoraModal" class="modal-overlay">
+        <div class="modal-content glass-panel" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2><i class='bx bx-time-five' style="color: #8B5CF6;"></i> Detalle de Tiempos</h2>
+                <button class="close-btn" onclick="closeKpiBitacoraModal()"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 13px;">Este es el desglose de los horarios de conexión, descansos, almuerzos e inactividades detectadas para los turnos filtrados.</p>
+                <div id="kpiModalBitacoraList" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: var(--radius-md); font-family: monospace; white-space: pre-wrap; font-size: 13px; max-height: 400px; overflow-y: auto; color: var(--text-primary); border: 1px solid rgba(255,255,255,0.05);">
+                    <!-- Se llena con JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="kpiTaskDetailsModal" class="modal-overlay">
         <div class="modal glass-panel" style="max-width: 600px; padding: 20px;">
             <div class="modal-header">
