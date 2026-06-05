@@ -77,18 +77,47 @@ async function initIdleDetector() {
     if ('IdleDetector' in window) {
         try {
             const state = await IdleDetector.requestPermission();
+            window.idleDetectorGranted = (state === 'granted');
             if (state === 'granted') {
                 const idleDetector = new IdleDetector();
                 idleDetector.addEventListener('change', () => {
                     globalIdleState = (idleDetector.userState === 'idle') || (idleDetector.screenState === 'locked');
                 });
-                await idleDetector.start({ threshold: 5 * 60 * 1000 }); // 5 minutes
+                await idleDetector.start({ threshold: 5 * 60 * 1000 }); // 5 minutos
+                
+                const warningBanner = document.getElementById('idleDetectorWarning');
+                if (warningBanner) warningBanner.style.display = 'none';
+            } else {
+                console.warn('IdleDetector permission not granted.');
+                const warningBanner = document.getElementById('idleDetectorWarning');
+                if (warningBanner) warningBanner.style.display = 'flex';
             }
         } catch (err) {
             console.error('IdleDetector init failed:', err);
+            const warningBanner = document.getElementById('idleDetectorWarning');
+            if (warningBanner) warningBanner.style.display = 'flex';
+        }
+    } else {
+        const warningText = document.getElementById('idleDetectorWarningText');
+        const warningBanner = document.getElementById('idleDetectorWarning');
+        if (warningText) warningText.textContent = "Tu navegador no soporta el detector de inactividad de pantalla. Te recomendamos usar Google Chrome o Microsoft Edge.";
+        if (warningBanner) {
+            warningBanner.style.display = 'flex';
+            const btn = warningBanner.querySelector('button');
+            if (btn) btn.style.display = 'none';
         }
     }
 }
+
+window.requestIdlePermissionManual = function() {
+    initIdleDetector().then(() => {
+        if (window.idleDetectorGranted) {
+            alert("¡Permiso otorgado! RiskOps ahora podrá registrar tu inactividad correctamente.");
+        } else {
+            alert("El permiso sigue denegado. Por favor haz clic en el icono del candado junto a la URL en tu navegador y permite 'Conocer cuando usas tu dispositivo'.");
+        }
+    });
+};
 
 // Pedir permiso en el primer clic del usuario en la página
 document.addEventListener('click', () => {
@@ -1207,7 +1236,13 @@ function syncActiveSessionToFirebase() {
         } else if (isDomIdle && isPageVisible) {
             isInactive = true; // Left the tab open and walked away
         } else if (isDomIdle && !isPageVisible) {
-            isInactive = false; // Tab is hidden, they are probably working in Jira/Email
+            // Tab is hidden. They might be working in another tab, OR their PC is locked but IdleDetector is blocked.
+            // Fallback: If 15 minutes have passed without a single local interaction, we mark as Inactivo.
+            if (timeSinceLastActivity > (15 * 60 * 1000)) {
+                isInactive = true;
+            } else {
+                isInactive = false;
+            }
         }
         
         if (isLunchBreak) {

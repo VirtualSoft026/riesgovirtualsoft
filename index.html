@@ -72,6 +72,13 @@
 
         <!-- Main Content -->
         <main class="main-content">
+            <div id="idleDetectorWarning" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); color: var(--danger); padding: 12px 20px; border-radius: 8px; margin: 20px 20px 0 20px; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 10px; font-weight: 500; font-size: 13px;">
+                    <i class='bx bx-error-circle' style="font-size: 18px;"></i>
+                    <span id="idleDetectorWarningText">Permiso de inactividad pendiente o denegado. RiskOps no podrá registrar automáticamente cuando bloquees la pantalla.</span>
+                </div>
+                <button class="btn btn-outline" onclick="requestIdlePermissionManual()" style="padding: 6px 15px; font-size: 12px; border-color: var(--danger); color: var(--danger);">Habilitar Permiso</button>
+            </div>
             <!-- Header -->
             <header class="top-header glass-panel">
                 <div class="header-left">
