@@ -953,7 +953,6 @@ async function loadSchedule() {
                 }
             }
         }
-        updateGlobalStats();
     } catch(e) {
         console.log("No se pudo cargar el horario", e);
     }
@@ -1839,7 +1838,6 @@ async function initApp() {
                 const viewMonitoreo = document.getElementById('view-monitoreo');
                 if (viewMonitoreo) viewMonitoreo.style.display = 'block';
                 renderActiveSessionsDashboard();
-                updateGlobalStats();
             } else if (item.id === 'navIndicadores') {
                 const viewIndicadores = document.getElementById('view-indicadores');
                 if (viewIndicadores) viewIndicadores.style.display = 'block';
@@ -3117,7 +3115,6 @@ function startActiveSessionsListener() {
             allActiveSessions = {};
         }
         renderActiveSessionsDashboard();
-        updateGlobalStats();
     }, (error) => {
         console.error("Error cargando monitoreo en tiempo real:", error);
     });
@@ -3217,7 +3214,6 @@ function renderActiveSessionsDashboard() {
                 <p style="font-size: 12px; margin-top: 5px; opacity: 0.7;">Los gestores activos se listarán aquí automáticamente al ingresar.</p>
             </div>
         `;
-        updateGlobalStats();
         return;
     }
 
@@ -3356,8 +3352,6 @@ function renderActiveSessionsDashboard() {
         `;
         grid.appendChild(card);
     });
-
-    updateGlobalStats();
 }
 
 function viewTimelineInMonitoreo(uid) {
@@ -3401,83 +3395,6 @@ function viewTimelineInMonitoreo(uid) {
     }
     
     modal.classList.add('active');
-}
-
-function updateGlobalStats() {
-    const statsGestores = document.getElementById('statsGestores');
-    const statsKpi = document.getElementById('statsKpi');
-    const statsGestoresTitle = document.getElementById('statsGestoresTitle');
-
-    const uids = Object.keys(allActiveSessions);
-    const totalGestores = uids.length;
-
-    // Determine current system shift based on system hour
-    let shiftName = "Mañana";
-    const hour = new Date().getHours();
-    if (hour >= 6 && hour < 14) {
-        shiftName = "Mañana";
-    } else if (hour >= 14 && hour < 22) {
-        shiftName = "Tarde";
-    } else {
-        shiftName = "Noche";
-    }
-
-    // Overwrite system shift if there is a dominant shift in active sessions
-    if (totalGestores > 0) {
-        const shifts = uids.map(uid => allActiveSessions[uid] ? allActiveSessions[uid].shift : null).filter(Boolean);
-        if (shifts.length > 0) {
-            const counts = {};
-            shifts.forEach(s => {
-                const cat = getShiftCategory(s);
-                if (cat) counts[cat] = (counts[cat] || 0) + 1;
-            });
-            let dominantShift = shiftName;
-            let maxCount = 0;
-            for (const [s, count] of Object.entries(counts)) {
-                if (count > maxCount) {
-                    maxCount = count;
-                    dominantShift = s;
-                }
-            }
-            shiftName = dominantShift;
-        }
-    }
-
-    // Get filter shift selection
-    const shiftSelectEl = document.getElementById('filterShiftSelect');
-    const selectedShift = shiftSelectEl ? shiftSelectEl.value : '';
-    const targetShift = selectedShift || shiftName;
-
-    // Count online managers belonging to targetShift
-    const onlineCountForShift = uids.filter(uid => {
-        const session = allActiveSessions[uid];
-        if (!session) return false;
-        const isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
-        const sessionShiftCat = getShiftCategory(session.shift || 'Mañana');
-        return isOnline && (sessionShiftCat === targetShift);
-    }).length;
-
-    // Get total scheduled managers for targetShift today
-    const scheduledCountForShift = getScheduledGestoresCountForShift(targetShift);
-
-    if (statsGestores) {
-        statsGestores.textContent = `${onlineCountForShift} / ${scheduledCountForShift}`;
-    }
-
-    if (statsGestoresTitle) {
-        statsGestoresTitle.textContent = `Gestores Activos (${targetShift})`;
-    }
-
-    // Compute average KPI
-    let totalPercentage = 0;
-    uids.forEach(uid => {
-        const session = allActiveSessions[uid];
-        totalPercentage += session ? (session.percentage || 0) : 0;
-    });
-    const avgKpi = totalGestores > 0 ? Math.round(totalPercentage / totalGestores) : 0;
-    if (statsKpi) {
-        statsKpi.textContent = `${avgKpi}%`;
-    }
 }
 
 window.openMonitoreoDetails = function(uid) {
