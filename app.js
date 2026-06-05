@@ -3690,16 +3690,24 @@ async function calcularIndicadores() {
     
     let shiftReports = [];
     try {
-        let snapshot;
+        let snapshotReports, snapshotActive;
+        
         if (gestorName === 'todos') {
-            snapshot = await database.ref('shift_reports').once('value');
+            snapshotReports = await database.ref('shift_reports').once('value');
+            snapshotActive = await database.ref('active_sessions').once('value');
         } else {
-            snapshot = await database.ref('shift_reports').orderByChild('gestor').equalTo(gestorName).once('value');
+            snapshotReports = await database.ref('shift_reports').orderByChild('gestor').equalTo(gestorName).once('value');
+            snapshotActive = await database.ref('active_sessions').orderByChild('gestor').equalTo(gestorName).once('value');
         }
         
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            shiftReports = Object.keys(data).map(k => data[k]);
+        if (snapshotReports.exists()) {
+            const data = snapshotReports.val();
+            shiftReports = shiftReports.concat(Object.values(data));
+        }
+        
+        if (snapshotActive.exists()) {
+            const data = snapshotActive.val();
+            shiftReports = shiftReports.concat(Object.values(data));
         }
     } catch(e) {
         console.error("Error cargando shift reports para KPIs", e);
