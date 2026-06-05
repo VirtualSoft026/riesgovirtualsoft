@@ -1236,13 +1236,7 @@ function syncActiveSessionToFirebase() {
         } else if (isDomIdle && isPageVisible) {
             isInactive = true; // Left the tab open and walked away
         } else if (isDomIdle && !isPageVisible) {
-            // Tab is hidden. They might be working in another tab, OR their PC is locked but IdleDetector is blocked.
-            // Fallback: If 5 minutes have passed without a single local interaction, we mark as Inactivo.
-            if (timeSinceLastActivity > (5 * 60 * 1000)) {
-                isInactive = true;
-            } else {
-                isInactive = false;
-            }
+            isInactive = false; // Tab is hidden, they are probably working in Jira/Email
         }
         
         if (isLunchBreak) {
