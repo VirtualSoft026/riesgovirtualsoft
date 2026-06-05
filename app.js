@@ -4024,13 +4024,15 @@ async function calcularIndicadores() {
         document.getElementById('kpiTiempoInactivo').textContent = inactividadStr;
     }
     
-    // Mostrar botón de bitácora
-    const btnBitacora = document.getElementById('btnVerBitacoraKpi');
-    if (btnBitacora) {
+    // Mostrar Bitácora integrada
+    const cardBitacora = document.getElementById('kpiBitacoraInlineCard');
+    const listBitacora = document.getElementById('kpiBitacoraInlineList');
+    if (cardBitacora && listBitacora) {
         if (window.kpiBitacoraTexto && window.kpiBitacoraTexto.trim() !== '') {
-            btnBitacora.style.display = 'block';
+            listBitacora.textContent = window.kpiBitacoraTexto;
+            cardBitacora.style.display = 'flex';
         } else {
-            btnBitacora.style.display = 'none';
+            cardBitacora.style.display = 'none';
         }
     }
     
@@ -4137,24 +4139,6 @@ function openKpiTaskDetails(tipo) {
 
 function closeKpiTaskDetails() {
     document.getElementById('kpiTaskDetailsModal').classList.remove('active');
-}
-
-// Modal de Bitácora de Tiempos (KPIs)
-function openKpiBitacoraModal() {
-    const modal = document.getElementById('kpiBitacoraModal');
-    const list = document.getElementById('kpiModalBitacoraList');
-    
-    if (window.kpiBitacoraTexto) {
-        list.textContent = window.kpiBitacoraTexto;
-    } else {
-        list.textContent = "No hay tiempos registrados.";
-    }
-    
-    modal.classList.add('active');
-}
-
-function closeKpiBitacoraModal() {
-    document.getElementById('kpiBitacoraModal').classList.remove('active');
 }
 
 // Inicialización al cargar el DOM
