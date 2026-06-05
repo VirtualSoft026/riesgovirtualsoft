@@ -3592,7 +3592,12 @@ function loadGestoresForKPIs() {
     const selectEl = document.getElementById('kpiGestorSelect');
     if (!selectEl) return;
     
-    selectEl.innerHTML = '<option value="">Selecciona un gestor...</option>';
+    if (selectEl.options.length > 2) {
+        // If already loaded, just return. We don't want to overwrite and re-trigger calculation
+        return;
+    }
+    
+    selectEl.innerHTML = '<option value="todos" selected>Todos los gestores</option><option value="">Selecciona un gestor...</option>';
     
     database.ref('users').once('value').then(snapshot => {
         if (snapshot.exists()) {
@@ -3636,6 +3641,9 @@ function loadGestoresForKPIs() {
                 opt.textContent = name;
                 selectEl.appendChild(opt);
             });
+            
+            // Auto-trigger KPI calculation once loaded to map the global view
+            calcularIndicadores();
         }
     }).catch(err => console.error("Error populating KPI gestores dropdown:", err));
 }
@@ -3662,7 +3670,13 @@ async function calcularIndicadores() {
     
     let shiftReports = [];
     try {
-        const snapshot = await database.ref('shift_reports').orderByChild('gestor').equalTo(gestorName).once('value');
+        let snapshot;
+        if (gestorName === 'todos') {
+            snapshot = await database.ref('shift_reports').once('value');
+        } else {
+            snapshot = await database.ref('shift_reports').orderByChild('gestor').equalTo(gestorName).once('value');
+        }
+        
         if (snapshot.exists()) {
             const data = snapshot.val();
             shiftReports = Object.keys(data).map(k => data[k]);

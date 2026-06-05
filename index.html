@@ -435,14 +435,15 @@
                         <div style="flex: 1; min-width: 250px;">
                             <label style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 600;"><i class='bx bx-user'></i> Gestor a Evaluar</label>
                             <select id="kpiGestorSelect" class="modern-input" style="padding: 12px; width: 100%; border-radius: var(--radius-md); background: rgba(0,0,0,0.2);">
+                                <option value="todos" selected>Todos los gestores</option>
                                 <option value="">Selecciona un gestor...</option>
                             </select>
                         </div>
                         <div style="flex: 1; min-width: 250px;">
                             <label style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 600;"><i class='bx bx-calendar'></i> Periodo de Evaluación</label>
                             <select id="kpiPeriodoSelect" class="modern-input" style="padding: 12px; width: 100%; border-radius: var(--radius-md); background: rgba(0,0,0,0.2);">
+                                <option value="hoy" selected>Hoy</option>
                                 <option value="general">Histórico General (Todo)</option>
-                                <option value="hoy">Hoy</option>
                                 <option value="ayer">Ayer</option>
                                 <option value="semanal">Últimos 7 Días</option>
                                 <option value="30dias">Últimos 30 Días</option>
@@ -676,7 +677,7 @@
                 </div>
             </div>
 
-            <div id="view-comunicados" class="view-panel" style="display: none; padding: 20px;">
+            <div id="view-comunicados" class="view-panel" style="display: none; padding: 20px; overflow-y: auto; width: 100%; box-sizing: border-box; flex: 1;">
                     <h2 class="panel-title" style="margin-bottom: 20px; color: var(--accent-primary);"><i class='bx bx-news'></i> Comunicados e Información Importante</h2>
                     <div id="gestorComunicadosList" style="display: flex; flex-direction: column; gap: 15px;">
                         <!-- Comunicados dinámicos irán aquí -->
@@ -684,7 +685,7 @@
                 </div>
 
                 <!-- Vista: Gestión de Comunicados (Admin) -->
-                <div id="view-gestion-comunicados" class="view-panel" style="display: none; padding: 20px;">
+                <div id="view-gestion-comunicados" class="view-panel" style="display: none; padding: 20px; overflow-y: auto; width: 100%; box-sizing: border-box; flex: 1;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <h2 class="panel-title" style="color: var(--warning);"><i class='bx bx-broadcast'></i> Gestión de Comunicados</h2>
                         <button class="btn btn-primary" onclick="openNewComunicadoModal()"><i class='bx bx-plus'></i> Nuevo Comunicado</button>
