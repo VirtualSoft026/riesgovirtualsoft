@@ -3697,7 +3697,7 @@ async function calcularIndicadores() {
             snapshotActive = await database.ref('active_sessions').once('value');
         } else {
             snapshotReports = await database.ref('shift_reports').orderByChild('gestor').equalTo(gestorName).once('value');
-            snapshotActive = await database.ref('active_sessions').orderByChild('gestor').equalTo(gestorName).once('value');
+            snapshotActive = await database.ref('active_sessions').orderByChild('name').equalTo(gestorName).once('value');
         }
         
         if (snapshotReports.exists()) {
@@ -3707,7 +3707,13 @@ async function calcularIndicadores() {
         
         if (snapshotActive.exists()) {
             const data = snapshotActive.val();
-            shiftReports = shiftReports.concat(Object.values(data));
+            // Normalizar active_sessions para que coincida con el formato de shift_reports
+            const activeArr = Object.values(data).map(session => ({
+                ...session,
+                gestor: session.name, // Asegurar que exista el campo gestor
+                timestamp: typeof session.loginTime === 'string' ? new Date(session.loginTime).getTime() : session.loginTime
+            }));
+            shiftReports = shiftReports.concat(activeArr);
         }
     } catch(e) {
         console.error("Error cargando shift reports para KPIs", e);
@@ -3722,29 +3728,35 @@ async function calcularIndicadores() {
     // Filtro por fecha
     const now = Date.now();
     
+    const getTimestamp = (r) => {
+        let t = r.timestamp || r.loginTime;
+        if (typeof t === 'string') return new Date(t).getTime();
+        return t;
+    };
+    
     if (periodo === 'hoy') {
         const hoyStart = new Date().setHours(0,0,0,0);
-        shiftReports = shiftReports.filter(r => { const t = r.timestamp || r.loginTime; return t && t >= hoyStart; });
+        shiftReports = shiftReports.filter(r => { const t = getTimestamp(r); return t && t >= hoyStart; });
     } else if (periodo === 'ayer') {
         const hoyStart = new Date().setHours(0,0,0,0);
         const ayerStart = hoyStart - (24 * 60 * 60 * 1000);
-        shiftReports = shiftReports.filter(r => { const t = r.timestamp || r.loginTime; return t && t >= ayerStart && t < hoyStart; });
+        shiftReports = shiftReports.filter(r => { const t = getTimestamp(r); return t && t >= ayerStart && t < hoyStart; });
     } else if (periodo === 'semanal') {
         const unaSemanaAtras = now - (7 * 24 * 60 * 60 * 1000);
-        shiftReports = shiftReports.filter(r => { const t = r.timestamp || r.loginTime; return t && t >= unaSemanaAtras; });
+        shiftReports = shiftReports.filter(r => { const t = getTimestamp(r); return t && t >= unaSemanaAtras; });
     } else if (periodo === '30dias') {
         const unMesAtras = now - (30 * 24 * 60 * 60 * 1000);
-        shiftReports = shiftReports.filter(r => { const t = r.timestamp || r.loginTime; return t && t >= unMesAtras; });
+        shiftReports = shiftReports.filter(r => { const t = getTimestamp(r); return t && t >= unMesAtras; });
     } else if (periodo === 'mes') {
         const esteMesStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
-        shiftReports = shiftReports.filter(r => { const t = r.timestamp || r.loginTime; return t && t >= esteMesStart; });
+        shiftReports = shiftReports.filter(r => { const t = getTimestamp(r); return t && t >= esteMesStart; });
     } else if (periodo === 'custom') {
         const customDateStr = document.getElementById('kpiCustomDateInput').value;
         if (customDateStr) {
             const parts = customDateStr.split('-');
             const customStart = new Date(parts[0], parts[1]-1, parts[2]).getTime();
             const customEnd = customStart + 86400000;
-            shiftReports = shiftReports.filter(r => { const t = r.timestamp || r.loginTime; return t && t >= customStart && t < customEnd; });
+            shiftReports = shiftReports.filter(r => { const t = getTimestamp(r); return t && t >= customStart && t < customEnd; });
         } else {
             alert("Por favor selecciona una fecha específica en el calendario.");
             return;
