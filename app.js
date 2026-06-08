@@ -202,21 +202,30 @@ function normalizeName(name) {
     return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 }
 
-// Robust comparison: checks if all words of one name are present in the other
+// Robust comparison to prevent greedy matching across similar names
 function namesMatch(name1, name2) {
     if (!name1 || !name2) return false;
-    const n1 = normalizeName(name1);
-    const n2 = normalizeName(name2);
+    let parts1 = normalizeName(name1).split(' ').filter(p => p.length > 2);
+    let parts2 = normalizeName(name2).split(' ').filter(p => p.length > 2);
     
-    // Split into words and filter out very short ones (like 'de', 'la')
-    const words1 = n1.split(/\s+/).filter(w => w.length > 2);
-    const words2 = n2.split(/\s+/).filter(w => w.length > 2);
-    
-    if (words1.length === 0 || words2.length === 0) return n1.includes(n2) || n2.includes(n1);
+    if (parts1.length === 0) return false;
 
-    // Check if all words of the shorter name are in the longer name
-    const [shorter, longer] = words1.length <= words2.length ? [words1, n2] : [words2, n1];
-    return shorter.every(word => longer.includes(word));
+    // Si name1 tiene varias palabras (Ej: "Sebastian Arango"), Name2 debe tenerlas TODAS.
+    if (parts1.length > 1) {
+        return parts1.every(p => parts2.includes(p));
+    }
+    
+    // Si name1 es una sola palabra ("Daniel", "Alejandra"):
+    const p1 = parts1[0];
+    
+    // Prevenir que Josue (Josue Daniel) herede las tareas de Daniel
+    if (p1 === 'daniel' && parts2.includes('josue')) return false;
+    
+    // Si la única palabra de name1 coincide con el primer nombre de name2, es un match seguro (Ej: "Daniel" -> "Daniel Felipe")
+    if (parts2[0] === p1) return true;
+    
+    // De lo contrario, permitimos que coincida con un segundo nombre (ej: "Alejandra" en "Marilyn Alejandra")
+    return parts2.includes(p1);
 }
 
 // Helpers for date calculations in schedules
