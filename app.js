@@ -202,30 +202,33 @@ function normalizeName(name) {
     return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 }
 
-// Robust comparison to prevent greedy matching across similar names
+// Robust comparison to prevent greedy matching across similar names and support both parameter orders
 function namesMatch(name1, name2) {
     if (!name1 || !name2) return false;
     let parts1 = normalizeName(name1).split(' ').filter(p => p.length > 2);
     let parts2 = normalizeName(name2).split(' ').filter(p => p.length > 2);
     
-    if (parts1.length === 0) return false;
+    if (parts1.length === 0 || parts2.length === 0) return false;
 
-    // Si name1 tiene varias palabras (Ej: "Sebastian Arango"), Name2 debe tenerlas TODAS.
-    if (parts1.length > 1) {
-        return parts1.every(p => parts2.includes(p));
+    // Identificar cuál es el nombre corto y cuál es el largo
+    const [shorter, longer] = parts1.length <= parts2.length ? [parts1, parts2] : [parts2, parts1];
+
+    // Si el nombre corto tiene varias palabras (Ej: "Sebastian Arango"), el largo debe tenerlas TODAS.
+    if (shorter.length > 1) {
+        return shorter.every(p => longer.includes(p));
     }
     
-    // Si name1 es una sola palabra ("Daniel", "Alejandra"):
-    const p1 = parts1[0];
+    // Si el nombre corto es una sola palabra ("Daniel", "Alejandra"):
+    const pShort = shorter[0];
     
-    // Prevenir que Josue (Josue Daniel) herede las tareas de Daniel
-    if (p1 === 'daniel' && parts2.includes('josue')) return false;
+    // Prevenir que Josue (Josue Daniel) herede lo de Daniel
+    if (pShort === 'daniel' && longer.includes('josue')) return false;
     
-    // Si la única palabra de name1 coincide con el primer nombre de name2, es un match seguro (Ej: "Daniel" -> "Daniel Felipe")
-    if (parts2[0] === p1) return true;
+    // Si la única palabra del corto coincide con la primera palabra del largo, es un match seguro
+    if (longer[0] === pShort) return true;
     
-    // De lo contrario, permitimos que coincida con un segundo nombre (ej: "Alejandra" en "Marilyn Alejandra")
-    return parts2.includes(p1);
+    // De lo contrario, permitimos coincidencia si está en otra parte (ej: "Alejandra" en "Marilyn Alejandra")
+    return longer.includes(pShort);
 }
 
 // Helpers for date calculations in schedules
