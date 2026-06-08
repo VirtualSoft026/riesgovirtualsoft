@@ -580,8 +580,17 @@ function getShiftForDate(rows, allScheduleBlocks, gestorName, date) {
         const dateRow = rows[block.startRow];
         for (let c = 1; c < dateRow.length; c++) {
             const serial = dateRow[c];
-            if (serial && !isNaN(serial)) {
-                const cellDate = excelToJSDate(serial);
+            if (serial) {
+                let cellDate = null;
+                if (!isNaN(serial)) {
+                    cellDate = excelToJSDate(serial);
+                } else if (typeof serial === 'string' && (serial.includes('-') || serial.includes('/'))) {
+                    const parsed = new Date(serial);
+                    if (!isNaN(parsed.getTime())) {
+                        cellDate = parsed;
+                    }
+                }
+                
                 if (cellDate && isSameDate(cellDate, date)) {
                     targetBlock = block;
                     targetColIndex = c;
@@ -827,14 +836,26 @@ async function loadSchedule() {
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
         
-        // Función helper para parsear fechas de Excel a JS
         function formatExcelDate(serial) {
-            if(!serial || isNaN(serial)) return "";
-            // Usar UTC para evitar problemas de zonas horarias e historia de DST
-            const epochUTC = Date.UTC(1899, 11, 30);
-            const d = new Date(epochUTC + serial * 86400000);
+            if(!serial) return "";
             const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-            return `${d.getUTCDate()} ${monthNames[d.getUTCMonth()]}`;
+            
+            // Si ya es un string que parece fecha (ej: "2026-06-08" o "2026-06-08T00:00...")
+            if (typeof serial === 'string' && (serial.includes('-') || serial.includes('/'))) {
+                const d = new Date(serial);
+                if (!isNaN(d.getTime())) {
+                    return `${d.getUTCDate()} ${monthNames[d.getUTCMonth()]}`;
+                }
+            }
+            
+            // Si es un número (serial de Excel)
+            if (!isNaN(serial)) {
+                const epochUTC = Date.UTC(1899, 11, 30);
+                const d = new Date(epochUTC + parseFloat(serial) * 86400000);
+                return `${d.getUTCDate()} ${monthNames[d.getUTCMonth()]}`;
+            }
+            
+            return "";
         }
         
         let allScheduleBlocks = [];
@@ -882,8 +903,17 @@ async function loadSchedule() {
                 const dateRow = rows[block.startRow];
                 for (let c = 1; c < dateRow.length; c++) {
                     const serial = dateRow[c];
-                    if (serial && !isNaN(serial)) {
-                        const cellDate = excelToJSDate(serial);
+                    if (serial) {
+                        let cellDate = null;
+                        if (!isNaN(serial)) {
+                            cellDate = excelToJSDate(serial);
+                        } else if (typeof serial === 'string' && (serial.includes('-') || serial.includes('/'))) {
+                            const parsed = new Date(serial);
+                            if (!isNaN(parsed.getTime())) {
+                                cellDate = parsed;
+                            }
+                        }
+                        
                         if (cellDate && isSameDate(cellDate, today)) {
                             defaultBlockRow = block.startRow;
                             break;
