@@ -3461,10 +3461,24 @@ function viewTimelineInMonitoreo(uid) {
         tbody.innerHTML = '';
         
         // Filter out very short glitches (under 60 seconds) that have already ended
-        const validTimeline = timeline.filter(ev => {
+        let validTimeline = timeline.filter(ev => {
             if (ev.end && (ev.end - ev.start) < 60000) return false;
             return true;
         });
+
+        // Inyectar dinámicamente el bloque de inactividad actual si el gestor perdió conexión (PC suspendido)
+        const lastPing = session.lastActive ? new Date(session.lastActive).getTime() : 0;
+        const now = Date.now();
+        if (lastPing && (now - lastPing) > 120000) { // más de 2 minutos sin dar señal
+            const hasOngoingInactividad = validTimeline.some(ev => ev.type === 'Inactividad' && !ev.end);
+            if (!hasOngoingInactividad) {
+                validTimeline.push({
+                    type: 'Inactividad',
+                    start: lastPing,
+                    end: null // En curso
+                });
+            }
+        }
 
         if (validTimeline.length === 0) {
             tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-secondary);">No hay pausas ni inactividades registradas en este turno.</td></tr>';
