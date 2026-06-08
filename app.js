@@ -3475,10 +3475,10 @@ function viewTimelineInMonitoreo(uid) {
             return true;
         });
 
-        // Inyectar dinámicamente el bloque de inactividad actual si el gestor perdió conexión (PC suspendido)
+        // Inyectar dinámicamente el bloque de inactividad actual si el gestor perdió conexión (PC suspendido) y no está en pausa
         const lastPing = session.lastActive ? new Date(session.lastActive).getTime() : 0;
         const now = Date.now();
-        if (lastPing && (now - lastPing) > 120000) { // más de 2 minutos sin dar señal
+        if (lastPing && (now - lastPing) > 120000 && session.status !== 'En Almuerzo' && session.status !== 'En Desayuno') { // más de 2 minutos sin dar señal y no está en break
             const hasOngoingInactividad = validTimeline.some(ev => ev.type === 'Inactividad' && !ev.end);
             if (!hasOngoingInactividad) {
                 validTimeline.push({
