@@ -144,14 +144,6 @@ document.addEventListener('visibilitychange', () => {
 });
 
 try {
-    // TEMPORARY LOCAL CLEANUP: Remove false 'Inactividad' from localStorage so gestores don't re-upload it
-    let localTimeline = JSON.parse(localStorage.getItem('riskOps_timeline')) || [];
-    let initialLength = localTimeline.length;
-    localTimeline = localTimeline.filter(ev => ev.type !== 'Inactividad');
-    if (localTimeline.length !== initialLength) {
-        localStorage.setItem('riskOps_timeline', JSON.stringify(localTimeline));
-    }
-    
     currentUser = currentUserObj ? JSON.parse(currentUserObj) : null;
     if (currentUser) {
         if (currentUser.loginLogId) {
@@ -163,11 +155,8 @@ try {
             });
         }
         if (currentUser.uid && currentUser.role === 'Gestor') {
-            // Keep the session alive for the admin to review times, but mark it as Desconectado
-            database.ref(`active_sessions/${currentUser.uid}`).onDisconnect().update({
-                status: 'Desconectado',
-                lastActive: firebase.database.ServerValue.TIMESTAMP
-            });
+            // We removed the aggressive onDisconnect hook because it was triggering falsely when Chrome paused the background tab
+            // The admin dashboard's 2-minute lastActive timeout serves as a perfect fallback if the user actually closes the tab
         }
     }
     
@@ -1305,7 +1294,7 @@ function syncActiveSessionToFirebase() {
         }
         localStatus = currentStatus;
         
-        sessionRef.set({
+        const payload = {
             name: currentUser.name,
             email: currentUser.email,
             shift: currentUser.shift || 'Por Asignar',
@@ -1317,7 +1306,12 @@ function syncActiveSessionToFirebase() {
             percentage: percentage,
             tasks: taskStateCache || {},
             timeline: shiftTimeline || []
-        }).catch(e => console.error("Error syncing active session to Firebase:", e));
+        };
+        
+        fetch(`https://riskops-75637-default-rtdb.firebaseio.com/active_sessions/${currentUser.uid}.json`, {
+            method: 'PUT',
+            body: JSON.stringify(payload)
+        }).catch(e => console.error("Error syncing active session via REST:", e));
     }).catch(e => console.error("Error reading session from Firebase:", e));
 }
 
