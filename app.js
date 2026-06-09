@@ -1230,7 +1230,7 @@ function syncActiveSessionToFirebase() {
     // Read existing session first to preserve the original loginTime.
     // Using update() instead of set() so we only overwrite what we need.
     // For loginTime: only write it if the node doesn't have one yet (first login of the day).
-    fetch(`https://riskops-75637-default-rtdb.firebaseio.com/active_sessions/${uid}.json`)
+    fetch(`https://riskops-75637-default-rtdb.firebaseio.com/active_sessions/${uid}.json`, { cache: 'no-store' })
     .then(res => res.json())
     .then(existing => {
         
@@ -1592,8 +1592,8 @@ async function initApp() {
                 }, 30000);
             `;
             const blob = new Blob([workerCode], {type: 'application/javascript'});
-            const pingWorker = new Worker(URL.createObjectURL(blob));
-            pingWorker.onmessage = () => {
+            window.pingWorker = new Worker(URL.createObjectURL(blob));
+            window.pingWorker.onmessage = () => {
                 syncActiveSessionToFirebase();
             };
         }
