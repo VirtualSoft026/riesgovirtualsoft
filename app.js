@@ -1590,7 +1590,18 @@ async function initApp() {
 
         if (currentUser.role === 'Gestor') {
             syncActiveSessionToFirebase();
-            setInterval(syncActiveSessionToFirebase, 30000);
+            
+            // Use a Web Worker to ensure the 30s ping is NOT throttled by Chrome when the tab is in the background
+            const workerCode = `
+                setInterval(() => {
+                    postMessage('ping');
+                }, 30000);
+            `;
+            const blob = new Blob([workerCode], {type: 'application/javascript'});
+            const pingWorker = new Worker(URL.createObjectURL(blob));
+            pingWorker.onmessage = () => {
+                syncActiveSessionToFirebase();
+            };
         }
 
         // Setup programmatical sidebar ordering for roles
