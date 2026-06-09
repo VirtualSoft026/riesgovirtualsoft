@@ -1227,13 +1227,12 @@ function syncActiveSessionToFirebase() {
         percentage = Math.round((finalized / totalTasks) * 100);
     }
 
-    const sessionRef = database.ref('active_sessions/' + uid);
-    
     // Read existing session first to preserve the original loginTime.
     // Using update() instead of set() so we only overwrite what we need.
     // For loginTime: only write it if the node doesn't have one yet (first login of the day).
-    sessionRef.once('value').then(snap => {
-        const existing = snap.val();
+    fetch(`https://riskops-75637-default-rtdb.firebaseio.com/active_sessions/${uid}.json`)
+    .then(res => res.json())
+    .then(existing => {
         
         let existingLoginTime = (existing && existing.loginTime) ? existing.loginTime : null;
         if (existingLoginTime && !isSameDay(new Date(existingLoginTime), new Date())) {
