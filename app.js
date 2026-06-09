@@ -162,8 +162,8 @@ try {
                 logoutTime: firebase.database.ServerValue.TIMESTAMP
             });
         }
-        if (currentUser.uid) {
-            // Keep the session alive for the admin to review times, but mark it as Disconectado
+        if (currentUser.uid && currentUser.role === 'Gestor') {
+            // Keep the session alive for the admin to review times, but mark it as Desconectado
             database.ref(`active_sessions/${currentUser.uid}`).onDisconnect().update({
                 status: 'Desconectado',
                 lastActive: firebase.database.ServerValue.TIMESTAMP
@@ -3250,7 +3250,7 @@ function renderActiveSessionsDashboard() {
     // Filtering active sessions
     let filteredUids = uids.filter(uid => {
         const session = allActiveSessions[uid];
-        if (!session) return false;
+        if (!session || !session.name) return false;
         
         const fullName = (session.name || '').trim();
         const email = (session.email || '');
