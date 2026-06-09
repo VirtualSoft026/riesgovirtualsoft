@@ -159,10 +159,10 @@ try {
             // The admin dashboard's 2-minute lastActive timeout serves as a perfect fallback if the user actually closes the tab
             
             // --- PATCH MARILYN 8:14 INACTIVITY ---
-            if (currentUser.uid === 'ATOXW8JKRNUdoy3wPlk1lI9zpTh2' && !localStorage.getItem('inactividad_restored_v105')) {
+            if (currentUser.uid === 'ATOXW8JKRNUdoy3wPlk1lI9zpTh2' && !localStorage.getItem('inactividad_restored_v106')) {
                 let t = JSON.parse(localStorage.getItem('riskOps_timeline')) || [];
                 let todayStart = new Date();
-                todayStart.setHours(7, 30, 0, 0);
+                todayStart.setHours(7, 58, 0, 0);
                 let todayEnd = new Date();
                 todayEnd.setHours(8, 14, 0, 0);
                 // Prepend the missing inactivity event if it isn't already there
@@ -171,7 +171,7 @@ try {
                     localStorage.setItem('riskOps_timeline', JSON.stringify(t));
                     shiftTimeline = t;
                 }
-                localStorage.setItem('inactividad_restored_v105', 'true');
+                localStorage.setItem('inactividad_restored_v106', 'true');
             }
             // -------------------------------------
         }
