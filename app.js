@@ -1227,92 +1227,68 @@ function syncActiveSessionToFirebase() {
         percentage = Math.round((finalized / totalTasks) * 100);
     }
 
-    // Read existing session first to preserve the original loginTime.
-    // Using update() instead of set() so we only overwrite what we need.
-    // For loginTime: only write it if the node doesn't have one yet (first login of the day).
-    fetch(`https://riskops-75637-default-rtdb.firebaseio.com/active_sessions/${uid}.json`, { cache: 'no-store' })
-    .then(res => res.json())
-    .then(existing => {
-        
-        let existingLoginTime = (existing && existing.loginTime) ? existing.loginTime : null;
-        if (existingLoginTime && !isSameDay(new Date(existingLoginTime), new Date())) {
-            existingLoginTime = null; // New day, ignore old Firebase session
-        }
-        
-        // Preserve the loginTime from Firebase if it's from today, otherwise use the new one
-        const loginTime = existingLoginTime || (currentUser.loginTime || new Date().toISOString());
-        
-        // --- INACTIVITY LOGIC ---
-        
-        // --- DETECT TIME JUMPS (OS SUSPENSION / SLEEP) ---
-        let nowMs = Date.now();
-        let loopDelta = nowMs - lastSyncLoopTimestamp;
-        lastSyncLoopTimestamp = nowMs;
-        
-        // If the 30s interval took more than 3 minutes to execute, the PC went to sleep or the browser was totally suspended.
-        if (loopDelta > (3 * 60 * 1000)) {
-            // Register an inactivity block for the exact missing time
-            shiftTimeline.push({ type: 'Inactividad', start: nowMs - loopDelta, end: nowMs });
-            localStorage.setItem('riskOps_timeline', JSON.stringify(shiftTimeline));
-        }
+    // Use local currentUser.loginTime, avoiding any database reads that could hang
+    const loginTime = currentUser.loginTime || new Date().toISOString();
+    
+    // --- INACTIVITY LOGIC ---
+    let nowMs = Date.now();
+    let loopDelta = nowMs - lastSyncLoopTimestamp;
+    lastSyncLoopTimestamp = nowMs;
+    
+    if (loopDelta > (3 * 60 * 1000)) {
+        shiftTimeline.push({ type: 'Inactividad', start: nowMs - loopDelta, end: nowMs });
+        localStorage.setItem('riskOps_timeline', JSON.stringify(shiftTimeline));
+    }
 
-        let newLastActive = Date.now();
-        let currentStatus = existing ? existing.status : 'Activo';
-        
-        const timeSinceLastActivity = Date.now() - lastLocalActivityTimestamp;
-        const isDomIdle = timeSinceLastActivity > (5 * 60 * 1000); // 5 minutes local DOM idle
-        const isPageVisible = document.visibilityState === 'visible';
-        
-        let isInactive = false;
-        if (globalIdleState) {
-            isInactive = true; // PC is locked or idle globally (via IdleDetector)
-        } else if (isDomIdle && isPageVisible) {
-            isInactive = true; // Left the tab open and walked away
-        } else if (isDomIdle && !isPageVisible) {
-            isInactive = false; // Tab is hidden, they are probably working in Jira/Email
-        }
-        
-        if (isLunchBreak) {
-            newLastActive = (existing && existing.lastActive) ? existing.lastActive : Date.now();
-            currentStatus = 'En Almuerzo';
-        } else if (isBreakfastBreak) {
-            newLastActive = (existing && existing.lastActive) ? existing.lastActive : Date.now();
-            currentStatus = 'En Desayuno';
-        } else if (isInactive) {
-            newLastActive = (existing && existing.lastActive) ? existing.lastActive : Date.now();
-            currentStatus = 'Inactivo';
-        } else {
-            currentStatus = 'En Línea';
-        }
-        
-        // Timeline transitions for Inactivity
-        if (currentStatus === 'Inactivo' && localStatus !== 'Inactivo') {
-            pushTimelineEvent('Inactividad', 'start');
-        } else if (currentStatus !== 'Inactivo' && localStatus === 'Inactivo') {
-            pushTimelineEvent('Inactividad', 'end');
-        }
-        localStatus = currentStatus;
-        
-        const payload = {
-            name: currentUser.name,
-            email: currentUser.email,
-            shift: currentUser.shift || 'Por Asignar',
-            loginTime: loginTime,
-            lastActive: newLastActive,
-            status: currentStatus,
-            totalTasks: totalTasks,
-            finalizedTasks: finalized,
-            percentage: percentage,
-            tasks: taskStateCache || {},
-            timeline: shiftTimeline || [],
-            appVersion: 'v102'
-        };
-        
-        fetch(`https://riskops-75637-default-rtdb.firebaseio.com/active_sessions/${currentUser.uid}.json`, {
-            method: 'PUT',
-            body: JSON.stringify(payload)
-        }).catch(e => console.error("Error syncing active session via REST:", e));
-    }).catch(e => console.error("Error reading session from Firebase:", e));
+    let newLastActive = Date.now();
+    let currentStatus = 'Activo';
+    
+    const timeSinceLastActivity = Date.now() - lastLocalActivityTimestamp;
+    const isDomIdle = timeSinceLastActivity > (5 * 60 * 1000);
+    const isPageVisible = document.visibilityState === 'visible';
+    
+    let isInactive = false;
+    if (globalIdleState) {
+        isInactive = true;
+    } else if (isDomIdle && isPageVisible) {
+        isInactive = true;
+    } else if (isDomIdle && !isPageVisible) {
+        isInactive = false;
+    }
+    
+    if (isLunchBreak) {
+        currentStatus = 'En Almuerzo';
+    } else if (isBreakfastBreak) {
+        currentStatus = 'En Desayuno';
+    } else if (isInactive) {
+        currentStatus = 'Inactivo';
+    } else {
+        currentStatus = 'En Línea';
+    }
+    
+    if (currentStatus === 'Inactivo' && localStatus !== 'Inactivo') {
+        pushTimelineEvent('Inactividad', 'start');
+    } else if (currentStatus !== 'Inactivo' && localStatus === 'Inactivo') {
+        pushTimelineEvent('Inactividad', 'end');
+    }
+    localStatus = currentStatus;
+    
+    const payload = {
+        name: currentUser.name,
+        email: currentUser.email,
+        shift: currentUser.shift || 'Por Asignar',
+        loginTime: loginTime,
+        lastActive: newLastActive,
+        status: currentStatus,
+        totalTasks: totalTasks,
+        finalizedTasks: finalized,
+        percentage: percentage,
+        tasks: taskStateCache || {},
+        timeline: shiftTimeline || [],
+        appVersion: 'v104'
+    };
+    
+    database.ref(`active_sessions/${uid}`).update(payload).catch(e => console.error("Error syncing active session via SDK:", e));
 }
 
 function updateKPI() {
