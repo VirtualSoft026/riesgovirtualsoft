@@ -1304,7 +1304,8 @@ function syncActiveSessionToFirebase() {
             finalizedTasks: finalized,
             percentage: percentage,
             tasks: taskStateCache || {},
-            timeline: shiftTimeline || []
+            timeline: shiftTimeline || [],
+            appVersion: 'v102'
         };
         
         fetch(`https://riskops-75637-default-rtdb.firebaseio.com/active_sessions/${currentUser.uid}.json`, {
