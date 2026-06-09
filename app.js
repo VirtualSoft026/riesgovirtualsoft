@@ -157,6 +157,23 @@ try {
         if (currentUser.uid && currentUser.role === 'Gestor') {
             // We removed the aggressive onDisconnect hook because it was triggering falsely when Chrome paused the background tab
             // The admin dashboard's 2-minute lastActive timeout serves as a perfect fallback if the user actually closes the tab
+            
+            // --- PATCH MARILYN 8:14 INACTIVITY ---
+            if (currentUser.uid === 'ATOXW8JKRNUdoy3wPlk1lI9zpTh2' && !localStorage.getItem('inactividad_restored_v105')) {
+                let t = JSON.parse(localStorage.getItem('riskOps_timeline')) || [];
+                let todayStart = new Date();
+                todayStart.setHours(7, 30, 0, 0);
+                let todayEnd = new Date();
+                todayEnd.setHours(8, 14, 0, 0);
+                // Prepend the missing inactivity event if it isn't already there
+                if (!t.some(ev => ev.type === 'Inactividad' && ev.start === todayStart.getTime())) {
+                    t.unshift({ type: 'Inactividad', start: todayStart.getTime(), end: todayEnd.getTime() });
+                    localStorage.setItem('riskOps_timeline', JSON.stringify(t));
+                    shiftTimeline = t;
+                }
+                localStorage.setItem('inactividad_restored_v105', 'true');
+            }
+            // -------------------------------------
         }
     }
     
