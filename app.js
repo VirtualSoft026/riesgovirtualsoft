@@ -3456,58 +3456,54 @@ function viewTimelineInMonitoreo(uid) {
     document.getElementById('timelineModalName').innerText = session.name || 'Gestor';
     
     const timeline = session.timeline || [];
-    if (timeline.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center;">No hay pausas ni inactividades registradas en este turno.</td></tr>';
-    } else {
-        tbody.innerHTML = '';
-        
-        // Filter out very short glitches (under 60 seconds) that have already ended
-        let validTimeline = timeline.filter(ev => {
-            if (ev.end && (ev.end - ev.start) < 60000) return false;
-            return true;
-        });
+    tbody.innerHTML = '';
+    
+    // Filter out very short glitches (under 60 seconds) that have already ended
+    let validTimeline = timeline.filter(ev => {
+        if (ev.end && (ev.end - ev.start) < 60000) return false;
+        return true;
+    });
 
-        // Inyectar dinámicamente el bloque de inactividad actual si el gestor perdió conexión (PC suspendido) y no está en pausa
-        const lastPing = session.lastActive ? new Date(session.lastActive).getTime() : 0;
-        const now = Date.now();
-        if (lastPing && (now - lastPing) > 120000 && session.status !== 'En Almuerzo' && session.status !== 'En Desayuno') { // más de 2 minutos sin dar señal y no está en break
-            const hasOngoingInactividad = validTimeline.some(ev => ev.type === 'Inactividad' && !ev.end);
-            if (!hasOngoingInactividad) {
-                validTimeline.push({
-                    type: 'Inactividad',
-                    start: lastPing,
-                    end: null // En curso
-                });
-            }
-        }
-
-        if (validTimeline.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-secondary);">No hay pausas ni inactividades registradas en este turno.</td></tr>';
-        } else {
-            validTimeline.forEach(ev => {
-                const s = new Date(ev.start).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'});
-                let eTime = "No regresó";
-                let durationStr = "En curso...";
-                if (ev.end) {
-                    eTime = new Date(ev.end).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'});
-                    const mins = Math.max(1, Math.round((ev.end - ev.start) / 60000));
-                    durationStr = `${mins} min`;
-                }
-                
-                let icon = "<i class='bx bx-time'></i>";
-                if (ev.type === 'Almuerzo') icon = "<i class='bx bx-restaurant' style='color: var(--success)'></i>";
-                if (ev.type === 'Desayuno') icon = "<i class='bx bx-coffee' style='color: var(--warning)'></i>";
-                if (ev.type === 'Inactividad') icon = "<i class='bx bx-sleepy' style='color: var(--danger)'></i>";
-
-                tbody.innerHTML += `
-                    <tr style="border-bottom: 1px solid var(--glass-border);">
-                        <td style="padding: 10px; font-weight: 500;">${icon} ${ev.type}</td>
-                        <td style="padding: 10px; font-size: 13px;">${s} - ${eTime}</td>
-                        <td style="padding: 10px; text-align: center;"><span class="badge" style="background: rgba(255,255,255,0.05);">${durationStr}</span></td>
-                    </tr>
-                `;
+    // Inyectar dinámicamente el bloque de inactividad actual si el gestor perdió conexión (PC suspendido) y no está en pausa
+    const lastPing = session.lastActive ? new Date(session.lastActive).getTime() : 0;
+    const now = Date.now();
+    if (lastPing && (now - lastPing) > 120000 && session.status !== 'En Almuerzo' && session.status !== 'En Desayuno') { // más de 2 minutos sin dar señal y no está en break
+        const hasOngoingInactividad = validTimeline.some(ev => ev.type === 'Inactividad' && !ev.end);
+        if (!hasOngoingInactividad) {
+            validTimeline.push({
+                type: 'Inactividad',
+                start: lastPing,
+                end: null // En curso
             });
         }
+    }
+
+    if (validTimeline.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-secondary);">No hay pausas ni inactividades registradas en este turno.</td></tr>';
+    } else {
+        validTimeline.forEach(ev => {
+            const s = new Date(ev.start).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'});
+            let eTime = "No regresó";
+            let durationStr = "En curso...";
+            if (ev.end) {
+                eTime = new Date(ev.end).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'});
+                const mins = Math.max(1, Math.round((ev.end - ev.start) / 60000));
+                durationStr = `${mins} min`;
+            }
+            
+            let icon = "<i class='bx bx-time'></i>";
+            if (ev.type === 'Almuerzo') icon = "<i class='bx bx-restaurant' style='color: var(--success)'></i>";
+            if (ev.type === 'Desayuno') icon = "<i class='bx bx-coffee' style='color: var(--warning)'></i>";
+            if (ev.type === 'Inactividad') icon = "<i class='bx bx-sleepy' style='color: var(--danger)'></i>";
+
+            tbody.innerHTML += `
+                <tr style="border-bottom: 1px solid var(--glass-border);">
+                    <td style="padding: 10px; font-weight: 500;">${icon} ${ev.type}</td>
+                    <td style="padding: 10px; font-size: 13px;">${s} - ${eTime}</td>
+                    <td style="padding: 10px; text-align: center;"><span class="badge" style="background: rgba(255,255,255,0.05);">${durationStr}</span></td>
+                </tr>
+            `;
+        });
     }
     
     modal.classList.add('active');
