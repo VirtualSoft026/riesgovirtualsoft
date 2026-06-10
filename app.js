@@ -173,6 +173,17 @@ try {
                 }
                 localStorage.setItem('inactividad_restored_v106', 'true');
             }
+            
+            // --- PATCH MARILYN LOGIN TIME (JUNE 10) ---
+            if (currentUser.uid === 'ATOXW8JKRNUdoy3wPlk1lI9zpTh2' && !localStorage.getItem('login_restored_v107')) {
+                let d = new Date();
+                if (d.getDate() === 10 && d.getMonth() === 5 && d.getFullYear() === 2026) {
+                    d.setHours(8, 0, 0, 0); // 8:00 AM
+                    currentUser.loginTime = d.toISOString();
+                    localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
+                    localStorage.setItem('login_restored_v107', 'true');
+                }
+            }
             // -------------------------------------
         }
     }
