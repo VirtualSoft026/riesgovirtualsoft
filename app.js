@@ -2125,9 +2125,10 @@ function toggleBreakfastBreak() {
         if(btn) {
             btn.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Desayuno";
             btn.classList.remove('btn-outline');
-            btn.classList.add('btn-warning');
-            btn.style.color = "white";
-            btn.style.borderColor = "transparent";
+            btn.style.backgroundColor = "rgba(255, 152, 0, 0.15)";
+            btn.style.color = "#ff9800";
+            btn.style.borderColor = "rgba(255, 152, 0, 0.5)";
+            btn.style.boxShadow = "0 0 15px rgba(255, 152, 0, 0.2)";
         }
         syncActiveSessionToFirebase();
     } else {
@@ -2141,9 +2142,10 @@ function toggleBreakfastBreak() {
         if(btn) {
             btn.innerHTML = "<i class='bx bx-coffee'></i> Tomar Desayuno";
             btn.classList.add('btn-outline');
-            btn.classList.remove('btn-warning');
+            btn.style.backgroundColor = "";
             btn.style.color = "var(--text-primary)";
             btn.style.borderColor = "rgba(255,255,255,0.2)";
+            btn.style.boxShadow = "";
         }
         updateActivity();
         syncActiveSessionToFirebase();
@@ -2164,9 +2166,10 @@ function toggleLunchBreak() {
         if(btn) {
             btn.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Almuerzo";
             btn.classList.remove('btn-outline');
-            btn.classList.add('btn-success');
-            btn.style.color = "white";
-            btn.style.borderColor = "transparent";
+            btn.style.backgroundColor = "rgba(0, 188, 212, 0.15)";
+            btn.style.color = "#00bcd4";
+            btn.style.borderColor = "rgba(0, 188, 212, 0.5)";
+            btn.style.boxShadow = "0 0 15px rgba(0, 188, 212, 0.2)";
         }
         syncActiveSessionToFirebase();
     } else {
@@ -2180,9 +2183,10 @@ function toggleLunchBreak() {
         if(btn) {
             btn.innerHTML = "<i class='bx bx-restaurant'></i> Tomar Almuerzo";
             btn.classList.add('btn-outline');
-            btn.classList.remove('btn-success');
+            btn.style.backgroundColor = "";
             btn.style.color = "var(--text-primary)";
             btn.style.borderColor = "rgba(255,255,255,0.2)";
+            btn.style.boxShadow = "";
         }
         updateActivity();
         syncActiveSessionToFirebase();
@@ -4295,17 +4299,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnLunch && isLunchBreak) {
         btnLunch.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Almuerzo";
         btnLunch.classList.remove('btn-outline');
-        btnLunch.classList.add('btn-success');
-        btnLunch.style.color = "white";
-        btnLunch.style.borderColor = "transparent";
+        btnLunch.style.backgroundColor = "rgba(0, 188, 212, 0.15)";
+        btnLunch.style.color = "#00bcd4";
+        btnLunch.style.borderColor = "rgba(0, 188, 212, 0.5)";
+        btnLunch.style.boxShadow = "0 0 15px rgba(0, 188, 212, 0.2)";
     }
     const btnBreak = document.getElementById('toggleBreakfastBtn');
     if (btnBreak && isBreakfastBreak) {
         btnBreak.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Desayuno";
         btnBreak.classList.remove('btn-outline');
-        btnBreak.classList.add('btn-warning');
-        btnBreak.style.color = "white";
-        btnBreak.style.borderColor = "transparent";
+        btnBreak.style.backgroundColor = "rgba(255, 152, 0, 0.15)";
+        btnBreak.style.color = "#ff9800";
+        btnBreak.style.borderColor = "rgba(255, 152, 0, 0.5)";
+        btnBreak.style.boxShadow = "0 0 15px rgba(255, 152, 0, 0.2)";
     }
     
     const periodoSelect = document.getElementById('kpiPeriodoSelect');
