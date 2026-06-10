@@ -158,30 +158,21 @@ try {
             // We removed the aggressive onDisconnect hook because it was triggering falsely when Chrome paused the background tab
             // The admin dashboard's 2-minute lastActive timeout serves as a perfect fallback if the user actually closes the tab
             
-            // --- PATCH MARILYN 8:14 INACTIVITY ---
-            if (currentUser.uid === 'ATOXW8JKRNUdoy3wPlk1lI9zpTh2' && !localStorage.getItem('inactividad_restored_v106')) {
-                let t = JSON.parse(localStorage.getItem('riskOps_timeline')) || [];
-                let todayStart = new Date();
-                todayStart.setHours(7, 58, 0, 0);
-                let todayEnd = new Date();
-                todayEnd.setHours(8, 14, 0, 0);
-                // Prepend the missing inactivity event if it isn't already there
-                if (!t.some(ev => ev.type === 'Inactividad' && ev.start === todayStart.getTime())) {
-                    t.unshift({ type: 'Inactividad', start: todayStart.getTime(), end: todayEnd.getTime() });
-                    localStorage.setItem('riskOps_timeline', JSON.stringify(t));
-                    shiftTimeline = t;
-                }
-                localStorage.setItem('inactividad_restored_v106', 'true');
-            }
-            
             // --- PATCH MARILYN LOGIN TIME (JUNE 10) ---
-            if (currentUser.uid === 'ATOXW8JKRNUdoy3wPlk1lI9zpTh2' && !localStorage.getItem('login_restored_v107')) {
+            if (currentUser.uid === 'ATOXW8JKRNUdoy3wPlk1lI9zpTh2' && !localStorage.getItem('login_restored_v108')) {
                 let d = new Date();
                 if (d.getDate() === 10 && d.getMonth() === 5 && d.getFullYear() === 2026) {
-                    d.setHours(8, 0, 0, 0); // 8:00 AM
+                    d.setHours(8, 10, 32, 0); // 8:10:32 AM
                     currentUser.loginTime = d.toISOString();
                     localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
-                    localStorage.setItem('login_restored_v107', 'true');
+                    
+                    // Remove the fake 7:58 AM inactivity event that generated accidentally today
+                    let t = JSON.parse(localStorage.getItem('riskOps_timeline')) || [];
+                    t = t.filter(ev => !(ev.type === 'Inactividad' && new Date(ev.start).getHours() === 7 && new Date(ev.start).getMinutes() === 58));
+                    localStorage.setItem('riskOps_timeline', JSON.stringify(t));
+                    shiftTimeline = t;
+                    
+                    localStorage.setItem('login_restored_v108', 'true');
                 }
             }
             // -------------------------------------
