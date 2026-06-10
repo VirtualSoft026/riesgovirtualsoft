@@ -617,6 +617,7 @@ select.modern-input option { background-color: #ffffff; color: #000000; }
     padding: 3px 8px;
     border-radius: 12px;
     width: fit-content;
+    white-space: nowrap;
 }
 
 .status-online {
