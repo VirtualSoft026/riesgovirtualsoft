@@ -2164,7 +2164,7 @@ function toggleLunchBreak() {
         pushTimelineEvent('Almuerzo', 'start');
         saveBreakState();
         if(btn) {
-            btn.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Almuerzo";
+            btn.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Almuerzo/Cena";
             btn.classList.remove('btn-outline');
             btn.style.backgroundColor = "rgba(0, 188, 212, 0.15)";
             btn.style.color = "#00bcd4";
@@ -2181,7 +2181,7 @@ function toggleLunchBreak() {
         pushTimelineEvent('Almuerzo', 'end');
         saveBreakState();
         if(btn) {
-            btn.innerHTML = "<i class='bx bx-restaurant'></i> Tomar Almuerzo";
+            btn.innerHTML = "<i class='bx bx-restaurant'></i> Tomar Almuerzo/Cena";
             btn.classList.add('btn-outline');
             btn.style.backgroundColor = "";
             btn.style.color = "var(--text-primary)";
@@ -3312,8 +3312,8 @@ function renderActiveSessionsDashboard() {
         let statusDot = isOnline ? '<div class="pulse-dot"></div>' : '<div class="pulse-dot offline"></div>';
 
         if (session.status === 'En Almuerzo') {
-            statusBadge = '<span style="background: rgba(40,167,69,0.2); color: #28a745; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;"><i class="bx bx-restaurant"></i> Almuerzo</span>';
-            displayStatus = 'En Almuerzo 🍽️';
+            statusBadge = '<span style="background: rgba(40,167,69,0.2); color: #28a745; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;"><i class="bx bx-restaurant"></i> Almuerzo/Cena</span>';
+            displayStatus = 'En Almuerzo/Cena 🍽️';
             statusDot = '<div style="width: 8px; height: 8px; border-radius: 50%; background: #28a745; margin-right: 6px;"></div>';
         } else if (session.status === 'En Desayuno') {
             statusBadge = '<span style="background: rgba(255,193,7,0.2); color: #ffc107; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;"><i class="bx bx-coffee"></i> Desayuno</span>';
@@ -4297,7 +4297,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Restaurar botones de pausas
     const btnLunch = document.getElementById('toggleLunchBtn');
     if (btnLunch && isLunchBreak) {
-        btnLunch.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Almuerzo";
+        btnLunch.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Almuerzo/Cena";
         btnLunch.classList.remove('btn-outline');
         btnLunch.style.backgroundColor = "rgba(0, 188, 212, 0.15)";
         btnLunch.style.color = "#00bcd4";
