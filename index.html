@@ -25,6 +25,34 @@
         <p style="margin-top: 10px; font-size: 14px;">Por favor, ingresa desde tu PC o Laptop para continuar.</p>
     </div>
 
+    <!-- Browser Blocker -->
+    <div id="browserBlocker" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0B0E14; z-index: 99999; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; font-family: 'Inter', sans-serif;">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/e/e1/Google_Chrome_icon_%28February_2022%29.svg" alt="Chrome Logo" style="width: 100px; margin-bottom: 20px;">
+        <h2 style="font-size: 28px; margin-bottom: 15px; color: #F3F4F6;">Navegador No Compatible</h2>
+        <p style="font-size: 16px; color: #9CA3AF; max-width: 500px; line-height: 1.5;">Esta plataforma de monitoreo ha sido optimizada para funcionar <strong>estrictamente en Google Chrome</strong>.</p>
+        <p style="margin-top: 15px; font-size: 14px; color: #3B82F6;">Por favor, copia el enlace y ábrelo utilizando Google Chrome.</p>
+    </div>
+
+    <script>
+        (function checkBrowser() {
+            var ua = navigator.userAgent;
+            var isChrome = /Chrome/.test(ua) && /Google Inc/.test(navigator.vendor);
+            var isEdge = /Edg/.test(ua);
+            var isOpera = /OPR/.test(ua);
+            var isBrave = navigator.brave !== undefined;
+            
+            if (!isChrome || isEdge || isOpera) {
+                document.addEventListener('DOMContentLoaded', function() {
+                    document.getElementById('browserBlocker').style.display = 'flex';
+                    var app = document.querySelector('.app-container');
+                    if (app) app.style.display = 'none';
+                    var mob = document.getElementById('mobileBlocker');
+                    if (mob) mob.style.display = 'none';
+                });
+            }
+        })();
+    </script>
+
     <div class="app-container">
         <!-- Sidebar -->
         <aside class="sidebar glass-panel">
@@ -65,7 +93,7 @@
                     <i class='bx bx-log-out-circle'></i> Finalizar Turno
                 </button>
                 <div style="font-size: 13px; font-weight: 500; color: var(--text-secondary); text-align: center; margin-top: 15px; opacity: 0.8; letter-spacing: 0.5px;">
-                    Build: 11/06 09:35 (v111)
+                    Build: 11/06 09:50 (v112)
                 </div>
             </div>
         </aside>
