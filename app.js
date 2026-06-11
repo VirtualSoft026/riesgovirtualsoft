@@ -1391,10 +1391,12 @@ function syncActiveSessionToFirebase() {
     const isDomIdle = timeSinceLastActivity > idleThreshold;
     
     let isInactive = false;
-    if (globalIdleState) {
-        isInactive = true;
-    } else if (isDomIdle) {
-        isInactive = true;
+    if (window.idleDetectorGranted) {
+        isInactive = globalIdleState;
+    } else {
+        if (globalIdleState || isDomIdle) {
+            isInactive = true;
+        }
     }
     
     if (isLunchBreak) {
