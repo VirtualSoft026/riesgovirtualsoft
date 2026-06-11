@@ -416,8 +416,10 @@ a { text-decoration: none; color: inherit; }
 }
 
 .task-status { margin-left: auto; width: 10px; height: 10px; border-radius: 50%; }
-.status-pending { background: var(--pending); }
+.status-pending { background: var(--warning); box-shadow: 0 0 5px var(--warning); }
+.status-in-progress { background: var(--accent-primary); box-shadow: 0 0 8px var(--accent-primary); }
 .status-completed { background: var(--success); box-shadow: 0 0 8px var(--success); }
+.status-not-done { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
 
 /* Detail Panel */
 .detail-header { display: flex; justify-content: space-between; align-items: center; }

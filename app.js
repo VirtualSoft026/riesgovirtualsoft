@@ -1301,6 +1301,8 @@ function syncActiveSessionToFirebase() {
         status: currentStatus,
         totalTasks: totalTasks,
         finalizedTasks: finalized,
+        completedTasks: completedTasks,
+        notDoneTasks: notDoneTasks,
         percentage: percentage,
         tasks: taskStateCache || {},
         timeline: shiftTimeline || [],
@@ -1319,9 +1321,14 @@ function updateKPI() {
     const finalized = completedTasks + notDoneTasks; 
     const pending = totalTasks - finalized;
     
-    let percentage = 0;
+    let completedPercentage = 0;
+    let notDonePercentage = 0;
+    let totalPercentage = 0;
+    
     if (totalTasks > 0) {
-        percentage = Math.round((finalized / totalTasks) * 100);
+        completedPercentage = Math.round((completedTasks / totalTasks) * 100);
+        notDonePercentage = Math.round((notDoneTasks / totalTasks) * 100);
+        totalPercentage = completedPercentage + notDonePercentage;
     }
     
     const kpiContainer = document.querySelector('.kpi-card');
@@ -1330,13 +1337,15 @@ function updateKPI() {
             <div class="kpi-circle">
                 <svg viewBox="0 0 36 36" class="circular-chart" style="width: 100%; height: 100%;">
                     <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" style="fill: none; stroke: var(--glass-border); stroke-width: 3.8;"/>
-                    <path class="circle" stroke-dasharray="${percentage}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" style="fill: none; stroke-width: 3.8; stroke-linecap: round; stroke: var(--success); transition: stroke-dasharray 1s ease-out;"/>
-                    <text x="18" y="20.35" class="percentage" style="fill: var(--text-primary); font-family: 'Inter'; font-size: 8px; font-weight: bold; text-anchor: middle;">${percentage}%</text>
+                    <path class="circle" stroke-dasharray="${completedPercentage}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" style="fill: none; stroke-width: 3.8; stroke-linecap: round; stroke: var(--success); transition: stroke-dasharray 1s ease-out;"/>
+                    <path class="circle-not-done" stroke-dasharray="${notDonePercentage}, 100" stroke-dashoffset="-${completedPercentage}" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" style="fill: none; stroke-width: 3.8; stroke-linecap: round; stroke: var(--danger); transition: stroke-dasharray 1s ease-out, stroke-dashoffset 1s ease-out;"/>
+                    <text x="18" y="20.35" class="percentage" style="fill: var(--text-primary); font-family: 'Inter'; font-size: 8px; font-weight: bold; text-anchor: middle;">${totalPercentage}%</text>
                 </svg>
             </div>
             <div class="kpi-stats">
-                <p><strong>${totalTasks}</strong> Tareas Asignadas</p>
-                <p><strong>${finalized}</strong> Finalizadas</p>
+                <p><strong>${totalTasks}</strong> Asignadas</p>
+                <p><strong style="color: var(--success);">${completedTasks}</strong> Realizadas</p>
+                <p><strong style="color: var(--danger);">${notDoneTasks}</strong> No Realizadas</p>
                 <p><strong>${pending}</strong> Pendientes</p>
             </div>
         `;
@@ -3335,9 +3344,19 @@ function renderActiveSessionsDashboard() {
         let matchedAvatar = availableAvatars.find(img => namesMatch(fullName, img.replace('.png', '')));
         let avatarSrc = matchedAvatar ? `assets/src/img/${matchedAvatar}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0D8ABC&color=fff`;
 
-        const completedTasks = session.finalizedTasks || 0;
+        let completedCount = session.completedTasks !== undefined ? session.completedTasks : 0;
+        let notDoneCount = session.notDoneTasks !== undefined ? session.notDoneTasks : 0;
         const totalTasks = session.totalTasks || 0;
-        const percentage = session.percentage || 0;
+        
+        // Fallback for older sessions that haven't synced the new variables yet
+        if (session.completedTasks === undefined && session.tasks) {
+            completedCount = Object.values(session.tasks).filter(t => t.status === 'Finalizada').length;
+            notDoneCount = Object.values(session.tasks).filter(t => t.status === 'No Realizada').length;
+        }
+
+        const compPct = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
+        const notDonePct = totalTasks > 0 ? Math.round((notDoneCount / totalTasks) * 100) : 0;
+        const totalPct = compPct + notDonePct;
 
         const tasks = session.tasks || {};
         
@@ -3427,10 +3446,15 @@ function renderActiveSessionsDashboard() {
             <div class="progress-container">
                 <div class="progress-label-row">
                     <span>Avance de Tareas</span>
-                    <strong>${percentage}% (${completedTasks}/${totalTasks})</strong>
+                    <div style="display: flex; gap: 6px; font-size: 11px;">
+                        <strong style="color: var(--success);" title="Realizadas">${completedCount} <i class='bx bx-check'></i></strong>
+                        <strong style="color: var(--danger);" title="No Realizadas">${notDoneCount} <i class='bx bx-x'></i></strong>
+                        <strong style="color: var(--text-secondary); margin-left: 4px;">/ ${totalTasks} (${totalPct}%)</strong>
+                    </div>
                 </div>
-                <div class="progress-bar-bg">
-                    <div class="progress-bar-fill" style="width: ${percentage}%;"></div>
+                <div class="progress-bar-bg" style="display: flex; overflow: hidden; background: rgba(255,255,255,0.05);">
+                    <div class="progress-bar-fill" style="width: ${compPct}%; border-radius: 0; background: linear-gradient(90deg, var(--success), #34d399); transition: width 0.5s;"></div>
+                    <div style="width: ${notDonePct}%; background: linear-gradient(90deg, var(--danger), #fb7185); transition: width 0.5s;"></div>
                 </div>
             </div>
 
