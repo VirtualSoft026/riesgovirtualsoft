@@ -132,6 +132,18 @@ document.addEventListener('click', () => {
 function updateActivity() {
     const now = Date.now();
     lastLocalActivityTimestamp = now;
+    
+    // Si somos Gestor y estábamos inactivos, volver a Activo inmediatamente
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
+        if (currentUser.status === 'Inactivo') {
+            currentUser.status = 'Activo';
+            if (typeof database !== 'undefined') {
+                database.ref(`users/${currentUser.uid}/status`).set('Activo');
+            }
+            if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
+            if (typeof syncActiveSessionToFirebase === 'function') syncActiveSessionToFirebase();
+        }
+    }
 }
 document.addEventListener('mousemove', updateActivity);
 document.addEventListener('keydown', updateActivity);
@@ -142,6 +154,29 @@ document.addEventListener('visibilitychange', () => {
         updateActivity();
     }
 });
+
+// Fast checker loop to apply 10s inactivity exactly on time
+setInterval(() => {
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
+        const timeSinceLastActivity = Date.now() - lastLocalActivityTimestamp;
+        const INACTIVE_THRESHOLD = 10 * 1000; // 10s
+        
+        // Si superamos el umbral y aún estamos marcados como Activos
+        if (timeSinceLastActivity > INACTIVE_THRESHOLD && currentUser.status === 'Activo') {
+            // Ignorar si está en pausa global o breaks
+            if (typeof globalIdleState !== 'undefined' && globalIdleState) return;
+            if (typeof isLunchBreak !== 'undefined' && isLunchBreak) return;
+            if (typeof isBreakfastBreak !== 'undefined' && isBreakfastBreak) return;
+
+            currentUser.status = 'Inactivo';
+            if (typeof database !== 'undefined') {
+                database.ref(`users/${currentUser.uid}/status`).set('Inactivo');
+            }
+            if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
+            if (typeof syncActiveSessionToFirebase === 'function') syncActiveSessionToFirebase();
+        }
+    }
+}, 1000);
 
 try {
     currentUser = currentUserObj ? JSON.parse(currentUserObj) : null;
