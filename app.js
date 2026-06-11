@@ -159,7 +159,7 @@ document.addEventListener('visibilitychange', () => {
 setInterval(() => {
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
         const timeSinceLastActivity = Date.now() - lastLocalActivityTimestamp;
-        const INACTIVE_THRESHOLD = 10 * 1000; // 10s
+        const INACTIVE_THRESHOLD = (document.visibilityState === 'hidden') ? (10 * 1000) : (3 * 60 * 1000); // 10s oculto, 3min visible
         
         // Si superamos el umbral y aún estamos marcados como Activos
         if (timeSinceLastActivity > INACTIVE_THRESHOLD && currentUser.status === 'Activo') {
@@ -205,26 +205,7 @@ try {
                 }
             }
         }
-        // -------------------------------------------------
-        // Inactivity handling (Windows+L, hidden tab, etc.)
-        // -------------------------------------------------
-        const INACTIVE_THRESHOLD = 10 * 1000; // 10s
-        let lastVisible = Date.now();
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                if (Date.now() - lastVisible >= INACTIVE_THRESHOLD && currentUser.role === 'Gestor') {
-                    // Mark as inactive
-                    currentUser.status = 'Inactivo';
-                    database.ref(`users/${currentUser.uid}/status`).set('Inactivo');
-                    if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
-                }
-                lastVisible = Date.now();
-                updateActivity();
-            } else {
-                // Tab hidden or OS lock screen
-                lastVisible = Date.now();
-            }
-        });
+        // (Old visibilitychange logic removed, handled by new interval and mouse events)
 
 
         if (currentUser.loginLogId) {
@@ -1344,17 +1325,17 @@ function syncActiveSessionToFirebase() {
     let currentStatus = 'Activo';
     
     const timeSinceLastActivity = Date.now() - lastLocalActivityTimestamp;
-    const idleThreshold = (currentUser && currentUser.role === 'Gestor') ? (10 * 1000) : (5 * 60 * 1000);
-    const isDomIdle = timeSinceLastActivity > idleThreshold;
     const isPageVisible = document.visibilityState === 'visible';
+    const idleThreshold = (currentUser && currentUser.role === 'Gestor') 
+        ? (isPageVisible ? (3 * 60 * 1000) : (10 * 1000)) 
+        : (5 * 60 * 1000);
+    const isDomIdle = timeSinceLastActivity > idleThreshold;
     
     let isInactive = false;
     if (globalIdleState) {
         isInactive = true;
-    } else if (isDomIdle && isPageVisible) {
+    } else if (isDomIdle) {
         isInactive = true;
-    } else if (isDomIdle && !isPageVisible) {
-        isInactive = false;
     }
     
     if (isLunchBreak) {
