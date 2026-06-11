@@ -146,9 +146,17 @@ document.addEventListener('visibilitychange', () => {
 try {
     currentUser = currentUserObj ? JSON.parse(currentUserObj) : null;
     if (currentUser) {
-        // Handle Mobile Devices based on Role
+        // Mobile / Role handling
         if (window.innerWidth <= 768) {
-            if (currentUser.role === 'Gestor') {
+            if (['Admin', 'Supervisor'].includes(currentUser.role)) {
+                // Admin/Supervisor: hide mobile blocker and allow horizontal scroll
+                const mob = document.getElementById('mobileBlocker');
+                if (mob) mob.style.display = 'none';
+                document.documentElement.style.overflowX = 'auto';
+                document.body.style.minWidth = '1200px';
+                document.body.style.overflowX = 'auto';
+            } else {
+                // Gestor: enforce mobile block
                 const enforceMobileBlock = () => {
                     const mob = document.getElementById('mobileBlocker');
                     if (mob) mob.style.display = 'flex';
@@ -160,13 +168,29 @@ try {
                 } else {
                     enforceMobileBlock();
                 }
-            } else {
-                // Enable horizontal scrolling and zoom for Admin/Supervisor on mobile
-                document.documentElement.style.overflowX = 'auto';
-                document.body.style.minWidth = '1200px';
-                document.body.style.overflowX = 'auto';
             }
         }
+        // -------------------------------------------------
+        // Inactivity handling (Windows+L, hidden tab, etc.)
+        // -------------------------------------------------
+        const INACTIVE_THRESHOLD = 10 * 1000; // 10s
+        let lastVisible = Date.now();
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                if (Date.now() - lastVisible >= INACTIVE_THRESHOLD && currentUser.role === 'Gestor') {
+                    // Mark as inactive
+                    currentUser.status = 'Inactivo';
+                    database.ref(`users/${currentUser.uid}/status`).set('Inactivo');
+                    if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
+                }
+                lastVisible = Date.now();
+                updateActivity();
+            } else {
+                // Tab hidden or OS lock screen
+                lastVisible = Date.now();
+            }
+        });
+
 
         if (currentUser.loginLogId) {
             // Eliminar cualquier falso logoutTime que se haya generado si el usuario simplemente refrescó la página (F5) o perdió red temporalmente
@@ -1285,7 +1309,8 @@ function syncActiveSessionToFirebase() {
     let currentStatus = 'Activo';
     
     const timeSinceLastActivity = Date.now() - lastLocalActivityTimestamp;
-    const isDomIdle = timeSinceLastActivity > (5 * 60 * 1000);
+    const idleThreshold = (currentUser && currentUser.role === 'Gestor') ? (10 * 1000) : (5 * 60 * 1000);
+    const isDomIdle = timeSinceLastActivity > idleThreshold;
     const isPageVisible = document.visibilityState === 'visible';
     
     let isInactive = false;
