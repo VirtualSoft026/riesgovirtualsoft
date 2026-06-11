@@ -83,8 +83,21 @@ async function initIdleDetector() {
                 const idleDetector = new IdleDetector();
                 idleDetector.addEventListener('change', () => {
                     globalIdleState = (idleDetector.userState === 'idle') || (idleDetector.screenState === 'locked');
+                    
+                    if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
+                        if (globalIdleState && currentUser.status === 'Activo') {
+                            currentUser.status = 'Inactivo';
+                            if (typeof database !== 'undefined') database.ref(`users/${currentUser.uid}/status`).set('Inactivo');
+                            if (typeof syncActiveSessionToFirebase === 'function') syncActiveSessionToFirebase();
+                        } else if (!globalIdleState && currentUser.status === 'Inactivo') {
+                            currentUser.status = 'Activo';
+                            lastLocalActivityTimestamp = Date.now();
+                            if (typeof database !== 'undefined') database.ref(`users/${currentUser.uid}/status`).set('Activo');
+                            if (typeof syncActiveSessionToFirebase === 'function') syncActiveSessionToFirebase();
+                        }
+                    }
                 });
-                await idleDetector.start({ threshold: 5 * 60 * 1000 }); // 5 minutos
+                await idleDetector.start({ threshold: 3 * 60 * 1000 }); // 3 minutos
                 
                 const warningBanner = document.getElementById('idleDetectorWarning');
                 if (warningBanner) warningBanner.style.display = 'none';
@@ -136,8 +149,7 @@ function updateActivity() {
     
     // Si somos Gestor y estábamos inactivos, volver a Activo inmediatamente
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
-        const isHidden = document.visibilityState === 'hidden';
-        const INACTIVE_THRESHOLD = isHidden ? (10 * 1000) : (3 * 60 * 1000);
+        const INACTIVE_THRESHOLD = 3 * 60 * 1000;
         
         // Si ya estábamos marcados inactivos localmente, o pasó más tiempo del umbral en silencio (browser throttling)
         if (currentUser.status === 'Inactivo' || timeSinceLast > INACTIVE_THRESHOLD) {
@@ -163,8 +175,10 @@ document.addEventListener('visibilitychange', () => {
 // Fast checker loop to apply 10s inactivity exactly on time
 setInterval(() => {
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
+        if (window.idleDetectorGranted) return; // Si hay detector nativo, no usar el fallback
+        
         const timeSinceLastActivity = Date.now() - lastLocalActivityTimestamp;
-        const INACTIVE_THRESHOLD = (document.visibilityState === 'hidden') ? (10 * 1000) : (3 * 60 * 1000); // 10s oculto, 3min visible
+        const INACTIVE_THRESHOLD = 3 * 60 * 1000; // 3 min fallback
         
         // Si superamos el umbral y aún estamos marcados como Activos
         if (timeSinceLastActivity > INACTIVE_THRESHOLD && currentUser.status === 'Activo') {
@@ -1330,10 +1344,7 @@ function syncActiveSessionToFirebase() {
     let currentStatus = 'Activo';
     
     const timeSinceLastActivity = Date.now() - lastLocalActivityTimestamp;
-    const isPageVisible = document.visibilityState === 'visible';
-    const idleThreshold = (currentUser && currentUser.role === 'Gestor') 
-        ? (isPageVisible ? (3 * 60 * 1000) : (10 * 1000)) 
-        : (5 * 60 * 1000);
+    const idleThreshold = (currentUser && currentUser.role === 'Gestor') ? (3 * 60 * 1000) : (5 * 60 * 1000);
     const isDomIdle = timeSinceLastActivity > idleThreshold;
     
     let isInactive = false;
