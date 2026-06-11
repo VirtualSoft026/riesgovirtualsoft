@@ -36,12 +36,11 @@
     <script>
         (function checkBrowser() {
             var ua = navigator.userAgent;
-            var isChrome = (/Chrome/.test(ua) && /Google Inc/.test(navigator.vendor)) || /CriOS/.test(ua);
-            var isEdge = /Edg/.test(ua);
-            var isOpera = /OPR/.test(ua);
-            var isBrave = navigator.brave !== undefined;
+            // Safari doesn't have Chrome or CriOS in UA. 
+            // Edge has Edg, Opera has OPR.
+            var isChrome = /Chrome|CriOS/i.test(ua) && !/Edg|OPR/i.test(ua);
             
-            if (!isChrome || isEdge || isOpera) {
+            if (!isChrome) {
                 document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('browserBlocker').style.display = 'flex';
                     var app = document.querySelector('.app-container');
@@ -93,7 +92,7 @@
                     <i class='bx bx-log-out-circle'></i> Finalizar Turno
                 </button>
                 <div style="font-size: 13px; font-weight: 500; color: var(--text-secondary); text-align: center; margin-top: 15px; opacity: 0.8; letter-spacing: 0.5px;">
-                    Build: 11/06 10:07 (v114)
+                    Build: 11/06 10:14 (v115)
                 </div>
             </div>
         </aside>
