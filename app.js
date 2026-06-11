@@ -131,11 +131,16 @@ document.addEventListener('click', () => {
 // Activity listeners
 function updateActivity() {
     const now = Date.now();
+    const timeSinceLast = now - lastLocalActivityTimestamp;
     lastLocalActivityTimestamp = now;
     
     // Si somos Gestor y estábamos inactivos, volver a Activo inmediatamente
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
-        if (currentUser.status === 'Inactivo') {
+        const isHidden = document.visibilityState === 'hidden';
+        const INACTIVE_THRESHOLD = isHidden ? (10 * 1000) : (3 * 60 * 1000);
+        
+        // Si ya estábamos marcados inactivos localmente, o pasó más tiempo del umbral en silencio (browser throttling)
+        if (currentUser.status === 'Inactivo' || timeSinceLast > INACTIVE_THRESHOLD) {
             currentUser.status = 'Activo';
             if (typeof database !== 'undefined') {
                 database.ref(`users/${currentUser.uid}/status`).set('Activo');
