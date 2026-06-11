@@ -74,57 +74,100 @@ function pushTimelineEvent(type, action) {
     localStorage.setItem('riskOps_timeline', JSON.stringify(shiftTimeline));
 }
 
-async function initIdleDetector() {
+let screenLockTimer = null;
+
+async function checkAndStartIdleDetector() {
     if ('IdleDetector' in window) {
         try {
-            const state = await IdleDetector.requestPermission();
-            window.idleDetectorGranted = (state === 'granted');
-            if (state === 'granted') {
-                const idleDetector = new IdleDetector();
-                idleDetector.addEventListener('change', () => {
-                    globalIdleState = (idleDetector.userState === 'idle') || (idleDetector.screenState === 'locked');
-                    
-                    if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
-                        if (globalIdleState && currentUser.status === 'Activo') {
-                            currentUser.status = 'Inactivo';
-                            if (typeof database !== 'undefined') database.ref(`users/${currentUser.uid}/status`).set('Inactivo');
-                            if (typeof syncActiveSessionToFirebase === 'function') syncActiveSessionToFirebase();
-                        } else if (!globalIdleState && currentUser.status === 'Inactivo') {
-                            currentUser.status = 'Activo';
-                            lastLocalActivityTimestamp = Date.now();
-                            if (typeof database !== 'undefined') database.ref(`users/${currentUser.uid}/status`).set('Activo');
-                            if (typeof syncActiveSessionToFirebase === 'function') syncActiveSessionToFirebase();
-                        }
-                    }
-                });
-                await idleDetector.start({ threshold: 3 * 60 * 1000 }); // 3 minutos
-                
-                const warningBanner = document.getElementById('idleDetectorWarning');
-                if (warningBanner) warningBanner.style.display = 'none';
-            } else {
-                console.warn('IdleDetector permission not granted.');
-                const warningBanner = document.getElementById('idleDetectorWarning');
-                if (warningBanner) warningBanner.style.display = 'flex';
+            const status = await navigator.permissions.query({ name: 'idle-detection' });
+            if (status.state === 'granted') {
+                window.idleDetectorGranted = true;
+                startIdleDetectorLogic();
             }
-        } catch (err) {
-            console.error('IdleDetector init failed:', err);
-            const warningBanner = document.getElementById('idleDetectorWarning');
-            if (warningBanner) warningBanner.style.display = 'flex';
-        }
-    } else {
-        const warningText = document.getElementById('idleDetectorWarningText');
-        const warningBanner = document.getElementById('idleDetectorWarning');
-        if (warningText) warningText.textContent = "Tu navegador no soporta el detector de inactividad de pantalla. Te recomendamos usar Google Chrome o Microsoft Edge.";
-        if (warningBanner) {
-            warningBanner.style.display = 'flex';
-            const btn = warningBanner.querySelector('button');
-            if (btn) btn.style.display = 'none';
+        } catch (e) {
+            console.error('Permission query error:', e);
         }
     }
 }
 
+async function requestIdlePermission() {
+    if ('IdleDetector' in window) {
+        try {
+            const state = await IdleDetector.requestPermission();
+            if (state === 'granted') {
+                window.idleDetectorGranted = true;
+                startIdleDetectorLogic();
+            } else {
+                const warningBanner = document.getElementById('idleDetectorWarning');
+                if (warningBanner) warningBanner.style.display = 'flex';
+            }
+        } catch (e) {
+            console.error('Request permission error:', e);
+            const warningBanner = document.getElementById('idleDetectorWarning');
+            if (warningBanner) warningBanner.style.display = 'flex';
+        }
+    }
+}
+
+async function startIdleDetectorLogic() {
+    if (window.idleDetectorStarted) return;
+    window.idleDetectorStarted = true;
+    
+    const idleDetector = new IdleDetector();
+    idleDetector.addEventListener('change', () => {
+        const isLocked = idleDetector.screenState === 'locked';
+        const isIdle = idleDetector.userState === 'idle';
+        
+        if (isLocked) {
+            if (!screenLockTimer) {
+                screenLockTimer = setTimeout(() => {
+                    globalIdleState = true;
+                    applyIdleStateChange();
+                }, 10000);
+            }
+        } else if (isIdle) {
+            globalIdleState = true;
+            applyIdleStateChange();
+        } else {
+            if (screenLockTimer) {
+                clearTimeout(screenLockTimer);
+                screenLockTimer = null;
+            }
+            globalIdleState = false;
+            applyIdleStateChange();
+        }
+    });
+    
+    try {
+        await idleDetector.start({ threshold: 3 * 60 * 1000 }); // 3 minutos
+        const warningBanner = document.getElementById('idleDetectorWarning');
+        if (warningBanner) warningBanner.style.display = 'none';
+    } catch (e) {
+        console.error('IdleDetector start failed:', e);
+    }
+}
+
+function applyIdleStateChange() {
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
+        if (globalIdleState && currentUser.status === 'Activo') {
+            currentUser.status = 'Inactivo';
+            if (typeof database !== 'undefined') database.ref(`users/${currentUser.uid}/status`).set('Inactivo');
+            if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
+            if (typeof syncActiveSessionToFirebase === 'function') syncActiveSessionToFirebase();
+        } else if (!globalIdleState && currentUser.status === 'Inactivo') {
+            currentUser.status = 'Activo';
+            lastLocalActivityTimestamp = Date.now();
+            if (typeof database !== 'undefined') database.ref(`users/${currentUser.uid}/status`).set('Activo');
+            if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
+            if (typeof syncActiveSessionToFirebase === 'function') syncActiveSessionToFirebase();
+        }
+    }
+}
+
+checkAndStartIdleDetector();
+
 window.requestIdlePermissionManual = function() {
-    initIdleDetector().then(() => {
+    requestIdlePermission().then(() => {
         if (window.idleDetectorGranted) {
             alert("¡Permiso otorgado! RiskOps ahora podrá registrar tu inactividad correctamente.");
         } else {
@@ -133,11 +176,10 @@ window.requestIdlePermissionManual = function() {
     });
 };
 
-// Pedir permiso en el primer clic del usuario en la página
 document.addEventListener('click', () => {
-    if (!window.idleDetectorRequested) {
+    if (!window.idleDetectorGranted && !window.idleDetectorRequested) {
         window.idleDetectorRequested = true;
-        initIdleDetector();
+        requestIdlePermission();
     }
 }, { once: true });
 
