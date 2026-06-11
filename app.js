@@ -200,6 +200,7 @@ setInterval(() => {
 try {
     currentUser = currentUserObj ? JSON.parse(currentUserObj) : null;
     if (currentUser) {
+        if (!currentUser.status) currentUser.status = 'Activo';
         // Mobile / Role handling
         if (window.innerWidth <= 768) {
             if (['Admin', 'Supervisor'].includes(currentUser.role)) {
