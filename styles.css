@@ -102,14 +102,7 @@ body {
     line-height: 1.5;
 }
 
-@media (max-width: 768px) {
-    #mobileBlocker {
-        display: flex;
-    }
-    .app-container, .login-container {
-        display: none !important;
-    }
-}
+/* Mobile blocker is now handled by Javascript depending on user role */
 
 /* Typography elements */
 h1, h2, h3 { color: var(--text-primary); font-weight: 600; }

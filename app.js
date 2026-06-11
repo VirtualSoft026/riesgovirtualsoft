@@ -146,6 +146,28 @@ document.addEventListener('visibilitychange', () => {
 try {
     currentUser = currentUserObj ? JSON.parse(currentUserObj) : null;
     if (currentUser) {
+        // Handle Mobile Devices based on Role
+        if (window.innerWidth <= 768) {
+            if (currentUser.role === 'Gestor') {
+                const enforceMobileBlock = () => {
+                    const mob = document.getElementById('mobileBlocker');
+                    if (mob) mob.style.display = 'flex';
+                    const app = document.querySelector('.app-container');
+                    if (app) app.style.display = 'none';
+                };
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', enforceMobileBlock);
+                } else {
+                    enforceMobileBlock();
+                }
+            } else {
+                // Enable horizontal scrolling and zoom for Admin/Supervisor on mobile
+                document.documentElement.style.overflowX = 'auto';
+                document.body.style.minWidth = '1200px';
+                document.body.style.overflowX = 'auto';
+            }
+        }
+
         if (currentUser.loginLogId) {
             // Eliminar cualquier falso logoutTime que se haya generado si el usuario simplemente refrescó la página (F5) o perdió red temporalmente
             database.ref(`login_logs/${currentUser.loginLogId}/logoutTime`).remove();
