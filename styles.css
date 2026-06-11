@@ -576,6 +576,8 @@ select.modern-input option { background-color: #ffffff; color: #000000; }
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
+    min-width: 0;
+    flex: 1;
 }
 
 .monitoreo-avatar {
@@ -590,17 +592,24 @@ select.modern-input option { background-color: #ffffff; color: #000000; }
     display: flex;
     flex-direction: column;
     flex-grow: 1;
+    min-width: 0;
 }
 
 .monitoreo-name {
     font-size: 15px;
     font-weight: 600;
     color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .monitoreo-meta {
     font-size: 11px;
     color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .status-indicator-badge {
@@ -613,6 +622,7 @@ select.modern-input option { background-color: #ffffff; color: #000000; }
     border-radius: 12px;
     width: fit-content;
     white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .status-online {

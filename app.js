@@ -3539,7 +3539,7 @@ function renderActiveSessionsDashboard() {
         const card = document.createElement('div');
         card.className = 'monitoreo-card';
         card.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: start;">
+            <div style="display: flex; justify-content: space-between; align-items: start; gap: 8px;">
                 <div class="monitoreo-user-info">
                     <img src="${avatarSrc}" alt="${fullName}" class="monitoreo-avatar" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0D8ABC&color=fff';">
                     <div class="monitoreo-details">
