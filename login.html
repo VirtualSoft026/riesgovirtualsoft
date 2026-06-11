@@ -33,7 +33,7 @@
     <script>
         (function checkBrowser() {
             var ua = navigator.userAgent;
-            var isChrome = /Chrome/.test(ua) && /Google Inc/.test(navigator.vendor);
+            var isChrome = (/Chrome/.test(ua) && /Google Inc/.test(navigator.vendor)) || /CriOS/.test(ua);
             var isEdge = /Edg/.test(ua);
             var isOpera = /OPR/.test(ua);
             var isBrave = navigator.brave !== undefined;
