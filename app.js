@@ -26,18 +26,28 @@ function saveBreakState() {
     }));
 }
 
-try {
-    const savedState = localStorage.getItem('riskOps_breakState');
-    if (savedState) {
-        const parsed = JSON.parse(savedState);
-        isLunchBreak = parsed.isLunchBreak || false;
-        lunchStartTime = parsed.lunchStartTime || null;
-        totalLunchTimeMs = parsed.totalLunchTimeMs || 0;
-        isBreakfastBreak = parsed.isBreakfastBreak || false;
-        breakfastStartTime = parsed.breakfastStartTime || null;
-        totalBreakfastTimeMs = parsed.totalBreakfastTimeMs || 0;
+function loadBreakState() {
+    try {
+        const savedState = localStorage.getItem('riskOps_breakState');
+        if (savedState) {
+            const parsed = JSON.parse(savedState);
+            isLunchBreak = parsed.isLunchBreak || false;
+            lunchStartTime = parsed.lunchStartTime || null;
+            totalLunchTimeMs = parsed.totalLunchTimeMs || 0;
+            isBreakfastBreak = parsed.isBreakfastBreak || false;
+            breakfastStartTime = parsed.breakfastStartTime || null;
+            totalBreakfastTimeMs = parsed.totalBreakfastTimeMs || 0;
+        }
+    } catch(e) {}
+}
+
+loadBreakState();
+
+window.addEventListener('storage', (e) => {
+    if (e.key === 'riskOps_breakState') {
+        loadBreakState();
     }
-} catch(e) {}
+});
 
 let shiftTimeline = [];
 let localStatus = 'En Línea';
@@ -148,7 +158,10 @@ async function startIdleDetectorLogic() {
 }
 
 function applyIdleStateChange() {
+    loadBreakState();
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
+        if (isLunchBreak || isBreakfastBreak) return;
+
         if (globalIdleState && currentUser.status === 'Activo') {
             currentUser.status = 'Inactivo';
             if (typeof database !== 'undefined') database.ref(`users/${currentUser.uid}/status`).set('Inactivo');
@@ -185,6 +198,7 @@ document.addEventListener('click', () => {
 
 // Activity listeners
 function updateActivity() {
+    loadBreakState();
     const now = Date.now();
     const timeSinceLast = now - lastLocalActivityTimestamp;
     lastLocalActivityTimestamp = now;
@@ -216,6 +230,7 @@ document.addEventListener('visibilitychange', () => {
 
 // Fast checker loop to apply 10s inactivity exactly on time
 setInterval(() => {
+    loadBreakState();
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
         if (window.idleDetectorGranted) return; // Si hay detector nativo, no usar el fallback
         
