@@ -2976,7 +2976,17 @@ window.exportShiftReport = async function(fb_id) {
         const reportText = r.reporte || 'Sin reporte detallado.';
         const splitText = doc.splitTextToSize(reportText, 180);
         
-        doc.text(splitText, 15, 90);
+        let y = 90;
+        const pageHeight = doc.internal.pageSize.height;
+        
+        splitText.forEach(line => {
+            if (y > pageHeight - 20) {
+                doc.addPage();
+                y = 20;
+            }
+            doc.text(line, 15, y);
+            y += 5;
+        });
         
         // Guardar
         const safeName = (r.gestor || 'Gestor').replace(/[^a-z0-9]/gi, '_').toLowerCase();
