@@ -473,9 +473,9 @@ const MONTHS_MAP = {
     "dic": 11, "diciembre": 11
 };
 
-function parseSheetRange(sheetName, year = 2026) {
+function parseSheetRange(sheetName, year = 2026, fallbackMonth = 0) {
     if (!sheetName) return null;
-    let clean = sheetName.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    let clean = sheetName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
     
     let m = clean.match(/Semana\s+\d+\s*-\s*(\d+)\s+(\w+)\s+al\s+(\d+)\s+(\w+)/i);
     if (m) {
@@ -484,8 +484,8 @@ function parseSheetRange(sheetName, year = 2026) {
         let endDay = parseInt(m[3], 10);
         let endMStr = m[4].substring(0, 3).toLowerCase();
         
-        let startMonth = MONTHS_MAP[startMStr] !== undefined ? MONTHS_MAP[startMStr] : 0;
-        let endMonth = MONTHS_MAP[endMStr] !== undefined ? MONTHS_MAP[endMStr] : 0;
+        let startMonth = MONTHS_MAP[startMStr] !== undefined ? MONTHS_MAP[startMStr] : fallbackMonth;
+        let endMonth = MONTHS_MAP[endMStr] !== undefined ? MONTHS_MAP[endMStr] : fallbackMonth;
         
         let startDate = new Date(year, startMonth, startDay, 0, 0, 0);
         let endDate = new Date(year, endMonth, endDay, 23, 59, 59);
@@ -498,9 +498,25 @@ function parseSheetRange(sheetName, year = 2026) {
         let endDay = parseInt(m[2], 10);
         let mStr = m[3].substring(0, 3).toLowerCase();
         
-        let month = MONTHS_MAP[mStr] !== undefined ? MONTHS_MAP[mStr] : 0;
+        let month = MONTHS_MAP[mStr] !== undefined ? MONTHS_MAP[mStr] : fallbackMonth;
         let startDate = new Date(year, month, startDay, 0, 0, 0);
         let endDate = new Date(year, month, endDay, 23, 59, 59);
+        return { start: startDate, end: endDate };
+    }
+
+    m = clean.match(/Semana\s+\d+\s*-\s*(\d+)\s+al\s+(\d+)/i);
+    if (m) {
+        let startDay = parseInt(m[1], 10);
+        let endDay = parseInt(m[2], 10);
+        let startMonth = fallbackMonth;
+        let endMonth = fallbackMonth;
+        
+        if (endDay < startDay) {
+            endMonth = startMonth + 1;
+        }
+        
+        let startDate = new Date(year, startMonth, startDay, 0, 0, 0);
+        let endDate = new Date(year, endMonth, endDay, 23, 59, 59);
         return { start: startDate, end: endDate };
     }
     
@@ -510,8 +526,9 @@ function parseSheetRange(sheetName, year = 2026) {
 function getWeekSheet(sheetNames, targetDate) {
     if (!sheetNames || sheetNames.length === 0) return null;
     const year = targetDate.getFullYear();
+    const currentMonth = targetDate.getMonth();
     for (let name of sheetNames) {
-        let r = parseSheetRange(name, year);
+        let r = parseSheetRange(name, year, currentMonth);
         if (r) {
             if (targetDate >= r.start && targetDate <= r.end) {
                 return name;
