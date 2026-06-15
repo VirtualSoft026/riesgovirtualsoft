@@ -57,6 +57,23 @@ try {
     if (savedTimeline) {
         shiftTimeline = JSON.parse(savedTimeline);
         let changed = false;
+        
+        // Limpiador automático: Eliminar eventos de Inactividad que se crucen con Almuerzo o Desayuno
+        const breaks = shiftTimeline.filter(e => e.type === 'Almuerzo' || e.type === 'Desayuno');
+        const originalLength = shiftTimeline.length;
+        shiftTimeline = shiftTimeline.filter(e => {
+            if (e.type !== 'Inactividad') return true;
+            let eStart = e.start;
+            let eEnd = e.end || Date.now();
+            let overlaps = breaks.some(b => {
+                let bStart = b.start;
+                let bEnd = b.end || Date.now();
+                return (eStart < bEnd && eEnd > bStart);
+            });
+            return !overlaps;
+        });
+        if (shiftTimeline.length !== originalLength) changed = true;
+
         shiftTimeline.forEach(ev => {
             if (ev.type === 'Inactividad' && ev.end === null) {
                 ev.end = Date.now();
