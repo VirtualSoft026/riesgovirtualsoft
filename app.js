@@ -1393,9 +1393,12 @@ function syncActiveSessionToFirebase() {
     let loopDelta = nowMs - lastSyncLoopTimestamp;
     lastSyncLoopTimestamp = nowMs;
     
+    loadBreakState();
     if (loopDelta > (3 * 60 * 1000)) {
-        shiftTimeline.push({ type: 'Inactividad', start: nowMs - loopDelta, end: nowMs });
-        localStorage.setItem('riskOps_timeline', JSON.stringify(shiftTimeline));
+        if (!isLunchBreak && !isBreakfastBreak) {
+            shiftTimeline.push({ type: 'Inactividad', start: nowMs - loopDelta, end: nowMs });
+            localStorage.setItem('riskOps_timeline', JSON.stringify(shiftTimeline));
+        }
     }
 
     let newLastActive = Date.now();
