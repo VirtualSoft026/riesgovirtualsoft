@@ -201,6 +201,9 @@ function renderTiemposDashboard(metrics) {
     if(chartTopInactividadInstance) chartTopInactividadInstance.destroy();
     if(chartScatterInstance) chartScatterInstance.destroy();
     
+    const gestorFilterEl = document.getElementById('tiemposGestorFilter');
+    const isSingleGestor = gestorFilterEl && gestorFilterEl.value !== 'all';
+    
     const labelTardanza = isSingleGestor ? 'Días con Más Tardanza' : 'Top Alerta (Peores Promedios Tardanza)';
     const labelExcelencia = isSingleGestor ? 'Días con Menos Tardanza' : 'Top Excelencia (Mejores Promedios Tardanza)';
     const labelInactividad = isSingleGestor ? 'Inactividad por Día' : 'Promedio Inactividad Diaria';
