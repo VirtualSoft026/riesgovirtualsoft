@@ -5,9 +5,14 @@ let chartScatterInstance = null;
 
 function parseShiftStart(shiftStr) {
     if (!shiftStr) return null;
-    const m = shiftStr.match(/(\d{1,2}):(\d{2})/);
+    const m = shiftStr.match(/(\d{1,2}):(\d{2})\s*([ap]\.?\s*m\.?)?/i);
     if (!m) return null;
-    return { h: parseInt(m[1], 10), min: parseInt(m[2], 10) };
+    let h = parseInt(m[1], 10);
+    let min = parseInt(m[2], 10);
+    let ampm = m[3] ? m[3].toLowerCase().replace(/[^apm]/g, '') : null;
+    if (ampm === 'pm' && h < 12) h += 12;
+    if (ampm === 'am' && h === 12) h = 0;
+    return { h, min };
 }
 
 function parseTimeFromLocaleString(timeStr) {
@@ -84,32 +89,38 @@ async function loadTiemposMetrics() {
             // Apply Gestor Filter
             if (gestorFilter !== 'all' && gestorName !== gestorFilter) return;
             
-            if (!gestorStats[gestorName]) {
-                gestorStats[gestorName] = {
+            // Determine grouping key
+            let groupKey = gestorName;
+            if (gestorFilter !== 'all') {
+                const d = new Date(reportDate);
+                groupKey = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+            }
+            
+            if (!gestorStats[groupKey]) {
+                gestorStats[groupKey] = {
                     Dias_Laborados: 0,
                     Dias_Tarde: 0,
                     Minutos_Tarde_Total: 0,
-                    Minutos_Inactividad_Total: 0
+                    Minutos_Inactividad_Total: 0,
+                    gestorName: gestorName // Keep for reference
                 };
             }
             
             // Determinar turno programado (historico vs nuevo formato)
             let turno = report.turnoProgramado;
             if (!turno || turno === 'Por Asignar') {
-                // Inferir desde el horario de Excel usando la fecha del reporte
-                const reportDate = report.timestamp ? new Date(report.timestamp) : new Date();
                 turno = getShiftForDate(globalScheduleRows, globalScheduleBlocks, gestorName, reportDate);
             }
             
             // Tardanza
             const tardiness = getTardiness(report.horaInicio, turno);
             
-            gestorStats[gestorName].Dias_Laborados++;
-            gestorStats[gestorName].Minutos_Inactividad_Total += (report.inactividadTotalMins || 0);
+            gestorStats[groupKey].Dias_Laborados++;
+            gestorStats[groupKey].Minutos_Inactividad_Total += (report.inactividadTotalMins || 0);
             
             if (tardiness > 0) {
-                gestorStats[gestorName].Dias_Tarde++;
-                gestorStats[gestorName].Minutos_Tarde_Total += tardiness;
+                gestorStats[groupKey].Dias_Tarde++;
+                gestorStats[groupKey].Minutos_Tarde_Total += tardiness;
             }
         });
         
@@ -132,8 +143,8 @@ async function loadTiemposMetrics() {
         let grandTotalTarde = 0;
         let grandTotalInact = 0;
         
-        Object.keys(gestorStats).forEach(gestor => {
-            const stats = gestorStats[gestor];
+        Object.keys(gestorStats).forEach(key => {
+            const stats = gestorStats[key];
             if (stats.Dias_Laborados === 0) return;
             
             const Prom_Minutos_Tarde = stats.Minutos_Tarde_Total / stats.Dias_Laborados;
@@ -149,7 +160,8 @@ async function loadTiemposMetrics() {
             else if (Prom_Inactividad_Diaria <= 45) Score_Inactividad = 60;
             
             metrics.push({
-                gestor,
+                gestor: key,
+                gestorName: stats.gestorName,
                 ...stats,
                 Prom_Minutos_Tarde,
                 Porcentaje_Frecuencia_Tarde,
@@ -189,72 +201,42 @@ function renderTiemposDashboard(metrics) {
     if(chartTopInactividadInstance) chartTopInactividadInstance.destroy();
     if(chartScatterInstance) chartScatterInstance.destroy();
     
-    // 1. Chart Top Alerta (Rojo)
+    const labelTardanza = isSingleGestor ? 'Días con Más Tardanza' : 'Top Alerta (Peores Promedios Tardanza)';
+    const labelExcelencia = isSingleGestor ? 'Días con Menos Tardanza' : 'Top Excelencia (Mejores Promedios Tardanza)';
+    const labelInactividad = isSingleGestor ? 'Inactividad por Día' : 'Promedio Inactividad Diaria';
+    
+    // 1. Chart Top Alerta
     const ctxAlerta = document.getElementById('chartTopAlerta').getContext('2d');
     chartTopAlertaInstance = new Chart(ctxAlerta, {
         type: 'bar',
         data: {
-            labels: topAlerta.map(m => m.gestor.split(' ')[0]),
+            labels: topAlerta.map(m => m.gestor),
             datasets: [{
-                label: 'Promedio Mins Tarde',
+                label: labelTardanza,
                 data: topAlerta.map(m => m.Prom_Minutos_Tarde.toFixed(1)),
                 backgroundColor: 'rgba(239, 68, 68, 0.7)',
                 borderColor: '#ef4444',
                 borderWidth: 1
             }]
         },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                x: {
-                    grid: { color: 'rgba(255,255,255,0.05)' },
-                    ticks: { color: '#9CA3AF' }
-                },
-                y: {
-                    grid: { display: false },
-                    ticks: { color: '#F3F4F6' }
-                }
-            }
-        }
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9CA3AF' } }, y: { grid: { display: false }, ticks: { color: '#F3F4F6' } } } }
     });
 
-    // 2. Chart Top Excelencia (Verde)
+    // 2. Chart Top Excelencia
     const ctxExcelencia = document.getElementById('chartTopExcelencia').getContext('2d');
     chartTopExcelenciaInstance = new Chart(ctxExcelencia, {
         type: 'bar',
         data: {
-            labels: topExcelencia.map(m => m.gestor.split(' ')[0]),
+            labels: topExcelencia.map(m => m.gestor),
             datasets: [{
-                label: 'Promedio Mins Tarde',
+                label: labelExcelencia,
                 data: topExcelencia.map(m => m.Prom_Minutos_Tarde.toFixed(1)),
                 backgroundColor: 'rgba(16, 185, 129, 0.7)',
                 borderColor: '#10b981',
                 borderWidth: 1
             }]
         },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                x: {
-                    grid: { color: 'rgba(255,255,255,0.05)' },
-                    ticks: { color: '#9CA3AF' }
-                },
-                y: {
-                    grid: { display: false },
-                    ticks: { color: '#F3F4F6' }
-                }
-            }
-        }
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9CA3AF' } }, y: { grid: { display: false }, ticks: { color: '#F3F4F6' } } } }
     });
 
     // 3. Chart Top Inactividad Diaria
@@ -262,9 +244,9 @@ function renderTiemposDashboard(metrics) {
     chartTopInactividadInstance = new Chart(ctxInactividad, {
         type: 'bar',
         data: {
-            labels: topInactividad.map(m => m.gestor.split(' ')[0]),
+            labels: topInactividad.map(m => m.gestor),
             datasets: [{
-                label: 'Promedio Inactividad (mins)',
+                label: labelInactividad,
                 data: topInactividad.map(m => m.Prom_Inactividad_Diaria.toFixed(1)),
                 backgroundColor: topInactividad.map(m => {
                     if(m.Prom_Inactividad_Diaria > 45) return 'rgba(239, 68, 68, 0.7)';
@@ -339,15 +321,27 @@ function renderTiemposDashboard(metrics) {
 
     // 5. Llenar la tabla del Leaderboard
     const tbody = document.getElementById('tiemposLeaderboardBody');
+    const tableTitle = document.getElementById('tiemposLeaderboardTitle');
+    
+    if (tableTitle) {
+        tableTitle.innerHTML = isSingleGestor ? `<i class='bx bx-calendar-event'></i> Desglose por Día` : `<i class='bx bx-list-ol'></i> Ranking Detallado de Cumplimiento Operativo`;
+    }
+
     if (tbody) {
         tbody.innerHTML = '';
         
-        // Ordenar por Score Global (Tardanza + Inactividad)
-        const sortedMetrics = [...metrics].sort((a, b) => {
-            const scoreA = a.Score_Tardanza + a.Score_Inactividad;
-            const scoreB = b.Score_Tardanza + b.Score_Inactividad;
-            return scoreB - scoreA; // Mayor score primero
-        });
+        // Si filtramos por fecha y gestor, el orden podría ser por fecha
+        let sortedMetrics = [...metrics];
+        if (isSingleGestor) {
+            sortedMetrics.sort((a, b) => a.gestor.localeCompare(b.gestor));
+        } else {
+            // Ordenar por Score Global
+            sortedMetrics.sort((a, b) => {
+                const scoreA = a.Score_Tardanza + a.Score_Inactividad;
+                const scoreB = b.Score_Tardanza + b.Score_Inactividad;
+                return scoreB - scoreA;
+            });
+        }
 
         if (sortedMetrics.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No hay datos suficientes</td></tr>';
@@ -360,11 +354,11 @@ function renderTiemposDashboard(metrics) {
 
                 let tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td style="font-weight: 600; color: var(--text-primary);">
-                        <i class='bx bx-user-circle' style="color: var(--accent-primary); margin-right: 5px;"></i> 
+                    <td style="font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                        ${isSingleGestor ? `<i class='bx bx-calendar' style="color: var(--accent-primary); font-size: 18px;"></i>` : `<i class='bx bx-user-circle' style="color: var(--accent-primary); font-size: 18px;"></i>`}
                         ${m.gestor}
                     </td>
-                    <td style="text-align: center; color: var(--text-secondary);">${m.Dias_Laborados} días</td>
+                    <td style="text-align: center; color: var(--text-secondary);">${m.Dias_Laborados} ${isSingleGestor ? 'turnos' : 'días'}</td>
                     <td style="text-align: center;">
                         <span style="color: ${m.Prom_Minutos_Tarde > 10 ? 'var(--danger)' : 'var(--text-primary)'};">
                             ${Math.round(m.Prom_Minutos_Tarde)} min/día

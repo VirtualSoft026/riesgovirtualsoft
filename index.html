@@ -95,7 +95,7 @@
                     <i class='bx bx-log-out-circle'></i> Finalizar Turno
                 </button>
                 <div style="font-size: 13px; font-weight: 500; color: var(--text-secondary); text-align: center; margin-top: 15px; opacity: 0.8; letter-spacing: 0.5px;">
-                    Build: 16/06 18:28 (v136)
+                    Build: 16/06 18:36 (v137)
                 </div>
             </div>
         </aside>
@@ -685,6 +685,30 @@
                         </div>
                     </div>
                     
+                    <!-- Leaderboard Detallado -->
+                    <div class="glass-panel" style="margin-bottom: 30px; padding: 20px;">
+                        <h3 id="tiemposLeaderboardTitle" style="font-size: 16px; color: var(--accent-primary); margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                            <i class='bx bx-list-ol'></i> Ranking Detallado de Cumplimiento Operativo
+                        </h3>
+                        <div style="overflow-x: auto;">
+                            <table class="data-table" style="width: 100%;">
+                                <thead>
+                                    <tr>
+                                        <th>Gestor</th>
+                                        <th style="text-align: center;">Días Evaluados</th>
+                                        <th style="text-align: center;">Tardanza Promedio</th>
+                                        <th style="text-align: center;">Inactividad Promedio</th>
+                                        <th style="text-align: center;">Score Global</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tiemposLeaderboardBody">
+                                    <!-- Llenado por JS -->
+                                    <tr><td colspan="5" style="text-align: center;">Calculando métricas...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                     <!-- Puntuaciones Globales -->
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
                         <div class="stat-widget glass-panel" style="border-left: 4px solid var(--accent-primary);">
@@ -753,30 +777,6 @@
                             </div>
                         </div>
 
-                    </div>
-
-                    <!-- Leaderboard Detallado -->
-                    <div class="glass-panel" style="margin-top: 30px; padding: 20px;">
-                        <h3 style="font-size: 16px; color: var(--accent-primary); margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-                            <i class='bx bx-list-ol'></i> Ranking Detallado de Cumplimiento Operativo
-                        </h3>
-                        <div style="overflow-x: auto;">
-                            <table class="data-table" style="width: 100%;">
-                                <thead>
-                                    <tr>
-                                        <th>Gestor</th>
-                                        <th style="text-align: center;">Días Evaluados</th>
-                                        <th style="text-align: center;">Tardanza Promedio</th>
-                                        <th style="text-align: center;">Inactividad Promedio</th>
-                                        <th style="text-align: center;">Score Global</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tiemposLeaderboardBody">
-                                    <!-- Llenado por JS -->
-                                    <tr><td colspan="5" style="text-align: center;">Calculando métricas...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
                     </div>
                 </div>
 
