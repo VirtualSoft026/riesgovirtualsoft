@@ -5,6 +5,13 @@ let chartScatterInstance = null;
 
 function parseShiftStart(shiftStr) {
     if (!shiftStr) return null;
+    
+    const s = shiftStr.toLowerCase();
+    if (s.includes('set 1') || s.includes('soporte 1')) return { h: 8, min: 0 };
+    if (s.includes('set 2') || s.includes('soporte 2')) return { h: 14, min: 0 };
+    if (s.includes('set 3')) return { h: 15, min: 0 };
+    if (s.includes('set 4')) return { h: 22, min: 0 };
+    
     const m = shiftStr.match(/(\d{1,2}):(\d{2})\s*([ap]\.?\s*m\.?)?/i);
     if (!m) return null;
     let h = parseInt(m[1], 10);
