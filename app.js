@@ -2102,6 +2102,11 @@ async function initApp() {
                 if (viewIndicadores) viewIndicadores.style.display = 'block';
                 if (topHeader) topHeader.style.display = 'none'; // Ocultar header según solicitud
                 loadGestoresForKPIs();
+            } else if (item.id === 'navTiempos') {
+                const viewTiempos = document.getElementById('view-tiempos');
+                if (viewTiempos) viewTiempos.style.display = 'block';
+                if (topHeader) topHeader.style.display = 'none';
+                loadTiemposMetrics();
             } else if (item.id === 'navComunicados') {
                 const viewComunicados = document.getElementById('view-comunicados');
                 if (viewComunicados) viewComunicados.style.display = 'block';
@@ -2490,6 +2495,7 @@ function handleEndShift() {
                 rol: localUser.role,
                 horaInicio: loginDate.toLocaleString(),
                 horaFin: new Date().toLocaleString(),
+                turnoProgramado: localUser.shift || 'Por Asignar',
                 setTrabajado: setSelect ? setSelect.value : 'N/A',
                 reporte: report,
                 tasks: taskStateCache,
@@ -3279,6 +3285,7 @@ function setupSidebar() {
         if (adminNavGroup) { adminNavGroup.style.display = 'block'; sidebarNav.appendChild(adminNavGroup); }
         if (navMonitoreo) { navMonitoreo.style.display = 'flex'; adminNavGroup.appendChild(navMonitoreo); }
         if (navIndicadores) { navIndicadores.style.display = 'flex'; adminNavGroup.appendChild(navIndicadores); }
+        if (navTiempos) { navTiempos.style.display = 'flex'; adminNavGroup.appendChild(navTiempos); }
         if (navAdminComunicados) { navAdminComunicados.style.display = 'flex'; adminNavGroup.appendChild(navAdminComunicados); }
         if (navTurnos) { navTurnos.style.display = 'flex'; adminNavGroup.appendChild(navTurnos); }
         if (navAprobaciones) { navAprobaciones.style.display = 'flex'; adminNavGroup.appendChild(navAprobaciones); }
