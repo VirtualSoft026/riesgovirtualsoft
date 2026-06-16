@@ -55,12 +55,35 @@ async function loadTiemposMetrics() {
         const data = snapshot.val();
         if (!data) return;
         
+        const dateFilter = document.getElementById('tiemposDateFilter').value;
+        const gestorFilter = document.getElementById('tiemposGestorFilter').value;
+        const gestorDropdown = document.getElementById('tiemposGestorFilter');
+        
         const gestorStats = {};
+        const uniqueGestores = new Set();
+        
+        const now = new Date();
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const sevenDaysAgo = startOfDay - (7 * 24 * 60 * 60 * 1000);
+        const thirtyDaysAgo = startOfDay - (30 * 24 * 60 * 60 * 1000);
         
         Object.values(data).forEach(report => {
             if (report.rol !== 'Gestor') return;
             
             const gestorName = report.gestor;
+            uniqueGestores.add(gestorName);
+            
+            // Apply Date Filter
+            const reportDate = report.timestamp ? new Date(report.timestamp) : new Date();
+            const reportTime = reportDate.getTime();
+            
+            if (dateFilter === 'today' && reportTime < startOfDay) return;
+            if (dateFilter === '7' && reportTime < sevenDaysAgo) return;
+            if (dateFilter === '30' && reportTime < thirtyDaysAgo) return;
+            
+            // Apply Gestor Filter
+            if (gestorFilter !== 'all' && gestorName !== gestorFilter) return;
+            
             if (!gestorStats[gestorName]) {
                 gestorStats[gestorName] = {
                     Dias_Laborados: 0,
@@ -90,6 +113,19 @@ async function loadTiemposMetrics() {
             }
         });
         
+        // Populate Gestor Dropdown if it only has the 'all' option
+        if (gestorDropdown && gestorDropdown.options.length <= 1) {
+            const sortedGestores = Array.from(uniqueGestores).sort();
+            sortedGestores.forEach(g => {
+                const opt = document.createElement('option');
+                opt.value = g;
+                opt.textContent = g;
+                gestorDropdown.appendChild(opt);
+            });
+            // Keep the selected value if it was previously set
+            gestorDropdown.value = gestorFilter;
+        }
+
         // Final calculations
         const metrics = [];
         let grandTotalDias = 0;
