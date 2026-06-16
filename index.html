@@ -95,7 +95,7 @@
                     <i class='bx bx-log-out-circle'></i> Finalizar Turno
                 </button>
                 <div style="font-size: 13px; font-weight: 500; color: var(--text-secondary); text-align: center; margin-top: 15px; opacity: 0.8; letter-spacing: 0.5px;">
-                    Build: 16/06 18:18 (v134)
+                    Build: 16/06 18:24 (v135)
                 </div>
             </div>
         </aside>
@@ -732,6 +732,30 @@
                             </div>
                         </div>
 
+                    </div>
+
+                    <!-- Leaderboard Detallado -->
+                    <div class="glass-panel" style="margin-top: 30px; padding: 20px;">
+                        <h3 style="font-size: 16px; color: var(--accent-primary); margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                            <i class='bx bx-list-ol'></i> Ranking Detallado de Cumplimiento Operativo
+                        </h3>
+                        <div style="overflow-x: auto;">
+                            <table class="data-table" style="width: 100%;">
+                                <thead>
+                                    <tr>
+                                        <th>Gestor</th>
+                                        <th style="text-align: center;">Días Evaluados</th>
+                                        <th style="text-align: center;">Tardanza Promedio</th>
+                                        <th style="text-align: center;">Inactividad Promedio</th>
+                                        <th style="text-align: center;">Score Global</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tiemposLeaderboardBody">
+                                    <!-- Llenado por JS -->
+                                    <tr><td colspan="5" style="text-align: center;">Calculando métricas...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 

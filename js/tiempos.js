@@ -12,11 +12,12 @@ function parseShiftStart(shiftStr) {
 
 function parseTimeFromLocaleString(timeStr) {
     if (!timeStr) return null;
-    const m = timeStr.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*(am|pm|a\.m\.|p\.m\.)?/i);
+    // Soporta: "16/6/2026, 14:05:00" o "6/16/2026, 2:05:00 p. m."
+    const m = timeStr.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*([ap]\.?\s*m\.?)?/i);
     if (!m) return null;
     let h = parseInt(m[1], 10);
     let min = parseInt(m[2], 10);
-    let ampm = m[3] ? m[3].toLowerCase().replace(/\./g, '') : null;
+    let ampm = m[3] ? m[3].toLowerCase().replace(/[^apm]/g, '') : null;
     if (ampm === 'pm' && h < 12) h += 12;
     if (ampm === 'am' && h === 12) h = 0;
     return { h, min };
@@ -128,8 +129,8 @@ async function loadTiemposMetrics() {
         
         // Update top global KPIs
         document.getElementById('tiemposTotalDias').textContent = grandTotalDias;
-        document.getElementById('tiemposTotalMinsTarde').textContent = grandTotalTarde + ' min';
-        document.getElementById('tiemposTotalMinsInact').textContent = grandTotalInact + ' min';
+        document.getElementById('tiemposTotalMinsTarde').textContent = Math.round(grandTotalTarde) + ' min';
+        document.getElementById('tiemposTotalMinsInact').textContent = Math.round(grandTotalInact) + ' min';
         
         renderTiemposDashboard(metrics);
         
@@ -299,4 +300,53 @@ function renderTiemposDashboard(metrics) {
             }
         }
     });
+
+    // 5. Llenar la tabla del Leaderboard
+    const tbody = document.getElementById('tiemposLeaderboardBody');
+    if (tbody) {
+        tbody.innerHTML = '';
+        
+        // Ordenar por Score Global (Tardanza + Inactividad)
+        const sortedMetrics = [...metrics].sort((a, b) => {
+            const scoreA = a.Score_Tardanza + a.Score_Inactividad;
+            const scoreB = b.Score_Tardanza + b.Score_Inactividad;
+            return scoreB - scoreA; // Mayor score primero
+        });
+
+        if (sortedMetrics.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No hay datos suficientes</td></tr>';
+        } else {
+            sortedMetrics.forEach(m => {
+                const totalScore = m.Score_Tardanza + m.Score_Inactividad;
+                let badgeColor = 'var(--success)';
+                if (totalScore < 140) badgeColor = 'var(--warning)';
+                if (totalScore < 100) badgeColor = 'var(--danger)';
+
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-weight: 600; color: var(--text-primary);">
+                        <i class='bx bx-user-circle' style="color: var(--accent-primary); margin-right: 5px;"></i> 
+                        ${m.gestor}
+                    </td>
+                    <td style="text-align: center; color: var(--text-secondary);">${m.Dias_Laborados} días</td>
+                    <td style="text-align: center;">
+                        <span style="color: ${m.Prom_Minutos_Tarde > 10 ? 'var(--danger)' : 'var(--text-primary)'};">
+                            ${Math.round(m.Prom_Minutos_Tarde)} min/día
+                        </span>
+                    </td>
+                    <td style="text-align: center;">
+                        <span style="color: ${m.Prom_Inactividad_Diaria > 45 ? 'var(--danger)' : 'var(--text-primary)'};">
+                            ${Math.round(m.Prom_Inactividad_Diaria)} min/día
+                        </span>
+                    </td>
+                    <td style="text-align: center;">
+                        <span class="badge" style="background-color: ${badgeColor}; color: #fff; font-size: 13px; font-weight: bold; padding: 4px 10px;">
+                            ${totalScore} pts
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    }
 }
