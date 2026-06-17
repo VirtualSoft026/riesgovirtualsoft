@@ -249,7 +249,7 @@ function renderTiemposDashboard(metrics) {
                     formatter: function(value) { return value + ' m'; }
                 }
             }, 
-            scales: { x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9CA3AF' } }, y: { grid: { display: false }, ticks: { color: '#F3F4F6' } } } 
+            scales: { x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#6B7280' } }, y: { grid: { display: false }, ticks: { color: '#4B5563', font: { weight: 'bold' } } } } 
         }
     });
 
@@ -282,7 +282,7 @@ function renderTiemposDashboard(metrics) {
                     formatter: function(value) { return value + ' m'; }
                 }
             }, 
-            scales: { x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9CA3AF' } }, y: { grid: { display: false }, ticks: { color: '#F3F4F6' } } } 
+            scales: { x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#6B7280' } }, y: { grid: { display: false }, ticks: { color: '#4B5563', font: { weight: 'bold' } } } } 
         }
     });
 
@@ -314,17 +314,20 @@ function renderTiemposDashboard(metrics) {
                     align: 'end',
                     color: '#fff',
                     font: { weight: 'bold', size: 11 },
-                    formatter: function(value) { return value + ' m'; }
+                    formatter: function(value, context) { 
+                        if (isSingleGestor) return [context.chart.data.labels[context.dataIndex], value + ' m'];
+                        return value + ' m'; 
+                    }
                 }
             },
             scales: {
                 y: {
-                    grid: { color: 'rgba(255,255,255,0.05)' },
-                    ticks: { color: '#9CA3AF' }
+                    grid: { color: 'rgba(0,0,0,0.05)' },
+                    ticks: { color: '#6B7280' }
                 },
                 x: {
                     grid: { display: false },
-                    ticks: { color: '#F3F4F6', autoSkip: false, maxRotation: 45, minRotation: 45 }
+                    ticks: { color: '#4B5563', font: { weight: 'bold' }, autoSkip: false, maxRotation: 45, minRotation: 45 }
                 }
             }
         }
@@ -354,14 +357,7 @@ function renderTiemposDashboard(metrics) {
             layout: { padding: { top: 20, right: 20 } },
             plugins: {
                 legend: { display: false },
-                datalabels: {
-                    align: 'top',
-                    color: '#9CA3AF',
-                    font: { size: 10 },
-                    formatter: function(value, context) {
-                        return value.name;
-                    }
-                },
+                datalabels: { display: false },
                 tooltip: {
                     callbacks: {
                         label: function(ctx) {
@@ -372,14 +368,14 @@ function renderTiemposDashboard(metrics) {
             },
             scales: {
                 x: {
-                    title: { display: true, text: 'Promedio Tardanza (min)', color: '#9CA3AF' },
-                    grid: { color: 'rgba(255,255,255,0.05)' },
-                    ticks: { color: '#9CA3AF' }
+                    title: { display: true, text: 'Promedio Tardanza (min)', color: '#6B7280', font: { weight: 'bold' } },
+                    grid: { color: 'rgba(0,0,0,0.05)' },
+                    ticks: { color: '#6B7280' }
                 },
                 y: {
-                    title: { display: true, text: 'Promedio Inactividad (min)', color: '#9CA3AF' },
-                    grid: { color: 'rgba(255,255,255,0.05)' },
-                    ticks: { color: '#9CA3AF' }
+                    title: { display: true, text: 'Promedio Inactividad (min)', color: '#6B7280', font: { weight: 'bold' } },
+                    grid: { color: 'rgba(0,0,0,0.05)' },
+                    ticks: { color: '#6B7280' }
                 }
             }
         }
