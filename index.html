@@ -38,20 +38,7 @@
 
     <script>
         (function checkBrowser() {
-            var ua = navigator.userAgent;
-            // Safari doesn't have Chrome or CriOS in UA. 
-            // Edge has Edg, Opera has OPR.
-            var isChrome = /Chrome|CriOS/i.test(ua) && !/Edg|OPR/i.test(ua);
-            
-            if (!isChrome) {
-                document.addEventListener('DOMContentLoaded', function() {
-                    document.getElementById('browserBlocker').style.display = 'flex';
-                    var app = document.querySelector('.app-container');
-                    if (app) app.style.display = 'none';
-                    var mob = document.getElementById('mobileBlocker');
-                    if (mob) mob.style.display = 'none';
-                });
-            }
+            // Chrome restriction removed to allow Edge testing
         })();
     </script>
 
