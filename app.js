@@ -4646,7 +4646,7 @@ function updateUnreadBadge() {
     }
     
     let unreadCount = 0;
-    const uid = firebase.auth().currentUser.uid;
+    const uid = (currentUser && currentUser.uid) ? currentUser.uid : (firebase.auth().currentUser ? firebase.auth().currentUser.uid : 'unknown');
     
     Object.keys(globalComunicados).forEach(key => {
         const c = globalComunicados[key];
@@ -4680,7 +4680,7 @@ function renderGestorComunicados() {
         return;
     }
     
-    const uid = firebase.auth().currentUser.uid;
+    const uid = (currentUser && currentUser.uid) ? currentUser.uid : (firebase.auth().currentUser ? firebase.auth().currentUser.uid : 'unknown');
     
     keys.forEach(key => {
         const c = globalComunicados[key];
@@ -4709,7 +4709,7 @@ function renderGestorComunicados() {
 
 async function markComunicadoAsRead(id) {
     try {
-        const uid = firebase.auth().currentUser.uid;
+        const uid = (currentUser && currentUser.uid) ? currentUser.uid : (firebase.auth().currentUser ? firebase.auth().currentUser.uid : 'unknown');
         await database.ref(`announcements/${id}/readBy/${uid}`).set({
             name: currentUser.name,
             readAt: new Date().toISOString()

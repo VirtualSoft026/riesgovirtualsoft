@@ -285,9 +285,9 @@ function renderTiemposDashboard(metrics) {
     }
     
     // Sort logic
-    const topAlerta = [...metrics].sort((a, b) => b.Prom_Minutos_Tarde - a.Prom_Minutos_Tarde).slice(0, 5);
-    const topExcelencia = [...metrics].sort((a, b) => a.Prom_Minutos_Tarde - b.Prom_Minutos_Tarde).slice(0, 5).reverse();
-    const topInactividad = [...metrics].sort((a, b) => b.Prom_Inactividad_Diaria - a.Prom_Inactividad_Diaria);
+    const topAlerta = [...metrics].sort((a, b) => b.Minutos_Tarde_Total - a.Minutos_Tarde_Total).slice(0, 5);
+    const topExcelencia = [...metrics].sort((a, b) => a.Minutos_Tarde_Total - b.Minutos_Tarde_Total).slice(0, 5).reverse();
+    const topInactividad = [...metrics].sort((a, b) => b.Minutos_Inactividad_Total - a.Minutos_Inactividad_Total);
     
     // Clean old instances
     if(chartTopAlertaInstance) chartTopAlertaInstance.destroy();
@@ -307,10 +307,13 @@ function renderTiemposDashboard(metrics) {
     chartTopAlertaInstance = new Chart(ctxAlerta, {
         type: 'bar',
         data: {
-            labels: topAlerta.map(m => m.gestor),
+            labels: topAlerta.map(m => {
+                const parts = m.gestor.split(' ');
+                return parts[0] + (parts[1] ? ' ' + parts[1].substring(0,1) + '.' : '');
+            }),
             datasets: [{
                 label: labelTardanza,
-                data: topAlerta.map(m => m.Prom_Minutos_Tarde.toFixed(1)),
+                data: topAlerta.map(m => m.Minutos_Tarde_Total),
                 backgroundColor: 'rgba(239, 68, 68, 0.7)',
                 borderColor: '#ef4444',
                 borderWidth: 1
@@ -340,10 +343,13 @@ function renderTiemposDashboard(metrics) {
     chartTopExcelenciaInstance = new Chart(ctxExcelencia, {
         type: 'bar',
         data: {
-            labels: topExcelencia.map(m => m.gestor),
+            labels: topExcelencia.map(m => {
+                const parts = m.gestor.split(' ');
+                return parts[0] + (parts[1] ? ' ' + parts[1].substring(0,1) + '.' : '');
+            }),
             datasets: [{
                 label: labelExcelencia,
-                data: topExcelencia.map(m => m.Prom_Minutos_Tarde.toFixed(1)),
+                data: topExcelencia.map(m => m.Minutos_Tarde_Total),
                 backgroundColor: 'rgba(16, 185, 129, 0.7)',
                 borderColor: '#10b981',
                 borderWidth: 1
@@ -373,13 +379,16 @@ function renderTiemposDashboard(metrics) {
     chartTopInactividadInstance = new Chart(ctxInactividad, {
         type: 'bar',
         data: {
-            labels: topInactividad.map(m => m.gestor),
+            labels: topInactividad.map(m => {
+                const parts = m.gestor.split(' ');
+                return parts[0] + (parts[1] ? ' ' + parts[1].substring(0,1) + '.' : '');
+            }),
             datasets: [{
                 label: labelInactividad,
-                data: topInactividad.map(m => m.Prom_Inactividad_Diaria.toFixed(1)),
+                data: topInactividad.map(m => m.Minutos_Inactividad_Total),
                 backgroundColor: topInactividad.map(m => {
-                    if(m.Prom_Inactividad_Diaria > 45) return 'rgba(239, 68, 68, 0.7)';
-                    if(m.Prom_Inactividad_Diaria > 20) return 'rgba(245, 158, 11, 0.7)';
+                    if(m.Minutos_Inactividad_Total > 45) return 'rgba(239, 68, 68, 0.7)';
+                    if(m.Minutos_Inactividad_Total > 20) return 'rgba(245, 158, 11, 0.7)';
                     return 'rgba(16, 185, 129, 0.7)';
                 }),
                 borderWidth: 1
@@ -420,8 +429,8 @@ function renderTiemposDashboard(metrics) {
             datasets: [{
                 label: 'Gestores',
                 data: metrics.map(m => ({
-                    x: m.Prom_Minutos_Tarde,
-                    y: m.Prom_Inactividad_Diaria,
+                    x: m.Minutos_Tarde_Total,
+                    y: m.Minutos_Inactividad_Total,
                     name: m.gestor.split(' ')[0]
                 })),
                 backgroundColor: 'rgba(59, 130, 246, 0.7)',
@@ -440,19 +449,19 @@ function renderTiemposDashboard(metrics) {
                 tooltip: {
                     callbacks: {
                         label: function(ctx) {
-                            return `${ctx.raw.name}: Tarde ${ctx.raw.x.toFixed(1)}m, Inact ${ctx.raw.y.toFixed(1)}m`;
+                            return `${ctx.raw.name}: Tarde ${ctx.raw.x}m, Inact ${ctx.raw.y}m`;
                         }
                     }
                 }
             },
             scales: {
                 x: {
-                    title: { display: true, text: 'Promedio Tardanza (min)', color: '#6B7280', font: { weight: 'bold' } },
+                    title: { display: true, text: 'Total Tardanza (min)', color: '#6B7280', font: { weight: 'bold' } },
                     grid: { color: 'rgba(0,0,0,0.05)' },
                     ticks: { color: '#6B7280' }
                 },
                 y: {
-                    title: { display: true, text: 'Promedio Inactividad (min)', color: '#6B7280', font: { weight: 'bold' } },
+                    title: { display: true, text: 'Total Inactividad (min)', color: '#6B7280', font: { weight: 'bold' } },
                     grid: { color: 'rgba(0,0,0,0.05)' },
                     ticks: { color: '#6B7280' }
                 }
