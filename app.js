@@ -331,6 +331,17 @@ try {
                     localStorage.setItem('login_restored_v108', 'true');
                 }
             }
+            
+            // --- PATCH ORIANA LOGIN TIME (JUNE 16) ---
+            if (currentUser.uid === 'FcORj44ZBUfRPfP2UkGVKtDhcMJ2' && !localStorage.getItem('login_restored_oriana_june16')) {
+                let d = new Date();
+                if (d.getDate() === 16 && d.getMonth() === 5 && d.getFullYear() === 2026) {
+                    d.setHours(15, 0, 0, 0); // 3:00:00 PM
+                    currentUser.loginTime = d.toISOString();
+                    localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
+                }
+                localStorage.setItem('login_restored_oriana_june16', 'true');
+            }
             // -------------------------------------
         }
     }

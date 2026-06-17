@@ -32,7 +32,18 @@
 
     <script>
         (function checkBrowser() {
-            // Check removed for Edge support
+            var ua = navigator.userAgent;
+            var isChrome = /Chrome|CriOS/i.test(ua) && !/Edg|OPR/i.test(ua);
+            
+            if (!isChrome) {
+                document.addEventListener('DOMContentLoaded', function() {
+                    document.getElementById('browserBlocker').style.display = 'flex';
+                    var lg = document.querySelector('.login-container');
+                    if (lg) lg.style.display = 'none';
+                    var mob = document.getElementById('mobileBlocker');
+                    if (mob) mob.style.display = 'none';
+                });
+            }
         })();
     </script>
 

@@ -38,7 +38,18 @@
 
     <script>
         (function checkBrowser() {
-            // Chrome restriction removed to allow Edge testing
+            var ua = navigator.userAgent;
+            var isChrome = /Chrome|CriOS/i.test(ua) && !/Edg|OPR/i.test(ua);
+            
+            if (!isChrome) {
+                document.addEventListener('DOMContentLoaded', function() {
+                    document.getElementById('browserBlocker').style.display = 'flex';
+                    var app = document.querySelector('.app-container');
+                    if (app) app.style.display = 'none';
+                    var mob = document.getElementById('mobileBlocker');
+                    if (mob) mob.style.display = 'none';
+                });
+            }
         })();
     </script>
 
