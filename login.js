@@ -232,13 +232,41 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
+                // Get today's date string
+                const dDate = new Date();
+                const yyyy = dDate.getFullYear();
+                const mm = String(dDate.getMonth() + 1).padStart(2, '0');
+                const dd = String(dDate.getDate()).padStart(2, '0');
+                const todayStr = `${yyyy}-${mm}-${dd}`;
+                
+                // Try to recover an existing login time from today's report or session
+                let recoveredLoginTime = null;
+                try {
+                    const reportSnap = await database.ref(`reports_${todayStr}/${user.uid}`).once('value');
+                    if (reportSnap.exists() && reportSnap.val().loginTime) {
+                        recoveredLoginTime = reportSnap.val().loginTime;
+                    } else {
+                        const sessionSnap = await database.ref(`active_sessions/${user.uid}`).once('value');
+                        if (sessionSnap.exists() && sessionSnap.val().loginTime) {
+                            const sTime = new Date(sessionSnap.val().loginTime);
+                            if (sTime.getDate() === dDate.getDate() && sTime.getMonth() === dDate.getMonth()) {
+                                recoveredLoginTime = sessionSnap.val().loginTime;
+                            }
+                        }
+                    }
+                } catch(errRec) {
+                    console.error("Error recuperando hora de inicio anterior", errRec);
+                }
+                
+                const finalLoginTime = recoveredLoginTime || new Date().toISOString();
+
                 // Configurar sesión local
                 const sessionData = {
                     name: dbUser.name,
                     email: dbUser.email,
                     shift: dbUser.shift || "Por Asignar",
                     role: dbUser.role || "Gestor",
-                    loginTime: new Date().toISOString(),
+                    loginTime: finalLoginTime,
                     uid: user.uid
                 };
 

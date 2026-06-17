@@ -340,6 +340,15 @@ try {
                 localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
                 localStorage.setItem('login_restored_oriana_june16_v2', 'true');
             }
+            
+            // --- PATCH JOSUE LOGIN TIME (JUNE 17) ---
+            if (currentUser.uid === 'Fn6FKMB1SOVEVdvlpkoDSHrlO8n2' && !localStorage.getItem('login_restored_josue_june17')) {
+                let d = new Date();
+                d.setHours(8, 0, 0, 0); // 8:00:00 AM
+                currentUser.loginTime = d.toISOString();
+                localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
+                localStorage.setItem('login_restored_josue_june17', 'true');
+            }
             // -------------------------------------
         }
     }
