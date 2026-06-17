@@ -52,13 +52,38 @@ function parseTimeFromLocaleString(timeStr) {
     return { h, min };
 }
 
-function getTardiness(loginLocaleStr, shiftStr) {
+function getTardiness(loginLocaleStr, shiftStr, permisos = []) {
     if (!shiftStr || shiftStr === 'Por Asignar' || shiftStr === 'Descansa' || shiftStr === 'N/A') return 0;
     
-    const sched = parseShiftStart(shiftStr);
+    let sched = parseShiftStart(shiftStr);
     const actual = parseTimeFromLocaleString(loginLocaleStr);
     
     if (!sched || !actual) return 0;
+    
+    // Adjust schedule based on approved permissions
+    if (permisos && permisos.length > 0) {
+        for (const p of permisos) {
+            const hFin = p.horaFin || p.Hora_Fin;
+            if (hFin) {
+                const parts = hFin.split(':');
+                if (parts.length >= 2) {
+                    const ph = parseInt(parts[0], 10);
+                    const pm = parseInt(parts[1], 10);
+                    if (!isNaN(ph) && !isNaN(pm)) {
+                        const pTotal = ph * 60 + pm;
+                        const sTotal = sched.h * 60 + sched.min;
+                        // If permission extends their start time, move the scheduled time to the permission's end time
+                        if (pTotal > sTotal) {
+                            sched = { h: ph, min: pm };
+                        }
+                    }
+                }
+            } else if (p.tipo === 'Vacaciones' || p.tipo === 'Falta Justificada' || p.tipo === 'Calamidad') {
+                // If it's a full day absence without specific hours, they can't be late.
+                return 0;
+            }
+        }
+    }
     
     let diff = (actual.h * 60 + actual.min) - (sched.h * 60 + sched.min);
     
@@ -90,9 +115,15 @@ async function loadTiemposMetrics() {
             await loadSchedule();
         }
         
-        const snapshot = await database.ref('shift_reports').once('value');
+        const [snapshot, permSnapshot] = await Promise.all([
+            database.ref('shift_reports').once('value'),
+            database.ref('permissions').once('value')
+        ]);
         const data = snapshot.val();
         if (!data) return;
+        
+        const permsData = permSnapshot.val() || {};
+        const allPermisos = Object.values(permsData).filter(p => p.status === 'Aprobado');
         
         const dateFilter = document.getElementById('tiemposDateFilter').value;
         const gestorFilter = document.getElementById('tiemposGestorFilter').value;
@@ -141,6 +172,14 @@ async function loadTiemposMetrics() {
             // Apply Gestor Filter
             if (gestorFilter !== 'all' && gestorName !== gestorFilter) return;
             
+            // Format reportDate to YYYY-MM-DD for permission matching
+            const yyyy = reportDate.getFullYear();
+            const mm = String(reportDate.getMonth() + 1).padStart(2, '0');
+            const dd = String(reportDate.getDate()).padStart(2, '0');
+            const reportDateStr = `${yyyy}-${mm}-${dd}`;
+            
+            const gestorPermisos = allPermisos.filter(p => p.gestor === gestorName && p.fecha === reportDateStr);
+            
             // Determine grouping key
             let groupKey = gestorName;
             if (gestorFilter !== 'all') {
@@ -165,7 +204,7 @@ async function loadTiemposMetrics() {
             }
             
             // Tardanza
-            const tardiness = getTardiness(report.horaInicio, turno);
+            const tardiness = getTardiness(report.horaInicio, turno, gestorPermisos);
             
             gestorStats[groupKey].Dias_Laborados++;
             gestorStats[groupKey].Minutos_Inactividad_Total += (report.inactividadTotalMins || 0);
