@@ -3945,10 +3945,9 @@ function loadGestoresForKPIs() {
 }
 
 async function calcularIndicadores() {
-    try {
-        const gestorName = document.getElementById('kpiGestorSelect').value;
-        const periodo = document.getElementById('kpiPeriodoSelect').value;
-        const db = firebase.database();
+    const gestorName = document.getElementById('kpiGestorSelect').value;
+    const periodo = document.getElementById('kpiPeriodoSelect').value;
+    const db = firebase.database();
     
     // Resetear listas de detalle
     window.kpiTaskLists = { finalizadas: [], no_realizadas: [], pendientes: [] };
