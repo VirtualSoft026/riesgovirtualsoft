@@ -312,12 +312,9 @@ function renderTiemposDashboard(metrics) {
                 datalabels: {
                     anchor: 'end',
                     align: 'end',
-                    color: '#fff',
+                    color: '#4B5563',
                     font: { weight: 'bold', size: 11 },
-                    formatter: function(value, context) { 
-                        if (isSingleGestor) return [context.chart.data.labels[context.dataIndex], value + ' m'];
-                        return value + ' m'; 
-                    }
+                    formatter: function(value) { return value + ' min'; }
                 }
             },
             scales: {
