@@ -142,7 +142,7 @@ async function loadTiemposMetrics() {
             }
             
             // Determinar turno programado (historico vs nuevo formato)
-            let turno = report.turnoProgramado;
+            let turno = report.turnoProgramado || report.setTrabajado;
             if (!turno || turno === 'Por Asignar') {
                 turno = getShiftForDate(globalScheduleRows, globalScheduleBlocks, gestorName, reportDate);
             }
