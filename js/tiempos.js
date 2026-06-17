@@ -247,7 +247,7 @@ function renderTiemposDashboard(metrics) {
     
     // Sort logic
     const topAlerta = [...metrics].sort((a, b) => b.Prom_Minutos_Tarde - a.Prom_Minutos_Tarde).slice(0, 5);
-    const topExcelencia = [...metrics].sort((a, b) => a.Prom_Minutos_Tarde - b.Prom_Minutos_Tarde).slice(0, 5);
+    const topExcelencia = [...metrics].sort((a, b) => a.Prom_Minutos_Tarde - b.Prom_Minutos_Tarde).slice(0, 5).reverse();
     const topInactividad = [...metrics].sort((a, b) => b.Prom_Inactividad_Diaria - a.Prom_Inactividad_Diaria);
     
     // Clean old instances
@@ -259,8 +259,8 @@ function renderTiemposDashboard(metrics) {
     const gestorFilterEl = document.getElementById('tiemposGestorFilter');
     const isSingleGestor = gestorFilterEl && gestorFilterEl.value !== 'all';
     
-    const labelTardanza = isSingleGestor ? 'Días con Más Tardanza' : 'Top Alerta (Peores Promedios Tardanza)';
-    const labelExcelencia = isSingleGestor ? 'Días con Menos Tardanza' : 'Top Excelencia (Mejores Promedios Tardanza)';
+    const labelTardanza = isSingleGestor ? 'Días con Más Tardanza' : 'Más Tarde al Turno';
+    const labelExcelencia = isSingleGestor ? 'Días con Menos Tardanza' : 'Más Temprano al Turno';
     const labelInactividad = isSingleGestor ? 'Inactividad por Día' : 'Promedio Inactividad Diaria';
     
     // 1. Chart Top Alerta
