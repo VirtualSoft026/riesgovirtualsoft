@@ -3930,13 +3930,6 @@ async function calcularIndicadores() {
     const resultsContainer = document.getElementById('kpiResultsContainer');
     resultsContainer.style.display = 'none'; // hide while loading
     
-    const analyzeBtn = document.querySelector('button[onclick="calcularIndicadores()"]');
-    const originalBtnHTML = analyzeBtn ? analyzeBtn.innerHTML : null;
-    if (analyzeBtn) {
-        analyzeBtn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Analizando...";
-        analyzeBtn.disabled = true;
-    }
-    
     let shiftReports = [];
     try {
         let snapshotReports, snapshotActive;
@@ -3965,20 +3958,12 @@ async function calcularIndicadores() {
             shiftReports = shiftReports.concat(activeArr);
         }
     } catch(e) {
-        if (analyzeBtn) {
-            analyzeBtn.innerHTML = originalBtnHTML;
-            analyzeBtn.disabled = false;
-        }
         console.error("Error cargando shift reports para KPIs", e);
         alert("Hubo un error cargando los datos.");
         return;
     }
     
     if (shiftReports.length === 0) {
-        if (analyzeBtn) {
-            analyzeBtn.innerHTML = originalBtnHTML;
-            analyzeBtn.disabled = false;
-        }
         alert(`No se encontraron turnos registrados para ${gestorName}.`);
         return;
     }
@@ -4456,10 +4441,6 @@ async function calcularIndicadores() {
     animateRing('kpiScoreRingRetiros', 'kpiScoreTextRetiros', 'kpiVerdictBadgeRetiros', porcentajeRetiros);
     
     resultsContainer.style.display = 'flex';
-    if (analyzeBtn) {
-        analyzeBtn.innerHTML = originalBtnHTML;
-        analyzeBtn.disabled = false;
-    }
 }
 
 // Modal de Detalle de Tareas (KPIs)
@@ -4646,7 +4627,7 @@ function updateUnreadBadge() {
     }
     
     let unreadCount = 0;
-    const uid = (currentUser && currentUser.uid) ? currentUser.uid : (firebase.auth().currentUser ? firebase.auth().currentUser.uid : 'unknown');
+    const uid = firebase.auth().currentUser.uid;
     
     Object.keys(globalComunicados).forEach(key => {
         const c = globalComunicados[key];
@@ -4680,7 +4661,7 @@ function renderGestorComunicados() {
         return;
     }
     
-    const uid = (currentUser && currentUser.uid) ? currentUser.uid : (firebase.auth().currentUser ? firebase.auth().currentUser.uid : 'unknown');
+    const uid = firebase.auth().currentUser.uid;
     
     keys.forEach(key => {
         const c = globalComunicados[key];
@@ -4709,7 +4690,7 @@ function renderGestorComunicados() {
 
 async function markComunicadoAsRead(id) {
     try {
-        const uid = (currentUser && currentUser.uid) ? currentUser.uid : (firebase.auth().currentUser ? firebase.auth().currentUser.uid : 'unknown');
+        const uid = firebase.auth().currentUser.uid;
         await database.ref(`announcements/${id}/readBy/${uid}`).set({
             name: currentUser.name,
             readAt: new Date().toISOString()
