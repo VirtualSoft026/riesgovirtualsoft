@@ -76,6 +76,7 @@ async function loadTiemposMetrics() {
         
         const now = new Date();
         const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const startOfYesterday = startOfDay - (24 * 60 * 60 * 1000);
         const sevenDaysAgo = startOfDay - (7 * 24 * 60 * 60 * 1000);
         const thirtyDaysAgo = startOfDay - (30 * 24 * 60 * 60 * 1000);
         
@@ -90,6 +91,7 @@ async function loadTiemposMetrics() {
             const reportTime = reportDate.getTime();
             
             if (dateFilter === 'today' && reportTime < startOfDay) return;
+            if (dateFilter === 'yesterday' && (reportTime < startOfYesterday || reportTime >= startOfDay)) return;
             if (dateFilter === '7' && reportTime < sevenDaysAgo) return;
             if (dateFilter === '30' && reportTime < thirtyDaysAgo) return;
             
@@ -196,6 +198,9 @@ async function loadTiemposMetrics() {
 
 function renderTiemposDashboard(metrics) {
     if (typeof Chart === 'undefined') return;
+    if (typeof ChartDataLabels !== 'undefined') {
+        Chart.register(ChartDataLabels);
+    }
     
     // Sort logic
     const topAlerta = [...metrics].sort((a, b) => b.Prom_Minutos_Tarde - a.Prom_Minutos_Tarde).slice(0, 5);
@@ -229,7 +234,23 @@ function renderTiemposDashboard(metrics) {
                 borderWidth: 1
             }]
         },
-        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9CA3AF' } }, y: { grid: { display: false }, ticks: { color: '#F3F4F6' } } } }
+        options: {
+            indexAxis: 'y', 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            layout: { padding: { right: 40 } },
+            plugins: { 
+                legend: { display: false },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'end',
+                    color: '#ef4444',
+                    font: { weight: 'bold', size: 11 },
+                    formatter: function(value) { return value + ' m'; }
+                }
+            }, 
+            scales: { x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9CA3AF' } }, y: { grid: { display: false }, ticks: { color: '#F3F4F6' } } } 
+        }
     });
 
     // 2. Chart Top Excelencia
@@ -246,7 +267,23 @@ function renderTiemposDashboard(metrics) {
                 borderWidth: 1
             }]
         },
-        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9CA3AF' } }, y: { grid: { display: false }, ticks: { color: '#F3F4F6' } } } }
+        options: {
+            indexAxis: 'y', 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            layout: { padding: { right: 40 } },
+            plugins: { 
+                legend: { display: false },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'end',
+                    color: '#10b981',
+                    font: { weight: 'bold', size: 11 },
+                    formatter: function(value) { return value + ' m'; }
+                }
+            }, 
+            scales: { x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9CA3AF' } }, y: { grid: { display: false }, ticks: { color: '#F3F4F6' } } } 
+        }
     });
 
     // 3. Chart Top Inactividad Diaria
@@ -269,7 +306,17 @@ function renderTiemposDashboard(metrics) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            layout: { padding: { top: 25 } },
+            plugins: { 
+                legend: { display: false },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'end',
+                    color: '#fff',
+                    font: { weight: 'bold', size: 11 },
+                    formatter: function(value) { return value + ' m'; }
+                }
+            },
             scales: {
                 y: {
                     grid: { color: 'rgba(255,255,255,0.05)' },
@@ -304,8 +351,17 @@ function renderTiemposDashboard(metrics) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: { padding: { top: 20, right: 20 } },
             plugins: {
                 legend: { display: false },
+                datalabels: {
+                    align: 'top',
+                    color: '#9CA3AF',
+                    font: { size: 10 },
+                    formatter: function(value, context) {
+                        return value.name;
+                    }
+                },
                 tooltip: {
                     callbacks: {
                         label: function(ctx) {

@@ -16,6 +16,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <!-- Chart.js for data visualization -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <link rel="stylesheet" href="styles.css?v=84">
 </head>
 <body>
@@ -95,7 +96,7 @@
                     <i class='bx bx-log-out-circle'></i> Finalizar Turno
                 </button>
                 <div style="font-size: 13px; font-weight: 500; color: var(--text-secondary); text-align: center; margin-top: 15px; opacity: 0.8; letter-spacing: 0.5px;">
-                    Build: 16/06 18:56 (v139)
+                    Build: 16/06 19:05 (v140)
                 </div>
             </div>
         </aside>
@@ -670,10 +671,11 @@
                             <div style="display: flex; flex-direction: column; gap: 5px;">
                                 <label style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Rango de Fecha</label>
                                 <select id="tiemposDateFilter" class="modern-input" onchange="loadTiemposMetrics()" style="min-width: 150px; padding: 6px 12px; font-size: 13px;">
-                                    <option value="all">Todo el Histórico</option>
                                     <option value="today">Solo Hoy</option>
+                                    <option value="yesterday">Solo Ayer</option>
                                     <option value="7" selected>Últimos 7 Días</option>
                                     <option value="30">Últimos 30 Días</option>
+                                    <option value="all">Todo el Histórico</option>
                                 </select>
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 5px;">
