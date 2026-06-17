@@ -308,8 +308,8 @@ function renderTiemposDashboard(metrics) {
         type: 'bar',
         data: {
             labels: topAlerta.map(m => {
-                const parts = m.gestor.split(' ');
-                return parts[0] + (parts[1] ? ' ' + parts[1].substring(0,1) + '.' : '');
+                // Return full name and date if present
+                return m.gestor;
             }),
             datasets: [{
                 label: labelTardanza,
@@ -344,8 +344,7 @@ function renderTiemposDashboard(metrics) {
         type: 'bar',
         data: {
             labels: topExcelencia.map(m => {
-                const parts = m.gestor.split(' ');
-                return parts[0] + (parts[1] ? ' ' + parts[1].substring(0,1) + '.' : '');
+                return m.gestor;
             }),
             datasets: [{
                 label: labelExcelencia,
@@ -380,8 +379,7 @@ function renderTiemposDashboard(metrics) {
         type: 'bar',
         data: {
             labels: topInactividad.map(m => {
-                const parts = m.gestor.split(' ');
-                return parts[0] + (parts[1] ? ' ' + parts[1].substring(0,1) + '.' : '');
+                return m.gestor;
             }),
             datasets: [{
                 label: labelInactividad,
