@@ -7,19 +7,36 @@ function parseShiftStart(shiftStr) {
     if (!shiftStr) return null;
     
     const s = shiftStr.toLowerCase();
+    
+    // Explicit format matching (e.g. "8:00 am")
+    const m = shiftStr.match(/(\d{1,2}):(\d{2})\s*([ap]\.?\s*m\.?)?/i);
+    if (m) {
+        let h = parseInt(m[1], 10);
+        let min = parseInt(m[2], 10);
+        let ampm = m[3] ? m[3].toLowerCase().replace(/[^apm]/g, '') : null;
+        if (ampm === 'pm' && h < 12) h += 12;
+        if (ampm === 'am' && h === 12) h = 0;
+        return { h, min };
+    }
+
+    // Heuristics based on historical sets
+    if (s.includes('tarde')) {
+        if (s.includes('set 1') || s.includes('soporte 1')) return { h: 15, min: 0 };
+        if (s.includes('set 2') || s.includes('soporte 2')) return { h: 19, min: 0 };
+    } else if (s.includes('sábado') || s.includes('sabado') || s.includes('domingo')) {
+        if (s.includes('set 1')) return { h: 8, min: 0 };
+        if (s.includes('set 2')) return { h: 15, min: 0 };
+        if (s.includes('set 3')) return { h: 19, min: 0 };
+    } else if (s.includes('mañana') || s.includes('manana')) {
+        return { h: 8, min: 0 };
+    }
+    
+    // General fallback
     if (s.includes('set 1') || s.includes('soporte 1')) return { h: 8, min: 0 };
     if (s.includes('set 2') || s.includes('soporte 2')) return { h: 14, min: 0 };
     if (s.includes('set 3')) return { h: 15, min: 0 };
     if (s.includes('set 4')) return { h: 22, min: 0 };
-    
-    const m = shiftStr.match(/(\d{1,2}):(\d{2})\s*([ap]\.?\s*m\.?)?/i);
-    if (!m) return null;
-    let h = parseInt(m[1], 10);
-    let min = parseInt(m[2], 10);
-    let ampm = m[3] ? m[3].toLowerCase().replace(/[^apm]/g, '') : null;
-    if (ampm === 'pm' && h < 12) h += 12;
-    if (ampm === 'am' && h === 12) h = 0;
-    return { h, min };
+    return null;
 }
 
 function parseTimeFromLocaleString(timeStr) {
