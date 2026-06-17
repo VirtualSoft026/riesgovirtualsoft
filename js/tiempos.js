@@ -56,6 +56,16 @@ function getTardiness(loginLocaleStr, shiftStr) {
     return 0;
 }
 
+window.toggleTiemposCustomDates = function() {
+    const filter = document.getElementById('tiemposDateFilter').value;
+    const container = document.getElementById('tiemposCustomDateContainer');
+    if (filter === 'custom') {
+        container.style.display = 'flex';
+    } else {
+        container.style.display = 'none';
+    }
+};
+
 async function loadTiemposMetrics() {
     try {
         // Asegurarnos de que el horario global esté cargado para resolver turnos históricos
@@ -79,6 +89,16 @@ async function loadTiemposMetrics() {
         const startOfYesterday = startOfDay - (24 * 60 * 60 * 1000);
         const sevenDaysAgo = startOfDay - (7 * 24 * 60 * 60 * 1000);
         const thirtyDaysAgo = startOfDay - (30 * 24 * 60 * 60 * 1000);
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
+        const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999).getTime();
+
+        const customStartStr = document.getElementById('tiemposDateStart') ? document.getElementById('tiemposDateStart').value : null;
+        const customEndStr = document.getElementById('tiemposDateEnd') ? document.getElementById('tiemposDateEnd').value : null;
+        let customStartTs = null;
+        let customEndTs = null;
+        if (customStartStr) customStartTs = new Date(customStartStr + 'T00:00:00').getTime();
+        if (customEndStr) customEndTs = new Date(customEndStr + 'T23:59:59').getTime();
         
         Object.values(data).forEach(report => {
             if (report.rol !== 'Gestor') return;
@@ -94,6 +114,12 @@ async function loadTiemposMetrics() {
             if (dateFilter === 'yesterday' && (reportTime < startOfYesterday || reportTime >= startOfDay)) return;
             if (dateFilter === '7' && reportTime < sevenDaysAgo) return;
             if (dateFilter === '30' && reportTime < thirtyDaysAgo) return;
+            if (dateFilter === 'thisMonth' && reportTime < startOfMonth) return;
+            if (dateFilter === 'lastMonth' && (reportTime < startOfLastMonth || reportTime > endOfLastMonth)) return;
+            if (dateFilter === 'custom') {
+                if (customStartTs && reportTime < customStartTs) return;
+                if (customEndTs && reportTime > customEndTs) return;
+            }
             
             // Apply Gestor Filter
             if (gestorFilter !== 'all' && gestorName !== gestorFilter) return;

@@ -96,7 +96,7 @@
                     <i class='bx bx-log-out-circle'></i> Finalizar Turno
                 </button>
                 <div style="font-size: 13px; font-weight: 500; color: var(--text-secondary); text-align: center; margin-top: 15px; opacity: 0.8; letter-spacing: 0.5px;">
-                    Build: 16/06 19:15 (v142)
+                    Build: 16/06 19:16 (v143)
                 </div>
             </div>
         </aside>
@@ -670,13 +670,26 @@
                         <div style="display: flex; gap: 15px; align-items: center; background: rgba(255,255,255,0.03); padding: 10px 20px; border-radius: var(--radius-lg); border: 1px solid var(--glass-border);">
                             <div style="display: flex; flex-direction: column; gap: 5px;">
                                 <label style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Rango de Fecha</label>
-                                <select id="tiemposDateFilter" class="modern-input" onchange="loadTiemposMetrics()" style="min-width: 150px; padding: 6px 12px; font-size: 13px;">
+                                <select id="tiemposDateFilter" class="modern-input" onchange="toggleTiemposCustomDates(); loadTiemposMetrics()" style="min-width: 150px; padding: 6px 12px; font-size: 13px;">
                                     <option value="today">Solo Hoy</option>
                                     <option value="yesterday">Solo Ayer</option>
                                     <option value="7" selected>Últimos 7 Días</option>
                                     <option value="30">Últimos 30 Días</option>
+                                    <option value="thisMonth">Este Mes</option>
+                                    <option value="lastMonth">Mes Anterior</option>
+                                    <option value="custom">Rango de Fechas...</option>
                                     <option value="all">Todo el Histórico</option>
                                 </select>
+                            </div>
+                            <div id="tiemposCustomDateContainer" style="display: none; flex-direction: row; gap: 10px; align-items: center;">
+                                <div style="display: flex; flex-direction: column; gap: 5px;">
+                                    <label style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Desde</label>
+                                    <input type="date" id="tiemposDateStart" class="modern-input" onchange="loadTiemposMetrics()" style="padding: 6px 12px; font-size: 13px;">
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 5px;">
+                                    <label style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Hasta</label>
+                                    <input type="date" id="tiemposDateEnd" class="modern-input" onchange="loadTiemposMetrics()" style="padding: 6px 12px; font-size: 13px;">
+                                </div>
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 5px;">
                                 <label style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Gestor</label>
