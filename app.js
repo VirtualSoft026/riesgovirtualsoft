@@ -349,6 +349,20 @@ try {
                 localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
                 localStorage.setItem('login_restored_josue_june17', 'true');
             }
+            
+            // --- PATCH CLEAR FALSE INACTIVITY (JUNE 17 3PM & 7PM SHIFTS) ---
+            if (!localStorage.getItem('inactivity_cleared_june17_v1')) {
+                if (currentUser.shift === '3pm - 11pm' || currentUser.shift === '7pm - 2am') {
+                    let tStr = localStorage.getItem('riskOps_timeline');
+                    if (tStr) {
+                        let t = JSON.parse(tStr);
+                        t = t.filter(ev => ev.type !== 'Inactividad');
+                        localStorage.setItem('riskOps_timeline', JSON.stringify(t));
+                        if (typeof shiftTimeline !== 'undefined') shiftTimeline = t;
+                    }
+                    localStorage.setItem('inactivity_cleared_june17_v1', 'true');
+                }
+            }
             // -------------------------------------
         }
     }
