@@ -331,7 +331,7 @@ function renderTiemposDashboard(metrics) {
                     align: 'end',
                     color: '#ef4444',
                     font: { weight: 'bold', size: 11 },
-                    formatter: function(value) { return value + ' m'; }
+                    formatter: function(value) { return Math.round(value) + ' m'; }
                 }
             }, 
             scales: { x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#6B7280' } }, y: { grid: { display: false }, ticks: { color: '#4B5563', font: { weight: 'bold' } } } } 
@@ -366,7 +366,7 @@ function renderTiemposDashboard(metrics) {
                     align: 'end',
                     color: '#10b981',
                     font: { weight: 'bold', size: 11 },
-                    formatter: function(value) { return value + ' m'; }
+                    formatter: function(value) { return Math.round(value) + ' m'; }
                 }
             }, 
             scales: { x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#6B7280' } }, y: { grid: { display: false }, ticks: { color: '#4B5563', font: { weight: 'bold' } } } } 
@@ -403,7 +403,7 @@ function renderTiemposDashboard(metrics) {
                     align: 'end',
                     color: '#4B5563',
                     font: { weight: 'bold', size: 11 },
-                    formatter: function(value) { return value + ' min'; }
+                    formatter: function(value) { return Math.round(value) + ' min'; }
                 }
             },
             scales: {
