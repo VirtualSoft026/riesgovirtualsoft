@@ -349,6 +349,15 @@ try {
                 localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
                 localStorage.setItem('login_restored_josue_june17', 'true');
             }
+
+            // --- PATCH SEBASTIAN HINCAPIE LOGIN TIME (JUNE 24) ---
+            if (currentUser.uid === 'e3y3uNtszkTXoNtXyqAYbUc0nAn2' && !localStorage.getItem('login_restored_sebastian_june24')) {
+                let d = new Date();
+                d.setHours(8, 0, 0, 0); // 8:00:00 AM
+                currentUser.loginTime = d.toISOString();
+                localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
+                localStorage.setItem('login_restored_sebastian_june24', 'true');
+            }
             
             // --- PATCH CLEAR FALSE INACTIVITY (JUNE 17 3PM & 7PM SHIFTS) ---
             if (!localStorage.getItem('inactivity_cleared_june17_v1')) {
