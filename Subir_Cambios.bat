@@ -43,9 +43,13 @@ echo Subiendo los datos a GitHub (Internet)...
 
 echo.
 echo ============================================================
+echo Subiendo los datos a Firebase Hosting (Pagina Web)...
+call npx firebase-tools deploy --only hosting
+echo.
+echo ============================================================
 echo            PROCESO COMPLETADO CON EXITO!
 echo.
-echo Los cambios ya estan subiendose a la nube.
+echo Los cambios ya estan publicados en tu pagina web.
 echo Por favor, espera 1 minuto y refresca la web (Ctrl + F5).
 echo ============================================================
 echo.
