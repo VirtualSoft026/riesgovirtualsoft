@@ -372,14 +372,14 @@
 
                 <div class="glass-panel" style="padding: 20px; border: 1px solid var(--success); overflow-x: auto; overflow-y: auto; max-height: 500px;">
                     <table style="width: 100%; border-collapse: collapse;">
-                        <thead>
-                            <tr style="border-bottom: 1px solid var(--glass-border);">
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Gestor</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">SET</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Inicio</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Fin</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Reporte</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: center;">Acción</th>
+                        <thead style="position: sticky; top: -20px; z-index: 10; background: var(--bg-secondary, #131720); box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                            <tr>
+                                <th style="padding: 12px; color: var(--accent-primary); text-align: left; border-bottom: 1px solid var(--glass-border);">Gestor</th>
+                                <th style="padding: 12px; color: var(--accent-primary); text-align: left; border-bottom: 1px solid var(--glass-border);">SET</th>
+                                <th style="padding: 12px; color: var(--accent-primary); text-align: left; border-bottom: 1px solid var(--glass-border);">Inicio</th>
+                                <th style="padding: 12px; color: var(--accent-primary); text-align: left; border-bottom: 1px solid var(--glass-border);">Fin</th>
+                                <th style="padding: 12px; color: var(--accent-primary); text-align: left; border-bottom: 1px solid var(--glass-border);">Reporte</th>
+                                <th style="padding: 12px; color: var(--accent-primary); text-align: center; border-bottom: 1px solid var(--glass-border);">Acción</th>
                             </tr>
                         </thead>
                         <tbody id="shiftReportsTableBody"></tbody>
