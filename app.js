@@ -3075,7 +3075,8 @@ window.exportShiftReport = async function(fb_id) {
         
         // Guardar
         const safeName = (r.gestor || 'Gestor').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        const dateStr = new Date(r.timestamp || Date.now()).toISOString().split('T')[0];
+        const d = new Date(r.timestamp || Date.now());
+        const dateStr = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, '0') + "-" + String(d.getDate()).padStart(2, '0');
         doc.save(`Reporte_${safeName}_${dateStr}.pdf`);
         
     } catch(e) {
