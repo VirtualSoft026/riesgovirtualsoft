@@ -3920,7 +3920,8 @@ function loadGestoresForKPIs() {
                 "yefferson",
                 "alexander villada",
                 "daniel",
-                "josue alvarez"
+                "josue alvarez",
+                "luis fuentes"
             ];
             
             const gestores = Object.keys(data)
