@@ -842,6 +842,24 @@
         </div>
     </div>
 
+    <!-- Urgent Announcement Modal -->
+    <div id="urgentAnnouncementModal" class="modal-overlay" style="z-index: 9999; backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); background: rgba(0,0,0,0.8);">
+        <div class="modal glass-panel" style="max-width: 700px; width: 95%; text-align: center; padding: 40px; border: 2px solid var(--warning); box-shadow: 0 0 30px rgba(230, 162, 60, 0.4);">
+            <div style="font-size: 60px; color: var(--warning); margin-bottom: 20px;">
+                <i class='bx bxs-bell-ring bx-tada'></i>
+            </div>
+            <h1 id="urgentAnnouncementTitle" style="color: var(--text-primary); font-size: 28px; margin-bottom: 10px;">¡Nuevo Comunicado Importante!</h1>
+            <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 20px;">
+                Por: <span id="urgentAnnouncementAuthor" style="color: var(--warning); font-weight: bold;"></span> | <span id="urgentAnnouncementDate"></span>
+            </div>
+            <div id="urgentAnnouncementBody" style="font-size: 18px; line-height: 1.6; color: var(--text-primary); white-space: pre-wrap; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px; margin-bottom: 30px; text-align: left; max-height: 400px; overflow-y: auto;"></div>
+            
+            <button id="btnUrgentUnderstand" class="btn btn-primary" style="width: 100%; font-size: 18px; padding: 15px; background: var(--success); border-color: var(--success); box-shadow: 0 4px 15px rgba(103, 194, 58, 0.4); text-transform: uppercase; font-weight: bold;">
+                <i class='bx bx-check-double'></i> He leído y entendido este comunicado
+            </button>
+        </div>
+    </div>
+
     <!-- Exception Modal -->
     <div id="extraTaskModal" class="modal-overlay">
         <div class="modal glass-panel">

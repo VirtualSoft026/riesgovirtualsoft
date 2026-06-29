@@ -4635,6 +4635,7 @@ function initComunicadosListener() {
     database.ref('announcements').on('value', snapshot => {
         globalComunicados = snapshot.val() || {};
         updateUnreadBadge();
+        checkUnreadUrgentAnnouncements();
         
         // Re-render views if they are open
         const viewGestor = document.getElementById('view-comunicados');
@@ -4761,6 +4762,58 @@ async function markComunicadoAsRead(id) {
     } catch(e) {
         console.error(e);
         alert("Error al marcar como leído.");
+    }
+}
+
+function checkUnreadUrgentAnnouncements() {
+    if (!currentUser || !currentUser.uid) return;
+    const uid = currentUser.uid;
+    
+    const modal = document.getElementById('urgentAnnouncementModal');
+    if (modal && modal.classList.contains('active')) return;
+    
+    const keys = Object.keys(globalComunicados).sort((a,b) => {
+        return new Date(globalComunicados[a].date) - new Date(globalComunicados[b].date);
+    });
+    
+    for (let key of keys) {
+        const c = globalComunicados[key];
+        const isRead = c.readBy && c.readBy[uid];
+        
+        if (!isRead) {
+            document.getElementById('urgentAnnouncementTitle').innerText = c.title;
+            document.getElementById('urgentAnnouncementAuthor').innerText = c.author;
+            document.getElementById('urgentAnnouncementDate').innerText = new Date(c.date).toLocaleString('es-CO');
+            document.getElementById('urgentAnnouncementBody').innerHTML = c.content;
+            
+            const btn = document.getElementById('btnUrgentUnderstand');
+            btn.onclick = () => markUrgentComunicadoAsRead(key);
+            
+            modal.classList.add('active');
+            return;
+        }
+    }
+}
+
+async function markUrgentComunicadoAsRead(id) {
+    const btn = document.getElementById('btnUrgentUnderstand');
+    btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Registrando...";
+    btn.disabled = true;
+    
+    try {
+        await markComunicadoAsRead(id);
+        
+        document.getElementById('urgentAnnouncementModal').classList.remove('active');
+        btn.innerHTML = "<i class='bx bx-check-double'></i> He leído y entendido este comunicado";
+        btn.disabled = false;
+        
+        setTimeout(() => {
+            checkUnreadUrgentAnnouncements();
+        }, 500);
+        
+    } catch(e) {
+        btn.innerHTML = "<i class='bx bx-check-double'></i> He leído y entendido este comunicado";
+        btn.disabled = false;
     }
 }
 
