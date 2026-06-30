@@ -89,14 +89,45 @@ class MicroStrategyConnector:
                 'Accept': 'application/json'
             }
             try:
-                url = f"{MSTR_BASE_URL}/reports/{MSTR_REPORT_ID}/instances?limit=100000"
+                url = f"{MSTR_BASE_URL}/reports/{MSTR_REPORT_ID}/instances?limit=1000"
                 res = requests.post(url, headers=headers, cookies=self.session_cookies)
                 res.raise_for_status()
                 data = res.json()
                 
+                instance_id = data.get('instanceId')
+                
                 if 'data' in data.get('result', {}) and 'root' in data['result']['data']:
                     self.extract_flat_data(data['result']['data']['root'], [], all_rows)
-                    print(f"Se extrajeron {len(all_rows)} filas de MicroStrategy.")
+                    print(f"Página 1 extraída. Total actual: {len(all_rows)} filas.")
+                
+                # Check pagination
+                paging = data.get('result', {}).get('data', {}).get('paging', {})
+                total_rows = paging.get('total', 0)
+                
+                print(f"MicroStrategy reporta un total de {total_rows} filas en este reporte.")
+                
+                # Fetch remaining pages if needed (limit to 50,000 to avoid infinite loops/crashes)
+                MAX_ROWS = 50000
+                current_offset = len(all_rows)
+                
+                while current_offset < total_rows and current_offset < MAX_ROWS and instance_id:
+                    page_url = f"{MSTR_BASE_URL}/reports/{MSTR_REPORT_ID}/instances/{instance_id}?offset={current_offset}&limit=1000"
+                    page_res = requests.get(page_url, headers=headers, cookies=self.session_cookies)
+                    if not page_res.ok:
+                        break
+                    
+                    page_data = page_res.json()
+                    
+                    if 'data' in page_data.get('result', {}) and 'root' in page_data['result']['data']:
+                        prev_len = len(all_rows)
+                        self.extract_flat_data(page_data['result']['data']['root'], [], all_rows)
+                        if len(all_rows) == prev_len:
+                            break # No new rows added
+                    
+                    current_offset = len(all_rows)
+                    print(f"Página extraída. Total actual: {current_offset} filas.")
+                
+                print(f"Extracción API finalizada: {len(all_rows)} filas totales.")
             except Exception as e:
                 print(f"Error descargando el reporte de MicroStrategy: {e}")
 

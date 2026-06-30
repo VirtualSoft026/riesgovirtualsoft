@@ -34,6 +34,9 @@ if __name__ == '__main__':
     with open('temp_mstr_raw.json', 'r', encoding='utf-8') as f:
         data = json.load(f)
         
+    if 'paging' in data.get('result', {}).get('data', {}):
+        print("Paging data in result:", data['result']['data']['paging'])
+        
     root = data['result']['data']['root']
     all_rows = []
     extract_flat_data(root, [], all_rows)
