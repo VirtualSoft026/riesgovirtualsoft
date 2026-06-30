@@ -4982,6 +4982,16 @@ function destroyChart(id) {
 
 window.controlOperativoRawData = null;
 
+function toggleOperativoCustomDates() {
+    const val = document.getElementById('filtroFechaOperativo').value;
+    const container = document.getElementById('operativoCustomDateContainer');
+    if (val === 'custom') {
+        container.style.display = 'flex';
+    } else {
+        container.style.display = 'none';
+    }
+}
+
 async function loadControlOperativoData() {
     try {
         const response = await fetch('kpi_operativos_v2.json?' + new Date().getTime());
@@ -5000,22 +5010,6 @@ async function loadControlOperativoData() {
             selectGestor.appendChild(opt);
         });
         
-        const fechasSet = new Set();
-        gestores.forEach(g => {
-            Object.keys(data[g]).forEach(f => {
-                if (f) fechasSet.add(f);
-            });
-        });
-        const fechas = Array.from(fechasSet).sort().reverse();
-        const selectFecha = document.getElementById('filtroFechaOperativo');
-        selectFecha.innerHTML = '<option value="Todas">Todas las fechas</option>';
-        fechas.forEach(f => {
-            const opt = document.createElement('option');
-            opt.value = f;
-            opt.textContent = f;
-            selectFecha.appendChild(opt);
-        });
-        
         renderControlOperativoFiltered();
     } catch (error) {
         console.error("Error loading Control Operativo:", error);
@@ -5028,6 +5022,28 @@ function renderControlOperativoFiltered() {
     
     const selectedGestor = document.getElementById('filtroGestorOperativo').value;
     const selectedFecha = document.getElementById('filtroFechaOperativo').value;
+    
+    const todayStr = new Date().toISOString().split('T')[0];
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+    
+    const thisMonth = new Date().toISOString().substring(0, 7);
+    
+    const lastMonthDate = new Date();
+    lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
+    const lastMonth = lastMonthDate.toISOString().substring(0, 7);
+
+    const customStart = document.getElementById('operativoDateStart')?.value;
+    const customEnd = document.getElementById('operativoDateEnd')?.value;
     
     // Aggregation logic
     let aggregatedData = {};
@@ -5047,7 +5063,34 @@ function renderControlOperativoFiltered() {
         };
         
         for (const fecha in window.controlOperativoRawData[gestor]) {
-            if (selectedFecha !== 'Todas' && fecha !== selectedFecha) continue;
+            let inRange = false;
+            if (selectedFecha === 'Todas') {
+                inRange = true;
+            } else if (selectedFecha === 'today' && fecha === todayStr) {
+                inRange = true;
+            } else if (selectedFecha === 'yesterday' && fecha === yesterdayStr) {
+                inRange = true;
+            } else if (selectedFecha === '7' && fecha >= sevenDaysAgoStr && fecha <= todayStr) {
+                inRange = true;
+            } else if (selectedFecha === '30' && fecha >= thirtyDaysAgoStr && fecha <= todayStr) {
+                inRange = true;
+            } else if (selectedFecha === 'thisMonth' && fecha.startsWith(thisMonth)) {
+                inRange = true;
+            } else if (selectedFecha === 'lastMonth' && fecha.startsWith(lastMonth)) {
+                inRange = true;
+            } else if (selectedFecha === 'custom') {
+                if (customStart && customEnd) {
+                    if (fecha >= customStart && fecha <= customEnd) inRange = true;
+                } else if (customStart) {
+                    if (fecha >= customStart) inRange = true;
+                } else if (customEnd) {
+                    if (fecha <= customEnd) inRange = true;
+                } else {
+                    inRange = true;
+                }
+            }
+            
+            if (!inRange) continue;
             
             const d = window.controlOperativoRawData[gestor][fecha];
             aggregatedData[gestor].Retiros_Aprobados += d.Retiros_Aprobados || 0;

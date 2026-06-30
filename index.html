@@ -672,9 +672,23 @@
                             </select>
                             
                             <label for="filtroFechaOperativo" style="color: var(--text-secondary); font-size: 13px; margin-left: 10px;">Fecha:</label>
-                            <select id="filtroFechaOperativo" class="form-input" style="padding: 6px 12px; width: 150px;" onchange="renderControlOperativoFiltered()">
-                                <option value="Todas">Todas las fechas</option>
+                            <select id="filtroFechaOperativo" class="form-input" style="padding: 6px 12px; width: 150px;" onchange="toggleOperativoCustomDates(); renderControlOperativoFiltered()">
+                                <option value="Todas" selected>Todas las fechas</option>
+                                <option value="today">Solo Hoy</option>
+                                <option value="yesterday">Solo Ayer</option>
+                                <option value="7">Últimos 7 Días</option>
+                                <option value="30">Últimos 30 Días</option>
+                                <option value="thisMonth">Este Mes</option>
+                                <option value="lastMonth">Mes Anterior</option>
+                                <option value="custom">Rango de Fechas...</option>
                             </select>
+                            
+                            <div id="operativoCustomDateContainer" style="display: none; flex-direction: row; gap: 10px; align-items: center; margin-left: 10px;">
+                                <label style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Desde</label>
+                                <input type="date" id="operativoDateStart" class="form-input" onchange="renderControlOperativoFiltered()" style="padding: 6px 12px; font-size: 13px;">
+                                <label style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Hasta</label>
+                                <input type="date" id="operativoDateEnd" class="form-input" onchange="renderControlOperativoFiltered()" style="padding: 6px 12px; font-size: 13px;">
+                            </div>
                         </div>
                         <button class="btn btn-primary" onclick="loadControlOperativoData()"><i class='bx bx-refresh'></i> Actualizar Datos</button>
                     </div>
