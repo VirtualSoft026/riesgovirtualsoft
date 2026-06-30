@@ -78,6 +78,7 @@
                     <a href="#" class="nav-item" id="navAprobaciones" style="display: none;"><i class='bx bx-user-check'></i> Aprobaciones</a>
                     <a href="#" class="nav-item" id="navMonitoreo" style="display: none;"><i class='bx bx-pulse'></i> Monitoreo</a>
                     <a href="#" class="nav-item" id="navIndicadores" style="display: none;"><i class='bx bx-pie-chart-alt-2'></i> Indicadores (KPIs)</a>
+                    <a href="#" class="nav-item" id="navEficienciaOperativa" style="display: none;"><i class='bx bx-line-chart'></i> Eficiencia Operativa</a>
                     <a href="#" class="nav-item" id="navTiempos" style="display: none;"><i class='bx bx-timer'></i> Control de Tiempos</a>
                 </div>
                 <a href="#" class="nav-item" id="navSoporte"><i class='bx bx-help-circle'></i> Soporte</a>
@@ -657,6 +658,48 @@
                         </div>
                     </div>
                 <!-- Cierre del Contenedor view-indicadores -->
+                <!-- Cierre del Contenedor view-indicadores -->
+                </div>
+
+                <!-- Vista: Eficiencia Operativa (Admin) -->
+                <div id="view-eficiencia-operativa" class="view-panel" style="display: none; padding: 20px; overflow-y: auto; width: 100%; box-sizing: border-box; flex: 1;">
+                    <h2 class="panel-title" style="margin-bottom: 20px; color: var(--accent-primary);"><i class='bx bx-line-chart'></i> Control Operativo y Eficiencia en Retiros</h2>
+                    <div style="display: flex; justify-content: flex-end; margin-bottom: 15px;">
+                        <button class="btn btn-primary" onclick="loadControlOperativoData()"><i class='bx bx-refresh'></i> Actualizar Datos</button>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                        <!-- Top Alerta Tardanzas -->
+                        <div class="glass-panel" style="padding: 20px; height: 350px;">
+                            <h3 style="font-size: 14px; margin-bottom: 10px; color: var(--danger);"><i class='bx bx-alarm-exclamation'></i> Top Alerta Tardanzas (Peores 5)</h3>
+                            <canvas id="chartTardanzasPeores"></canvas>
+                        </div>
+                        
+                        <!-- Top Excelencia Puntualidad -->
+                        <div class="glass-panel" style="padding: 20px; height: 350px;">
+                            <h3 style="font-size: 14px; margin-bottom: 10px; color: var(--success);"><i class='bx bx-medal'></i> Top Excelencia Puntualidad (Mejores 5)</h3>
+                            <canvas id="chartTardanzasMejores"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-bottom: 20px;">
+                        <!-- Top Inactividad Diaria -->
+                        <div class="glass-panel" style="padding: 20px; height: 400px;">
+                            <h3 style="font-size: 14px; margin-bottom: 10px; color: var(--warning);"><i class='bx bx-coffee-togo'></i> Promedio Inactividad Diaria (Min)</h3>
+                            <canvas id="chartInactividad"></canvas>
+                        </div>
+                        
+                        <!-- Top Eficiencia y Volumen -->
+                        <div class="glass-panel" style="padding: 20px; height: 400px;">
+                            <h3 style="font-size: 14px; margin-bottom: 10px; color: var(--accent-primary);"><i class='bx bx-layer'></i> Eficiencia y Volumen de Retiros</h3>
+                            <canvas id="chartEficiencia"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-panel" style="padding: 20px; height: 450px; margin-bottom: 20px;">
+                        <h3 style="font-size: 14px; margin-bottom: 10px; color: var(--danger);"><i class='bx bx-shield-x'></i> Matriz de Riesgo: Fugas vs Velocidad</h3>
+                        <canvas id="chartMatrizFuga"></canvas>
+                    </div>
                 </div>
 
                 <!-- Vista: Control de Tiempos (Admin) -->

@@ -1840,6 +1840,10 @@ async function initApp() {
             if(navTurnos) navTurnos.style.display = 'flex';
             if(navMonitoreo) navMonitoreo.style.display = 'flex';
             if(navIndicadores) navIndicadores.style.display = 'flex';
+            
+            const navEficienciaOperativa = document.getElementById('navEficienciaOperativa');
+            if(navEficienciaOperativa) navEficienciaOperativa.style.display = 'flex';
+
             if(navWorkspace) navWorkspace.style.display = 'flex'; // Keep Mis Tareas visible
             
             // Ocultar el panel de Progreso del Turno / Documentos de Acceso Rápido en Mis Tareas para Admin o Supervisor
@@ -2144,6 +2148,11 @@ async function initApp() {
                 if (viewIndicadores) viewIndicadores.style.display = 'block';
                 if (topHeader) topHeader.style.display = 'none'; // Ocultar header según solicitud
                 loadGestoresForKPIs();
+            } else if (item.id === 'navEficienciaOperativa') {
+                const viewEficiencia = document.getElementById('view-eficiencia-operativa');
+                if (viewEficiencia) viewEficiencia.style.display = 'block';
+                if (topHeader) topHeader.style.display = 'none';
+                loadControlOperativoData();
             } else if (item.id === 'navTiempos') {
                 const viewTiempos = document.getElementById('view-tiempos');
                 if (viewTiempos) viewTiempos.style.display = 'block';
@@ -4959,3 +4968,160 @@ document.getElementById('confirmDeleteBtn')?.addEventListener('click', async () 
     }
 });
 
+// ==========================================
+// CONTROL OPERATIVO Y EFICIENCIA EN RETIROS
+// ==========================================
+let controlOperativoCharts = {};
+
+function destroyChart(id) {
+    if (controlOperativoCharts[id]) {
+        controlOperativoCharts[id].destroy();
+        delete controlOperativoCharts[id];
+    }
+}
+
+async function loadControlOperativoData() {
+    try {
+        const response = await fetch('kpi_operativos.json?' + new Date().getTime());
+        if (!response.ok) throw new Error("No se pudo cargar kpi_operativos.json");
+        const data = await response.json();
+        renderControlOperativoCharts(data);
+    } catch (error) {
+        console.error("Error loading Control Operativo:", error);
+        alert("Error cargando datos operativos. ¿Ya se ejecutó el motor_operativo.py en el servidor?");
+    }
+}
+
+function renderControlOperativoCharts(data) {
+    const gestores = Object.keys(data);
+    if (gestores.length === 0) return;
+    
+    // Sort logic
+    const sortBy = (key, asc=false) => [...gestores].sort((a,b) => asc ? data[a][key] - data[b][key] : data[b][key] - data[a][key]);
+    
+    // 1. Top Alerta Tardanzas (Peores 5, orden DESC)
+    const peoresTardanzas = sortBy('Prom_Minutos_Tarde').slice(0, 5);
+    drawChart('chartTardanzasPeores', 'bar', peoresTardanzas, peoresTardanzas.map(g => data[g].Prom_Minutos_Tarde), 'Minutos Tarde (Promedio)', 'rgba(245, 108, 108, 0.7)', 'rgba(245, 108, 108, 1)', { indexAxis: 'y' });
+    
+    // 2. Top Excelencia Puntualidad (Mejores 5, orden ASC)
+    const mejoresTardanzas = sortBy('Prom_Minutos_Tarde', true).slice(0, 5);
+    drawChart('chartTardanzasMejores', 'bar', mejoresTardanzas, mejoresTardanzas.map(g => data[g].Prom_Minutos_Tarde), 'Minutos Tarde (Promedio)', 'rgba(103, 194, 58, 0.7)', 'rgba(103, 194, 58, 1)', { indexAxis: 'y' });
+    
+    // 3. Top Inactividad Diaria (DESC)
+    const inactividadTop = sortBy('Prom_Inactividad_Diaria');
+    const bgColors = inactividadTop.map(g => {
+        let v = data[g].Prom_Inactividad_Diaria;
+        return v > 45 ? 'rgba(245, 108, 108, 0.7)' : (v > 20 ? 'rgba(230, 162, 60, 0.7)' : 'rgba(103, 194, 58, 0.7)');
+    });
+    drawChart('chartInactividad', 'bar', inactividadTop, inactividadTop.map(g => data[g].Prom_Inactividad_Diaria), 'Minutos Inactividad', bgColors, bgColors);
+    
+    // 4. Eficiencia y Volumen (Combinado)
+    const volTop = sortBy('Retiros_Procesados');
+    drawCombinedChart('chartEficiencia', volTop, data);
+    
+    // 5. Matriz de Fugas vs Velocidad (Scatter)
+    drawScatterMatriz('chartMatrizFuga', gestores, data);
+}
+
+function drawChart(id, type, labels, dataArr, labelStr, bgColor, borderColor, extraOptions = {}) {
+    destroyChart(id);
+    const ctx = document.getElementById(id).getContext('2d');
+    controlOperativoCharts[id] = new Chart(ctx, {
+        type: type,
+        data: {
+            labels: labels,
+            datasets: [{
+                label: labelStr,
+                data: dataArr,
+                backgroundColor: bgColor,
+                borderColor: borderColor,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            ...extraOptions
+        }
+    });
+}
+
+function drawCombinedChart(id, labels, data) {
+    destroyChart(id);
+    const ctx = document.getElementById(id).getContext('2d');
+    controlOperativoCharts[id] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Aprobados',
+                    data: labels.map(g => data[g].Retiros_Aprobados),
+                    backgroundColor: 'rgba(103, 194, 58, 0.7)'
+                },
+                {
+                    label: 'Rechazados',
+                    data: labels.map(g => data[g].Retiros_Rechazados),
+                    backgroundColor: 'rgba(245, 108, 108, 0.7)'
+                },
+                {
+                    label: 'ART (Mins)',
+                    data: labels.map(g => data[g].ART_Desde_Creacion_Minutos),
+                    type: 'line',
+                    borderColor: 'rgba(64, 158, 255, 1)',
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true, position: 'left' },
+                y1: { position: 'right', grid: { drawOnChartArea: false } }
+            }
+        }
+    });
+}
+
+function drawScatterMatriz(id, gestores, data) {
+    destroyChart(id);
+    const ctx = document.getElementById(id).getContext('2d');
+    
+    const scatterData = gestores.map(g => ({
+        x: data[g].ART_Desde_Creacion_Minutos,
+        y: data[g].Porcentaje_Fuga,
+        name: g
+    }));
+    
+    controlOperativoCharts[id] = new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: 'Gestores',
+                data: scatterData,
+                backgroundColor: 'rgba(230, 162, 60, 0.8)',
+                pointRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            let item = ctx.raw;
+                            return `${item.name}: Vel=${item.x}min, Fuga=${item.y}%`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { title: { display: true, text: 'ART Desde Creación (Mins)' } },
+                y: { title: { display: true, text: 'Porcentaje Fuga (%)' } }
+            }
+        }
+    });
+}
