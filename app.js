@@ -4982,13 +4982,13 @@ function destroyChart(id) {
 
 async function loadControlOperativoData() {
     try {
-        const response = await fetch('kpi_operativos.json?' + new Date().getTime());
-        if (!response.ok) throw new Error("No se pudo cargar kpi_operativos.json");
+        const response = await fetch('kpi_operativos_v2.json?' + new Date().getTime());
+        if (!response.ok) throw new Error("No se pudo cargar kpi_operativos_v2.json");
         const data = await response.json();
         renderControlOperativoCharts(data);
     } catch (error) {
         console.error("Error loading Control Operativo:", error);
-        alert("Error cargando datos operativos. ¿Ya se ejecutó el motor_operativo.py en el servidor?");
+        alert("Error cargando datos operativos. Detalle: " + error.message);
     }
 }
 
