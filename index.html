@@ -667,8 +667,13 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;">
                         <div style="display: flex; gap: 10px; align-items: center;">
                             <label for="filtroGestorOperativo" style="color: var(--text-secondary); font-size: 13px;">Gestor:</label>
-                            <select id="filtroGestorOperativo" class="form-input" style="padding: 6px 12px; width: 200px;" onchange="renderControlOperativoFiltered()">
+                            <select id="filtroGestorOperativo" class="form-input" style="padding: 6px 12px; width: 150px;" onchange="renderControlOperativoFiltered()">
                                 <option value="Todos">Todos los gestores</option>
+                            </select>
+                            
+                            <label for="filtroFechaOperativo" style="color: var(--text-secondary); font-size: 13px; margin-left: 10px;">Fecha:</label>
+                            <select id="filtroFechaOperativo" class="form-input" style="padding: 6px 12px; width: 150px;" onchange="renderControlOperativoFiltered()">
+                                <option value="Todas">Todas las fechas</option>
                             </select>
                         </div>
                         <button class="btn btn-primary" onclick="loadControlOperativoData()"><i class='bx bx-refresh'></i> Actualizar Datos</button>

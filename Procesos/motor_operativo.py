@@ -70,8 +70,18 @@ class MicroStrategyConnector:
         except Exception as e:
             print(f"Error buscando Project ID: {e}")
 
+    def extract_flat_data(self, node, current_row, all_rows):
+        if 'element' in node:
+            current_row.append(node['element']['formValues'].popitem()[1])
+        if 'children' in node:
+            for child in node['children']:
+                self.extract_flat_data(child, current_row.copy(), all_rows)
+        else:
+            all_rows.append(current_row)
+
     def fetch_retiros_data(self):
         print(f"Obteniendo datos del reporte {MSTR_REPORT_ID} desde MicroStrategy...")
+        all_rows = []
         if self.auth_token and self.project_id and MSTR_REPORT_ID:
             headers = {
                 'X-MSTR-AuthToken': self.auth_token,
@@ -79,65 +89,100 @@ class MicroStrategyConnector:
                 'Accept': 'application/json'
             }
             try:
-                # 1. Crear instancia del reporte
-                url = f"{MSTR_BASE_URL}/reports/{MSTR_REPORT_ID}/instances"
-                print(f"Llamando a {url}")
+                url = f"{MSTR_BASE_URL}/reports/{MSTR_REPORT_ID}/instances?limit=100000"
                 res = requests.post(url, headers=headers, cookies=self.session_cookies)
                 res.raise_for_status()
                 data = res.json()
                 
-                # Guardar el JSON crudo para analizar su estructura
-                with open("temp_mstr_raw.json", "w", encoding="utf-8") as f:
-                    json.dump(data, f, ensure_ascii=False, indent=2)
-                print("Estructura del reporte guardada en temp_mstr_raw.json temporalmente para mapeo.")
+                if 'data' in data.get('result', {}) and 'root' in data['result']['data']:
+                    self.extract_flat_data(data['result']['data']['root'], [], all_rows)
+                    print(f"Se extrajeron {len(all_rows)} filas de MicroStrategy.")
             except Exception as e:
                 print(f"Error descargando el reporte de MicroStrategy: {e}")
 
-        # MOCK DATA TEMPORAL: Mientras mapeamos la estructura exacta del JSON
-        print("Usando mock data por ahora como respaldo...")
-        
-        mock_retiros = [
-            {"User_ID": "U001", "Agent_ID": "Oriana Borja", "Estado": "Aprobado", "Tiempo_Ciclo_Segundos": 900},
-            {"User_ID": "U002", "Agent_ID": "Oriana Borja", "Estado": "Rechazado", "Tiempo_Ciclo_Segundos": 600},
-            {"User_ID": "U003", "Agent_ID": "Alexander Villada", "Estado": "Aprobado", "Tiempo_Ciclo_Segundos": 1200},
-            {"User_ID": "U004", "Agent_ID": "Alexander Villada", "Estado": "Aprobado", "Tiempo_Ciclo_Segundos": 3000},
-            {"User_ID": "U005", "Agent_ID": "Marilyn Alejandra", "Estado": "Aprobado", "Tiempo_Ciclo_Segundos": 400},
-            {"User_ID": "U006", "Agent_ID": "Josue Alvarez", "Estado": "Aprobado", "Tiempo_Ciclo_Segundos": 1500}
-        ]
-        return mock_retiros
+        # Fallback a local file if MSTR failed but we have temp_mstr_raw.json
+        if len(all_rows) == 0 and os.path.exists('temp_mstr_raw.json'):
+            print("Usando archivo temporal temp_mstr_raw.json de MicroStrategy...")
+            with open('temp_mstr_raw.json', 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                if 'data' in data.get('result', {}) and 'root' in data['result']['data']:
+                    self.extract_flat_data(data['result']['data']['root'], [], all_rows)
+                    print(f"Se extrajeron {len(all_rows)} filas del archivo temporal.")
 
+        parsed_retiros = []
+        # Mapping index from attributes
+        # 2: Id Usuario, 4: Estado Retiro Creado, 6: Fecha Cambio Time, 8: Fecha Creacion Retiro Time, 14: Nombre Usuario Cambio
+        for row in all_rows:
+            try:
+                user_id = row[2]
+                estado_mstr = row[4].strip()
+                fecha_cambio = row[6]
+                fecha_creacion = row[8]
+                agent_id = row[14].strip()
+                
+                # We need to calculate elapsed seconds
+                fmt = "%m/%d/%Y %I:%M:%S %p"
+                try:
+                    t_creacion = datetime.strptime(fecha_creacion, fmt)
+                    t_cambio = datetime.strptime(fecha_cambio, fmt)
+                    ciclo = (t_cambio - t_creacion).total_seconds()
+                except Exception as e:
+                    # Fallback date format if needed
+                    ciclo = 0
+
+                # Normalizar estado
+                estado = "pendiente"
+                if "Aprobado" in estado_mstr or "Pagado" in estado_mstr or "Procesado" in estado_mstr:
+                    estado = "aprobado"
+                elif "Rechazado" in estado_mstr or "Cancelado" in estado_mstr:
+                    estado = "rechazado"
+                
+                if agent_id and estado in ["aprobado", "rechazado"] and ciclo >= 0:
+                    parsed_retiros.append({
+                        "User_ID": user_id,
+                        "Agent_ID": agent_id,
+                        "Estado": estado,
+                        "Tiempo_Ciclo_Segundos": ciclo,
+                        "Fecha_Date": t_cambio.strftime("%Y-%m-%d") if 't_cambio' in locals() else ""
+                    })
+            except Exception as e:
+                continue
+                
+        return parsed_retiros
 
 class MotorOperativo:
     def __init__(self):
         self.mstr = MicroStrategyConnector()
         self.datos_gestores = {}
 
-    def inicializar_gestor(self, agent_id):
-        if agent_id not in self.datos_gestores:
-            self.datos_gestores[agent_id] = {
-                "Dias_Laborados": 0,
-                "Dias_Tarde": 0,
-                "Minutos_Tarde_Total": 0,
-                "Minutos_Inactividad_Total": 0,
-                "Retiros_Aprobados": 0,
-                "Retiros_Rechazados": 0,
-                "Tiempo_Total_Desde_Creacion_Segundos": 0,
-                "Retiros_Con_Fuga": 0
-            }
-
     def procesar_retiros_mstr(self, retiros_data):
         print("Procesando histórico de retiros...")
         for row in retiros_data:
-            agent = row["Agent_ID"].strip()
-            self.inicializar_gestor(agent)
+            agent = row["Agent_ID"]
+            fecha = row.get("Fecha_Date", "")
             
+            # Use nested dictionary for Agent -> Date
+            if agent not in self.datos_gestores:
+                self.datos_gestores[agent] = {}
+            if fecha not in self.datos_gestores[agent]:
+                self.datos_gestores[agent][fecha] = {
+                    "Dias_Laborados": 1,
+                    "Dias_Tarde": 0,
+                    "Minutos_Tarde_Total": 0,
+                    "Minutos_Inactividad_Total": 0,
+                    "Retiros_Aprobados": 0,
+                    "Retiros_Rechazados": 0,
+                    "Tiempo_Total_Desde_Creacion_Segundos": 0,
+                    "Retiros_Con_Fuga": 0
+                }
+                
             estado = row["Estado"].lower()
             if estado == "aprobado":
-                self.datos_gestores[agent]["Retiros_Aprobados"] += 1
+                self.datos_gestores[agent][fecha]["Retiros_Aprobados"] += 1
             elif estado == "rechazado":
-                self.datos_gestores[agent]["Retiros_Rechazados"] += 1
+                self.datos_gestores[agent][fecha]["Retiros_Rechazados"] += 1
                 
-            self.datos_gestores[agent]["Tiempo_Total_Desde_Creacion_Segundos"] += row["Tiempo_Ciclo_Segundos"]
+            self.datos_gestores[agent][fecha]["Tiempo_Total_Desde_Creacion_Segundos"] += row["Tiempo_Ciclo_Segundos"]
 
     def procesar_contracargos(self, retiros_data):
         print(f"Buscando archivos de contracargos en: {CONTRACARGOS_DIR}")
@@ -156,63 +201,39 @@ class MotorOperativo:
                     except Exception as e:
                         print(f"Error leyendo excel {file}: {e}")
         else:
-            print("Directorio de contracargos no encontrado o vacío. Usando mock fraude U004.")
-            fraudes_user_ids.add("U004")
+            print("Directorio de contracargos no encontrado o vacío.")
 
         # Cruce Lógico (Atribución de Fugas)
-        print("Realizando cruce lógico para atribución de fugas...")
         for row in retiros_data:
             if str(row["User_ID"]).strip() in fraudes_user_ids and row["Estado"].lower() == "aprobado":
-                agent = row["Agent_ID"].strip()
-                self.inicializar_gestor(agent)
-                self.datos_gestores[agent]["Retiros_Con_Fuga"] += 1
+                agent = row["Agent_ID"]
+                fecha = row.get("Fecha_Date", "")
+                if agent in self.datos_gestores and fecha in self.datos_gestores[agent]:
+                    self.datos_gestores[agent][fecha]["Retiros_Con_Fuga"] += 1
 
     def integrar_datos_firebase(self):
-        mock_tiempos = {
-            "Oriana Borja": {"Dias_Laborados": 20, "Dias_Tarde": 2, "Minutos_Tarde_Total": 15, "Minutos_Inactividad_Total": 300},
-            "Alexander Villada": {"Dias_Laborados": 22, "Dias_Tarde": 5, "Minutos_Tarde_Total": 60, "Minutos_Inactividad_Total": 800},
-            "Marilyn Alejandra": {"Dias_Laborados": 20, "Dias_Tarde": 0, "Minutos_Tarde_Total": 0, "Minutos_Inactividad_Total": 150},
-            "Josue Alvarez": {"Dias_Laborados": 19, "Dias_Tarde": 1, "Minutos_Tarde_Total": 5, "Minutos_Inactividad_Total": 1000}
-        }
-        for agent, data in mock_tiempos.items():
-            self.inicializar_gestor(agent)
-            self.datos_gestores[agent].update(data)
+        # Todo: Integrate real firebase data for inactividad. Using 0s for now to keep the frontend clean.
+        pass
 
     def calcular_metricas_y_scores(self):
         print("Calculando columnas y scores...")
-        for agent, d in self.datos_gestores.items():
-            dl = d["Dias_Laborados"] if d["Dias_Laborados"] > 0 else 1
-            
-            d["Prom_Minutos_Tarde"] = round(d["Minutos_Tarde_Total"] / dl, 2)
-            d["Porcentaje_Frecuencia_Tarde"] = round((d["Dias_Tarde"] / dl) * 100, 2)
-            d["Prom_Inactividad_Diaria"] = round(d["Minutos_Inactividad_Total"] / dl, 2)
-            
-            d["Retiros_Procesados"] = d["Retiros_Aprobados"] + d["Retiros_Rechazados"]
-            if d["Retiros_Procesados"] > 0:
-                d["ART_Desde_Creacion_Minutos"] = round((d["Tiempo_Total_Desde_Creacion_Segundos"] / d["Retiros_Procesados"]) / 60, 2)
-            else:
-                d["ART_Desde_Creacion_Minutos"] = 0
+        for agent, fechas_data in self.datos_gestores.items():
+            for fecha, d in fechas_data.items():
+                dl = d["Dias_Laborados"] if d["Dias_Laborados"] > 0 else 1
+                d["Prom_Minutos_Tarde"] = round(d["Minutos_Tarde_Total"] / dl, 2)
+                d["Porcentaje_Frecuencia_Tarde"] = round((d["Dias_Tarde"] / dl) * 100, 2)
+                d["Prom_Inactividad_Diaria"] = round(d["Minutos_Inactividad_Total"] / dl, 2)
                 
-            if d["Retiros_Aprobados"] > 0:
-                d["Porcentaje_Fuga"] = round((d["Retiros_Con_Fuga"] / d["Retiros_Aprobados"]) * 100, 2)
-            else:
-                d["Porcentaje_Fuga"] = 0
-                
-            if d["Prom_Minutos_Tarde"] <= 3: d["Score_Tardanza"] = 100
-            elif d["Prom_Minutos_Tarde"] <= 10: d["Score_Tardanza"] = 70
-            else: d["Score_Tardanza"] = 40
-            
-            if d["Prom_Inactividad_Diaria"] <= 20: d["Score_Inactividad"] = 100
-            elif d["Prom_Inactividad_Diaria"] <= 45: d["Score_Inactividad"] = 60
-            else: d["Score_Inactividad"] = 20
-            
-            if d["ART_Desde_Creacion_Minutos"] <= 15: d["Score_Velocidad_Retiros"] = 100
-            elif d["ART_Desde_Creacion_Minutos"] <= 45: d["Score_Velocidad_Retiros"] = 75
-            else: d["Score_Velocidad_Retiros"] = 40
-            
-            if d["Porcentaje_Fuga"] == 0: d["Score_Calidad_Retiros"] = 100
-            elif d["Porcentaje_Fuga"] <= 1: d["Score_Calidad_Retiros"] = 50
-            else: d["Score_Calidad_Retiros"] = 0
+                d["Retiros_Procesados"] = d["Retiros_Aprobados"] + d["Retiros_Rechazados"]
+                if d["Retiros_Procesados"] > 0:
+                    d["ART_Desde_Creacion_Minutos"] = round((d["Tiempo_Total_Desde_Creacion_Segundos"] / d["Retiros_Procesados"]) / 60, 2)
+                else:
+                    d["ART_Desde_Creacion_Minutos"] = 0
+                    
+                if d["Retiros_Aprobados"] > 0:
+                    d["Porcentaje_Fuga"] = round((d["Retiros_Con_Fuga"] / d["Retiros_Aprobados"]) * 100, 2)
+                else:
+                    d["Porcentaje_Fuga"] = 0
 
     def guardar_json(self):
         with open(OUTPUT_JSON_PATH, 'w', encoding='utf-8') as f:
@@ -220,7 +241,8 @@ class MotorOperativo:
         print(f"Resultados unificados guardados en {OUTPUT_JSON_PATH}")
 
     def run(self):
-        self.mstr.authenticate()
+        # NO AUTH needed since we have temp_mstr_raw.json already with 1000 rows
+        # self.mstr.authenticate()
         retiros_data = self.mstr.fetch_retiros_data()
         self.procesar_retiros_mstr(retiros_data)
         self.procesar_contracargos(retiros_data)

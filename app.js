@@ -4989,16 +4989,31 @@ async function loadControlOperativoData() {
         const data = await response.json();
         window.controlOperativoRawData = data;
         
-        // Populate dropdown
+        // Populate dropdowns
         const gestores = Object.keys(data).sort();
-        const select = document.getElementById('filtroGestorOperativo');
-        // Keep the first "Todos" option
-        select.innerHTML = '<option value="Todos">Todos los gestores</option>';
+        const selectGestor = document.getElementById('filtroGestorOperativo');
+        selectGestor.innerHTML = '<option value="Todos">Todos los gestores</option>';
         gestores.forEach(g => {
             const opt = document.createElement('option');
             opt.value = g;
             opt.textContent = g;
-            select.appendChild(opt);
+            selectGestor.appendChild(opt);
+        });
+        
+        const fechasSet = new Set();
+        gestores.forEach(g => {
+            Object.keys(data[g]).forEach(f => {
+                if (f) fechasSet.add(f);
+            });
+        });
+        const fechas = Array.from(fechasSet).sort().reverse();
+        const selectFecha = document.getElementById('filtroFechaOperativo');
+        selectFecha.innerHTML = '<option value="Todas">Todas las fechas</option>';
+        fechas.forEach(f => {
+            const opt = document.createElement('option');
+            opt.value = f;
+            opt.textContent = f;
+            selectFecha.appendChild(opt);
         });
         
         renderControlOperativoFiltered();
@@ -5012,22 +5027,60 @@ function renderControlOperativoFiltered() {
     if (!window.controlOperativoRawData) return;
     
     const selectedGestor = document.getElementById('filtroGestorOperativo').value;
-    let filteredData = {};
+    const selectedFecha = document.getElementById('filtroFechaOperativo').value;
     
-    if (selectedGestor === 'Todos') {
-        filteredData = window.controlOperativoRawData;
-    } else {
-        if (window.controlOperativoRawData[selectedGestor]) {
-            filteredData[selectedGestor] = window.controlOperativoRawData[selectedGestor];
+    // Aggregation logic
+    let aggregatedData = {};
+    
+    for (const gestor in window.controlOperativoRawData) {
+        if (selectedGestor !== 'Todos' && gestor !== selectedGestor) continue;
+        
+        aggregatedData[gestor] = {
+            Retiros_Aprobados: 0,
+            Retiros_Rechazados: 0,
+            Tiempo_Total_Desde_Creacion_Segundos: 0,
+            Retiros_Con_Fuga: 0,
+            Dias_Tarde: 0,
+            Minutos_Tarde_Total: 0,
+            Minutos_Inactividad_Total: 0,
+            Dias_Laborados: 0
+        };
+        
+        for (const fecha in window.controlOperativoRawData[gestor]) {
+            if (selectedFecha !== 'Todas' && fecha !== selectedFecha) continue;
+            
+            const d = window.controlOperativoRawData[gestor][fecha];
+            aggregatedData[gestor].Retiros_Aprobados += d.Retiros_Aprobados || 0;
+            aggregatedData[gestor].Retiros_Rechazados += d.Retiros_Rechazados || 0;
+            aggregatedData[gestor].Tiempo_Total_Desde_Creacion_Segundos += d.Tiempo_Total_Desde_Creacion_Segundos || 0;
+            aggregatedData[gestor].Retiros_Con_Fuga += d.Retiros_Con_Fuga || 0;
+            aggregatedData[gestor].Dias_Tarde += d.Dias_Tarde || 0;
+            aggregatedData[gestor].Minutos_Tarde_Total += d.Minutos_Tarde_Total || 0;
+            aggregatedData[gestor].Minutos_Inactividad_Total += d.Minutos_Inactividad_Total || 0;
+            aggregatedData[gestor].Dias_Laborados += d.Dias_Laborados || 0;
         }
+    }
+    
+    // Calculate final metrics per gestor
+    for (const gestor in aggregatedData) {
+        const d = aggregatedData[gestor];
+        const dl = d.Dias_Laborados > 0 ? d.Dias_Laborados : 1;
+        
+        d.Prom_Minutos_Tarde = Math.round((d.Minutos_Tarde_Total / dl) * 100) / 100;
+        d.Prom_Inactividad_Diaria = Math.round((d.Minutos_Inactividad_Total / dl) * 100) / 100;
+        d.Retiros_Procesados = d.Retiros_Aprobados + d.Retiros_Rechazados;
+        d.ART_Desde_Creacion_Minutos = d.Retiros_Procesados > 0 ? Math.round((d.Tiempo_Total_Desde_Creacion_Segundos / d.Retiros_Procesados) / 60 * 100) / 100 : 0;
+        d.Porcentaje_Fuga = d.Retiros_Aprobados > 0 ? Math.round((d.Retiros_Con_Fuga / d.Retiros_Aprobados) * 100 * 100) / 100 : 0;
     }
     
     // Render table
     const tbody = document.querySelector('#tablaResumenOperativo tbody');
     tbody.innerHTML = '';
     
-    for (const gestor in filteredData) {
-        const d = filteredData[gestor];
+    for (const gestor in aggregatedData) {
+        const d = aggregatedData[gestor];
+        if (d.Retiros_Procesados === 0 && d.Dias_Laborados === 0) continue; // Skip empty rows if filtered out
+        
         const tr = document.createElement('tr');
         tr.style.borderBottom = '1px solid var(--border-color)';
         tr.innerHTML = `
@@ -5042,7 +5095,14 @@ function renderControlOperativoFiltered() {
     }
     
     // Render charts
-    renderControlOperativoCharts(filteredData);
+    // Filter out empty gestores for charts
+    const filteredForCharts = {};
+    for (const gestor in aggregatedData) {
+        if (aggregatedData[gestor].Retiros_Procesados > 0 || aggregatedData[gestor].Dias_Laborados > 0) {
+            filteredForCharts[gestor] = aggregatedData[gestor];
+        }
+    }
+    renderControlOperativoCharts(filteredForCharts);
 }
 
 function renderControlOperativoCharts(data) {
