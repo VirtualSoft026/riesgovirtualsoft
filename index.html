@@ -664,8 +664,35 @@
                 <!-- Vista: Eficiencia Operativa (Admin) -->
                 <div id="view-eficiencia-operativa" class="view-panel" style="display: none; padding: 20px; overflow-y: auto; width: 100%; box-sizing: border-box; flex: 1;">
                     <h2 class="panel-title" style="margin-bottom: 20px; color: var(--accent-primary);"><i class='bx bx-line-chart'></i> Control Operativo y Eficiencia en Retiros</h2>
-                    <div style="display: flex; justify-content: flex-end; margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;">
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <label for="filtroGestorOperativo" style="color: var(--text-secondary); font-size: 13px;">Gestor:</label>
+                            <select id="filtroGestorOperativo" class="form-input" style="padding: 6px 12px; width: 200px;" onchange="renderControlOperativoFiltered()">
+                                <option value="Todos">Todos los gestores</option>
+                            </select>
+                        </div>
                         <button class="btn btn-primary" onclick="loadControlOperativoData()"><i class='bx bx-refresh'></i> Actualizar Datos</button>
+                    </div>
+                    
+                    <div class="glass-panel" style="padding: 20px; margin-bottom: 20px;">
+                        <h3 style="font-size: 14px; margin-bottom: 15px; color: var(--text-primary);"><i class='bx bx-table'></i> Resumen de Retiros por Gestor</h3>
+                        <div style="overflow-x: auto;">
+                            <table class="data-table" id="tablaResumenOperativo" style="width: 100%; border-collapse: collapse; text-align: left;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid var(--border-color);">
+                                        <th style="padding: 10px;">Gestor</th>
+                                        <th style="padding: 10px;">Aprobados</th>
+                                        <th style="padding: 10px;">Rechazados</th>
+                                        <th style="padding: 10px;">Total Procesados</th>
+                                        <th style="padding: 10px;">% Fuga</th>
+                                        <th style="padding: 10px;">ART (Mins)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Dynamic rows -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                     
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
@@ -1256,7 +1283,7 @@
 
 
     <!-- Custom JS -->
-    <script src="app.js?v=20260629_2"></script>
+    <script src="app.js?v=20260629_3"></script>
     <script src="js/tiempos.js?v=20260616_3"></script>
 </body>
 </html>

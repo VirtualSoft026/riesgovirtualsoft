@@ -4980,16 +4980,69 @@ function destroyChart(id) {
     }
 }
 
+window.controlOperativoRawData = null;
+
 async function loadControlOperativoData() {
     try {
         const response = await fetch('kpi_operativos_v2.json?' + new Date().getTime());
         if (!response.ok) throw new Error("No se pudo cargar kpi_operativos_v2.json");
         const data = await response.json();
-        renderControlOperativoCharts(data);
+        window.controlOperativoRawData = data;
+        
+        // Populate dropdown
+        const gestores = Object.keys(data).sort();
+        const select = document.getElementById('filtroGestorOperativo');
+        // Keep the first "Todos" option
+        select.innerHTML = '<option value="Todos">Todos los gestores</option>';
+        gestores.forEach(g => {
+            const opt = document.createElement('option');
+            opt.value = g;
+            opt.textContent = g;
+            select.appendChild(opt);
+        });
+        
+        renderControlOperativoFiltered();
     } catch (error) {
         console.error("Error loading Control Operativo:", error);
         alert("Error cargando datos operativos. Detalle: " + error.message);
     }
+}
+
+function renderControlOperativoFiltered() {
+    if (!window.controlOperativoRawData) return;
+    
+    const selectedGestor = document.getElementById('filtroGestorOperativo').value;
+    let filteredData = {};
+    
+    if (selectedGestor === 'Todos') {
+        filteredData = window.controlOperativoRawData;
+    } else {
+        if (window.controlOperativoRawData[selectedGestor]) {
+            filteredData[selectedGestor] = window.controlOperativoRawData[selectedGestor];
+        }
+    }
+    
+    // Render table
+    const tbody = document.querySelector('#tablaResumenOperativo tbody');
+    tbody.innerHTML = '';
+    
+    for (const gestor in filteredData) {
+        const d = filteredData[gestor];
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid var(--border-color)';
+        tr.innerHTML = `
+            <td style="padding: 10px; font-weight: 500;">${gestor}</td>
+            <td style="padding: 10px; color: var(--success);">${d.Retiros_Aprobados}</td>
+            <td style="padding: 10px; color: var(--danger);">${d.Retiros_Rechazados}</td>
+            <td style="padding: 10px;">${d.Retiros_Procesados}</td>
+            <td style="padding: 10px;">${d.Porcentaje_Fuga}%</td>
+            <td style="padding: 10px;">${d.ART_Desde_Creacion_Minutos}</td>
+        `;
+        tbody.appendChild(tr);
+    }
+    
+    // Render charts
+    renderControlOperativoCharts(filteredData);
 }
 
 function renderControlOperativoCharts(data) {
