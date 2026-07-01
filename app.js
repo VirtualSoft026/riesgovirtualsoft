@@ -4243,9 +4243,13 @@ async function calcularIndicadores() {
             totalInactividadMins += fallbackMins;
         }
     });
+    let diasTrabajados = shiftReports.length || 1;
+    let totalMinutosEsperados = diasTrabajados * 405; // 6:45 horas = 405 minutos por dia
+    let porcentajeInactividad = (totalInactividadMins / totalMinutosEsperados) * 100;
     
-    let porcentajeConectividad = 100 - totalPenalidadConectividad;
+    let porcentajeConectividad = 100 - porcentajeInactividad;
     if (porcentajeConectividad < 0) porcentajeConectividad = 0;
+    if (porcentajeConectividad > 100) porcentajeConectividad = 100;
     porcentajeConectividad = Math.round(porcentajeConectividad);
     
     // Aplicar penalidad de retiros si existe la data y llenar nuevas tarjetas
