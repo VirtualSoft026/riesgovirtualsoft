@@ -4247,10 +4247,11 @@ async function calcularIndicadores() {
     let totalMinutosEsperados = diasTrabajados * 405; // 6:45 horas = 405 minutos por dia
     let porcentajeInactividad = (totalInactividadMins / totalMinutosEsperados) * 100;
     
-    let porcentajeConectividad = 100 - porcentajeInactividad;
+    // La usuaria solicita ver la Inactividad directamente
+    let porcentajeConectividad = Number(porcentajeInactividad.toFixed(2));
     if (porcentajeConectividad < 0) porcentajeConectividad = 0;
     if (porcentajeConectividad > 100) porcentajeConectividad = 100;
-    porcentajeConectividad = Math.round(porcentajeConectividad);
+    
     
     // Aplicar penalidad de retiros si existe la data y llenar nuevas tarjetas
     let penalidadRetiros = 0;
@@ -4490,21 +4491,41 @@ async function calcularIndicadores() {
             ring.style.strokeDashoffset = offset;
             textPercent.textContent = percentage + '%';
             
-            if (percentage >= 90) {
-                ring.style.stroke = 'var(--success)';
-                badge.style.background = 'rgba(16, 185, 129, 0.2)';
-                badge.style.color = 'var(--success)';
-                badge.textContent = 'Excelente';
-            } else if (percentage >= 75) {
-                ring.style.stroke = 'var(--warning)';
-                badge.style.background = 'rgba(245, 158, 11, 0.2)';
-                badge.style.color = 'var(--warning)';
-                badge.textContent = 'Aceptable';
+            if (ringId === 'kpiScoreRingConectividad') {
+                // Ahora es Inactividad: Menor porcentaje es mejor
+                if (percentage <= 15) {
+                    ring.style.stroke = 'var(--success)';
+                    badge.style.background = 'rgba(16, 185, 129, 0.2)';
+                    badge.style.color = 'var(--success)';
+                    badge.textContent = 'Óptimo';
+                } else if (percentage <= 25) {
+                    ring.style.stroke = 'var(--warning)';
+                    badge.style.background = 'rgba(245, 158, 11, 0.2)';
+                    badge.style.color = 'var(--warning)';
+                    badge.textContent = 'Aceptable';
+                } else {
+                    ring.style.stroke = 'var(--danger)';
+                    badge.style.background = 'rgba(239, 68, 68, 0.2)';
+                    badge.style.color = 'var(--danger)';
+                    badge.textContent = 'Crítico';
+                }
             } else {
-                ring.style.stroke = 'var(--danger)';
-                badge.style.background = 'rgba(239, 68, 68, 0.2)';
-                badge.style.color = 'var(--danger)';
-                badge.textContent = 'Crítico';
+                if (percentage >= 90) {
+                    ring.style.stroke = 'var(--success)';
+                    badge.style.background = 'rgba(16, 185, 129, 0.2)';
+                    badge.style.color = 'var(--success)';
+                    badge.textContent = 'Excelente';
+                } else if (percentage >= 75) {
+                    ring.style.stroke = 'var(--warning)';
+                    badge.style.background = 'rgba(245, 158, 11, 0.2)';
+                    badge.style.color = 'var(--warning)';
+                    badge.textContent = 'Aceptable';
+                } else {
+                    ring.style.stroke = 'var(--danger)';
+                    badge.style.background = 'rgba(239, 68, 68, 0.2)';
+                    badge.style.color = 'var(--danger)';
+                    badge.textContent = 'Crítico';
+                }
             }
         }, 50);
     };
