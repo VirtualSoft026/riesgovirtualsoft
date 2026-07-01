@@ -4913,6 +4913,69 @@ async function loadControlOperativoData() {
         const data = await response.json();
         window.controlOperativoRawData = data;
         
+        // Merge Inactividad from Firebase shift_reports
+        try {
+            if (window.database) {
+                // Ensure kpiUsersData is populated
+                if (!window.kpiUsersData || Object.keys(window.kpiUsersData).length === 0) {
+                    const usersSnap = await window.database.ref('users').once('value');
+                    if (usersSnap.exists()) {
+                        window.kpiUsersData = {};
+                        Object.values(usersSnap.val()).forEach(u => {
+                            if (u && u.email && u.name) {
+                                window.kpiUsersData[u.email.toLowerCase()] = u.name.trim();
+                            }
+                        });
+                    }
+                }
+                
+                const snapshot = await window.database.ref('shift_reports').once('value');
+                if (snapshot.exists()) {
+                    const shifts = snapshot.val();
+                    Object.values(shifts).forEach(report => {
+                        if (!report.email || !report.date) return;
+                        
+                        // Find gestor name from email using kpiUsersData
+                        const email = report.email.toLowerCase();
+                        const gestorName = window.kpiUsersData && window.kpiUsersData[email] ? window.kpiUsersData[email] : null;
+                        
+                        if (gestorName && window.controlOperativoRawData[gestorName]) {
+                            // Ensure date object exists
+                            if (!window.controlOperativoRawData[gestorName][report.date]) {
+                                window.controlOperativoRawData[gestorName][report.date] = {
+                                    Dias_Laborados: 0,
+                                    Minutos_Inactividad_Total: 0,
+                                    Retiros_Procesados: 0,
+                                    Retiros_Aprobados: 0,
+                                    Retiros_Rechazados: 0,
+                                    ART_Desde_Creacion_Minutos: 0
+                                };
+                            }
+                            
+                            // Calculate inactivity for this report
+                            let inactMins = 0;
+                            if (report.inactividadTotalMins !== undefined) {
+                                inactMins = report.inactividadTotalMins;
+                            } else if (report.timeline && report.timeline.length > 0) {
+                                const now = Date.now();
+                                report.timeline.forEach(ev => {
+                                    if (ev.type === 'Inactividad') {
+                                        let eTime = ev.end ? ev.end : now;
+                                        inactMins += (eTime - ev.start) / (1000 * 60);
+                                    }
+                                });
+                            }
+                            
+                            // Add to raw data
+                            window.controlOperativoRawData[gestorName][report.date].Minutos_Inactividad_Total = (window.controlOperativoRawData[gestorName][report.date].Minutos_Inactividad_Total || 0) + inactMins;
+                        }
+                    });
+                }
+            }
+        } catch (fbErr) {
+            console.error("Error fetching shift_reports for inactivity:", fbErr);
+        }
+        
         // Populate dropdowns
         const gestores = Object.keys(data).sort();
         const selectGestor = document.getElementById('filtroGestorOperativo');
