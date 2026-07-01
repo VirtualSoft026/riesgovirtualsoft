@@ -5034,25 +5034,53 @@ function renderControlOperativoFiltered() {
     const tbody = document.querySelector('#tablaResumenOperativo tbody');
     tbody.innerHTML = '';
     
+    let globalProcesados = 0;
+    let globalAprobados = 0;
+    let globalRechazados = 0;
+    let globalARTTotal = 0;
+    let gestoresContados = 0;
+
     for (const gestor in aggregatedData) {
         const d = aggregatedData[gestor];
         if (d.Retiros_Procesados === 0 && d.Dias_Laborados === 0) continue; // Skip empty rows if filtered out
+        
+        globalProcesados += d.Retiros_Procesados;
+        globalAprobados += d.Retiros_Aprobados;
+        globalRechazados += d.Retiros_Rechazados;
+        globalARTTotal += d.ART_Desde_Creacion_Minutos;
+        if (d.Retiros_Procesados > 0) gestoresContados++;
         
         const tr = document.createElement('tr');
         tr.style.borderBottom = '1px solid rgba(0,0,0,0.05)';
         tr.style.transition = 'background 0.2s ease';
         tr.onmouseover = () => tr.style.background = 'var(--bg-secondary, #f8f9fa)';
         tr.onmouseout = () => tr.style.background = 'transparent';
+        
+        const badgeAprobados = `<span style="background: rgba(16, 185, 129, 0.15); color: var(--success); padding: 4px 10px; border-radius: 20px; font-weight: 700;">${d.Retiros_Aprobados}</span>`;
+        const badgeRechazados = `<span style="background: rgba(239, 68, 68, 0.15); color: var(--danger); padding: 4px 10px; border-radius: 20px; font-weight: 700;">${d.Retiros_Rechazados}</span>`;
+        
         tr.innerHTML = `
             <td style="padding: 16px 20px; font-weight: 600; color: var(--text-primary);">${gestor}</td>
-            <td style="padding: 16px 20px; font-weight: 700; color: var(--success);">${d.Retiros_Aprobados}</td>
-            <td style="padding: 16px 20px; font-weight: 700; color: var(--danger);">${d.Retiros_Rechazados}</td>
+            <td style="padding: 16px 20px;">${badgeAprobados}</td>
+            <td style="padding: 16px 20px;">${badgeRechazados}</td>
             <td style="padding: 16px 20px; font-weight: 600; color: var(--text-secondary);">${d.Retiros_Procesados}</td>
             <td style="padding: 16px 20px; font-weight: 600; color: var(--text-secondary);">${d.Porcentaje_Fuga}%</td>
             <td style="padding: 16px 20px; font-weight: 600; color: var(--text-secondary);">${d.ART_Desde_Creacion_Minutos}</td>
         `;
         tbody.appendChild(tr);
     }
+    
+    // Update summary widgets
+    const avgArt = gestoresContados > 0 ? (globalARTTotal / gestoresContados).toFixed(1) : 0;
+    const wTotal = document.getElementById('operativoWidgetTotal');
+    const wAprob = document.getElementById('operativoWidgetAprobados');
+    const wRech = document.getElementById('operativoWidgetRechazados');
+    const wArt = document.getElementById('operativoWidgetART');
+    
+    if(wTotal) wTotal.textContent = globalProcesados;
+    if(wAprob) wAprob.textContent = globalAprobados;
+    if(wRech) wRech.textContent = globalRechazados;
+    if(wArt) wArt.innerHTML = `${avgArt}<span style="font-size: 16px; font-weight: 600; margin-left: 4px;">min</span>`;
     
     // Render charts
     // Filter out empty gestores for charts
