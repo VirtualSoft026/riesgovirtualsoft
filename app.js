@@ -4260,7 +4260,6 @@ async function calcularIndicadores() {
     const textDemora = document.getElementById('kpiDemoraPromedioText');
     const cardPagados = document.getElementById('kpiRetirosPagados');
     const cardRechazados = document.getElementById('kpiRetirosRechazados');
-    const cardMonto = document.getElementById('kpiRetirosMonto');
     const retirosCardsElements = document.querySelectorAll('.retiros-card');
     
     // Asegurar que controlOperativoRawData esté cargado
@@ -4320,7 +4319,6 @@ async function calcularIndicadores() {
 
     if (cardPagados) cardPagados.textContent = finalStats.totalAprobados;
     if (cardRechazados) cardRechazados.textContent = finalStats.totalRechazados;
-    if (cardMonto) cardMonto.textContent = "$0";
     
     if (finalStats.retirosConTiempo > 0) {
         const avgDemoraMins = finalStats.minutosDemoraTotales / finalStats.retirosConTiempo;
