@@ -11,9 +11,46 @@ from datetime import datetime
 MSTR_BASE_URL = "https://env-i921eu432wwh4k73.cloud.strategy.com/MicroStrategyLibrary/api"
 MSTR_PROJECT_NAME = "Virtualsoft" # Nombre del proyecto si no se conoce el ID
 MSTR_PROJECT_ID = "" # Se autocompletará si se deja en blanco y el nombre coincide
-MSTR_REPORT_ID = "06C17B674C66C15648D532B59505E1E3"
+MSTR_REPORT_ID = "B8B21D45184E89DD2A5A0898940B66A1"
 MSTR_USERNAME = "maria.sanchez"
 MSTR_PASSWORD = "Marzo0393*"
+
+def get_firebase_gestores():
+    try:
+        res = requests.get('https://riskops-75637-default-rtdb.firebaseio.com/users.json', timeout=10)
+        users = res.json()
+        mapping = {}
+        if users:
+            for uid, u in users.items():
+                if u.get('approved') == True:
+                    name = u.get('name', '').strip()
+                    email = u.get('email', '').strip().lower()
+                    
+                    mapping[email] = name
+                    if '@' in email:
+                        mapping[email.split('@')[0]] = name
+                    mapping[name.lower()] = name
+                    
+                    parts = name.lower().split()
+                    if len(parts) >= 2:
+                        mapping[f"{parts[0]} {parts[1]}"] = name
+                    if len(parts) >= 3:
+                        mapping[f"{parts[0]} {parts[2]}"] = name
+                    if len(parts) >= 4:
+                        mapping[f"{parts[0]} {parts[3]}"] = name
+                        mapping[f"{parts[0]} {parts[1]} {parts[2]} {parts[3]}"] = name
+            
+            # Ajustes finos para MSTR (Nombres con los que MSTR los registra pero difieren en Firebase)
+            mapping['oriana borjs'] = mapping.get('oriana.borja', 'Oriana Borja Romero')
+            mapping['luis fuentes'] = mapping.get('luis.fuentes', 'Luis Alfredo Fuentes Martinez')
+            mapping['jose.diaz@virtualsoft.tech'] = mapping.get('juan.diaz', 'Juan Jose Diaz Alvarez')
+        return mapping
+    except Exception as e:
+        print("Error obteniendo gestores de Firebase:", e)
+        return {}
+
+GESTORES_PERMITIDOS = get_firebase_gestores()
+print(f"Gestores permitidos cargados dinámicamente desde Firebase: {len(set(GESTORES_PERMITIDOS.values()))} usuarios únicos.")
 
 # ==========================================
 # CONFIGURACIÓN DE CONTRACARGOS
@@ -82,7 +119,11 @@ class MicroStrategyConnector:
     def fetch_retiros_data(self):
         print(f"Obteniendo datos del reporte {MSTR_REPORT_ID} desde MicroStrategy...")
         all_rows = []
-        if self.auth_token and self.project_id and MSTR_REPORT_ID:
+        if False and os.path.exists('temp_mstr_raw_full.json'):
+            print("USANDO ARCHIVO LOCAL temp_mstr_raw_full.json")
+            with open('temp_mstr_raw_full.json', 'r', encoding='utf-8') as f:
+                all_rows = json.load(f)
+        elif self.auth_token and self.project_id and MSTR_REPORT_ID:
             headers = {
                 'X-MSTR-AuthToken': self.auth_token,
                 'X-MSTR-ProjectID': self.project_id,
@@ -106,8 +147,8 @@ class MicroStrategyConnector:
                 
                 print(f"MicroStrategy reporta un total de {total_rows} filas en este reporte.")
                 
-                # Fetch remaining pages if needed (limit to 50,000 to avoid infinite loops/crashes)
-                MAX_ROWS = 50000
+                # Fetch remaining pages if needed (limit to 500,000 to avoid infinite loops/crashes)
+                MAX_ROWS = 500000
                 current_offset = len(all_rows)
                 
                 while current_offset < total_rows and current_offset < MAX_ROWS and instance_id:
@@ -128,6 +169,8 @@ class MicroStrategyConnector:
                     print(f"Página extraída. Total actual: {current_offset} filas.")
                 
                 print(f"Extracción API finalizada: {len(all_rows)} filas totales.")
+                with open('temp_mstr_raw_full.json', 'w', encoding='utf-8') as f:
+                    json.dump(all_rows, f)
             except Exception as e:
                 print(f"Error descargando el reporte de MicroStrategy: {e}")
 
@@ -157,21 +200,37 @@ class MicroStrategyConnector:
                     t_creacion = datetime.strptime(fecha_creacion, fmt)
                     t_cambio = datetime.strptime(fecha_cambio, fmt)
                     ciclo = (t_cambio - t_creacion).total_seconds()
+                    if ciclo < 0:
+                        ciclo = 0
                 except Exception as e:
                     # Fallback date format if needed
                     ciclo = 0
 
                 # Normalizar estado
-                estado = "pendiente"
-                if "Aprobado" in estado_mstr or "Pagado" in estado_mstr or "Procesado" in estado_mstr:
-                    estado = "aprobado"
-                elif "Rechazado" in estado_mstr or "Cancelado" in estado_mstr:
-                    estado = "rechazado"
+                estado_mstr_lower = estado_mstr.lower()
+                banco = str(row[19]).strip() if len(row) > 19 else ""
                 
-                if agent_id and estado in ["aprobado", "rechazado"] and ciclo >= 0:
+                if "rechazado" in estado_mstr_lower or "cancelado" in estado_mstr_lower:
+                    estado = "rechazado"
+                elif "eliminado" in estado_mstr_lower and banco != "":
+                    estado = "ignorar"
+                elif "activo" in estado_mstr_lower and banco != "":
+                    estado = "ignorar"
+                else:
+                    estado = "aprobado"
+                
+                # Filtrar y normalizar el nombre del gestor
+                agent_lower = agent_id.lower().strip()
+                if agent_lower in GESTORES_PERMITIDOS:
+                    agent_name_clean = GESTORES_PERMITIDOS[agent_lower]
+                else:
+                    # Skip any gestores not registered
+                    continue
+                
+                if agent_name_clean and estado in ["aprobado", "rechazado"] and ciclo >= 0:
                     parsed_retiros.append({
                         "User_ID": user_id,
-                        "Agent_ID": agent_id,
+                        "Agent_ID": agent_name_clean,
                         "Estado": estado,
                         "Tiempo_Ciclo_Segundos": ciclo,
                         "Fecha_Date": t_cambio.strftime("%Y-%m-%d") if 't_cambio' in locals() else ""
@@ -272,9 +331,9 @@ class MotorOperativo:
         print(f"Resultados unificados guardados en {OUTPUT_JSON_PATH}")
 
     def run(self):
-        # NO AUTH needed since we have temp_mstr_raw.json already with 1000 rows
-        # self.mstr.authenticate()
+        self.mstr.authenticate()
         retiros_data = self.mstr.fetch_retiros_data()
+            
         self.procesar_retiros_mstr(retiros_data)
         self.procesar_contracargos(retiros_data)
         self.integrar_datos_firebase()
