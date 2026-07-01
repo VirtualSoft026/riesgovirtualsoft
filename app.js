@@ -4939,10 +4939,27 @@ async function loadControlOperativoData() {
                         const email = report.email.toLowerCase();
                         const gestorName = window.kpiUsersData && window.kpiUsersData[email] ? window.kpiUsersData[email] : null;
                         
-                        if (gestorName && window.controlOperativoRawData[gestorName]) {
-                            // Ensure date object exists
-                            if (!window.controlOperativoRawData[gestorName][report.date]) {
-                                window.controlOperativoRawData[gestorName][report.date] = {
+                        if (gestorName) {
+                            // Encontrar el nombre real en controlOperativoRawData ignorando mayúsculas y acentos
+                            const rawKeys = Object.keys(window.controlOperativoRawData);
+                            const searchName = gestorName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                            let realGestor = rawKeys.find(k => k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === searchName);
+                            
+                            // Fallback: Si no coincide exacto, buscar si contiene al menos el primer nombre y apellido
+                            if (!realGestor) {
+                                const parts = searchName.split(' ');
+                                if (parts.length >= 2) {
+                                    realGestor = rawKeys.find(k => {
+                                        const normK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                                        return normK.includes(parts[0]) && normK.includes(parts[1]);
+                                    });
+                                }
+                            }
+                            
+                            if (realGestor && window.controlOperativoRawData[realGestor]) {
+                                // Ensure date object exists
+                            if (!window.controlOperativoRawData[realGestor][report.date]) {
+                                window.controlOperativoRawData[realGestor][report.date] = {
                                     Dias_Laborados: 0,
                                     Minutos_Inactividad_Total: 0,
                                     Retiros_Procesados: 0,
@@ -4967,7 +4984,8 @@ async function loadControlOperativoData() {
                             }
                             
                             // Add to raw data
-                            window.controlOperativoRawData[gestorName][report.date].Minutos_Inactividad_Total = (window.controlOperativoRawData[gestorName][report.date].Minutos_Inactividad_Total || 0) + inactMins;
+                            window.controlOperativoRawData[realGestor][report.date].Minutos_Inactividad_Total = (window.controlOperativoRawData[realGestor][report.date].Minutos_Inactividad_Total || 0) + inactMins;
+                            }
                         }
                     });
                 }
