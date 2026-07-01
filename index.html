@@ -676,15 +676,23 @@
                 <!-- Vista: Eficiencia Operativa (Admin) -->
                 <div id="view-eficiencia-operativa" class="view-panel" style="display: none; padding: 20px; overflow-y: auto; width: 100%; box-sizing: border-box; flex: 1;">
                     <h2 class="panel-title" style="margin-bottom: 20px; color: var(--accent-primary);"><i class='bx bx-line-chart'></i> Control Operativo y Eficiencia en Retiros</h2>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;">
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <label for="filtroGestorOperativo" style="color: var(--text-secondary); font-size: 13px;">Gestor:</label>
-                            <select id="filtroGestorOperativo" class="form-input" style="padding: 6px 12px; width: 150px;" onchange="renderControlOperativoFiltered()">
+                    
+                    <!-- Panel de Filtros Horizontal Superior para Operativo -->
+                    <div class="glass-panel filter-section" style="margin-bottom: 25px; display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 250px;">
+                            <label style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 700;">
+                                <i class='bx bx-user' style="margin-right: 5px; color: var(--primary);"></i>Gestor a Evaluar
+                            </label>
+                            <select id="filtroGestorOperativo" class="modern-input" style="padding: 14px 16px; width: 100%; border-radius: 12px; background: var(--bg-secondary, #f8f9fa); border: 1px solid rgba(0,0,0,0.05); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); transition: all 0.3s ease; outline: none;" onchange="renderControlOperativoFiltered()">
                                 <option value="Todos">Todos los gestores</option>
                             </select>
-                            
-                            <label for="filtroFechaOperativo" style="color: var(--text-secondary); font-size: 13px; margin-left: 10px;">Fecha:</label>
-                            <select id="filtroFechaOperativo" class="form-input" style="padding: 6px 12px; width: 150px;" onchange="toggleOperativoCustomDates(); renderControlOperativoFiltered()">
+                        </div>
+
+                        <div style="flex: 1; min-width: 250px;">
+                            <label style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 700;">
+                                <i class='bx bx-calendar' style="margin-right: 5px; color: var(--primary);"></i>Periodo de Evaluación
+                            </label>
+                            <select id="filtroFechaOperativo" class="modern-input" style="padding: 14px 16px; width: 100%; border-radius: 12px; background: var(--bg-secondary, #f8f9fa); border: 1px solid rgba(0,0,0,0.05); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); transition: all 0.3s ease; outline: none;" onchange="toggleOperativoCustomDates(); renderControlOperativoFiltered()">
                                 <option value="Todas" selected>Todas las fechas</option>
                                 <option value="today">Solo Hoy</option>
                                 <option value="yesterday">Solo Ayer</option>
@@ -694,29 +702,44 @@
                                 <option value="lastMonth">Mes Anterior</option>
                                 <option value="custom">Rango de Fechas...</option>
                             </select>
-                            
-                            <div id="operativoCustomDateContainer" style="display: none; flex-direction: row; gap: 10px; align-items: center; margin-left: 10px;">
-                                <label style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Desde</label>
-                                <input type="date" id="operativoDateStart" class="form-input" onchange="renderControlOperativoFiltered()" style="padding: 6px 12px; font-size: 13px;">
-                                <label style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Hasta</label>
-                                <input type="date" id="operativoDateEnd" class="form-input" onchange="renderControlOperativoFiltered()" style="padding: 6px 12px; font-size: 13px;">
+                        </div>
+
+                        <div id="operativoCustomDateContainer" style="display: none; flex: 2; min-width: 300px; gap: 10px;">
+                            <div style="flex: 1;">
+                                <label style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 700;">
+                                    <i class='bx bx-calendar-star' style="margin-right: 5px; color: var(--primary);"></i>Desde
+                                </label>
+                                <input type="date" id="operativoDateStart" class="modern-input" onchange="renderControlOperativoFiltered()" style="padding: 13px 16px; width: 100%; border-radius: 12px; background: var(--bg-secondary, #f8f9fa); border: 1px solid rgba(0,0,0,0.05); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); outline: none;">
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 700;">
+                                    <i class='bx bx-calendar-check' style="margin-right: 5px; color: var(--primary);"></i>Hasta
+                                </label>
+                                <input type="date" id="operativoDateEnd" class="modern-input" onchange="renderControlOperativoFiltered()" style="padding: 13px 16px; width: 100%; border-radius: 12px; background: var(--bg-secondary, #f8f9fa); border: 1px solid rgba(0,0,0,0.05); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); outline: none;">
                             </div>
                         </div>
-                        <button class="btn btn-primary" onclick="loadControlOperativoData()"><i class='bx bx-refresh'></i> Actualizar Datos</button>
+
+                        <div style="display: flex; align-items: flex-end;">
+                            <button class="btn btn-primary" onclick="loadControlOperativoData()" style="height: 50px; padding: 0 35px; border-radius: 12px; font-weight: 600; font-size: 15px; letter-spacing: 0.5px; box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3); transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;">
+                                <i class='bx bx-refresh' style="font-size: 18px;"></i> Actualizar Datos
+                            </button>
+                        </div>
                     </div>
                     
-                    <div class="glass-panel" style="padding: 20px; margin-bottom: 20px;">
-                        <h3 style="font-size: 14px; margin-bottom: 15px; color: var(--text-primary);"><i class='bx bx-table'></i> Resumen de Retiros por Gestor</h3>
-                        <div style="overflow-x: auto;">
-                            <table class="data-table" id="tablaResumenOperativo" style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <div class="glass-panel" style="padding: 25px; margin-bottom: 20px; border-radius: 16px;">
+                        <h3 style="font-size: 16px; margin-bottom: 20px; color: var(--text-primary); font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                            <i class='bx bx-table' style="color: var(--primary); font-size: 20px;"></i> Resumen de Retiros por Gestor
+                        </h3>
+                        <div style="overflow-x: auto; border-radius: 12px; border: 1px solid rgba(0,0,0,0.05);">
+                            <table class="data-table" id="tablaResumenOperativo" style="width: 100%; border-collapse: collapse; text-align: left; background: var(--bg-primary);">
                                 <thead>
-                                    <tr style="border-bottom: 1px solid var(--border-color);">
-                                        <th style="padding: 10px;">Gestor</th>
-                                        <th style="padding: 10px;">Aprobados</th>
-                                        <th style="padding: 10px;">Rechazados</th>
-                                        <th style="padding: 10px;">Total Procesados</th>
-                                        <th style="padding: 10px;">% Fuga</th>
-                                        <th style="padding: 10px;">ART (Mins)</th>
+                                    <tr style="border-bottom: 2px solid rgba(0,0,0,0.05); background: rgba(0,0,0,0.02);">
+                                        <th style="padding: 16px 20px; font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; color: var(--text-secondary);">Gestor</th>
+                                        <th style="padding: 16px 20px; font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; color: var(--text-secondary);">Aprobados</th>
+                                        <th style="padding: 16px 20px; font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; color: var(--text-secondary);">Rechazados</th>
+                                        <th style="padding: 16px 20px; font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; color: var(--text-secondary);">Total Procesados</th>
+                                        <th style="padding: 16px 20px; font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; color: var(--text-secondary);">% Fuga</th>
+                                        <th style="padding: 16px 20px; font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; color: var(--text-secondary);">ART (Mins)</th>
                                     </tr>
                                 </thead>
                                 <tbody>

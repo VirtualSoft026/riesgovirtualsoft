@@ -5134,14 +5134,17 @@ function renderControlOperativoFiltered() {
         if (d.Retiros_Procesados === 0 && d.Dias_Laborados === 0) continue; // Skip empty rows if filtered out
         
         const tr = document.createElement('tr');
-        tr.style.borderBottom = '1px solid var(--border-color)';
+        tr.style.borderBottom = '1px solid rgba(0,0,0,0.05)';
+        tr.style.transition = 'background 0.2s ease';
+        tr.onmouseover = () => tr.style.background = 'var(--bg-secondary, #f8f9fa)';
+        tr.onmouseout = () => tr.style.background = 'transparent';
         tr.innerHTML = `
-            <td style="padding: 10px; font-weight: 500;">${gestor}</td>
-            <td style="padding: 10px; color: var(--success);">${d.Retiros_Aprobados}</td>
-            <td style="padding: 10px; color: var(--danger);">${d.Retiros_Rechazados}</td>
-            <td style="padding: 10px;">${d.Retiros_Procesados}</td>
-            <td style="padding: 10px;">${d.Porcentaje_Fuga}%</td>
-            <td style="padding: 10px;">${d.ART_Desde_Creacion_Minutos}</td>
+            <td style="padding: 16px 20px; font-weight: 600; color: var(--text-primary);">${gestor}</td>
+            <td style="padding: 16px 20px; font-weight: 700; color: var(--success);">${d.Retiros_Aprobados}</td>
+            <td style="padding: 16px 20px; font-weight: 700; color: var(--danger);">${d.Retiros_Rechazados}</td>
+            <td style="padding: 16px 20px; font-weight: 600; color: var(--text-secondary);">${d.Retiros_Procesados}</td>
+            <td style="padding: 16px 20px; font-weight: 600; color: var(--text-secondary);">${d.Porcentaje_Fuga}%</td>
+            <td style="padding: 16px 20px; font-weight: 600; color: var(--text-secondary);">${d.ART_Desde_Creacion_Minutos}</td>
         `;
         tbody.appendChild(tr);
     }
