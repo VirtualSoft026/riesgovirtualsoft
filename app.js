@@ -4263,171 +4263,78 @@ async function calcularIndicadores() {
     const cardMonto = document.getElementById('kpiRetirosMonto');
     const retirosCardsElements = document.querySelectorAll('.retiros-card');
     
-    if (window.retirosGlobalData) {
-        let stats = null;
+    // Asegurar que controlOperativoRawData esté cargado
+    if (!window.controlOperativoRawData) {
+        try {
+            const resp = await fetch(`kpi_operativos_v2.json?v=${new Date().getTime()}`);
+            if (resp.ok) window.controlOperativoRawData = await resp.json();
+        } catch (e) {
+            console.error("Error al cargar datos de operativos", e);
+        }
+    }
+    
+    let finalStats = { totalAprobados: 0, totalRechazados: 0, montoProcesado: 0, minutosDemoraTotales: 0, retirosConTiempo: 0 };
+    
+    if (window.controlOperativoRawData) {
+        let targetDates = [];
+        const getLocalYYYYMMDD = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         
-        if (gestorName === 'todos') {
-            // Aggregate all stats
-            stats = {
-                totalAprobados: 0,
-                totalRechazados: 0,
-                montoProcesado: 0,
-                minutosDemoraTotales: 0,
-                retirosConTiempo: 0,
-                diario: {}
-            };
-            for (let excelEmail in window.retirosGlobalData) {
-                const s = window.retirosGlobalData[excelEmail];
-                stats.totalAprobados += s.totalAprobados || 0;
-                stats.totalRechazados += s.totalRechazados || 0;
-                stats.montoProcesado += s.montoProcesado || 0;
-                stats.minutosDemoraTotales += s.minutosDemoraTotales || 0;
-                stats.retirosConTiempo += s.retirosConTiempo || 0;
-                if (s.diario) {
-                    for (let dStr in s.diario) {
-                        if (!stats.diario[dStr]) {
-                            stats.diario[dStr] = { totalAprobados: 0, totalRechazados: 0, montoProcesado: 0, minutosDemoraTotales: 0, retirosConTiempo: 0 };
-                        }
-                        stats.diario[dStr].totalAprobados += s.diario[dStr].totalAprobados || 0;
-                        stats.diario[dStr].totalRechazados += s.diario[dStr].totalRechazados || 0;
-                        stats.diario[dStr].montoProcesado += s.diario[dStr].montoProcesado || 0;
-                        stats.diario[dStr].minutosDemoraTotales += s.diario[dStr].minutosDemoraTotales || 0;
-                        stats.diario[dStr].retirosConTiempo += s.diario[dStr].retirosConTiempo || 0;
-                    }
-                }
+        const addDates = (d) => targetDates.push(getLocalYYYYMMDD(d));
+
+        if (periodo === 'hoy') {
+            addDates(todayStart);
+        } else if (periodo === 'ayer') {
+            addDates(new Date(todayStart.getTime() - 86400000));
+        } else if (periodo === 'semanal') {
+            for(let i=0; i<7; i++) addDates(new Date(todayStart.getTime() - (i * 86400000)));
+        } else if (periodo === '30dias') {
+            for(let i=0; i<30; i++) addDates(new Date(todayStart.getTime() - (i * 86400000)));
+        } else if (periodo === 'mes') {
+            for(let i=1; i<=31; i++){
+                const dt = new Date(todayStart.getFullYear(), todayStart.getMonth(), i);
+                if (dt.getMonth() === todayStart.getMonth() && dt <= todayStart) addDates(dt);
             }
-        } else {
-            let gestorEmail = null;
-            for (let email in window.kpiUsersData) {
-                if (window.kpiUsersData[email] === gestorName) {
-                    gestorEmail = email;
-                    break;
-                }
-            }
-            
-            if (gestorEmail) {
-                const prefixDb = gestorEmail.split('@')[0].toLowerCase();
-                for (let excelEmail in window.retirosGlobalData) {
-                    const prefixExcel = excelEmail.split('@')[0].toLowerCase();
-                    if (prefixDb === prefixExcel || gestorEmail === excelEmail) {
-                        stats = window.retirosGlobalData[excelEmail];
-                        break;
-                    }
-                }
-            }
-            
-            // Fallback: Emparejamiento por nombre y apellido (AUN SI NO HAY EMAIL)
-            if (!stats && gestorName) {
-                const parts = gestorName.toLowerCase().split(' ');
-                const firstName = parts[0];
-                const lastName = parts.length > 1 ? parts[1] : '';
-                
-                for (let excelEmail in window.retirosGlobalData) {
-                    const eLower = excelEmail.toLowerCase();
-                    if (eLower.includes(firstName)) {
-                        if (lastName && lastName.length >= 3 && eLower.includes(lastName.substring(0,3))) {
-                            stats = window.retirosGlobalData[excelEmail];
-                            break;
-                        } else if (lastName.length < 3) {
-                            stats = window.retirosGlobalData[excelEmail];
-                            break;
-                        }
-                    }
-                }
-            }
+        } else if (periodo === 'custom') {
+            const customDateStr = document.getElementById('kpiCustomDateInput').value;
+            if (customDateStr) targetDates.push(customDateStr);
         }
         
-        if (stats) {
-            let finalStats = stats;
-            if (stats.diario && periodo !== 'general') {
-                finalStats = { totalAprobados: 0, totalRechazados: 0, montoProcesado: 0, minutosDemoraTotales: 0, retirosConTiempo: 0 };
-                let targetDates = [];
-                const getLocalYYYYMMDD = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-                const getLocalMDYYYY = (d) => (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
-                
-                const now = new Date();
-                const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                
-                const addDates = (d) => {
-                    targetDates.push(getLocalYYYYMMDD(d));
-                    targetDates.push(getLocalMDYYYY(d));
-                };
-
-                if (periodo === 'hoy') {
-                    addDates(todayStart);
-                } else if (periodo === 'ayer') {
-                    const ayer = new Date(todayStart.getTime() - 86400000);
-                    addDates(ayer);
-                } else if (periodo === 'semanal') {
-                    for(let i=0; i<7; i++){
-                        addDates(new Date(todayStart.getTime() - (i * 86400000)));
-                    }
-                } else if (periodo === '30dias') {
-                    for(let i=0; i<30; i++){
-                        addDates(new Date(todayStart.getTime() - (i * 86400000)));
-                    }
-                } else if (periodo === 'mes') {
-                    for(let i=1; i<=31; i++){
-                        const dt = new Date(todayStart.getFullYear(), todayStart.getMonth(), i);
-                        if (dt.getMonth() === todayStart.getMonth() && dt <= todayStart) {
-                            addDates(dt);
-                        }
-                    }
-                } else if (periodo === 'custom') {
-                    const customDateStr = document.getElementById('kpiCustomDateInput').value;
-                    if (customDateStr) {
-                        targetDates.push(customDateStr);
-                        // Also parse and add M/D/YYYY if possible
-                        let d = new Date(customDateStr + 'T12:00:00');
-                        if(!isNaN(d.getTime())) targetDates.push(getLocalMDYYYY(d));
-                    }
-                }
-                
-                for (let td of targetDates) {
-                    if (stats.diario[td]) {
-                        finalStats.totalAprobados += stats.diario[td].totalAprobados;
-                        finalStats.totalRechazados += stats.diario[td].totalRechazados;
-                        finalStats.montoProcesado += stats.diario[td].montoProcesado;
-                        finalStats.minutosDemoraTotales += stats.diario[td].minutosDemoraTotales;
-                        finalStats.retirosConTiempo += stats.diario[td].retirosConTiempo;
-                    }
-                }
-            }
-
-            if (cardPagados) cardPagados.textContent = finalStats.totalAprobados;
-            if (cardRechazados) cardRechazados.textContent = finalStats.totalRechazados;
-            if (cardMonto) {
-                const formattedMonto = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(finalStats.montoProcesado);
-                cardMonto.textContent = formattedMonto;
-            }
+        const gestoresToCheck = gestorName === 'todos' ? Object.keys(window.controlOperativoRawData) : [gestorName];
+        
+        for (let g of gestoresToCheck) {
+            if (!window.controlOperativoRawData[g]) continue; 
             
-            if (finalStats.retirosConTiempo > 0) {
-                const avgDemoraMins = finalStats.minutosDemoraTotales / finalStats.retirosConTiempo;
+            for (let f in window.controlOperativoRawData[g]) {
+                if (periodo !== 'general' && !targetDates.includes(f)) continue;
                 
-                // Penalidad: si el promedio supera los 15 minutos, restar 1% por cada minuto extra (max 30% de penalidad)
-                if (avgDemoraMins > 15) {
-                    penalidadRetiros = Math.floor(avgDemoraMins - 15);
-                    if (penalidadRetiros > 30) penalidadRetiros = 30; // Cap
-                }
-                
-                if (cardRetiros) cardRetiros.style.display = 'flex';
-                if (textPenalidad) textPenalidad.textContent = `-${penalidadRetiros}%`;
-                if (textDemora) textDemora.textContent = `Promedio: ${Math.round(avgDemoraMins)} min / ${finalStats.retirosConTiempo} retiros`;
-            } else {
-                if (cardRetiros) cardRetiros.style.display = 'none';
+                const dayData = window.controlOperativoRawData[g][f];
+                finalStats.totalAprobados += dayData.Retiros_Aprobados || 0;
+                finalStats.totalRechazados += dayData.Retiros_Rechazados || 0;
+                finalStats.minutosDemoraTotales += (dayData.Tiempo_Total_Desde_Creacion_Segundos || 0) / 60;
+                finalStats.retirosConTiempo += dayData.Retiros_Procesados || 0;
             }
-        } else {
-            // Gestor no tiene data de retiros, mostrar 0
-            if (cardPagados) cardPagados.textContent = "0";
-            if (cardRechazados) cardRechazados.textContent = "0";
-            if (cardMonto) cardMonto.textContent = "$0";
-            if (cardRetiros) cardRetiros.style.display = 'none';
         }
+    }
+
+    if (cardPagados) cardPagados.textContent = finalStats.totalAprobados;
+    if (cardRechazados) cardRechazados.textContent = finalStats.totalRechazados;
+    if (cardMonto) cardMonto.textContent = "$0";
+    
+    if (finalStats.retirosConTiempo > 0) {
+        const avgDemoraMins = finalStats.minutosDemoraTotales / finalStats.retirosConTiempo;
+        
+        // Penalidad: si el promedio supera los 15 minutos, restar 1% por cada minuto extra (max 30% de penalidad)
+        if (avgDemoraMins > 15) {
+            penalidadRetiros = Math.floor(avgDemoraMins - 15);
+            if (penalidadRetiros > 30) penalidadRetiros = 30; // Cap
+        }
+        
+        if (cardRetiros) cardRetiros.style.display = 'flex';
+        if (textPenalidad) textPenalidad.textContent = `-${penalidadRetiros}%`;
+        if (textDemora) textDemora.textContent = `Promedio: ${Math.round(avgDemoraMins)} min / ${finalStats.retirosConTiempo} retiros`;
     } else {
-        // No hay JSON de retiros
-        if (cardPagados) cardPagados.textContent = "0";
-        if (cardRechazados) cardRechazados.textContent = "0";
-        if (cardMonto) cardMonto.textContent = "$0";
         if (cardRetiros) cardRetiros.style.display = 'none';
     }
     
