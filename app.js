@@ -4613,8 +4613,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (periodoSelect) {
         periodoSelect.addEventListener('change', function(e) {
             const customInput = document.getElementById('kpiCustomDateInput');
+            const customContainer = document.getElementById('kpiCustomDateContainer');
             if (customInput) {
                 customInput.style.display = e.target.value === 'custom' ? 'block' : 'none';
+            }
+            if (customContainer) {
+                customContainer.style.display = e.target.value === 'custom' ? 'block' : 'none';
             }
         });
     }
