@@ -5018,24 +5018,29 @@ function renderControlOperativoFiltered() {
     const selectedGestor = document.getElementById('filtroGestorOperativo').value;
     const selectedFecha = document.getElementById('filtroFechaOperativo').value;
     
-    const todayStr = new Date().toISOString().split('T')[0];
+    const getLocalYYYYMMDD = (d) => {
+        const tzOffset = d.getTimezoneOffset() * 60000;
+        return new Date(d.getTime() - tzOffset).toISOString().split('T')[0];
+    };
+    
+    const todayStr = getLocalYYYYMMDD(new Date());
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const yesterdayStr = getLocalYYYYMMDD(yesterday);
     
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+    const sevenDaysAgoStr = getLocalYYYYMMDD(sevenDaysAgo);
 
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+    const thirtyDaysAgoStr = getLocalYYYYMMDD(thirtyDaysAgo);
     
-    const thisMonth = new Date().toISOString().substring(0, 7);
+    const thisMonth = todayStr.substring(0, 7);
     
     const lastMonthDate = new Date();
     lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
-    const lastMonth = lastMonthDate.toISOString().substring(0, 7);
+    const lastMonth = getLocalYYYYMMDD(lastMonthDate).substring(0, 7);
 
     const customStart = document.getElementById('operativoDateStart')?.value;
     const customEnd = document.getElementById('operativoDateEnd')?.value;
