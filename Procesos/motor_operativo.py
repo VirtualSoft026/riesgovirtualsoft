@@ -76,7 +76,7 @@ class MicroStrategyConnector:
             "loginMode": 1
         }
         try:
-            response = requests.post(auth_url, data=payload)
+            response = requests.post(auth_url, data=payload, timeout=20)
             response.raise_for_status()
             self.auth_token = response.headers.get('X-MSTR-AuthToken')
             self.session_cookies = response.cookies
@@ -95,7 +95,7 @@ class MicroStrategyConnector:
         print(f"Buscando ID para el proyecto '{MSTR_PROJECT_NAME}'...")
         headers = {'X-MSTR-AuthToken': self.auth_token, 'Accept': 'application/json'}
         try:
-            res = requests.get(f"{MSTR_BASE_URL}/projects", headers=headers, cookies=self.session_cookies)
+            res = requests.get(f"{MSTR_BASE_URL}/projects", headers=headers, cookies=self.session_cookies, timeout=20)
             res.raise_for_status()
             projects = res.json()
             for p in projects:
@@ -131,7 +131,7 @@ class MicroStrategyConnector:
             }
             try:
                 url = f"{MSTR_BASE_URL}/reports/{MSTR_REPORT_ID}/instances?limit=1000"
-                res = requests.post(url, headers=headers, cookies=self.session_cookies)
+                res = requests.post(url, headers=headers, cookies=self.session_cookies, timeout=20)
                 res.raise_for_status()
                 data = res.json()
                 
@@ -153,7 +153,7 @@ class MicroStrategyConnector:
                 
                 while current_offset < total_rows and current_offset < MAX_ROWS and instance_id:
                     page_url = f"{MSTR_BASE_URL}/reports/{MSTR_REPORT_ID}/instances/{instance_id}?offset={current_offset}&limit=1000"
-                    page_res = requests.get(page_url, headers=headers, cookies=self.session_cookies)
+                    page_res = requests.get(page_url, headers=headers, cookies=self.session_cookies, timeout=20)
                     if not page_res.ok:
                         break
                     
