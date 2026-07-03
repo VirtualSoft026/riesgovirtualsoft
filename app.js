@@ -622,7 +622,7 @@ function getCronogramaColumnsForToday(targetDate, shiftText, rows = []) {
 let globalCronogramaData = null;
 async function preloadCronograma() {
     try {
-        const url = encodeURI('Cronograma de Tareas/Cronograma Junio.xlsx') + '?t=' + Date.now();
+        const url = encodeURI('Cronograma de Tareas/Cronograma Julio.xlsx') + '?t=' + Date.now();
         const response = await fetch(url);
         if (!response.ok) return;
         const arrayBuffer = await response.arrayBuffer();
@@ -672,7 +672,7 @@ let gestorCronogramaAssignments = null;
 
 async function loadCronogramaAssignments(gestorName, gestorShift) {
     try {
-        const url = encodeURI('Cronograma de Tareas/Cronograma Junio.xlsx') + '?t=' + Date.now();
+        const url = encodeURI('Cronograma de Tareas/Cronograma Julio.xlsx') + '?t=' + Date.now();
         const response = await fetch(url);
         if (!response.ok) throw new Error("Fallo al cargar cronograma");
         const arrayBuffer = await response.arrayBuffer();
@@ -1449,6 +1449,13 @@ function syncActiveSessionToFirebase() {
     if (!currentUser || currentUser.role !== 'Gestor') return;
     const uid = currentUser.uid;
     if (!uid) return;
+    
+    // Si la sesin fue cerrada en otra pestaa, localStorage estar vaco
+    if (!localStorage.getItem('riskOps_currentUser')) {
+        currentUser = null;
+        window.location.href = 'login.html';
+        return;
+    }
 
     const totalTasks = document.querySelectorAll('.task-item').length;
     const completedTasks = document.querySelectorAll('.task-item .status-completed').length;
