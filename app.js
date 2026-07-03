@@ -629,7 +629,10 @@ function getCronogramaColumnsForToday(targetDate, shiftText, rows = []) {
 let globalCronogramaData = null;
 async function preloadCronograma() {
     try {
-        const url = encodeURI('Cronograma de Tareas/Cronograma Julio.xlsx') + '?t=' + Date.now();
+        const todayForFile = new Date();
+        const isBeforeJuly6 = todayForFile.getFullYear() === 2026 && todayForFile.getMonth() === 6 && todayForFile.getDate() < 6;
+        const cronogramaFile = isBeforeJuly6 ? 'Cronograma Junio.xlsx' : 'Cronograma Julio.xlsx';
+        const url = encodeURI('Cronograma de Tareas/' + cronogramaFile) + '?t=' + Date.now();
         const response = await fetch(url);
         if (!response.ok) return;
         const arrayBuffer = await response.arrayBuffer();
@@ -679,7 +682,10 @@ let gestorCronogramaAssignments = null;
 
 async function loadCronogramaAssignments(gestorName, gestorShift) {
     try {
-        const url = encodeURI('Cronograma de Tareas/Cronograma Julio.xlsx') + '?t=' + Date.now();
+        const todayForFile = new Date();
+        const isBeforeJuly6 = todayForFile.getFullYear() === 2026 && todayForFile.getMonth() === 6 && todayForFile.getDate() < 6;
+        const cronogramaFile = isBeforeJuly6 ? 'Cronograma Junio.xlsx' : 'Cronograma Julio.xlsx';
+        const url = encodeURI('Cronograma de Tareas/' + cronogramaFile) + '?t=' + Date.now();
         const response = await fetch(url);
         if (!response.ok) throw new Error("Fallo al cargar cronograma");
         const arrayBuffer = await response.arrayBuffer();
