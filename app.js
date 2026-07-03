@@ -576,7 +576,14 @@ function getWeekSheet(sheetNames, targetDate) {
             }
         }
     }
-    return sheetNames[sheetNames.length - 1];
+    // Fallback: Find the first sheet that looks like a weekly schedule
+    for (let name of sheetNames) {
+        if (name.toLowerCase().includes('semana')) {
+            return name;
+        }
+    }
+    // Last resort: Return the very first sheet
+    return sheetNames[0];
 }
 
 function getCronogramaColumnsForToday(targetDate, shiftText, rows = []) {
