@@ -367,100 +367,61 @@ Archivo script automatizado para la consola de Windows que realiza el despliegue
 
 ```batch
 @echo off
-
 title Actualizador de Pagina Web de Riesgo
 
-
-
 :: Ruta de Git
-
 set "GIT_BIN=%USERPROFILE%\AppData\Local\Programs\Git\cmd\git.exe"
 
-
-
 :: Si no existe en la ruta de AppData, usar el comando global
-
 if not exist "%GIT_BIN%" (
-
     set "GIT_BIN=git"
-
 )
 
-
-
 echo ============================================================
-
 echo        ACTUALIZADOR AUTOMATICO DE DATOS (RIESGO VS)
-
 echo ============================================================
-
 echo.
-
 echo Buscando cambios locales en Horario, Teletrabajo o procesos...
-
 echo.
-
-
 
 "%GIT_BIN%" status -s
 
-
+echo.
+echo ============================================================
+echo Procesando datos de Retiros locales (Python)...
+python build_retiros.py
 
 echo.
-
 echo ============================================================
-
 echo Guardando y preparando los archivos modificados...
-
 "%GIT_BIN%" add .
 
-
-
 :: Crear un mensaje de commit automatico con fecha y hora
-
 set "FECHA=%date%"
-
 set "HORA=%time%"
-
 set "COMMIT_MSG=Actualizacion automatica de datos - %FECHA% %HORA%"
 
-
-
 echo.
-
 echo Creando el paquete de actualizacion...
-
 "%GIT_BIN%" commit -m "%COMMIT_MSG%"
 
-
-
 echo.
-
 echo Subiendo los datos a GitHub (Internet)...
-
 "%GIT_BIN%" push origin main
 
-
-
 echo.
-
 echo ============================================================
-
+echo Subiendo los datos a Firebase Hosting (Pagina Web)...
+call npx firebase-tools deploy --only hosting
+echo.
+echo ============================================================
 echo            PROCESO COMPLETADO CON EXITO!
-
 echo.
-
-echo Los cambios ya estan subiendose a la nube.
-
+echo Los cambios ya estan publicados en tu pagina web.
 echo Por favor, espera 1 minuto y refresca la web (Ctrl + F5).
-
 echo ============================================================
-
 echo.
-
 pause
-
-
 ```
 
 #### Explicación de Bloques Críticos de `Subir_Cambios.bat`:
@@ -498,6 +459,31 @@ Página de presentación y control de inicio de sesión de la plataforma. Diseñ
         <p>Esta plataforma ha sido diseñada exclusivamente para uso en computadoras de escritorio.</p>
         <p style="margin-top: 10px; font-size: 14px;">Por favor, ingresa desde tu PC o Laptop para continuar.</p>
     </div>
+
+    <!-- Browser Blocker -->
+    <div id="browserBlocker" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0B0E14; z-index: 99999; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; font-family: 'Inter', sans-serif;">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/e/e1/Google_Chrome_icon_%28February_2022%29.svg" alt="Chrome Logo" style="width: 100px; margin-bottom: 20px;">
+        <h2 style="font-size: 28px; margin-bottom: 15px; color: #F3F4F6;">Navegador No Compatible</h2>
+        <p style="font-size: 16px; color: #9CA3AF; max-width: 500px; line-height: 1.5;">Esta plataforma de monitoreo ha sido optimizada para funcionar <strong>estrictamente en Google Chrome</strong>.</p>
+        <p style="margin-top: 15px; font-size: 14px; color: #3B82F6;">Por favor, copia el enlace y ábrelo utilizando Google Chrome.</p>
+    </div>
+
+    <script>
+        (function checkBrowser() {
+            var ua = navigator.userAgent;
+            var isChrome = /Chrome|CriOS/i.test(ua) && !/Edg|OPR/i.test(ua);
+            
+            if (!isChrome) {
+                document.addEventListener('DOMContentLoaded', function() {
+                    document.getElementById('browserBlocker').style.display = 'flex';
+                    var lg = document.querySelector('.login-container');
+                    if (lg) lg.style.display = 'none';
+                    var mob = document.getElementById('mobileBlocker');
+                    if (mob) mob.style.display = 'none';
+                });
+            }
+        })();
+    </script>
 
     <!-- Animated background elements -->
     <div class="blob blob-1"></div>
@@ -1021,17 +1007,60 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
+                // Get today's date string
+                const dDate = new Date();
+                const yyyy = dDate.getFullYear();
+                const mm = String(dDate.getMonth() + 1).padStart(2, '0');
+                const dd = String(dDate.getDate()).padStart(2, '0');
+                const todayStr = `${yyyy}-${mm}-${dd}`;
+                
+                // Try to recover an existing login time from today's report or session
+                let recoveredLoginTime = null;
+                try {
+                    const reportSnap = await database.ref(`reports_${todayStr}/${user.uid}`).once('value');
+                    if (reportSnap.exists() && reportSnap.val().loginTime) {
+                        recoveredLoginTime = reportSnap.val().loginTime;
+                    } else {
+                        const sessionSnap = await database.ref(`active_sessions/${user.uid}`).once('value');
+                        if (sessionSnap.exists() && sessionSnap.val().loginTime) {
+                            const sTime = new Date(sessionSnap.val().loginTime);
+                            if (sTime.getDate() === dDate.getDate() && sTime.getMonth() === dDate.getMonth()) {
+                                recoveredLoginTime = sessionSnap.val().loginTime;
+                            }
+                        }
+                    }
+                } catch(errRec) {
+                    console.error("Error recuperando hora de inicio anterior", errRec);
+                }
+                
+                const finalLoginTime = recoveredLoginTime || new Date().toISOString();
+
                 // Configurar sesión local
                 const sessionData = {
                     name: dbUser.name,
                     email: dbUser.email,
                     shift: dbUser.shift || "Por Asignar",
                     role: dbUser.role || "Gestor",
-                    loginTime: new Date().toISOString(),
+                    loginTime: finalLoginTime,
                     uid: user.uid
                 };
 
-                localStorage.setItem('riskOps_currentUser', JSON.stringify(sessionData));
+                // Save login record to Firebase for history tracking
+                try {
+                    const logRef = database.ref('login_logs').push();
+                    await logRef.set({
+                        name: dbUser.name,
+                        role: dbUser.role || "Gestor",
+                        email: dbUser.email,
+                        timestamp: Date.now(),
+                        logoutTime: null
+                    });
+                    
+                    sessionData.loginLogId = logRef.key;
+                    localStorage.setItem('riskOps_currentUser', JSON.stringify(sessionData));
+                } catch(errLog) {
+                    console.error("Error saving login log:", errLog);
+                }
                 
                 // Redirigir al dashboard
                 window.location.href = 'index.html';
@@ -1125,7 +1154,10 @@ El esqueleto estructural de la plataforma Risk Manager. Contiene la barra de nav
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     <!-- jsPDF for PDF generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <link rel="stylesheet" href="styles.css?v=83">
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <link rel="stylesheet" href="styles.css?v=84">
 </head>
 <body>
     <!-- Mobile Blocker -->
@@ -1135,6 +1167,31 @@ El esqueleto estructural de la plataforma Risk Manager. Contiene la barra de nav
         <p>Esta plataforma ha sido diseñada exclusivamente para uso en computadoras de escritorio.</p>
         <p style="margin-top: 10px; font-size: 14px;">Por favor, ingresa desde tu PC o Laptop para continuar.</p>
     </div>
+
+    <!-- Browser Blocker -->
+    <div id="browserBlocker" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0B0E14; z-index: 99999; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; font-family: 'Inter', sans-serif;">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/e/e1/Google_Chrome_icon_%28February_2022%29.svg" alt="Chrome Logo" style="width: 100px; margin-bottom: 20px;">
+        <h2 style="font-size: 28px; margin-bottom: 15px; color: #F3F4F6;">Navegador No Compatible</h2>
+        <p style="font-size: 16px; color: #9CA3AF; max-width: 500px; line-height: 1.5;">Esta plataforma de monitoreo ha sido optimizada para funcionar <strong>estrictamente en Google Chrome</strong>.</p>
+        <p style="margin-top: 15px; font-size: 14px; color: #3B82F6;">Por favor, copia el enlace y ábrelo utilizando Google Chrome.</p>
+    </div>
+
+    <script>
+        (function checkBrowser() {
+            var ua = navigator.userAgent;
+            var isChrome = /Chrome|CriOS/i.test(ua) && !/Edg|OPR/i.test(ua);
+            
+            if (!isChrome) {
+                document.addEventListener('DOMContentLoaded', function() {
+                    document.getElementById('browserBlocker').style.display = 'flex';
+                    var app = document.querySelector('.app-container');
+                    if (app) app.style.display = 'none';
+                    var mob = document.getElementById('mobileBlocker');
+                    if (mob) mob.style.display = 'none';
+                });
+            }
+        })();
+    </script>
 
     <div class="app-container">
         <!-- Sidebar -->
@@ -1146,28 +1203,52 @@ El esqueleto estructural de la plataforma Risk Manager. Contiene la barra de nav
             
             <nav class="sidebar-nav">
                 <a href="#" class="nav-item active" id="navWorkspace"><i class='bx bx-grid-alt'></i> Mis Tareas</a>
+                <a href="#" class="nav-item" id="navComunicados" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span><i class='bx bx-news'></i> Comunicados</span>
+                    <span id="unreadAnnouncementsBadge" style="display: none; background: var(--danger); color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: bold;">0</span>
+                </a>
                 <a href="#" class="nav-item" id="navHorario"><i class='bx bx-calendar'></i> Horario</a>
                 <a href="#" class="nav-item" id="navTeletrabajo"><i class='bx bx-home-alt'></i> Teletrabajo</a>
                 <a href="#" class="nav-item" id="navDocs"><i class='bx bx-folder-open'></i> Documentación</a>
                 <a href="#" class="nav-item" id="navPermisos"><i class='bx bx-check-shield'></i> Historial de permisos</a>
-                <a href="#" class="nav-item" id="navTurnos" style="display: none;"><i class='bx bx-history'></i> Historial de turnos</a>
-                <a href="#" class="nav-item" id="navAprobaciones" style="display: none;"><i class='bx bx-user-check'></i> Aprobaciones</a>
-                <a href="#" class="nav-item" id="navMonitoreo" style="display: none;"><i class='bx bx-pulse'></i> Monitoreo</a>
+                <div id="adminNavGroup" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
+                    <div style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; padding-left: 15px;">Supervisión</div>
+                    <a href="#" class="nav-item" id="navAdminComunicados" style="display: none;"><i class='bx bx-broadcast'></i> Gestión Comunicados</a>
+                    <a href="#" class="nav-item" id="navTurnos" style="display: none;"><i class='bx bx-history'></i> Historial de turnos</a>
+                    <a href="#" class="nav-item" id="navAprobaciones" style="display: none;"><i class='bx bx-user-check'></i> Aprobaciones</a>
+                    <a href="#" class="nav-item" id="navMonitoreo" style="display: none;"><i class='bx bx-pulse'></i> Monitoreo</a>
+                    <a href="#" class="nav-item" id="navIndicadores" style="display: none;"><i class='bx bx-pie-chart-alt-2'></i> Indicadores (KPIs)</a>
+                    <a href="#" class="nav-item" id="navEficienciaOperativa" style="display: none;"><i class='bx bx-line-chart'></i> Eficiencia Operativa</a>
+                    <a href="#" class="nav-item" id="navTiempos" style="display: none;"><i class='bx bx-timer'></i> Control de Tiempos</a>
+                </div>
                 <a href="#" class="nav-item" id="navSoporte"><i class='bx bx-help-circle'></i> Soporte</a>
             </nav>
 
             <div class="sidebar-footer" style="padding: 20px; border-top: 1px solid var(--glass-border); margin-top: auto;">
+                <button id="toggleBreakfastBtn" class="btn btn-outline" onclick="toggleBreakfastBreak()" style="width: 100%; display: none; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px; color: var(--text-primary); border-color: rgba(255,255,255,0.2);">
+                    <i class='bx bx-coffee'></i> Tomar Desayuno
+                </button>
+                <button id="toggleLunchBtn" class="btn btn-outline" onclick="toggleLunchBreak()" style="width: 100%; display: none; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px; color: var(--text-primary); border-color: rgba(255,255,255,0.2);">
+                    <i class='bx bx-restaurant'></i> Tomar Almuerzo/Cena
+                </button>
                 <button id="endShiftBtn" class="btn btn-danger" onclick="handleEndShift()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
                     <i class='bx bx-log-out-circle'></i> Finalizar Turno
                 </button>
-                <div style="font-size: 9px; color: var(--text-secondary); text-align: center; margin-top: 10px; opacity: 0.5;">
-                    Build: 20/05 19:45 (v90)
+                <div style="font-size: 13px; font-weight: 500; color: var(--text-secondary); text-align: center; margin-top: 15px; opacity: 0.8; letter-spacing: 0.5px;">
+                    Build: 16/06 22:05 (v148)
                 </div>
             </div>
         </aside>
 
         <!-- Main Content -->
         <main class="main-content">
+            <div id="idleDetectorWarning" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); color: var(--danger); padding: 12px 20px; border-radius: 8px; margin: 20px 20px 0 20px; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 10px; font-weight: 500; font-size: 13px;">
+                    <i class='bx bx-error-circle' style="font-size: 18px;"></i>
+                    <span id="idleDetectorWarningText">Permiso de inactividad pendiente o denegado. RiskOps no podrá registrar automáticamente cuando bloquees la pantalla.</span>
+                </div>
+                <button class="btn btn-outline" onclick="requestIdlePermissionManual()" style="padding: 6px 15px; font-size: 12px; border-color: var(--danger); color: var(--danger);">Habilitar Permiso</button>
+            </div>
             <!-- Header -->
             <header class="top-header glass-panel">
                 <div class="header-left">
@@ -1215,6 +1296,12 @@ El esqueleto estructural de la plataforma Risk Manager. Contiene la barra de nav
 
                     <div class="tree-container">
                         <div style="padding: 20px; color: var(--text-secondary); text-align: center;">Cargando tareas...</div>
+                    </div>
+                    
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
+                        <button class="btn btn-outline" onclick="openExtraTaskModal()" style="width: 100%; border-style: dashed; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <i class='bx bx-plus-circle'></i> Añadir Tarea Adicional
+                        </button>
                     </div>
                 </section>
 
@@ -1269,8 +1356,6 @@ El esqueleto estructural de la plataforma Risk Manager. Contiene la barra de nav
             <div id="view-horario" class="view-panel" style="display: none; padding: 20px;">
                 <h2 class="panel-title" style="margin-bottom: 20px;"><i class='bx bx-calendar'></i> Horario Semanal</h2>
                 <div class="glass-panel" style="padding: 20px; overflow-x: auto; position: relative;">
-                    <p style="color: var(--text-secondary); margin-bottom: 20px;">Datos leídos desde 'Horario/Horario 2026.xlsx'</p>
-                    
                     <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 15px;">
                         <label style="color: var(--text-secondary); font-size: 14px;">Seleccionar Semana:</label>
                         <select id="weekSelector" class="modern-input" style="padding: 8px; width: auto; min-width: 250px; background: var(--bg-dark);">
@@ -1289,8 +1374,6 @@ El esqueleto estructural de la plataforma Risk Manager. Contiene la barra de nav
             <div id="view-teletrabajo" class="view-panel" style="display: none; padding: 20px;">
                 <h2 class="panel-title" style="margin-bottom: 20px;"><i class='bx bx-home-alt'></i> Cronograma de Teletrabajo</h2>
                 <div class="glass-panel" style="padding: 20px; overflow-x: auto;">
-                    <p style="color: var(--text-secondary); margin-bottom: 20px;">Datos leídos desde 'Teletrabajo/Teletrabajo.xlsx'</p>
-                    
                     <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 15px;">
                         <label style="color: var(--text-secondary); font-size: 14px;">Seleccionar Semana:</label>
                         <select id="teletrabajoWeekSelector" class="modern-input" style="padding: 8px; width: auto; min-width: 250px; background: var(--bg-dark);">
@@ -1354,36 +1437,57 @@ El esqueleto estructural de la plataforma Risk Manager. Contiene la barra de nav
             </div>
 
             <!-- Vista: Aprobaciones (Admin) -->
-            <div id="view-aprobaciones" class="view-panel" style="display: none; padding: 20px;">
-                <h2 class="panel-title" style="margin-bottom: 20px; color: var(--warning);"><i class='bx bx-user-check'></i> Gestión de Usuarios</h2>
-                <div class="glass-panel" style="padding: 20px; border: 1px solid var(--warning); overflow-x: auto;">
-                    <table style="width: 100%; border-collapse: collapse;">
+            <div id="view-aprobaciones" class="view-panel" style="display: none; padding: 15px;">
+                
+                <!-- SECCION 1: GESTION DE USUARIOS -->
+                <h2 class="panel-title" style="margin-bottom: 15px; color: var(--warning); font-size: 18px;"><i class='bx bx-user-check'></i> Gestión de Usuarios</h2>
+                
+                <div class="glass-panel" style="padding: 10px; margin-bottom: 15px; display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; border: 1px solid var(--glass-border);">
+                    <div style="flex: 1; min-width: 180px;">
+                        <label style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; display: block; font-weight: 500;">Buscar por Nombre o Email:</label>
+                        <input type="text" id="filterAprobacionesSearch" placeholder="🔍 Escriba para buscar todos los registros..." class="modern-input" style="min-height: 32px; padding: 6px 10px; font-size: 12px; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 6px; width: 100%;" oninput="renderPendingUsers()">
+                    </div>
+                    <div style="flex: 1; min-width: 180px;">
+                        <label style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; display: block; font-weight: 500;">Filtrar por Estado:</label>
+                        <select id="filterAprobacionesStatus" class="modern-input" style="min-height: 32px; padding: 6px 10px; font-size: 12px; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 6px; width: 100%;" onchange="renderPendingUsers()">
+                            <option value="Todos" style="color: black;">Todos</option>
+                            <option value="Pendiente" style="color: black;">Pendientes de Aprobación</option>
+                            <option value="Aprobado" style="color: black;">Aprobados</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="glass-panel" style="padding: 0; border: 1px solid var(--warning); overflow-x: auto; margin-bottom: 25px; border-radius: 8px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                         <thead>
                             <tr style="border-bottom: 1px solid var(--glass-border);">
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Nombre</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Email</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Rol</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">F. Solicitud</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">F. Aprobación</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: center;">Acción</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Nombre</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Email</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Rol</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">F. Solicitud</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">F. Aprobación</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: center; background: var(--bg-dark);">Acción</th>
                             </tr>
                         </thead>
-                        <tbody id="pendingUsersTableBody"></tbody>
+                        <tbody id="pendingUsersTableBody" style="background: rgba(255,255,255,0.02);"></tbody>
                     </table>
                 </div>
 
-                <h2 class="panel-title" style="margin-top: 30px; margin-bottom: 20px; color: var(--accent-primary);"><i class='bx bx-time-five'></i> Permisos Pendientes</h2>
-                <div class="glass-panel" style="padding: 20px; border: 1px solid var(--accent-primary); overflow-x: auto;">
-                    <table style="width: 100%; border-collapse: collapse;">
+                <!-- SECCION 2: PERMISOS PENDIENTES -->
+                <h2 class="panel-title" style="margin-bottom: 15px; color: var(--accent-primary); font-size: 18px;"><i class='bx bx-time-five'></i> Permisos Pendientes</h2>
+
+                <div class="glass-panel" style="padding: 0; border: 1px solid var(--accent-primary); overflow-x: auto; border-radius: 8px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                         <thead>
                             <tr style="border-bottom: 1px solid var(--glass-border);">
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Gestor</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Tipo</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Fecha</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: center;">Acción</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Gestor</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Tipo</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Fecha</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Motivo</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: center; background: var(--bg-dark);">Acción</th>
                             </tr>
                         </thead>
-                        <tbody id="pendingPermissionsTableBody"></tbody>
+                        <tbody id="pendingPermissionsTableBody" style="background: rgba(255,255,255,0.02);"></tbody>
                     </table>
                 </div>
             </div>
@@ -1407,16 +1511,16 @@ El esqueleto estructural de la plataforma Risk Manager. Contiene la barra de nav
                     </div>
                 </div>
 
-                <div class="glass-panel" style="padding: 20px; border: 1px solid var(--success); overflow-x: auto;">
+                <div class="glass-panel" style="padding: 0 20px 20px 20px; border: 1px solid var(--success); overflow-x: auto; overflow-y: auto; max-height: 500px;">
                     <table style="width: 100%; border-collapse: collapse;">
                         <thead>
-                            <tr style="border-bottom: 1px solid var(--glass-border);">
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Gestor</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">SET</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Inicio</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Fin</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Reporte</th>
-                                <th style="padding: 12px; color: var(--accent-primary); text-align: center;">Acción</th>
+                            <tr>
+                                <th style="position: sticky; top: 0; z-index: 10; background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 20px 12px 12px 12px; color: var(--accent-primary); text-align: left; border-bottom: 1px solid var(--glass-border);">Gestor</th>
+                                <th style="position: sticky; top: 0; z-index: 10; background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 20px 12px 12px 12px; color: var(--accent-primary); text-align: left; border-bottom: 1px solid var(--glass-border);">SET</th>
+                                <th style="position: sticky; top: 0; z-index: 10; background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 20px 12px 12px 12px; color: var(--accent-primary); text-align: left; border-bottom: 1px solid var(--glass-border);">Inicio</th>
+                                <th style="position: sticky; top: 0; z-index: 10; background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 20px 12px 12px 12px; color: var(--accent-primary); text-align: left; border-bottom: 1px solid var(--glass-border);">Fin</th>
+                                <th style="position: sticky; top: 0; z-index: 10; background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 20px 12px 12px 12px; color: var(--accent-primary); text-align: left; border-bottom: 1px solid var(--glass-border);">Reporte</th>
+                                <th style="position: sticky; top: 0; z-index: 10; background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 20px 12px 12px 12px; color: var(--accent-primary); text-align: center; border-bottom: 1px solid var(--glass-border);">Acción</th>
                             </tr>
                         </thead>
                         <tbody id="shiftReportsTableBody"></tbody>
@@ -1434,30 +1538,6 @@ El esqueleto estructural de la plataforma Risk Manager. Contiene la barra de nav
                     </div>
                 </div>
 
-                <!-- Stat Cards -->
-                <div class="stats-grid" style="margin-bottom: 20px;">
-                    <!-- Total Activos -->
-                    <div class="stat-widget glass-panel">
-                        <div class="stat-widget-details">
-                            <h3 id="statsGestoresTitle">Gestores Activos</h3>
-                            <div class="number" id="statsGestores">0 / 0</div>
-                        </div>
-                        <div class="stat-widget-icon">
-                            <i class='bx bx-group'></i>
-                        </div>
-                    </div>
-
-                    <!-- KPI Promedio -->
-                    <div class="stat-widget glass-panel">
-                        <div class="stat-widget-details">
-                            <h3>KPI Promedio General</h3>
-                            <div class="number" id="statsKpi">0%</div>
-                        </div>
-                        <div class="stat-widget-icon">
-                            <i class='bx bx-line-chart'></i>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Filter Row -->
                 <div class="filter-section glass-panel" style="margin-bottom: 20px;">
@@ -1481,9 +1561,14 @@ El esqueleto estructural de la plataforma Risk Manager. Contiene la barra de nav
                         </select>
                     </div>
                     
-                    <button class="btn btn-outline" id="clearMonitoreoFiltersBtn" style="height: 40px; padding: 0 15px; display: flex; align-items: center; gap: 8px; width: auto;">
-                        <i class='bx bx-filter-alt'></i> Limpiar Filtros
-                    </button>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <button class="btn btn-outline" id="clearMonitoreoFiltersBtn" style="height: 40px; padding: 0 15px; display: flex; align-items: center; gap: 8px; width: auto;">
+                            <i class='bx bx-filter-alt'></i> Limpiar Filtros
+                        </button>
+                        <button class="btn btn-outline" onclick="openLoginHistoryModal()" style="height: 40px; padding: 0 15px; display: flex; align-items: center; gap: 8px; width: auto; background: rgba(59, 130, 246, 0.1); border-color: var(--accent-primary); color: var(--accent-primary);">
+                            <i class='bx bx-history'></i> Historial de Accesos
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Grid layout of active managers -->
@@ -1492,7 +1577,663 @@ El esqueleto estructural de la plataforma Risk Manager. Contiene la barra de nav
                 </div>
             </div>
 
+            <!-- Vista: Indicadores -->
+            <div id="view-indicadores" class="view-panel" style="display: none; padding: 20px; overflow-y: auto; width: 100%; box-sizing: border-box; flex: 1;">
+                <h2 class="panel-title" style="margin-bottom: 20px; color: var(--accent-primary);"><i class='bx bx-pie-chart-alt-2'></i> Indicadores de Gestión y Desempeño</h2>
+                
+                <!-- Panel de Filtros Horizontal Superior -->
+                <div class="glass-panel filter-section" style="margin-bottom: 25px; display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 250px;">
+                        <label style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 700;">
+                            <i class='bx bx-user' style="margin-right: 5px; color: var(--primary);"></i>Gestor a Evaluar
+                        </label>
+                        <select id="kpiGestorSelect" class="modern-input" style="padding: 14px 16px; width: 100%; border-radius: 12px; background: var(--bg-secondary, #f8f9fa); border: 1px solid rgba(0,0,0,0.05); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); transition: all 0.3s ease; outline: none;">
+                            <option value="todos" selected>Todos los gestores</option>
+                            <option value="">Selecciona un gestor...</option>
+                        </select>
+                    </div>
+
+                    <div style="flex: 1; min-width: 250px;">
+                        <label style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 700;">
+                            <i class='bx bx-calendar' style="margin-right: 5px; color: var(--primary);"></i>Periodo de Evaluación
+                        </label>
+                        <select id="kpiPeriodoSelect" class="modern-input" style="padding: 14px 16px; width: 100%; border-radius: 12px; background: var(--bg-secondary, #f8f9fa); border: 1px solid rgba(0,0,0,0.05); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); transition: all 0.3s ease; outline: none;">
+                            <option value="hoy" selected>Hoy</option>
+                            <option value="general">Histórico General (Todo)</option>
+                            <option value="ayer">Ayer</option>
+                            <option value="semanal">Últimos 7 Días</option>
+                            <option value="30dias">Últimos 30 Días</option>
+                            <option value="mes">Este Mes</option>
+                            <option value="custom">Personalizado (Elegir Fecha)</option>
+                        </select>
+                    </div>
+
+                    <div id="kpiCustomDateContainer" style="display: none; flex: 1; min-width: 200px;">
+                        <label style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 700;">
+                            <i class='bx bx-calendar-star' style="margin-right: 5px; color: var(--primary);"></i>Fecha Exacta
+                        </label>
+                        <input type="date" id="kpiCustomDateInput" class="modern-input" style="padding: 13px 16px; width: 100%; border-radius: 12px; background: var(--bg-secondary, #f8f9fa); border: 1px solid rgba(0,0,0,0.05); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); outline: none;">
+                    </div>
+
+                    <div style="display: flex; align-items: flex-end;">
+                        <button class="btn btn-primary" onclick="calcularIndicadores()" style="height: 50px; padding: 0 35px; border-radius: 12px; font-weight: 600; font-size: 15px; letter-spacing: 0.5px; box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3); transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;">
+                            <i class='bx bx-search-alt-2' style="font-size: 18px;"></i> Analizar Rendimiento
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Contenedor Principal de Resultados (Grid completo) -->
+                <div class="kpi-results" style="width: 100%;">
+                    <div id="kpiResultsContainer" style="display: none; flex-direction: column; gap: 25px;">
+                            
+                            <!-- Rendimiento Global Dividido en 3 -->
+                            <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; width: 100%;">
+                                
+                                <!-- Actividades -->
+                                <div class="stat-widget glass-panel" style="display: flex; align-items: center; gap: 20px; padding: 20px;">
+                                    <div style="position: relative; width: 80px; height: 80px; flex-shrink: 0;">
+                                        <svg width="80" height="80" viewBox="0 0 100 100" style="transform: rotate(-90deg);">
+                                            <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="10"></circle>
+                                            <circle id="kpiScoreRingActividades" cx="50" cy="50" r="40" fill="none" stroke="var(--success)" stroke-width="10" stroke-dasharray="251.2" stroke-dashoffset="251.2" stroke-linecap="round" style="transition: stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1);"></circle>
+                                        </svg>
+                                        <div id="kpiScoreTextActividades" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; font-size: 18px; font-weight: 700; color: var(--text-primary);">0%</div>
+                                    </div>
+                                    <div>
+                                        <h3 style="font-size: 16px; margin: 0 0 5px 0; color: var(--text-primary);">Rend. Actividades</h3>
+                                        <p style="font-size: 11px; color: var(--text-secondary); margin: 0 0 5px 0;">Tareas finalizadas vs totales.</p>
+                                        <div id="kpiVerdictBadgeActividades" class="badge" style="font-size: 11px; padding: 3px 8px;">-</div>
+                                    </div>
+                                </div>
+
+                                <!-- Conectividad -->
+                                <div class="stat-widget glass-panel" style="display: flex; align-items: center; gap: 20px; padding: 20px;">
+                                    <div style="position: relative; width: 80px; height: 80px; flex-shrink: 0;">
+                                        <svg width="80" height="80" viewBox="0 0 100 100" style="transform: rotate(-90deg);">
+                                            <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="10"></circle>
+                                            <circle id="kpiScoreRingConectividad" cx="50" cy="50" r="40" fill="none" stroke="var(--success)" stroke-width="10" stroke-dasharray="251.2" stroke-dashoffset="251.2" stroke-linecap="round" style="transition: stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1);"></circle>
+                                        </svg>
+                                        <div id="kpiScoreTextConectividad" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; font-size: 18px; font-weight: 700; color: var(--text-primary);">0%</div>
+                                    </div>
+                                    <div>
+                                        <h3 style="font-size: 16px; margin: 0 0 5px 0; color: var(--text-primary);">Rend. Conectividad</h3>
+                                        <p style="font-size: 11px; color: var(--text-secondary); margin: 0 0 5px 0;">Control de descansos.</p>
+                                        <div id="kpiVerdictBadgeConectividad" class="badge" style="font-size: 11px; padding: 3px 8px;">-</div>
+                                    </div>
+                                </div>
+
+                                <!-- Retiros -->
+                                <div class="stat-widget glass-panel" style="display: flex; align-items: center; gap: 20px; padding: 20px;">
+                                    <div style="position: relative; width: 80px; height: 80px; flex-shrink: 0;">
+                                        <svg width="80" height="80" viewBox="0 0 100 100" style="transform: rotate(-90deg);">
+                                            <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="10"></circle>
+                                            <circle id="kpiScoreRingRetiros" cx="50" cy="50" r="40" fill="none" stroke="var(--success)" stroke-width="10" stroke-dasharray="251.2" stroke-dashoffset="251.2" stroke-linecap="round" style="transition: stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1);"></circle>
+                                        </svg>
+                                        <div id="kpiScoreTextRetiros" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; font-size: 18px; font-weight: 700; color: var(--text-primary);">0%</div>
+                                    </div>
+                                    <div>
+                                        <h3 style="font-size: 16px; margin: 0 0 5px 0; color: var(--text-primary);">Rend. Retiros</h3>
+                                        <p style="font-size: 11px; color: var(--text-secondary); margin: 0 0 5px 0;">Demora promedio.</p>
+                                        <div id="kpiVerdictBadgeRetiros" class="badge" style="font-size: 11px; padding: 3px 8px;">-</div>
+                                    </div>
+                                </div>
+                                
+                            </div>
+
+                            <!-- Grid de Tarjetas (Unificado) -->
+                            <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; width: 100%;">
+                                
+                                <!-- TAREAS SET (Operatividad) -->
+                                <div class="stat-widget glass-panel kpi-clickable-card" style="border-left: 4px solid var(--success); cursor: pointer; transition: all 0.3s;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 20px rgba(16,185,129,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'" onclick="openKpiTaskDetails('finalizadas')">
+                                    <div class="stat-widget-details">
+                                        <h3 style="font-size: 12px; color: var(--text-secondary);"><i class='bx bx-check-circle'></i> Tareas Finalizadas</h3>
+                                        <div class="number" id="kpiTotalFinalizadas" style="color: var(--success); font-size: 28px; margin-top: 5px;">0</div>
+                                    </div>
+                                    <div class="stat-widget-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--success); font-size: 24px; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 12px;">
+                                        <i class='bx bx-check-double'></i>
+                                    </div>
+                                    <div style="position: absolute; top: 10px; right: 10px; opacity: 0.5;"><i class='bx bx-zoom-in' style="font-size: 14px;"></i></div>
+                                </div>
+
+                                <div class="stat-widget glass-panel kpi-clickable-card" style="border-left: 4px solid var(--danger); cursor: pointer; transition: all 0.3s;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 20px rgba(239,68,68,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'" onclick="openKpiTaskDetails('no_realizadas')">
+                                    <div class="stat-widget-details">
+                                        <h3 style="font-size: 12px; color: var(--text-secondary);"><i class='bx bx-x-circle'></i> No Realizadas</h3>
+                                        <div class="number" id="kpiTotalNoRealizadas" style="color: var(--danger); font-size: 28px; margin-top: 5px;">0</div>
+                                    </div>
+                                    <div class="stat-widget-icon" style="background: rgba(239, 68, 68, 0.1); color: var(--danger); font-size: 24px; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 12px;">
+                                        <i class='bx bx-x'></i>
+                                    </div>
+                                    <div style="position: absolute; top: 10px; right: 10px; opacity: 0.5;"><i class='bx bx-zoom-in' style="font-size: 14px;"></i></div>
+                                </div>
+
+                                <div class="stat-widget glass-panel kpi-clickable-card" style="border-left: 4px solid var(--warning); cursor: pointer; transition: all 0.3s;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 20px rgba(245,158,11,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'" onclick="openKpiTaskDetails('pendientes')">
+                                    <div class="stat-widget-details">
+                                        <h3 style="font-size: 12px; color: var(--text-secondary);"><i class='bx bx-time'></i> Pendientes (Olvidadas)</h3>
+                                        <div class="number" id="kpiTotalPendientes" style="color: var(--warning); font-size: 28px; margin-top: 5px;">0</div>
+                                    </div>
+                                    <div class="stat-widget-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--warning); font-size: 24px; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 12px;">
+                                        <i class='bx bx-history'></i>
+                                    </div>
+                                    <div style="position: absolute; top: 10px; right: 10px; opacity: 0.5;"><i class='bx bx-zoom-in' style="font-size: 14px;"></i></div>
+                                </div>
+
+                                <!-- CONECTIVIDAD / TURNOS -->
+                                <div class="stat-widget glass-panel" style="border-left: 4px solid var(--accent-primary);">
+                                    <div class="stat-widget-details">
+                                        <h3 style="font-size: 12px; color: var(--text-secondary);"><i class='bx bx-calendar-check'></i> Turnos Analizados</h3>
+                                        <div class="number" id="kpiTurnosAnalizados" style="color: var(--accent-primary); font-size: 28px; margin-top: 5px;">0</div>
+                                    </div>
+                                    <div class="stat-widget-icon" style="background: rgba(59, 130, 246, 0.1); color: var(--accent-primary); font-size: 24px; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 12px;">
+                                        <i class='bx bx-briefcase'></i>
+                                    </div>
+                                </div>
+
+                                <div class="stat-widget glass-panel" style="border-left: 4px solid #8B5CF6;">
+                                    <div class="stat-widget-details">
+                                        <h3 style="font-size: 12px; color: var(--text-secondary);"><i class='bx bx-timer'></i> Duración Promedio (Turno)</h3>
+                                        <div class="number" id="kpiDuracionPromedio" style="color: #8B5CF6; font-size: 22px; margin-top: 5px; font-weight: 700;">0h 0m</div>
+                                    </div>
+                                    <div class="stat-widget-icon" style="background: rgba(139, 92, 246, 0.1); color: #8B5CF6; font-size: 24px; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 12px;">
+                                        <i class='bx bx-time-five'></i>
+                                    </div>
+                                </div>
+
+                                <!-- INACTIVIDAD DETECTADA -->
+                                <div class="stat-widget glass-panel" style="border-left: 4px solid #F59E0B;">
+                                    <div class="stat-widget-details">
+                                        <h3 style="font-size: 12px; color: var(--text-secondary);"><i class='bx bx-sleepy'></i> Inactividad Total</h3>
+                                        <div class="number" id="kpiTiempoInactivo" style="color: #F59E0B; font-size: 22px; margin-top: 5px; font-weight: 700;">0h 0m</div>
+                                    </div>
+                                    <div class="stat-widget-icon" style="background: rgba(245, 158, 11, 0.1); color: #F59E0B; font-size: 24px; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 12px;">
+                                        <i class='bx bx-stopwatch'></i>
+                                    </div>
+                                </div>
+
+                                <!-- RETIROS (Nuevas Tarjetas) -->
+                                <div class="stat-widget glass-panel retiros-card" style="border-left: 4px solid #10B981; display: none;">
+                                    <div class="stat-widget-details">
+                                        <h3 style="font-size: 12px; color: var(--text-secondary);"><i class='bx bx-check-shield'></i> Retiros Aprobados</h3>
+                                        <div class="number" id="kpiRetirosPagados" style="color: #10B981; font-size: 28px; margin-top: 5px;">0</div>
+                                    </div>
+                                    <div class="stat-widget-icon" style="background: rgba(16, 185, 129, 0.1); color: #10B981; font-size: 24px; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 12px;">
+                                        <i class='bx bx-money'></i>
+                                    </div>
+                                </div>
+
+                                <div class="stat-widget glass-panel retiros-card" style="border-left: 4px solid #F43F5E; display: none;">
+                                    <div class="stat-widget-details">
+                                        <h3 style="font-size: 12px; color: var(--text-secondary);"><i class='bx bx-shield-x'></i> Retiros Rechazados</h3>
+                                        <div class="number" id="kpiRetirosRechazados" style="color: #F43F5E; font-size: 28px; margin-top: 5px;">0</div>
+                                    </div>
+                                    <div class="stat-widget-icon" style="background: rgba(244, 63, 94, 0.1); color: #F43F5E; font-size: 24px; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 12px;">
+                                        <i class='bx bx-block'></i>
+                                    </div>
+                                </div>
+
+
+                                <!-- Penalidad (Destacada) -->
+                                <div class="stat-widget glass-panel" style="border-left: 4px solid var(--danger); border-top: 1px solid rgba(239, 68, 68, 0.3); display: none; grid-column: 1 / -1; background: linear-gradient(90deg, rgba(239, 68, 68, 0.05) 0%, transparent 100%);" id="kpiRetirosPenalidadCard">
+                                    <div class="stat-widget-details" style="flex: 1;">
+                                        <h3 style="font-size: 15px; color: var(--danger); font-weight: 600;"><i class='bx bx-error-circle'></i> Penalidad por Demora (Retiros)</h3>
+                                        <div style="display: flex; gap: 20px; align-items: baseline; margin-top: 10px;">
+                                            <div class="number" id="kpiPenalidadRetiros" style="color: var(--danger); font-size: 36px; font-weight: 800;">-0%</div>
+                                            <div style="font-size: 14px; color: var(--text-secondary); background: rgba(0,0,0,0.2); padding: 5px 12px; border-radius: 20px;" id="kpiDemoraPromedioText">Sin datos</div>
+                                        </div>
+                                    </div>
+                                    <div class="stat-widget-icon" style="background: rgba(239, 68, 68, 0.1); color: var(--danger); font-size: 32px; width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
+                                        <i class='bx bx-trending-down'></i>
+                                    </div>
+                                </div>
+
+                                <!-- Bitácora de Tiempos Integrada (Tarjeta Ancha) -->
+                                <div class="stat-widget glass-panel" id="kpiBitacoraInlineCard" style="border-left: 4px solid #8B5CF6; display: none; grid-column: 1 / -1; flex-direction: column; align-items: flex-start; gap: 10px;">
+                                    <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
+                                        <div style="background: rgba(139, 92, 246, 0.1); color: #8B5CF6; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                                            <i class='bx bx-time-five'></i>
+                                        </div>
+                                        <h3 style="font-size: 15px; color: var(--text-primary); font-weight: 600; margin: 0;">Desglose de Horarios (Desayuno, Almuerzo/Cena e Inactividad)</h3>
+                                    </div>
+                                    <div id="kpiBitacoraInlineList" style="background: transparent; padding: 10px; border-radius: var(--radius-md); font-size: 13px; max-height: 400px; overflow-y: auto; color: var(--text-primary); width: 100%; box-sizing: border-box;">
+                                        <!-- Se llena con JS -->
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                <!-- Cierre del Contenedor view-indicadores -->
+                <!-- Cierre del Contenedor view-indicadores -->
+                </div>
+
+                <!-- Vista: Eficiencia Operativa (Admin) -->
+                <div id="view-eficiencia-operativa" class="view-panel" style="display: none; padding: 20px; overflow-y: auto; width: 100%; box-sizing: border-box; flex: 1;">
+                    <h2 class="panel-title" style="margin-bottom: 25px; color: var(--accent-primary);"><i class='bx bx-line-chart'></i> Control Operativo y Eficiencia en Retiros</h2>
+                    
+                    <!-- Panel de Filtros Horizontal Superior para Operativo -->
+                    <div class="glass-panel filter-section" style="margin-bottom: 25px; display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 250px;">
+                            <label style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 700;">
+                                <i class='bx bx-user' style="margin-right: 5px; color: var(--primary);"></i>Gestor a Evaluar
+                            </label>
+                            <select id="filtroGestorOperativo" class="modern-input" style="padding: 14px 16px; width: 100%; border-radius: 12px; background: var(--bg-secondary, #f8f9fa); border: 1px solid rgba(0,0,0,0.05); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); transition: all 0.3s ease; outline: none;" onchange="renderControlOperativoFiltered()">
+                                <option value="Todos">Todos los gestores</option>
+                            </select>
+                        </div>
+
+                        <div style="flex: 1; min-width: 250px;">
+                            <label style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 700;">
+                                <i class='bx bx-calendar' style="margin-right: 5px; color: var(--primary);"></i>Periodo de Evaluación
+                            </label>
+                            <select id="filtroFechaOperativo" class="modern-input" style="padding: 14px 16px; width: 100%; border-radius: 12px; background: var(--bg-secondary, #f8f9fa); border: 1px solid rgba(0,0,0,0.05); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); transition: all 0.3s ease; outline: none;" onchange="toggleOperativoCustomDates(); renderControlOperativoFiltered()">
+                                <option value="Todas" selected>Todas las fechas</option>
+                                <option value="today">Solo Hoy</option>
+                                <option value="yesterday">Solo Ayer</option>
+                                <option value="7">Últimos 7 Días</option>
+                                <option value="30">Últimos 30 Días</option>
+                                <option value="thisMonth">Este Mes</option>
+                                <option value="lastMonth">Mes Anterior</option>
+                                <option value="custom">Rango de Fechas...</option>
+                            </select>
+                        </div>
+
+                        <div id="operativoCustomDateContainer" style="display: none; flex: 2; min-width: 300px; gap: 10px;">
+                            <div style="flex: 1;">
+                                <label style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 700;">
+                                    <i class='bx bx-calendar-star' style="margin-right: 5px; color: var(--primary);"></i>Desde
+                                </label>
+                                <input type="date" id="operativoDateStart" class="modern-input" onchange="renderControlOperativoFiltered()" style="padding: 13px 16px; width: 100%; border-radius: 12px; background: var(--bg-secondary, #f8f9fa); border: 1px solid rgba(0,0,0,0.05); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); outline: none;">
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 700;">
+                                    <i class='bx bx-calendar-check' style="margin-right: 5px; color: var(--primary);"></i>Hasta
+                                </label>
+                                <input type="date" id="operativoDateEnd" class="modern-input" onchange="renderControlOperativoFiltered()" style="padding: 13px 16px; width: 100%; border-radius: 12px; background: var(--bg-secondary, #f8f9fa); border: 1px solid rgba(0,0,0,0.05); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); outline: none;">
+                            </div>
+                        </div>
+
+                        <div style="display: flex; align-items: flex-end;">
+                            <button class="btn btn-primary" onclick="loadControlOperativoData()" style="height: 50px; padding: 0 35px; border-radius: 12px; font-weight: 600; font-size: 15px; letter-spacing: 0.5px; box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3); transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;">
+                                <i class='bx bx-refresh' style="font-size: 18px;"></i> Actualizar Datos
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- KPI Widgets Summary -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 25px;">
+                        <div class="stat-widget glass-panel" style="border-left: 4px solid var(--primary); padding: 20px; display: flex; align-items: center; justify-content: space-between; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
+                            <div>
+                                <h3 style="font-size: 13px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; margin-bottom: 8px;">TOTAL PROCESADOS</h3>
+                                <div class="number" id="operativoWidgetTotal" style="color: var(--primary); font-size: 32px; font-weight: 800;">0</div>
+                            </div>
+                            <div style="background: rgba(59, 130, 246, 0.1); color: var(--primary); font-size: 28px; width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; border-radius: 14px;">
+                                <i class='bx bx-list-check'></i>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-widget glass-panel" style="border-left: 4px solid var(--success); padding: 20px; display: flex; align-items: center; justify-content: space-between; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
+                            <div>
+                                <h3 style="font-size: 13px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; margin-bottom: 8px;">APROBADOS</h3>
+                                <div class="number" id="operativoWidgetAprobados" style="color: var(--success); font-size: 32px; font-weight: 800;">0</div>
+                            </div>
+                            <div style="background: rgba(16, 185, 129, 0.1); color: var(--success); font-size: 28px; width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; border-radius: 14px;">
+                                <i class='bx bx-check-circle'></i>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-widget glass-panel" style="border-left: 4px solid var(--danger); padding: 20px; display: flex; align-items: center; justify-content: space-between; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
+                            <div>
+                                <h3 style="font-size: 13px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; margin-bottom: 8px;">RECHAZADOS</h3>
+                                <div class="number" id="operativoWidgetRechazados" style="color: var(--danger); font-size: 32px; font-weight: 800;">0</div>
+                            </div>
+                            <div style="background: rgba(239, 68, 68, 0.1); color: var(--danger); font-size: 28px; width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; border-radius: 14px;">
+                                <i class='bx bx-x-circle'></i>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-widget glass-panel" style="border-left: 4px solid var(--warning); padding: 20px; display: flex; align-items: center; justify-content: space-between; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
+                            <div>
+                                <h3 style="font-size: 13px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; margin-bottom: 8px;">ART PROMEDIO</h3>
+                                <div class="number" id="operativoWidgetART" style="color: var(--warning); font-size: 32px; font-weight: 800;">0<span style="font-size: 16px; font-weight: 600; margin-left: 4px;">min</span></div>
+                            </div>
+                            <div style="background: rgba(245, 158, 11, 0.1); color: var(--warning); font-size: 28px; width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; border-radius: 14px;">
+                                <i class='bx bx-time-five'></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="glass-panel" style="padding: 25px; margin-bottom: 20px; border-radius: 16px;">
+                        <h3 style="font-size: 16px; margin-bottom: 20px; color: var(--text-primary); font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                            <i class='bx bx-table' style="color: var(--primary); font-size: 20px;"></i> Resumen de Retiros por Gestor
+                        </h3>
+                        <div style="overflow-x: auto; border-radius: 12px; border: 1px solid rgba(0,0,0,0.05);">
+                            <table class="data-table" id="tablaResumenOperativo" style="width: 100%; border-collapse: collapse; text-align: left; background: var(--bg-primary);">
+                                <thead>
+                                    <tr style="border-bottom: 2px solid rgba(0,0,0,0.05); background: rgba(0,0,0,0.02);">
+                                        <th style="padding: 16px 20px; font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; color: var(--text-secondary);">Gestor</th>
+                                        <th style="padding: 16px 20px; font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; color: var(--text-secondary);">Aprobados</th>
+                                        <th style="padding: 16px 20px; font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; color: var(--text-secondary);">Rechazados</th>
+                                        <th style="padding: 16px 20px; font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; color: var(--text-secondary);">Total Procesados</th>
+                                        <th style="padding: 16px 20px; font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; color: var(--text-secondary);">% Fuga</th>
+                                        <th style="padding: 16px 20px; font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; color: var(--text-secondary);">ART (Mins)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Dynamic rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                        <!-- Top Alerta Tardanzas -->
+                        <div class="glass-panel" style="padding: 20px; height: 350px;">
+                            <h3 style="font-size: 14px; margin-bottom: 10px; color: var(--danger);"><i class='bx bx-alarm-exclamation'></i> Top Alerta Tardanzas (Peores 5)</h3>
+                            <canvas id="chartTardanzasPeores"></canvas>
+                        </div>
+                        
+                        <!-- Top Excelencia Puntualidad -->
+                        <div class="glass-panel" style="padding: 20px; height: 350px;">
+                            <h3 style="font-size: 14px; margin-bottom: 10px; color: var(--success);"><i class='bx bx-medal'></i> Top Excelencia Puntualidad (Mejores 5)</h3>
+                            <canvas id="chartTardanzasMejores"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-bottom: 20px;">
+                        <!-- Top Inactividad Diaria -->
+                        <div class="glass-panel" style="padding: 20px; height: 400px;">
+                            <h3 style="font-size: 14px; margin-bottom: 10px; color: var(--warning);"><i class='bx bx-coffee-togo'></i> Promedio Inactividad Diaria (Min)</h3>
+                            <canvas id="chartInactividad"></canvas>
+                        </div>
+                        
+                        <!-- Top Eficiencia y Volumen -->
+                        <div class="glass-panel" style="padding: 20px; height: 400px;">
+                            <h3 style="font-size: 14px; margin-bottom: 10px; color: var(--accent-primary);"><i class='bx bx-layer'></i> Eficiencia y Volumen de Retiros</h3>
+                            <canvas id="chartEficiencia"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-panel" style="padding: 20px; height: 450px; margin-bottom: 20px;">
+                        <h3 style="font-size: 14px; margin-bottom: 10px; color: var(--danger);"><i class='bx bx-shield-x'></i> Matriz de Riesgo: Fugas vs Velocidad</h3>
+                        <canvas id="chartMatrizFuga"></canvas>
+                    </div>
+                </div>
+
+                <!-- Vista: Control de Tiempos (Admin) -->
+                <div id="view-tiempos" class="view-panel" style="display: none; padding: 20px; overflow-y: auto; width: 100%; box-sizing: border-box; flex: 1;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
+                        <h2 class="panel-title" style="color: var(--warning); margin: 0;"><i class='bx bx-timer'></i> Control de Tiempos y Cumplimiento</h2>
+                        
+                        <!-- Filtros -->
+                        <div style="display: flex; gap: 15px; align-items: center; background: rgba(255,255,255,0.03); padding: 10px 20px; border-radius: var(--radius-lg); border: 1px solid var(--glass-border);">
+                            <div style="display: flex; flex-direction: column; gap: 5px;">
+                                <label style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Rango de Fecha</label>
+                                <select id="tiemposDateFilter" class="modern-input" onchange="toggleTiemposCustomDates(); loadTiemposMetrics()" style="min-width: 150px; padding: 6px 12px; font-size: 13px;">
+                                    <option value="today">Solo Hoy</option>
+                                    <option value="yesterday">Solo Ayer</option>
+                                    <option value="7" selected>Últimos 7 Días</option>
+                                    <option value="30">Últimos 30 Días</option>
+                                    <option value="thisMonth">Este Mes</option>
+                                    <option value="lastMonth">Mes Anterior</option>
+                                    <option value="custom">Rango de Fechas...</option>
+                                    <option value="all">Todo el Histórico</option>
+                                </select>
+                            </div>
+                            <div id="tiemposCustomDateContainer" style="display: none; flex-direction: row; gap: 10px; align-items: center;">
+                                <div style="display: flex; flex-direction: column; gap: 5px;">
+                                    <label style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Desde</label>
+                                    <input type="date" id="tiemposDateStart" class="modern-input" onchange="loadTiemposMetrics()" style="padding: 6px 12px; font-size: 13px;">
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 5px;">
+                                    <label style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Hasta</label>
+                                    <input type="date" id="tiemposDateEnd" class="modern-input" onchange="loadTiemposMetrics()" style="padding: 6px 12px; font-size: 13px;">
+                                </div>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 5px;">
+                                <label style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Gestor</label>
+                                <select id="tiemposGestorFilter" class="modern-input" onchange="loadTiemposMetrics()" style="min-width: 160px; padding: 6px 12px; font-size: 13px;">
+                                    <option value="all">Todos los Gestores</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Leaderboard Detallado -->
+                    <div class="glass-panel" style="margin-bottom: 30px; padding: 20px;">
+                        <h3 id="tiemposLeaderboardTitle" style="font-size: 16px; color: var(--accent-primary); margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                            <i class='bx bx-list-ol'></i> Ranking Detallado de Cumplimiento Operativo
+                        </h3>
+                        <div style="overflow-x: auto;">
+                            <table class="data-table" style="width: 100%;">
+                                <thead>
+                                    <tr>
+                                        <th>Gestor</th>
+                                        <th style="text-align: center;">Días Evaluados</th>
+                                        <th style="text-align: center;">Tardanza Promedio</th>
+                                        <th style="text-align: center;">Inactividad Promedio</th>
+                                        <th style="text-align: center;">Score Global</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tiemposLeaderboardBody">
+                                    <!-- Llenado por JS -->
+                                    <tr><td colspan="5" style="text-align: center;">Calculando métricas...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Puntuaciones Globales -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                        <div class="stat-widget glass-panel" style="border-left: 4px solid var(--accent-primary);">
+                            <div class="stat-icon"><i class='bx bx-calendar-check'></i></div>
+                            <div class="stat-info">
+                                <h3>Total Días Laborados</h3>
+                                <p id="tiemposTotalDias">0</p>
+                            </div>
+                        </div>
+                        <div class="stat-widget glass-panel" style="border-left: 4px solid var(--danger);">
+                            <div class="stat-icon" style="background: rgba(239,68,68,0.1); color: var(--danger);"><i class='bx bx-time-five'></i></div>
+                            <div class="stat-info">
+                                <h3>Total Minutos Tarde</h3>
+                                <p id="tiemposTotalMinsTarde">0 min</p>
+                            </div>
+                        </div>
+                        <div class="stat-widget glass-panel" style="border-left: 4px solid var(--warning);">
+                            <div class="stat-icon" style="background: rgba(245,158,11,0.1); color: var(--warning);"><i class='bx bx-coffee'></i></div>
+                            <div class="stat-info">
+                                <h3>Total Min. Inactividad</h3>
+                                <p id="tiemposTotalMinsInact">0 min</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gráficos -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%;">
+                        
+                        <!-- Más Tarde al Turno -->
+                        <div class="glass-panel" style="padding: 20px; border-top: 3px solid var(--danger);">
+                            <h3 style="font-size: 15px; color: var(--text-primary); margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                                <i class='bx bx-error-circle' style="color: var(--danger);"></i> Más Tarde al Turno
+                            </h3>
+                            <div style="width: 100%; height: 300px; position: relative;">
+                                <canvas id="chartTopAlerta"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Más Temprano al Turno -->
+                        <div class="glass-panel" style="padding: 20px; border-top: 3px solid var(--success);">
+                            <h3 style="font-size: 15px; color: var(--text-primary); margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                                <i class='bx bx-trophy' style="color: var(--success);"></i> Más Temprano al Turno
+                            </h3>
+                            <div style="width: 100%; height: 300px; position: relative;">
+                                <canvas id="chartTopExcelencia"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Top Inactividad -->
+                        <div class="glass-panel" style="padding: 20px; border-top: 3px solid var(--warning);">
+                            <h3 style="font-size: 15px; color: var(--text-primary); margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                                <i class='bx bx-coffee' style="color: var(--warning);"></i> Promedio Inactividad Diaria
+                            </h3>
+                            <div style="width: 100%; height: 380px; position: relative;">
+                                <canvas id="chartTopInactividad"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Scatter Plot Cuadrantes -->
+                        <div class="glass-panel" style="padding: 20px; border-top: 3px solid var(--accent-primary);">
+                            <h3 style="font-size: 15px; color: var(--text-primary); margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                                <i class='bx bx-target-lock' style="color: var(--accent-primary);"></i> Matriz de Cuadrantes (Tardanza vs Inactividad)
+                            </h3>
+                            <div style="width: 100%; height: 300px; position: relative;">
+                                <canvas id="chartScatterCuadrantes"></canvas>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Vista: Comunicados (Gestores) -->
+            <div id="view-comunicados" class="view-panel" style="display: none; padding: 20px; overflow-y: auto; width: 100%; box-sizing: border-box; flex: 1;">
+                    <h2 class="panel-title" style="margin-bottom: 20px; color: var(--accent-primary);"><i class='bx bx-news'></i> Comunicados e Información Importante</h2>
+                    <div id="gestorComunicadosList" style="display: flex; flex-direction: column; gap: 15px;">
+                        <!-- Comunicados dinámicos irán aquí -->
+                    </div>
+                </div>
+
+                <!-- Vista: Gestión de Comunicados (Admin) -->
+                <div id="view-gestion-comunicados" class="view-panel" style="display: none; padding: 20px; overflow-y: auto; width: 100%; box-sizing: border-box; flex: 1;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2 class="panel-title" style="color: var(--warning);"><i class='bx bx-broadcast'></i> Gestión de Comunicados</h2>
+                        <button class="btn btn-primary" onclick="openNewComunicadoModal()"><i class='bx bx-plus'></i> Nuevo Comunicado</button>
+                    </div>
+                    
+                    <div class="glass-panel" style="padding: 20px; border: 1px solid var(--warning);">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid var(--glass-border);">
+                                    <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Fecha</th>
+                                    <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Título</th>
+                                    <th style="padding: 12px; color: var(--accent-primary); text-align: left;">Autor</th>
+                                    <th style="padding: 12px; color: var(--accent-primary); text-align: center;">Lecturas</th>
+                                    <th style="padding: 12px; color: var(--accent-primary); text-align: center;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminComunicadosTableBody">
+                                <!-- Filas dinámicas -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
         </main>
+    </div>
+
+    <!-- View Comunicado Content Modal -->
+    <div id="viewComunicadoContentModal" class="modal-overlay">
+        <div class="modal glass-panel" style="max-width: 600px; width: 90%;">
+            <h2 id="viewComunicadoContentTitle" style="color: var(--accent-primary); border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; margin-bottom: 15px;">Título del Comunicado</h2>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 15px;">
+                Por: <span id="viewComunicadoContentAuthor" style="color: var(--text-primary);"></span> | Fecha: <span id="viewComunicadoContentDate"></span>
+            </div>
+            <div id="viewComunicadoContentBody" style="font-size: 14px; line-height: 1.6; color: var(--text-primary); white-space: pre-wrap; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 8px; max-height: 300px; overflow-y: auto; margin-bottom: 20px;"></div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="closeModal('viewComunicadoContentModal')">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Urgent Announcement Modal -->
+    <div id="urgentAnnouncementModal" class="modal-overlay" style="z-index: 9999; backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); background: rgba(0,0,0,0.8);">
+        <div class="modal glass-panel" style="max-width: 700px; width: 95%; text-align: center; padding: 40px; border: 2px solid var(--warning); box-shadow: 0 0 30px rgba(230, 162, 60, 0.4);">
+            <div style="font-size: 60px; color: var(--warning); margin-bottom: 20px;">
+                <i class='bx bxs-bell-ring bx-tada'></i>
+            </div>
+            <h1 id="urgentAnnouncementTitle" style="color: var(--text-primary); font-size: 28px; margin-bottom: 10px;">¡Nuevo Comunicado Importante!</h1>
+            <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 20px;">
+                Por: <span id="urgentAnnouncementAuthor" style="color: var(--warning); font-weight: bold;"></span> | <span id="urgentAnnouncementDate"></span>
+            </div>
+            <div id="urgentAnnouncementBody" style="font-size: 18px; line-height: 1.6; color: var(--text-primary); white-space: pre-wrap; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px; margin-bottom: 30px; text-align: left; max-height: 400px; overflow-y: auto;"></div>
+            
+            <button id="btnUrgentUnderstand" class="btn btn-primary" style="width: 100%; font-size: 18px; padding: 15px; background: var(--success); border-color: var(--success); box-shadow: 0 4px 15px rgba(103, 194, 58, 0.4); text-transform: uppercase; font-weight: bold;">
+                <i class='bx bx-check-double'></i> He leído y entendido este comunicado
+            </button>
+        </div>
+    </div>
+
+    <!-- Exception Modal -->
+    <div id="extraTaskModal" class="modal-overlay">
+        <div class="modal glass-panel">
+            <h2 style="color: var(--accent-primary);"><i class='bx bx-task'></i> Añadir Tarea Adicional</h2>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 15px;">Registra cualquier tarea extra asignada por tu supervisor que no esté en el cronograma base.</p>
+            
+            <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 5px;">Nombre de la Tarea Extra:</label>
+            <input type="text" id="extraTaskName" class="modern-input" placeholder="Ej: Revisión especial de correos..." style="margin-bottom: 15px; width: 100%;">
+            
+            <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 5px;">Estado de la Gestión:</label>
+            <select id="extraTaskStatus" class="modern-input" style="margin-bottom: 15px; width: 100%;">
+                <option value="Finalizada" selected>Finalizada</option>
+                <option value="En Proceso">En Proceso</option>
+                <option value="Pendiente">Pendiente</option>
+                <option value="No Realizada">No Realizada</option>
+            </select>
+            
+            <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 5px;">Notas Técnicas / Observaciones:</label>
+            <textarea id="extraTaskObs" placeholder="Detalla la gestión realizada..." class="modern-input" style="min-height: 80px; margin-bottom: 15px; width: 100%;"></textarea>
+            
+            <div class="modal-actions" style="margin-top: 5px;">
+                <button class="btn btn-outline" onclick="closeModal('extraTaskModal')">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveExtraTask()"><i class='bx bx-save'></i> Guardar Tarea</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modales de Comunicados -->
+    <div id="newComunicadoModal" class="modal-overlay">
+        <div class="modal glass-panel" style="max-width: 600px; width: 90%;">
+            <h2 style="color: var(--warning);"><i class='bx bx-edit'></i> Redactar Nuevo Comunicado</h2>
+            <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 5px;">Título del Comunicado:</label>
+            <input type="text" id="comunicadoTitle" class="modern-input" placeholder="Ej: Nueva Política de Permisos" style="margin-bottom: 15px; width: 100%;">
+            
+            <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 5px;">Contenido / Mensaje:</label>
+            <div style="border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; margin-bottom: 15px; overflow: hidden;">
+                <!-- Barra de herramientas del editor -->
+                <div style="background: rgba(0,0,0,0.2); padding: 8px; display: flex; gap: 5px; border-bottom: 1px solid rgba(255,255,255,0.1); flex-wrap: wrap; align-items: center;">
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px;" onclick="document.execCommand('bold', false, null)" title="Negrita"><i class='bx bx-bold'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px;" onclick="document.execCommand('italic', false, null)" title="Cursiva"><i class='bx bx-italic'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px;" onclick="document.execCommand('underline', false, null)" title="Subrayado"><i class='bx bx-underline'></i></button>
+                    <span style="border-left: 1px solid rgba(255,255,255,0.1); height: 20px; margin: 0 5px;"></span>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px;" onclick="document.execCommand('insertUnorderedList', false, null)" title="Lista de viñetas"><i class='bx bx-list-ul'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px;" onclick="document.execCommand('insertOrderedList', false, null)" title="Lista numerada"><i class='bx bx-list-ol'></i></button>
+                    <span style="border-left: 1px solid rgba(255,255,255,0.1); height: 20px; margin: 0 5px;"></span>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px; color: #ff5a5a; border-color: rgba(255,90,90,0.3);" onclick="document.execCommand('foreColor', false, '#ff5a5a')" title="Texto Rojo"><i class='bx bx-font-color'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px; color: #4ade80; border-color: rgba(74,222,128,0.3);" onclick="document.execCommand('foreColor', false, '#4ade80')" title="Texto Verde"><i class='bx bx-font-color'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px; color: #e2e8f0; border-color: rgba(255,255,255,0.3);" onclick="document.execCommand('foreColor', false, '#e2e8f0')" title="Texto Blanco"><i class='bx bx-font-color'></i></button>
+                </div>
+                <!-- Área de contenido editable -->
+                <div id="comunicadoContent" class="rich-text" contenteditable="true" style="min-height: 150px; padding: 15px; font-size: 14px; outline: none; background: rgba(0,0,0,0.1); color: var(--text-primary); max-height: 300px; overflow-y: auto;" placeholder="Escribe aquí toda la información que los gestores deben conocer..."></div>
+            </div>
+            
+            <div class="modal-actions" style="margin-top: 5px;">
+                <button class="btn btn-outline" onclick="closeModal('newComunicadoModal')">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveNewComunicado()" style="background: var(--warning); border-color: var(--warning);"><i class='bx bx-send'></i> Publicar Comunicado</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="comunicadoLecturasModal" class="modal-overlay">
+        <div class="modal glass-panel" style="max-width: 700px; width: 95%;">
+            <h2 style="color: var(--accent-primary); margin-bottom: 20px;"><i class='bx bx-check-double'></i> Control de Lecturas</h2>
+            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 250px;">
+                    <h3 style="color: var(--success); font-size: 14px; margin-bottom: 10px; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;"><i class='bx bx-check-circle'></i> Leyeron y Aceptaron</h3>
+                    <ul id="comunicadoReadList" style="list-style: none; padding: 0; margin: 0; max-height: 300px; overflow-y: auto; font-size: 12px;"></ul>
+                </div>
+                <div style="flex: 1; min-width: 250px;">
+                    <h3 style="color: var(--danger); font-size: 14px; margin-bottom: 10px; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;"><i class='bx bx-error-circle'></i> Faltan por Leer</h3>
+                    <ul id="comunicadoUnreadList" style="list-style: none; padding: 0; margin: 0; max-height: 300px; overflow-y: auto; font-size: 12px;"></ul>
+                </div>
+            </div>
+            <div class="modal-actions" style="margin-top: 20px;">
+                <button class="btn btn-outline" onclick="closeModal('comunicadoLecturasModal')">Cerrar</button>
+            </div>
+        </div>
     </div>
 
     <!-- Exception Modal -->
@@ -1575,7 +2316,202 @@ El esqueleto estructural de la plataforma Risk Manager. Contiene la barra de nav
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="firebase-config.js?v=59"></script>
-    <script src="app.js?v=89"></script>
+    <!-- Modal de Detalles de Tareas KPI -->
+    <div id="kpiTaskDetailsModal" class="modal-overlay">
+        <div class="modal glass-panel" style="max-width: 600px; padding: 20px;">
+            <div class="modal-header">
+                <h2 style="font-size: 18px; display: flex; align-items: center; gap: 8px;">
+                    <i class='bx bx-list-check' id="kpiModalIcon"></i> 
+                    <span id="kpiModalTitle">Detalle de Tareas</span>
+                </h2>
+                <span class="close-modal" onclick="closeKpiTaskDetails()">&times;</span>
+            </div>
+            <div class="modal-body" style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
+                <p id="kpiModalSubtitle" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 15px;">Listado de tareas correspondientes a este estado.</p>
+                <div id="kpiModalTaskList" style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- Inyectado desde JS -->
+                </div>
+            </div>
+            <div class="modal-footer" style="text-align: right; margin-top: 20px;">
+                <button class="btn btn-outline" onclick="closeKpiTaskDetails()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="confirmDeleteModal" class="modal-overlay">
+        <div class="modal glass-panel" style="max-width: 400px; text-align: center; width: 90%;">
+            <div style="font-size: 50px; color: var(--danger); margin-bottom: 15px;">
+                <i class='bx bx-error-circle'></i>
+            </div>
+            <h3 style="color: var(--text-primary); margin-bottom: 10px; font-size: 20px;">¿Eliminar Comunicado?</h3>
+            <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 25px;">Esta acción es irreversible y el comunicado desaparecerá para todos los gestores.</p>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button class="btn btn-outline" onclick="closeModal('confirmDeleteModal')" style="flex: 1;">Cancelar</button>
+                <button class="btn btn-danger" id="confirmDeleteBtn" style="flex: 1;">Sí, Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Timeline Modal para Monitoreo -->
+    <div id="timelineModal" class="modal-overlay">
+        <div class="modal glass-panel" style="max-width: 600px; width: 90%;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                <h2 style="margin: 0; font-size: 20px; color: var(--text-primary); padding-right: 20px;"><i class='bx bx-time'></i> Bitácora de Tiempos: <br><span id="timelineModalName" style="color: var(--accent-primary); font-size: 16px;"></span></h2>
+                <span class="close-modal" onclick="closeModal('timelineModal')" style="cursor: pointer; font-size: 24px; color: var(--text-secondary); line-height: 1;">&times;</span>
+            </div>
+            <div class="modal-body" style="max-height: 500px; overflow-y: auto; padding-right: 5px;">
+                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 15px;">Aquí se muestran las pausas activas (Almuerzo/Cena / Desayuno) y la inactividad detectada (PC bloqueado, cambio de ventana por más de 5 minutos, etc.) durante el turno actual de este gestor.</p>
+                <table class="data-table" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Tipo de Evento</th>
+                            <th>Horario</th>
+                            <th style="text-align: center;">Duración</th>
+                        </tr>
+                    </thead>
+                    <tbody id="timelineTableBody">
+                        <!-- Llenado dinámicamente -->
+                        <tr><td colspan="3" style="text-align: center;">Cargando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <!-- Modales de Comunicados -->
+    <div id="newComunicadoModal" class="modal-overlay">
+        <div class="modal glass-panel" style="max-width: 600px; width: 90%;">
+            <h2 style="color: var(--warning);"><i class='bx bx-edit'></i> Redactar Nuevo Comunicado</h2>
+            <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 5px;">Título del Comunicado:</label>
+            <input type="text" id="comunicadoTitle" class="modern-input" placeholder="Ej: Nueva Política de Permisos" style="margin-bottom: 15px; width: 100%;">
+            
+            <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 5px;">Contenido / Mensaje:</label>
+            <div style="border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; margin-bottom: 15px; overflow: hidden;">
+                <!-- Barra de herramientas del editor -->
+                <div style="background: rgba(0,0,0,0.2); padding: 8px; display: flex; gap: 5px; border-bottom: 1px solid rgba(255,255,255,0.1); flex-wrap: wrap; align-items: center;">
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px;" onclick="document.execCommand('bold', false, null)" title="Negrita"><i class='bx bx-bold'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px;" onclick="document.execCommand('italic', false, null)" title="Cursiva"><i class='bx bx-italic'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px;" onclick="document.execCommand('underline', false, null)" title="Subrayado"><i class='bx bx-underline'></i></button>
+                    <span style="border-left: 1px solid rgba(255,255,255,0.1); height: 20px; margin: 0 5px;"></span>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px;" onclick="document.execCommand('insertUnorderedList', false, null)" title="Lista de viñetas"><i class='bx bx-list-ul'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px;" onclick="document.execCommand('insertOrderedList', false, null)" title="Lista numerada"><i class='bx bx-list-ol'></i></button>
+                    <span style="border-left: 1px solid rgba(255,255,255,0.1); height: 20px; margin: 0 5px;"></span>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px; color: #ff5a5a; border-color: rgba(255,90,90,0.3);" onclick="document.execCommand('foreColor', false, '#ff5a5a')" title="Texto Rojo"><i class='bx bx-font-color'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px; color: #4ade80; border-color: rgba(74,222,128,0.3);" onclick="document.execCommand('foreColor', false, '#4ade80')" title="Texto Verde"><i class='bx bx-font-color'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px; color: #e2e8f0; border-color: rgba(255,255,255,0.3);" onclick="document.execCommand('foreColor', false, '#e2e8f0')" title="Texto Blanco"><i class='bx bx-font-color'></i></button>
+                </div>
+                <!-- Área de contenido editable -->
+                <div id="comunicadoContent" class="rich-text" contenteditable="true" style="min-height: 150px; padding: 15px; font-size: 14px; outline: none; background: rgba(0,0,0,0.1); color: var(--text-primary); max-height: 300px; overflow-y: auto;" placeholder="Escribe aquí toda la información que los gestores deben conocer..."></div>
+            </div>
+            
+            <div class="modal-actions" style="margin-top: 5px;">
+                <button class="btn btn-outline" onclick="closeModal('newComunicadoModal')">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveNewComunicado()" style="background: var(--warning); border-color: var(--warning);"><i class='bx bx-send'></i> Publicar Comunicado</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="comunicadoLecturasModal" class="modal-overlay">
+        <div class="modal glass-panel" style="max-width: 700px; width: 95%;">
+            <h2 style="color: var(--accent-primary); margin-bottom: 20px;"><i class='bx bx-check-double'></i> Control de Lecturas</h2>
+            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 250px;">
+                    <h3 style="color: var(--success); font-size: 14px; margin-bottom: 10px; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;"><i class='bx bx-check-circle'></i> Leyeron y Aceptaron</h3>
+                    <ul id="comunicadoReadList" style="list-style: none; padding: 0; margin: 0; max-height: 300px; overflow-y: auto; font-size: 12px;"></ul>
+                </div>
+                <div style="flex: 1; min-width: 250px;">
+                    <h3 style="color: var(--danger); font-size: 14px; margin-bottom: 10px; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;"><i class='bx bx-error-circle'></i> Faltan por Leer</h3>
+                    <ul id="comunicadoUnreadList" style="list-style: none; padding: 0; margin: 0; max-height: 300px; overflow-y: auto; font-size: 12px;"></ul>
+                </div>
+            </div>
+            <div class="modal-actions" style="margin-top: 20px;">
+                <button class="btn btn-outline" onclick="closeModal('comunicadoLecturasModal')">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exception Modal -->
+    <div id="exceptionModal" class="modal-overlay">
+        <div class="modal glass-panel">
+            <h2>Justificar Tarea No Realizada</h2>
+            <select id="exceptionReason" class="modern-input" style="margin-bottom: 15px;">
+                <option value="" disabled selected>Seleccione una razón</option>
+                <option value="Falta de Accesos">Falta de Accesos</option>
+                <option value="Sistema Caído">Sistema Caído</option>
+                <option value="Falta de Tiempo">Falta de Tiempo</option>
+                <option value="Reasignada">Reasignada por el Supervisor</option>
+                <option value="Otro">Otro</option>
+            </select>
+            <textarea id="exceptionDetails" placeholder="Detalle el problema..." class="modern-input"></textarea>
+            <div class="modal-actions" style="margin-top: 20px;">
+                <button class="btn btn-outline" onclick="closeModal('exceptionModal')">Cancelar</button>
+                <button class="btn btn-danger" onclick="confirmException()">Confirmar Excepción</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Modal -->
+    <div id="profileModal" class="modal-overlay">
+        <div class="modal glass-panel" style="text-align: center;">
+            <div style="margin-bottom: 20px;">
+                <img id="modalProfileAvatar" src="" alt="Profile" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent-primary); box-shadow: 0 0 15px rgba(59,130,246,0.3);">
+                <h2 id="modalProfileName" style="margin-top: 15px; margin-bottom: 5px; font-size: 24px;">Usuario</h2>
+                <div id="modalProfileRole" style="color: var(--accent-primary); font-size: 14px; font-weight: 600; text-transform: uppercase;">Rol</div>
+            </div>
+            
+            <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--glass-border); text-align: left;">
+                <label style="font-size: 13px; color: var(--text-secondary);"><i class='bx bx-lock-alt'></i> Cambiar Contraseña</label>
+                <input type="password" id="newPasswordInput" class="modern-input" placeholder="Escribe la nueva contraseña" style="margin-top: 8px;">
+            </div>
+            <div class="modal-actions" style="margin-top: 20px;">
+                <button class="btn btn-outline" onclick="closeModal('profileModal')">Cancelar</button>
+                <button class="btn btn-primary" onclick="changePassword()">Guardar</button>
+            </div>
+            <p id="passwordChangeMsg" style="display: none; margin-top: 10px; font-size: 14px; text-align: center;"></p>
+        </div>
+    </div>
+
+    <!-- Monitoreo Detail Modal -->
+    <div id="monitoreoModal" class="modal-overlay">
+        <div class="modal glass-panel" style="max-width: 600px; width: 90%;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 5px;">
+                <img id="monitoreoModalAvatar" src="" alt="Avatar" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-primary);">
+                <div>
+                    <h2 id="monitoreoModalName" style="margin: 0; font-size: 20px; color: var(--text-primary);">Bitácora de Tareas</h2>
+                    <div id="monitoreoModalInfo" style="font-size: 12px; color: var(--text-secondary);">Turno: Mañana | Activo hace poco</div>
+                </div>
+            </div>
+            <hr style="border: 0; border-top: 1px solid var(--glass-border); margin: 15px 0;">
+            <h3 style="font-size: 14px; color: var(--accent-primary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;"><i class='bx bx-task'></i> Detalle de Gestión de Tareas</h3>
+            
+            <div style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px;" id="monitoreoModalTasksList">
+                <!-- Tareas del gestor se cargan dinámicamente -->
+            </div>
+            
+            <div class="modal-actions" style="margin-top: 20px;">
+                <button class="btn btn-outline" id="closeMonitoreoModalBtn" style="width: auto;">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Notifications Dropdown -->
+    <div id="notificationDropdown" class="glass-panel" style="display: none; position: fixed; top: 80px; right: 20px; width: 320px; max-height: 400px; overflow-y: auto; z-index: 999999; padding: 15px; background: var(--bg-panel); border: 1px solid var(--accent-primary);">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid var(--glass-border);">
+            <h4 style="margin:0;"><i class='bx bx-bell'></i> Notificaciones</h4>
+            <button class="btn btn-outline" style="padding: 2px 5px; font-size: 11px; width: auto;" onclick="markAllAsRead()">Marcar leídas</button>
+        </div>
+        <div id="notificationList" style="display: flex; flex-direction: column; gap: 8px;"></div>
+    </div>
+
+
+
+    <!-- Custom JS -->
+    <script src="app.js?v=20260629_3"></script>
+    <script src="js/tiempos.js?v=20260616_3"></script>
 </body>
 </html>
 
@@ -1703,14 +2639,7 @@ body {
     line-height: 1.5;
 }
 
-@media (max-width: 768px) {
-    #mobileBlocker {
-        display: flex;
-    }
-    .app-container, .login-container {
-        display: none !important;
-    }
-}
+/* Mobile blocker is now handled by Javascript depending on user role */
 
 /* Typography elements */
 h1, h2, h3 { color: var(--text-primary); font-weight: 600; }
@@ -1938,10 +2867,10 @@ a { text-decoration: none; color: inherit; }
 }
 
 /* Scrollbar styling */
-.panel::-webkit-scrollbar { width: 6px; }
-.panel::-webkit-scrollbar-track { background: transparent; }
-.panel::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
-.panel::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+.panel::-webkit-scrollbar, .tree-container::-webkit-scrollbar { width: 6px; }
+.panel::-webkit-scrollbar-track, .tree-container::-webkit-scrollbar-track { background: transparent; }
+.panel::-webkit-scrollbar-thumb, .tree-container::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
+.panel::-webkit-scrollbar-thumb:hover, .tree-container::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
 
 .panel-title {
     font-size: 18px;
@@ -1954,7 +2883,17 @@ a { text-decoration: none; color: inherit; }
 }
 
 /* Tree Structure */
-.tree-container { display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.tree-container { 
+    display: flex; 
+    flex-direction: column; 
+    gap: var(--spacing-sm); 
+    flex-grow: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    max-height: 55vh;
+    padding-right: 5px;
+}
 .tree-item { display: flex; flex-direction: column; gap: 4px; }
 
 .tree-header {
@@ -1972,12 +2911,12 @@ a { text-decoration: none; color: inherit; }
 .tree-header .bx { transition: transform 0.3s; }
 .tree-header.open .bx { transform: rotate(90deg); }
 
-.badge { margin-left: auto; font-size: 11px; padding: 3px 8px; border-radius: 12px; font-weight: 600; }
+.badge { margin-left: auto; font-size: 13px; padding: 5px 12px; border-radius: 14px; font-weight: 600; }
 .badge.pending { background: var(--pending-bg); color: #9CA3AF; }
 .badge.in-progress { background: rgba(59,130,246,0.15); color: #3B82F6; }
 .badge.vacaciones-badge { background: var(--success-bg); color: var(--success); }
-.badge.descanso-badge { background: rgba(107, 114, 128, 0.4); color: var(--text-secondary); }
-.badge.familia-badge { background: rgba(249, 115, 22, 0.2); color: #f97316; }
+.badge.descanso-badge { background: rgba(107, 114, 128, 0.15); color: #6b7280; border: 1px solid rgba(107, 114, 128, 0.3); }
+.badge.familia-badge { background: rgba(249, 115, 22, 0.15); color: #ea580c; border: 1px solid rgba(249, 115, 22, 0.3); }
 
 .hover-highlight { transition: background-color 0.2s; }
 .hover-highlight:hover td { background-color: rgba(255, 255, 255, 0.05) !important; }
@@ -2017,8 +2956,10 @@ a { text-decoration: none; color: inherit; }
 }
 
 .task-status { margin-left: auto; width: 10px; height: 10px; border-radius: 50%; }
-.status-pending { background: var(--pending); }
+.status-pending { background: var(--warning); box-shadow: 0 0 5px var(--warning); }
+.status-in-progress { background: var(--accent-primary); box-shadow: 0 0 8px var(--accent-primary); }
 .status-completed { background: var(--success); box-shadow: 0 0 8px var(--success); }
+.status-not-done { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
 
 /* Detail Panel */
 .detail-header { display: flex; justify-content: space-between; align-items: center; }
@@ -2182,6 +3123,8 @@ select.modern-input option { background-color: #ffffff; color: #000000; }
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
+    min-width: 0;
+    flex: 1;
 }
 
 .monitoreo-avatar {
@@ -2196,17 +3139,24 @@ select.modern-input option { background-color: #ffffff; color: #000000; }
     display: flex;
     flex-direction: column;
     flex-grow: 1;
+    min-width: 0;
 }
 
 .monitoreo-name {
     font-size: 15px;
     font-weight: 600;
     color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .monitoreo-meta {
     font-size: 11px;
     color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .status-indicator-badge {
@@ -2218,6 +3168,8 @@ select.modern-input option { background-color: #ffffff; color: #000000; }
     padding: 3px 8px;
     border-radius: 12px;
     width: fit-content;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .status-online {
@@ -2474,6 +3426,21 @@ select.modern-input option { background-color: #ffffff; color: #000000; }
     animation: pulse-ring 1.6s infinite;
 }
 
+/* Rich Text Editor Styles */
+.rich-text ul, .rich-text ol {
+    margin-left: 20px;
+    padding-left: 20px;
+}
+.rich-text li {
+    list-style-position: outside;
+}
+.rich-text ul {
+    list-style-type: disc;
+}
+.rich-text ol {
+    list-style-type: decimal;
+}
+
 ```
 
 #### Explicación de Bloques Críticos de `styles.css`:
@@ -2497,8 +3464,379 @@ if (!currentUserObj && !window.location.href.includes('login.html')) {
 }
 
 let currentUser = null;
+let currentTaskRef = null;
+let activeSessionRef = null;
+
+// --- INACTIVITY & LUNCH TRACKING GLOBALS ---
+let lastLocalActivityTimestamp = Date.now();
+let lastSyncLoopTimestamp = Date.now();
+let isLunchBreak = false;
+let lunchStartTime = null;
+let totalLunchTimeMs = 0;
+let isBreakfastBreak = false;
+let breakfastStartTime = null;
+let totalBreakfastTimeMs = 0;
+let globalIdleState = false; // Tracks if the OS/PC is idle or locked via IdleDetector
+
+function saveBreakState() {
+    localStorage.setItem('riskOps_breakState', JSON.stringify({
+        isLunchBreak, lunchStartTime, totalLunchTimeMs,
+        isBreakfastBreak, breakfastStartTime, totalBreakfastTimeMs
+    }));
+}
+
+function loadBreakState() {
+    try {
+        const savedState = localStorage.getItem('riskOps_breakState');
+        if (savedState) {
+            const parsed = JSON.parse(savedState);
+            isLunchBreak = parsed.isLunchBreak || false;
+            lunchStartTime = parsed.lunchStartTime || null;
+            totalLunchTimeMs = parsed.totalLunchTimeMs || 0;
+            isBreakfastBreak = parsed.isBreakfastBreak || false;
+            breakfastStartTime = parsed.breakfastStartTime || null;
+            totalBreakfastTimeMs = parsed.totalBreakfastTimeMs || 0;
+        }
+    } catch(e) {}
+}
+
+loadBreakState();
+
+window.addEventListener('storage', (e) => {
+    if (e.key === 'riskOps_breakState') {
+        loadBreakState();
+    }
+});
+
+let shiftTimeline = [];
+let localStatus = 'En Línea';
+
+try {
+    const savedTimeline = localStorage.getItem('riskOps_timeline');
+    if (savedTimeline) {
+        shiftTimeline = JSON.parse(savedTimeline);
+        let changed = false;
+        
+        // Limpiador automático: Eliminar eventos de Inactividad que se crucen con Almuerzo o Desayuno
+        const breaks = shiftTimeline.filter(e => e.type === 'Almuerzo' || e.type === 'Desayuno');
+        const originalLength = shiftTimeline.length;
+        shiftTimeline = shiftTimeline.filter(e => {
+            if (e.type !== 'Inactividad') return true;
+            let eStart = e.start;
+            let eEnd = e.end || Date.now();
+            let overlaps = breaks.some(b => {
+                let bStart = b.start;
+                let bEnd = b.end || Date.now();
+                return (eStart < bEnd && eEnd > bStart);
+            });
+            return !overlaps;
+        });
+        if (shiftTimeline.length !== originalLength) changed = true;
+
+        shiftTimeline.forEach(ev => {
+            if (ev.type === 'Inactividad' && ev.end === null) {
+                ev.end = Date.now();
+                changed = true;
+            }
+        });
+        if (changed) {
+            localStorage.setItem('riskOps_timeline', JSON.stringify(shiftTimeline));
+        }
+    }
+} catch(e) {}
+
+function pushTimelineEvent(type, action) {
+    const now = Date.now();
+    if (action === 'start') {
+        shiftTimeline.push({ type, start: now, end: null });
+    } else if (action === 'end') {
+        for (let i = shiftTimeline.length - 1; i >= 0; i--) {
+            if (shiftTimeline[i].type === type && shiftTimeline[i].end === null) {
+                shiftTimeline[i].end = now;
+                break;
+            }
+        }
+    }
+    localStorage.setItem('riskOps_timeline', JSON.stringify(shiftTimeline));
+}
+
+let screenLockTimer = null;
+
+async function checkAndStartIdleDetector() {
+    if ('IdleDetector' in window) {
+        try {
+            const status = await navigator.permissions.query({ name: 'idle-detection' });
+            if (status.state === 'granted') {
+                window.idleDetectorGranted = true;
+                startIdleDetectorLogic();
+            }
+        } catch (e) {
+            console.error('Permission query error:', e);
+        }
+    }
+}
+
+async function requestIdlePermission() {
+    if ('IdleDetector' in window) {
+        try {
+            const state = await IdleDetector.requestPermission();
+            if (state === 'granted') {
+                window.idleDetectorGranted = true;
+                startIdleDetectorLogic();
+            } else {
+                const warningBanner = document.getElementById('idleDetectorWarning');
+                if (warningBanner) warningBanner.style.display = 'flex';
+            }
+        } catch (e) {
+            console.error('Request permission error:', e);
+            const warningBanner = document.getElementById('idleDetectorWarning');
+            if (warningBanner) warningBanner.style.display = 'flex';
+        }
+    }
+}
+
+async function startIdleDetectorLogic() {
+    if (window.idleDetectorStarted) return;
+    window.idleDetectorStarted = true;
+    
+    const idleDetector = new IdleDetector();
+    idleDetector.addEventListener('change', () => {
+        const isLocked = idleDetector.screenState === 'locked';
+        const isIdle = idleDetector.userState === 'idle';
+        
+        if (isLocked) {
+            if (!screenLockTimer) {
+                screenLockTimer = setTimeout(() => {
+                    globalIdleState = true;
+                    applyIdleStateChange();
+                }, 10000);
+            }
+        } else if (isIdle) {
+            globalIdleState = true;
+            applyIdleStateChange();
+        } else {
+            if (screenLockTimer) {
+                clearTimeout(screenLockTimer);
+                screenLockTimer = null;
+            }
+            globalIdleState = false;
+            applyIdleStateChange();
+        }
+    });
+    
+    try {
+        await idleDetector.start({ threshold: 3 * 60 * 1000 }); // 3 minutos
+        const warningBanner = document.getElementById('idleDetectorWarning');
+        if (warningBanner) warningBanner.style.display = 'none';
+    } catch (e) {
+        console.error('IdleDetector start failed:', e);
+    }
+}
+
+function applyIdleStateChange() {
+    loadBreakState();
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
+        if (isLunchBreak || isBreakfastBreak) return;
+
+        if (globalIdleState && currentUser.status === 'Activo') {
+            currentUser.status = 'Inactivo';
+            if (typeof database !== 'undefined') database.ref(`users/${currentUser.uid}/status`).set('Inactivo');
+            if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
+            if (typeof syncActiveSessionToFirebase === 'function') syncActiveSessionToFirebase();
+        } else if (!globalIdleState && currentUser.status === 'Inactivo') {
+            currentUser.status = 'Activo';
+            lastLocalActivityTimestamp = Date.now();
+            if (typeof database !== 'undefined') database.ref(`users/${currentUser.uid}/status`).set('Activo');
+            if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
+            if (typeof syncActiveSessionToFirebase === 'function') syncActiveSessionToFirebase();
+        }
+    }
+}
+
+checkAndStartIdleDetector();
+
+window.requestIdlePermissionManual = function() {
+    requestIdlePermission().then(() => {
+        if (window.idleDetectorGranted) {
+            alert("¡Permiso otorgado! RiskOps ahora podrá registrar tu inactividad correctamente.");
+        } else {
+            alert("El permiso sigue denegado. Por favor haz clic en el icono del candado junto a la URL en tu navegador y permite 'Conocer cuando usas tu dispositivo'.");
+        }
+    });
+};
+
+document.addEventListener('click', () => {
+    if (!window.idleDetectorGranted && !window.idleDetectorRequested) {
+        window.idleDetectorRequested = true;
+        requestIdlePermission();
+    }
+}, { once: true });
+
+// Activity listeners
+function updateActivity() {
+    loadBreakState();
+    const now = Date.now();
+    const timeSinceLast = now - lastLocalActivityTimestamp;
+    lastLocalActivityTimestamp = now;
+    
+    // Si somos Gestor y estábamos inactivos, volver a Activo inmediatamente
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
+        const INACTIVE_THRESHOLD = 3 * 60 * 1000;
+        
+        // Si ya estábamos marcados inactivos localmente, o pasó más tiempo del umbral en silencio (browser throttling)
+        if (currentUser.status === 'Inactivo' || timeSinceLast > INACTIVE_THRESHOLD) {
+            currentUser.status = 'Activo';
+            if (typeof database !== 'undefined') {
+                database.ref(`users/${currentUser.uid}/status`).set('Activo');
+            }
+            if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
+            if (typeof syncActiveSessionToFirebase === 'function') syncActiveSessionToFirebase();
+        }
+    }
+}
+document.addEventListener('mousemove', updateActivity);
+document.addEventListener('keydown', updateActivity);
+document.addEventListener('click', updateActivity);
+document.addEventListener('scroll', updateActivity);
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        updateActivity();
+    }
+});
+
+// Fast checker loop to apply 10s inactivity exactly on time
+setInterval(() => {
+    loadBreakState();
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
+        if (window.idleDetectorGranted) return; // Si hay detector nativo, no usar el fallback
+        
+        const timeSinceLastActivity = Date.now() - lastLocalActivityTimestamp;
+        const INACTIVE_THRESHOLD = 3 * 60 * 1000; // 3 min fallback
+        
+        // Si superamos el umbral y aún estamos marcados como Activos
+        if (timeSinceLastActivity > INACTIVE_THRESHOLD && currentUser.status === 'Activo') {
+            // Ignorar si está en pausa global o breaks
+            if (typeof globalIdleState !== 'undefined' && globalIdleState) return;
+            if (typeof isLunchBreak !== 'undefined' && isLunchBreak) return;
+            if (typeof isBreakfastBreak !== 'undefined' && isBreakfastBreak) return;
+
+            currentUser.status = 'Inactivo';
+            if (typeof database !== 'undefined') {
+                database.ref(`users/${currentUser.uid}/status`).set('Inactivo');
+            }
+            if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
+            if (typeof syncActiveSessionToFirebase === 'function') syncActiveSessionToFirebase();
+        }
+    }
+}, 1000);
+
 try {
     currentUser = currentUserObj ? JSON.parse(currentUserObj) : null;
+    if (currentUser) {
+        if (!currentUser.status) currentUser.status = 'Activo';
+        // Mobile / Role handling
+        if (window.innerWidth <= 768) {
+            if (['Admin', 'Supervisor'].includes(currentUser.role)) {
+                // Admin/Supervisor: hide mobile blocker and allow horizontal scroll
+                const mob = document.getElementById('mobileBlocker');
+                if (mob) mob.style.display = 'none';
+                document.documentElement.style.overflowX = 'auto';
+                document.body.style.minWidth = '1200px';
+                document.body.style.overflowX = 'auto';
+            } else {
+                // Gestor: enforce mobile block
+                const enforceMobileBlock = () => {
+                    const mob = document.getElementById('mobileBlocker');
+                    if (mob) mob.style.display = 'flex';
+                    const app = document.querySelector('.app-container');
+                    if (app) app.style.display = 'none';
+                };
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', enforceMobileBlock);
+                } else {
+                    enforceMobileBlock();
+                }
+            }
+        }
+        // (Old visibilitychange logic removed, handled by new interval and mouse events)
+
+
+        if (currentUser.loginLogId) {
+            // Eliminar cualquier falso logoutTime que se haya generado si el usuario simplemente refrescó la página (F5) o perdió red temporalmente
+            database.ref(`login_logs/${currentUser.loginLogId}/logoutTime`).remove();
+            
+            database.ref(`login_logs/${currentUser.loginLogId}`).onDisconnect().update({
+                logoutTime: firebase.database.ServerValue.TIMESTAMP
+            });
+        }
+        if (currentUser.uid && currentUser.role === 'Gestor') {
+            // We removed the aggressive onDisconnect hook because it was triggering falsely when Chrome paused the background tab
+            // The admin dashboard's 2-minute lastActive timeout serves as a perfect fallback if the user actually closes the tab
+            
+            // --- PATCH MARILYN LOGIN TIME (JUNE 10) ---
+            if (currentUser.uid === 'ATOXW8JKRNUdoy3wPlk1lI9zpTh2' && !localStorage.getItem('login_restored_v108')) {
+                let d = new Date();
+                if (d.getDate() === 10 && d.getMonth() === 5 && d.getFullYear() === 2026) {
+                    d.setHours(8, 10, 32, 0); // 8:10:32 AM
+                    currentUser.loginTime = d.toISOString();
+                    localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
+                    
+                    // Remove the fake 7:58 AM inactivity event that generated accidentally today
+                    let t = JSON.parse(localStorage.getItem('riskOps_timeline')) || [];
+                    t = t.filter(ev => !(ev.type === 'Inactividad' && new Date(ev.start).getHours() === 7 && new Date(ev.start).getMinutes() === 58));
+                    localStorage.setItem('riskOps_timeline', JSON.stringify(t));
+                    shiftTimeline = t;
+                    
+                    localStorage.setItem('login_restored_v108', 'true');
+                }
+            }
+            
+            // --- PATCH ORIANA LOGIN TIME (JUNE 16) ---
+            if (currentUser.uid === 'FcORj44ZBUfRPfP2UkGVKtDhcMJ2' && !localStorage.getItem('login_restored_oriana_june16_v2')) {
+                let d = new Date();
+                d.setHours(15, 0, 0, 0); // 3:00:00 PM
+                currentUser.loginTime = d.toISOString();
+                localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
+                localStorage.setItem('login_restored_oriana_june16_v2', 'true');
+            }
+            
+            // --- PATCH JOSUE LOGIN TIME (JUNE 17) ---
+            if (currentUser.uid === 'Fn6FKMB1SOVEVdvlpkoDSHrlO8n2' && !localStorage.getItem('login_restored_josue_june17')) {
+                let d = new Date();
+                d.setHours(8, 0, 0, 0); // 8:00:00 AM
+                currentUser.loginTime = d.toISOString();
+                localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
+                localStorage.setItem('login_restored_josue_june17', 'true');
+            }
+
+            // --- PATCH SEBASTIAN HINCAPIE LOGIN TIME (JUNE 24) ---
+            if (currentUser.uid === 'e3y3uNtszkTXoNtXyqAYbUc0nAn2' && !localStorage.getItem('login_restored_sebastian_june24')) {
+                let d = new Date();
+                d.setHours(8, 0, 0, 0); // 8:00:00 AM
+                currentUser.loginTime = d.toISOString();
+                localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
+                localStorage.setItem('login_restored_sebastian_june24', 'true');
+            }
+            
+            // --- PATCH CLEAR FALSE INACTIVITY (JUNE 17 3PM & 7PM SHIFTS) ---
+            if (!localStorage.getItem('inactivity_cleared_june17_v1')) {
+                if (currentUser.shift === '3pm - 11pm' || currentUser.shift === '7pm - 2am') {
+                    let tStr = localStorage.getItem('riskOps_timeline');
+                    if (tStr) {
+                        let t = JSON.parse(tStr);
+                        t = t.filter(ev => ev.type !== 'Inactividad');
+                        localStorage.setItem('riskOps_timeline', JSON.stringify(t));
+                        if (typeof shiftTimeline !== 'undefined') shiftTimeline = t;
+                    }
+                    localStorage.setItem('inactivity_cleared_june17_v1', 'true');
+                }
+            }
+            // -------------------------------------
+        }
+    }
+    
+
+    
 } catch(e) {
     localStorage.removeItem('riskOps_currentUser');
     window.location.href = 'login.html';
@@ -2511,21 +3849,33 @@ function normalizeName(name) {
     return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 }
 
-// Robust comparison: checks if all words of one name are present in the other
+// Robust comparison to prevent greedy matching across similar names and support both parameter orders
 function namesMatch(name1, name2) {
     if (!name1 || !name2) return false;
-    const n1 = normalizeName(name1);
-    const n2 = normalizeName(name2);
+    let parts1 = normalizeName(name1).split(' ').filter(p => p.length > 2);
+    let parts2 = normalizeName(name2).split(' ').filter(p => p.length > 2);
     
-    // Split into words and filter out very short ones (like 'de', 'la')
-    const words1 = n1.split(/\s+/).filter(w => w.length > 2);
-    const words2 = n2.split(/\s+/).filter(w => w.length > 2);
-    
-    if (words1.length === 0 || words2.length === 0) return n1.includes(n2) || n2.includes(n1);
+    if (parts1.length === 0 || parts2.length === 0) return false;
 
-    // Check if all words of the shorter name are in the longer name
-    const [shorter, longer] = words1.length <= words2.length ? [words1, n2] : [words2, n1];
-    return shorter.every(word => longer.includes(word));
+    // Identificar cuál es el nombre corto y cuál es el largo
+    const [shorter, longer] = parts1.length <= parts2.length ? [parts1, parts2] : [parts2, parts1];
+
+    // Si el nombre corto tiene varias palabras (Ej: "Sebastian Arango"), el largo debe tenerlas TODAS.
+    if (shorter.length > 1) {
+        return shorter.every(p => longer.includes(p));
+    }
+    
+    // Si el nombre corto es una sola palabra ("Daniel", "Alejandra"):
+    const pShort = shorter[0];
+    
+    // Prevenir que Josue (Josue Daniel) herede lo de Daniel
+    if (pShort === 'daniel' && longer.includes('josue')) return false;
+    
+    // Si la única palabra del corto coincide con la primera palabra del largo, es un match seguro
+    if (longer[0] === pShort) return true;
+    
+    // De lo contrario, permitimos coincidencia si está en otra parte (ej: "Alejandra" en "Marilyn Alejandra")
+    return longer.includes(pShort);
 }
 
 // Helpers for date calculations in schedules
@@ -2623,34 +3973,50 @@ const MONTHS_MAP = {
     "dic": 11, "diciembre": 11
 };
 
-function parseSheetRange(sheetName, year = 2026) {
+function parseSheetRange(sheetName, year = 2026, fallbackMonth = 0) {
     if (!sheetName) return null;
-    let clean = sheetName.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    let clean = sheetName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
     
-    let m = clean.match(/Semana\s+\d+\s*-\s*(\d+)\s+(\w+)\s+al\s+(\d+)\s+(\w+)/i);
+    let m = clean.match(/Semana\s+\d+\s*-\s*(\d+)\s+(?:de\s+)?(\w+)\s+al\s+(\d+)\s+(?:de\s+)?(\w+)/i);
     if (m) {
         let startDay = parseInt(m[1], 10);
         let startMStr = m[2].substring(0, 3).toLowerCase();
         let endDay = parseInt(m[3], 10);
         let endMStr = m[4].substring(0, 3).toLowerCase();
         
-        let startMonth = MONTHS_MAP[startMStr] !== undefined ? MONTHS_MAP[startMStr] : 0;
-        let endMonth = MONTHS_MAP[endMStr] !== undefined ? MONTHS_MAP[endMStr] : 0;
+        let startMonth = MONTHS_MAP[startMStr] !== undefined ? MONTHS_MAP[startMStr] : fallbackMonth;
+        let endMonth = MONTHS_MAP[endMStr] !== undefined ? MONTHS_MAP[endMStr] : fallbackMonth;
         
         let startDate = new Date(year, startMonth, startDay, 0, 0, 0);
         let endDate = new Date(year, endMonth, endDay, 23, 59, 59);
         return { start: startDate, end: endDate };
     }
     
-    m = clean.match(/Semana\s+\d+\s*-\s*(\d+)\s+al\s+(\d+)\s+(\w+)/i);
+    m = clean.match(/Semana\s+\d+\s*-\s*(\d+)\s+al\s+(\d+)\s+(?:de\s+)?(\w+)/i);
     if (m) {
         let startDay = parseInt(m[1], 10);
         let endDay = parseInt(m[2], 10);
         let mStr = m[3].substring(0, 3).toLowerCase();
         
-        let month = MONTHS_MAP[mStr] !== undefined ? MONTHS_MAP[mStr] : 0;
+        let month = MONTHS_MAP[mStr] !== undefined ? MONTHS_MAP[mStr] : fallbackMonth;
         let startDate = new Date(year, month, startDay, 0, 0, 0);
         let endDate = new Date(year, month, endDay, 23, 59, 59);
+        return { start: startDate, end: endDate };
+    }
+
+    m = clean.match(/Semana\s+\d+\s*-\s*(\d+)\s+al\s+(\d+)/i);
+    if (m) {
+        let startDay = parseInt(m[1], 10);
+        let endDay = parseInt(m[2], 10);
+        let startMonth = fallbackMonth;
+        let endMonth = fallbackMonth;
+        
+        if (endDay < startDay) {
+            endMonth = startMonth + 1;
+        }
+        
+        let startDate = new Date(year, startMonth, startDay, 0, 0, 0);
+        let endDate = new Date(year, endMonth, endDay, 23, 59, 59);
         return { start: startDate, end: endDate };
     }
     
@@ -2660,15 +4026,23 @@ function parseSheetRange(sheetName, year = 2026) {
 function getWeekSheet(sheetNames, targetDate) {
     if (!sheetNames || sheetNames.length === 0) return null;
     const year = targetDate.getFullYear();
+    const currentMonth = targetDate.getMonth();
     for (let name of sheetNames) {
-        let r = parseSheetRange(name, year);
+        let r = parseSheetRange(name, year, currentMonth);
         if (r) {
             if (targetDate >= r.start && targetDate <= r.end) {
                 return name;
             }
         }
     }
-    return sheetNames[sheetNames.length - 1];
+    // Fallback: Find the first sheet that looks like a weekly schedule
+    for (let name of sheetNames) {
+        if (name.toLowerCase().includes('semana')) {
+            return name;
+        }
+    }
+    // Last resort: Return the very first sheet
+    return sheetNames[0];
 }
 
 function getCronogramaColumnsForToday(targetDate, shiftText, rows = []) {
@@ -2711,11 +4085,66 @@ function getCronogramaColumnsForToday(targetDate, shiftText, rows = []) {
     }
 }
 
+let globalCronogramaData = null;
+async function preloadCronograma() {
+    try {
+        const todayForFile = new Date();
+        const isBeforeJuly6 = todayForFile.getFullYear() === 2026 && todayForFile.getMonth() === 6 && todayForFile.getDate() < 6;
+        const cronogramaFile = isBeforeJuly6 ? 'Cronograma Junio.xlsx' : 'Cronograma Julio.xlsx';
+        const url = encodeURI('Cronograma de Tareas/' + cronogramaFile) + '?t=' + Date.now();
+        const response = await fetch(url);
+        if (!response.ok) return;
+        const arrayBuffer = await response.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, {type: 'array'});
+        const today = new Date();
+        const sheetName = getWeekSheet(workbook.SheetNames, today);
+        if (sheetName) {
+            globalCronogramaData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "" });
+            // Re-render dashboard just in case it loaded before this finished
+            if (document.getElementById('monitoreoView').style.display !== 'none') {
+                renderDashboardCards();
+            }
+        }
+    } catch(e) {
+        console.error("preloadCronograma error", e);
+    }
+}
+
+function getAssignedTasksForGestor(gestorName, shiftText) {
+    if (!globalCronogramaData) return [];
+    let assignments = [];
+    const today = new Date();
+    const colGroups = getCronogramaColumnsForToday(today, shiftText, globalCronogramaData);
+    
+    for (let colGroup of colGroups) {
+        const tCol = colGroup[0];
+        const gCol = colGroup[1];
+        for (let rIdx = 0; rIdx < globalCronogramaData.length; rIdx++) {
+            const row = globalCronogramaData[rIdx];
+            if (!row) continue;
+            const taskVal = row[tCol];
+            const gestorVal = row[gCol];
+            if (taskVal !== undefined && taskVal !== null && String(taskVal).trim() !== "") {
+                const tStrLower = String(taskVal).trim().toLowerCase();
+                if (!tStrLower.startsWith("set ") && !tStrLower.includes("cronograma") && gestorVal !== "Gestor") {
+                    if (gestorVal !== undefined && gestorVal !== null && namesMatch(String(gestorVal).trim(), gestorName)) {
+                        assignments.push(String(taskVal).trim());
+                    }
+                }
+            }
+        }
+    }
+    return assignments;
+}
+
 let gestorCronogramaAssignments = null;
 
 async function loadCronogramaAssignments(gestorName, gestorShift) {
     try {
-        const url = encodeURI('Cronograma de Tareas/Cronograma Mayo.xlsx') + '?t=' + Date.now();
+        const todayForFile = new Date();
+        const isBeforeJuly6 = todayForFile.getFullYear() === 2026 && todayForFile.getMonth() === 6 && todayForFile.getDate() < 6;
+        const cronogramaFile = isBeforeJuly6 ? 'Cronograma Junio.xlsx' : 'Cronograma Julio.xlsx';
+        const url = encodeURI('Cronograma de Tareas/' + cronogramaFile) + '?t=' + Date.now();
         const response = await fetch(url);
         if (!response.ok) throw new Error("Fallo al cargar cronograma");
         const arrayBuffer = await response.arrayBuffer();
@@ -2840,8 +4269,17 @@ function getShiftForDate(rows, allScheduleBlocks, gestorName, date) {
         const dateRow = rows[block.startRow];
         for (let c = 1; c < dateRow.length; c++) {
             const serial = dateRow[c];
-            if (serial && !isNaN(serial)) {
-                const cellDate = excelToJSDate(serial);
+            if (serial) {
+                let cellDate = null;
+                if (!isNaN(serial)) {
+                    cellDate = excelToJSDate(serial);
+                } else if (typeof serial === 'string' && (serial.includes('-') || serial.includes('/'))) {
+                    const parsed = new Date(serial);
+                    if (!isNaN(parsed.getTime())) {
+                        cellDate = parsed;
+                    }
+                }
+                
                 if (cellDate && isSameDate(cellDate, date)) {
                     targetBlock = block;
                     targetColIndex = c;
@@ -3087,14 +4525,26 @@ async function loadSchedule() {
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
         
-        // Función helper para parsear fechas de Excel a JS
         function formatExcelDate(serial) {
-            if(!serial || isNaN(serial)) return "";
-            // Usar UTC para evitar problemas de zonas horarias e historia de DST
-            const epochUTC = Date.UTC(1899, 11, 30);
-            const d = new Date(epochUTC + serial * 86400000);
+            if(!serial) return "";
             const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-            return `${d.getUTCDate()} ${monthNames[d.getUTCMonth()]}`;
+            
+            // Si ya es un string que parece fecha (ej: "2026-06-08" o "2026-06-08T00:00...")
+            if (typeof serial === 'string' && (serial.includes('-') || serial.includes('/'))) {
+                const d = new Date(serial);
+                if (!isNaN(d.getTime())) {
+                    return `${d.getUTCDate()} ${monthNames[d.getUTCMonth()]}`;
+                }
+            }
+            
+            // Si es un número (serial de Excel)
+            if (!isNaN(serial)) {
+                const epochUTC = Date.UTC(1899, 11, 30);
+                const d = new Date(epochUTC + parseFloat(serial) * 86400000);
+                return `${d.getUTCDate()} ${monthNames[d.getUTCMonth()]}`;
+            }
+            
+            return "";
         }
         
         let allScheduleBlocks = [];
@@ -3142,8 +4592,17 @@ async function loadSchedule() {
                 const dateRow = rows[block.startRow];
                 for (let c = 1; c < dateRow.length; c++) {
                     const serial = dateRow[c];
-                    if (serial && !isNaN(serial)) {
-                        const cellDate = excelToJSDate(serial);
+                    if (serial) {
+                        let cellDate = null;
+                        if (!isNaN(serial)) {
+                            cellDate = excelToJSDate(serial);
+                        } else if (typeof serial === 'string' && (serial.includes('-') || serial.includes('/'))) {
+                            const parsed = new Date(serial);
+                            if (!isNaN(parsed.getTime())) {
+                                cellDate = parsed;
+                            }
+                        }
+                        
                         if (cellDate && isSameDate(cellDate, today)) {
                             defaultBlockRow = block.startRow;
                             break;
@@ -3243,7 +4702,6 @@ async function loadSchedule() {
                 }
             }
         }
-        updateGlobalStats();
     } catch(e) {
         console.log("No se pudo cargar el horario", e);
     }
@@ -3463,6 +4921,13 @@ function syncActiveSessionToFirebase() {
     if (!currentUser || currentUser.role !== 'Gestor') return;
     const uid = currentUser.uid;
     if (!uid) return;
+    
+    // Si la sesin fue cerrada en otra pestaa, localStorage estar vaco
+    if (!localStorage.getItem('riskOps_currentUser')) {
+        currentUser = null;
+        window.location.href = 'login.html';
+        return;
+    }
 
     const totalTasks = document.querySelectorAll('.task-item').length;
     const completedTasks = document.querySelectorAll('.task-item .status-completed').length;
@@ -3474,28 +4939,73 @@ function syncActiveSessionToFirebase() {
         percentage = Math.round((finalized / totalTasks) * 100);
     }
 
-    const sessionRef = database.ref('active_sessions/' + uid);
+    // Use local currentUser.loginTime, avoiding any database reads that could hang
+    const loginTime = currentUser.loginTime || new Date().toISOString();
     
-    // Read existing session first to preserve the original loginTime.
-    // Using update() instead of set() so we only overwrite what we need.
-    // For loginTime: only write it if the node doesn't have one yet (first login of the day).
-    sessionRef.once('value').then(snap => {
-        const existing = snap.val();
-        // Preserve the loginTime from Firebase if it already exists, otherwise use the one from localStorage
-        const loginTime = (existing && existing.loginTime) ? existing.loginTime : (currentUser.loginTime || new Date().toISOString());
-        
-        sessionRef.set({
-            name: currentUser.name,
-            email: currentUser.email,
-            shift: currentUser.shift || 'Por Asignar',
-            loginTime: loginTime,
-            lastActive: Date.now(),
-            totalTasks: totalTasks,
-            finalizedTasks: finalized,
-            percentage: percentage,
-            tasks: taskStateCache || {}
-        }).catch(e => console.error("Error syncing active session to Firebase:", e));
-    }).catch(e => console.error("Error reading session from Firebase:", e));
+    // --- INACTIVITY LOGIC ---
+    let nowMs = Date.now();
+    let loopDelta = nowMs - lastSyncLoopTimestamp;
+    lastSyncLoopTimestamp = nowMs;
+    
+    loadBreakState();
+    if (loopDelta > (3 * 60 * 1000)) {
+        if (!isLunchBreak && !isBreakfastBreak) {
+            shiftTimeline.push({ type: 'Inactividad', start: nowMs - loopDelta, end: nowMs });
+            localStorage.setItem('riskOps_timeline', JSON.stringify(shiftTimeline));
+        }
+    }
+
+    let newLastActive = Date.now();
+    let currentStatus = 'Activo';
+    
+    const timeSinceLastActivity = Date.now() - lastLocalActivityTimestamp;
+    const idleThreshold = (currentUser && currentUser.role === 'Gestor') ? (3 * 60 * 1000) : (5 * 60 * 1000);
+    const isDomIdle = timeSinceLastActivity > idleThreshold;
+    
+    let isInactive = false;
+    if (window.idleDetectorGranted) {
+        isInactive = globalIdleState;
+    } else {
+        if (globalIdleState || isDomIdle) {
+            isInactive = true;
+        }
+    }
+    
+    if (isLunchBreak) {
+        currentStatus = 'En Almuerzo';
+    } else if (isBreakfastBreak) {
+        currentStatus = 'En Desayuno';
+    } else if (isInactive) {
+        currentStatus = 'Inactivo';
+    } else {
+        currentStatus = 'En Línea';
+    }
+    
+    if (currentStatus === 'Inactivo' && localStatus !== 'Inactivo') {
+        pushTimelineEvent('Inactividad', 'start');
+    } else if (currentStatus !== 'Inactivo' && localStatus === 'Inactivo') {
+        pushTimelineEvent('Inactividad', 'end');
+    }
+    localStatus = currentStatus;
+    
+    const payload = {
+        name: currentUser.name,
+        email: currentUser.email,
+        shift: currentUser.shift || 'Por Asignar',
+        loginTime: loginTime,
+        lastActive: newLastActive,
+        status: currentStatus,
+        totalTasks: totalTasks,
+        finalizedTasks: finalized,
+        completedTasks: completedTasks,
+        notDoneTasks: notDoneTasks,
+        percentage: percentage,
+        tasks: taskStateCache || {},
+        timeline: shiftTimeline || [],
+        appVersion: 'v104'
+    };
+    
+    database.ref(`active_sessions/${uid}`).update(payload).catch(e => console.error("Error syncing active session via SDK:", e));
 }
 
 function updateKPI() {
@@ -3507,9 +5017,14 @@ function updateKPI() {
     const finalized = completedTasks + notDoneTasks; 
     const pending = totalTasks - finalized;
     
-    let percentage = 0;
+    let completedPercentage = 0;
+    let notDonePercentage = 0;
+    let totalPercentage = 0;
+    
     if (totalTasks > 0) {
-        percentage = Math.round((finalized / totalTasks) * 100);
+        completedPercentage = Math.round((completedTasks / totalTasks) * 100);
+        notDonePercentage = Math.round((notDoneTasks / totalTasks) * 100);
+        totalPercentage = completedPercentage + notDonePercentage;
     }
     
     const kpiContainer = document.querySelector('.kpi-card');
@@ -3518,13 +5033,15 @@ function updateKPI() {
             <div class="kpi-circle">
                 <svg viewBox="0 0 36 36" class="circular-chart" style="width: 100%; height: 100%;">
                     <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" style="fill: none; stroke: var(--glass-border); stroke-width: 3.8;"/>
-                    <path class="circle" stroke-dasharray="${percentage}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" style="fill: none; stroke-width: 3.8; stroke-linecap: round; stroke: var(--success); transition: stroke-dasharray 1s ease-out;"/>
-                    <text x="18" y="20.35" class="percentage" style="fill: var(--text-primary); font-family: 'Inter'; font-size: 8px; font-weight: bold; text-anchor: middle;">${percentage}%</text>
+                    <path class="circle" stroke-dasharray="${completedPercentage}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" style="fill: none; stroke-width: 3.8; stroke-linecap: round; stroke: var(--success); transition: stroke-dasharray 1s ease-out;"/>
+                    <path class="circle-not-done" stroke-dasharray="${notDonePercentage}, 100" stroke-dashoffset="-${completedPercentage}" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" style="fill: none; stroke-width: 3.8; stroke-linecap: round; stroke: var(--danger); transition: stroke-dasharray 1s ease-out, stroke-dashoffset 1s ease-out;"/>
+                    <text x="18" y="20.35" class="percentage" style="fill: var(--text-primary); font-family: 'Inter'; font-size: 8px; font-weight: bold; text-anchor: middle;">${totalPercentage}%</text>
                 </svg>
             </div>
             <div class="kpi-stats">
-                <p><strong>${totalTasks}</strong> Tareas Asignadas</p>
-                <p><strong>${finalized}</strong> Finalizadas</p>
+                <p><strong>${totalTasks}</strong> Asignadas</p>
+                <p><strong style="color: var(--success);">${completedTasks}</strong> Realizadas</p>
+                <p><strong style="color: var(--danger);">${notDoneTasks}</strong> No Realizadas</p>
                 <p><strong>${pending}</strong> Pendientes</p>
             </div>
         `;
@@ -3735,9 +5252,10 @@ async function initApp() {
             const availableAvatars = [
                 "Alexander Villada.png",
                 "Camilo Espinosa.png",
-                "Daniel Benavidez.png",
+                "Daniel Benavides.png",
                 "Josue Alvarez.png",
                 "Juan Jose Diaz.png",
+                "Luis Fuentes.png",
                 "Maria Sanchez.png",
                 "Marilyn Jimenez.png",
                 "Oriana Borja.png",
@@ -3767,7 +5285,18 @@ async function initApp() {
 
         if (currentUser.role === 'Gestor') {
             syncActiveSessionToFirebase();
-            setInterval(syncActiveSessionToFirebase, 30000);
+            
+            // Use a Web Worker to ensure the 30s ping is NOT throttled by Chrome when the tab is in the background
+            const workerCode = `
+                setInterval(() => {
+                    postMessage('ping');
+                }, 30000);
+            `;
+            const blob = new Blob([workerCode], {type: 'application/javascript'});
+            window.pingWorker = new Worker(URL.createObjectURL(blob));
+            window.pingWorker.onmessage = () => {
+                syncActiveSessionToFirebase();
+            };
         }
 
         // Setup programmatical sidebar ordering for roles
@@ -3778,6 +5307,7 @@ async function initApp() {
             const navAprobaciones = document.getElementById('navAprobaciones');
             const navTurnos = document.getElementById('navTurnos');
             const navMonitoreo = document.getElementById('navMonitoreo');
+            const navIndicadores = document.getElementById('navIndicadores');
             const navWorkspace = document.getElementById('navWorkspace');
             const viewWorkspace = document.getElementById('view-workspace');
             const viewAprobaciones = document.getElementById('view-aprobaciones');
@@ -3788,6 +5318,11 @@ async function initApp() {
             if(navAprobaciones) navAprobaciones.style.display = 'flex';
             if(navTurnos) navTurnos.style.display = 'flex';
             if(navMonitoreo) navMonitoreo.style.display = 'flex';
+            if(navIndicadores) navIndicadores.style.display = 'flex';
+            
+            const navEficienciaOperativa = document.getElementById('navEficienciaOperativa');
+            if(navEficienciaOperativa) navEficienciaOperativa.style.display = 'flex';
+
             if(navWorkspace) navWorkspace.style.display = 'flex'; // Keep Mis Tareas visible
             
             // Ocultar el panel de Progreso del Turno / Documentos de Acceso Rápido en Mis Tareas para Admin o Supervisor
@@ -4060,6 +5595,10 @@ async function initApp() {
 
             // Ocultar todas las vistas
             document.querySelectorAll('.view-panel').forEach(v => v.style.display = 'none');
+            
+            // Mostrar por defecto el top-header para todas las vistas (se oculta en casos específicos)
+            const topHeader = document.querySelector('.top-header');
+            if (topHeader) topHeader.style.display = 'flex';
 
             // Mostrar la correcta
             if (item.id === 'navWorkspace') {
@@ -4083,7 +5622,29 @@ async function initApp() {
                 const viewMonitoreo = document.getElementById('view-monitoreo');
                 if (viewMonitoreo) viewMonitoreo.style.display = 'block';
                 renderActiveSessionsDashboard();
-                updateGlobalStats();
+            } else if (item.id === 'navIndicadores') {
+                const viewIndicadores = document.getElementById('view-indicadores');
+                if (viewIndicadores) viewIndicadores.style.display = 'block';
+                if (topHeader) topHeader.style.display = 'none'; // Ocultar header según solicitud
+                loadGestoresForKPIs();
+            } else if (item.id === 'navEficienciaOperativa') {
+                const viewEficiencia = document.getElementById('view-eficiencia-operativa');
+                if (viewEficiencia) viewEficiencia.style.display = 'block';
+                if (topHeader) topHeader.style.display = 'none';
+                loadControlOperativoData();
+            } else if (item.id === 'navTiempos') {
+                const viewTiempos = document.getElementById('view-tiempos');
+                if (viewTiempos) viewTiempos.style.display = 'block';
+                if (topHeader) topHeader.style.display = 'none';
+                loadTiemposMetrics();
+            } else if (item.id === 'navComunicados') {
+                const viewComunicados = document.getElementById('view-comunicados');
+                if (viewComunicados) viewComunicados.style.display = 'block';
+                renderGestorComunicados();
+            } else if (item.id === 'navAdminComunicados') {
+                const viewAdminComunicados = document.getElementById('view-gestion-comunicados');
+                if (viewAdminComunicados) viewAdminComunicados.style.display = 'block';
+                renderAdminComunicados();
             }
         });
     });
@@ -4270,14 +5831,99 @@ async function initApp() {
     }
 }
 
-// Lógica explícita para el botón (llamado desde onclick en html)
+// Lógica de Desayuno
+function toggleBreakfastBreak() {
+    if (!currentUser) return;
+    const btn = document.getElementById('toggleBreakfastBtn');
+    
+    if (!isBreakfastBreak) {
+        if (isLunchBreak) { alert("Debes volver del almuerzo primero."); return; }
+        isBreakfastBreak = true;
+        breakfastStartTime = Date.now();
+        pushTimelineEvent('Desayuno', 'start');
+        saveBreakState();
+        if(btn) {
+            btn.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Desayuno";
+            btn.classList.remove('btn-outline');
+            btn.style.backgroundColor = "rgba(255, 152, 0, 0.15)";
+            btn.style.color = "#ff9800";
+            btn.style.borderColor = "rgba(255, 152, 0, 0.5)";
+            btn.style.boxShadow = "0 0 15px rgba(255, 152, 0, 0.2)";
+        }
+        syncActiveSessionToFirebase();
+    } else {
+        isBreakfastBreak = false;
+        if(breakfastStartTime) {
+            totalBreakfastTimeMs += (Date.now() - breakfastStartTime);
+        }
+        breakfastStartTime = null;
+        pushTimelineEvent('Desayuno', 'end');
+        saveBreakState();
+        if(btn) {
+            btn.innerHTML = "<i class='bx bx-coffee'></i> Tomar Desayuno";
+            btn.classList.add('btn-outline');
+            btn.style.backgroundColor = "";
+            btn.style.color = "var(--text-primary)";
+            btn.style.borderColor = "rgba(255,255,255,0.2)";
+            btn.style.boxShadow = "";
+        }
+        updateActivity();
+        syncActiveSessionToFirebase();
+    }
+}
+
+// Lógica de Almuerzo
+function toggleLunchBreak() {
+    if (!currentUser) return;
+    const btn = document.getElementById('toggleLunchBtn');
+    
+    if (!isLunchBreak) {
+        if (isBreakfastBreak) { alert("Debes volver del desayuno primero."); return; }
+        isLunchBreak = true;
+        lunchStartTime = Date.now();
+        pushTimelineEvent('Almuerzo', 'start');
+        saveBreakState();
+        if(btn) {
+            btn.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Almuerzo/Cena";
+            btn.classList.remove('btn-outline');
+            btn.style.backgroundColor = "rgba(0, 188, 212, 0.15)";
+            btn.style.color = "#00bcd4";
+            btn.style.borderColor = "rgba(0, 188, 212, 0.5)";
+            btn.style.boxShadow = "0 0 15px rgba(0, 188, 212, 0.2)";
+        }
+        syncActiveSessionToFirebase();
+    } else {
+        isLunchBreak = false;
+        if(lunchStartTime) {
+            totalLunchTimeMs += (Date.now() - lunchStartTime);
+        }
+        lunchStartTime = null;
+        pushTimelineEvent('Almuerzo', 'end');
+        saveBreakState();
+        if(btn) {
+            btn.innerHTML = "<i class='bx bx-restaurant'></i> Tomar Almuerzo/Cena";
+            btn.classList.add('btn-outline');
+            btn.style.backgroundColor = "";
+            btn.style.color = "var(--text-primary)";
+            btn.style.borderColor = "rgba(255,255,255,0.2)";
+            btn.style.boxShadow = "";
+        }
+        updateActivity();
+        syncActiveSessionToFirebase();
+    }
+}
+
 function handleEndShift() {
     if(confirm("¿Estás seguro que deseas finalizar tu turno actual? Se enviará un resumen al supervisor.")) {
+        // Cerrar almuerzo o desayuno si quedó abierto
+        if (isLunchBreak) toggleLunchBreak();
+        if (isBreakfastBreak) toggleBreakfastBreak();
+
         
-        let currentUser = null;
-        try { currentUser = JSON.parse(localStorage.getItem('riskOps_currentUser')); } catch(e) {}
+        let localUser = null;
+        try { localUser = JSON.parse(localStorage.getItem('riskOps_currentUser')); } catch(e) {}
         
-        if (currentUser) {
+        if (localUser) {
             // Build task report
             const setSelect = document.getElementById('activeSetSelect');
             if(setSelect && setSelect.value === 'Todos') {
@@ -4288,19 +5934,66 @@ function handleEndShift() {
             const formData = new FormData();
             
             // Format login time
-            const loginDate = new Date(currentUser.loginTime);
+            const loginDate = new Date(localUser.loginTime);
+            const endDate = new Date();
             
-            formData.append("Usuario", currentUser.name);
-            formData.append("Rol", currentUser.role);
+            // Calculo de tiempos tomados
+            const lunchMinutes = parseFloat((totalLunchTimeMs / (1000 * 60)).toFixed(1));
+            const breakfastMinutes = parseFloat((totalBreakfastTimeMs / (1000 * 60)).toFixed(1));
+            
+            // Calculo de penalidades (excesos)
+            const allowedLunch = 60;
+            const allowedBreakfast = 15;
+            
+            let extraLunch = Math.max(0, lunchMinutes - allowedLunch);
+            let extraBreakfast = Math.max(0, breakfastMinutes - allowedBreakfast);
+            
+            let inactividadMins = 0;
+            if (shiftTimeline && shiftTimeline.length > 0) {
+                shiftTimeline.forEach(ev => {
+                    if (ev.type === 'Inactividad') {
+                        let eTime = ev.end ? ev.end : Date.now();
+                        inactividadMins += (eTime - ev.start) / (1000 * 60);
+                    }
+                });
+            }
+            
+            let penalidadConectividadMins = parseFloat((extraLunch + extraBreakfast + inactividadMins).toFixed(1));
+
+            // Calculo de tiempo efectivo
+            const totalShiftMs = endDate.getTime() - loginDate.getTime();
+            // Restamos TODAS las pausas, pero además la penalidad adicional sobre las horas efectivas
+            const effectiveShiftMs = totalShiftMs - totalLunchTimeMs - totalBreakfastTimeMs - (penalidadConectividadMins * 60 * 1000);
+            const effectiveHours = Math.max(0, (effectiveShiftMs / (1000 * 60 * 60))).toFixed(2);
+            
+            formData.append("Usuario", localUser.name);
+            formData.append("Rol", localUser.role);
             formData.append("Reporte", "CIERRE DE TURNO Y RESUMEN DE TAREAS");
             formData.append("Hora_Inicio_Turno", loginDate.toLocaleString());
-            formData.append("Hora_Fin_Turno", new Date().toLocaleString());
+            formData.append("Hora_Fin_Turno", endDate.toLocaleString());
+            formData.append("Tiempo_Almuerzo_Descontado", lunchMinutes + " minutos");
+            formData.append("Tiempo_Desayuno_Descontado", breakfastMinutes + " minutos");
+            formData.append("Exceso_Pausas_Penalidad", penalidadConectividadMins + " minutos");
+            formData.append("Horas_Efectivas_Trabajadas", effectiveHours + " hrs");
+            
+            // Construir reporte de bitácora
+            let bitacoraTexto = "";
+            if (shiftTimeline.length > 0) {
+                shiftTimeline.forEach(ev => {
+                    const s = new Date(ev.start).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'});
+                    const eTime = ev.end ? new Date(ev.end).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'}) : "No regresó";
+                    bitacoraTexto += `- ${ev.type}: inicio ${s} fin ${eTime}\n`;
+                });
+            } else {
+                bitacoraTexto = "No se registraron pausas o inactividades.";
+            }
+            formData.append("Bitacora_de_Tiempos", bitacoraTexto);
             
             if(setSelect) {
                 formData.append("SET_Principal_Trabajado", setSelect.value);
             }
             
-            formData.append("_subject", `Reporte de Turno: ${currentUser.name}`);
+            formData.append("_subject", `Reporte de Turno: ${localUser.name}`);
             formData.append("_captcha", "false");
             formData.append("_cc", "sara.santamaria@virtualsoft.tech");
             
@@ -4315,6 +6008,7 @@ function handleEndShift() {
                     report += `\n[ ${t.status.toUpperCase()} ] - ${t.name}\nObservación: ${t.observation || 'N/A'}\n`;
                 });
             }
+            report += "\n\n=== BITÁCORA DE TIEMPOS ===\n" + bitacoraTexto;
             formData.append("Resumen_de_Tareas", report);
             
             // Reemplazar texto del botón para feedback visual
@@ -4327,12 +6021,19 @@ function handleEndShift() {
 
             // --- RESPALDO SEGURO EN FIREBASE ---
             const shiftReportObject = {
-                gestor: currentUser.name,
-                rol: currentUser.role,
+                gestor: localUser.name,
+                rol: localUser.role,
                 horaInicio: loginDate.toLocaleString(),
                 horaFin: new Date().toLocaleString(),
+                turnoProgramado: localUser.shift || 'Por Asignar',
                 setTrabajado: setSelect ? setSelect.value : 'N/A',
                 reporte: report,
+                tasks: taskStateCache,
+                timeline: shiftTimeline,
+                penalidadConectividadMins: penalidadConectividadMins,
+                inactividadTotalMins: inactividadMins,
+                tiempoAlmuerzoMins: lunchMinutes,
+                tiempoDesayunoMins: breakfastMinutes,
                 timestamp: Date.now()
             };
 
@@ -4340,13 +6041,24 @@ function handleEndShift() {
             database.ref('shift_reports').push(shiftReportObject).catch(e => console.error("Firebase backup failed", e));
 
             // Eliminar sesión activa de Firebase
-            if (currentUser.uid) {
-                database.ref('active_sessions/' + currentUser.uid).remove().catch(e => console.error("Error removing active session on shift end:", e));
+            if (localUser.uid) {
+                database.ref('active_sessions/' + localUser.uid).remove().catch(e => console.error("Error removing active session on shift end:", e));
+            }
+            if (localUser.loginLogId) {
+                database.ref('login_logs/' + localUser.loginLogId).update({
+                    logoutTime: firebase.database.ServerValue.TIMESTAMP
+                });
             }
 
             // Antes de enviar, limpiamos la sesión y el caché
             localStorage.removeItem('riskOps_currentUser');
             localStorage.removeItem('riskOps_cache');
+            localStorage.removeItem('riskOps_breakState');
+            localStorage.removeItem('riskOps_timeline');
+            
+            // Set the global currentUser to null so syncActiveSessionToFirebase stops firing
+            currentUser = null;
+            
             firebase.auth().signOut().catch(err => console.error(err));
             
             // Enviar de forma silenciosa para que un error 522 de Cloudflare no bloquee la pantalla
@@ -4367,6 +6079,11 @@ function handleEndShift() {
             });
         } else {
             alert("Turno finalizado.");
+            if (localUser && localUser.loginLogId) {
+                database.ref('login_logs/' + localUser.loginLogId).update({
+                    logoutTime: firebase.database.ServerValue.TIMESTAMP
+                });
+            }
             localStorage.removeItem('riskOps_currentUser');
             localStorage.removeItem('riskOps_cache');
             firebase.auth().signOut().catch(err => console.error(err));
@@ -4424,6 +6141,48 @@ function confirmException() {
     closeModal('exceptionModal');
 }
 
+function openExtraTaskModal() {
+    const modal = document.getElementById('extraTaskModal');
+    if (modal) {
+        document.getElementById('extraTaskName').value = '';
+        document.getElementById('extraTaskStatus').value = 'Finalizada';
+        document.getElementById('extraTaskObs').value = '';
+        modal.classList.add('active');
+    }
+}
+
+function saveExtraTask() {
+    const name = document.getElementById('extraTaskName').value.trim();
+    const status = document.getElementById('extraTaskStatus').value;
+    const obs = document.getElementById('extraTaskObs').value.trim();
+    
+    if (!name) {
+        alert("OBLIGATORIO: Debes ingresar el nombre de la tarea extra.");
+        return;
+    }
+    
+    if (!obs) {
+        alert("OBLIGATORIO: Debes detallar la gestión realizada en las Notas Técnicas.");
+        return;
+    }
+    
+    // Generar un ID único para esta tarea extra
+    const extraId = 'extra_' + Date.now();
+    
+    // Guardar en la caché local
+    taskStateCache[extraId] = {
+        name: "[EXTRA] " + name,
+        status: status,
+        observation: obs
+    };
+    localStorage.setItem('riskOps_cache', JSON.stringify(taskStateCache));
+    
+    updateKPI(); // Actualizar el anillo de progreso
+    closeModal('extraTaskModal');
+    
+    alert(`Tarea Adicional "${name}" agregada exitosamente y se incluirá en tu reporte de turno.`);
+}
+
 // Logic for Approving Users
 async function renderPendingUsers() {
     const tbody = document.getElementById('pendingUsersTableBody');
@@ -4445,11 +6204,51 @@ async function renderPendingUsers() {
     
     tbody.innerHTML = '';
     
-    // Mostramos primero los pendientes, luego los aprobados
-    const allDisplayUsers = [...pending, ...approved];
+    const searchInput = document.getElementById('filterAprobacionesSearch');
+    const statusSelect = document.getElementById('filterAprobacionesStatus');
+    const searchVal = searchInput ? normalizeName(searchInput.value) : '';
+    const statusVal = statusSelect ? statusSelect.value : 'Todos';
+
+    // Mostramos primero los pendientes, luego los aprobados, ordenados por fecha de registro (más reciente a más antiguo)
+    let allDisplayUsers = [...pending, ...approved].sort((a, b) => {
+        const dateA = a.registrationDate ? new Date(a.registrationDate).getTime() : 0;
+        const dateB = b.registrationDate ? new Date(b.registrationDate).getTime() : 0;
+        return dateB - dateA;
+    });
+    
+    // Apply filters
+    const hasFilter = searchVal !== '' || statusVal !== 'Todos';
+    allDisplayUsers = allDisplayUsers.filter(u => {
+        const matchSearch = searchVal === '' || normalizeName(u.name || '').includes(searchVal) || normalizeName(u.email || '').includes(searchVal);
+        let matchStatus = true;
+        if (statusVal === 'Pendiente') matchStatus = (u.approved === false);
+        if (statusVal === 'Aprobado') matchStatus = (u.approved === true);
+        return matchSearch && matchStatus;
+    });
+    
+    // Only show top 5 if no filters are active to keep UI clean
+    if (!hasFilter && allDisplayUsers.length > 5) {
+        allDisplayUsers = allDisplayUsers.slice(0, 5);
+        // Add a fake row to indicate there are more
+        const total = [...pending, ...approved].length;
+        setTimeout(() => {
+            if(document.getElementById('pendingUsersTableBody')) {
+                document.getElementById('pendingMostrandoMsg') ? document.getElementById('pendingMostrandoMsg').remove() : null;
+                const msg = document.createElement('div');
+                msg.id = 'pendingMostrandoMsg';
+                msg.style = 'text-align: center; font-size: 11px; color: var(--text-secondary); margin-top: 10px; margin-bottom: 15px; font-style: italic;';
+                msg.innerText = `Mostrando los 5 registros más recientes de ${total} en total. Usa los filtros arriba para buscar más.`;
+                document.getElementById('pendingUsersTableBody').parentElement.parentElement.appendChild(msg);
+            }
+        }, 100);
+    } else {
+        setTimeout(() => {
+            if(document.getElementById('pendingMostrandoMsg')) document.getElementById('pendingMostrandoMsg').remove();
+        }, 100);
+    }
     
     if (allDisplayUsers.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay usuarios registrados en el sistema.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay usuarios que coincidan con los filtros.</td></tr>`;
         return;
     }
     
@@ -4477,8 +6276,8 @@ async function renderPendingUsers() {
         
         let statusBadge = user.approved ? `<span class="badge" style="background: rgba(16, 185, 129, 0.2); color: var(--success);">${user.role}</span>` : `<span class="badge pending">${user.role}</span>`;
 
-        const regDateStr = user.registrationDate ? new Date(user.registrationDate).toLocaleDateString() : 'Desconocida';
-        const appDateStr = user.approvalDate ? new Date(user.approvalDate).toLocaleDateString() : (user.approved === true ? 'Desconocida' : '-');
+        const regDateStr = user.registrationDate ? new Date(user.registrationDate).toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'Desconocida';
+        const appDateStr = user.approvalDate ? new Date(user.approvalDate).toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : (user.approved === true ? 'Desconocida' : '-');
         
         tbody.innerHTML += `
             <tr style="border-bottom: 1px solid var(--glass-border);">
@@ -4556,7 +6355,33 @@ async function renderPendingPermissions() {
         console.error(e);
     }
     
-    const pending = permisos.filter(p => p.status === 'Pendiente');
+    const searchInput = document.getElementById('filterPermisosSearch');
+    const searchVal = searchInput ? normalizeName(searchInput.value) : '';
+
+    let pending = permisos.filter(p => p.status === 'Pendiente');
+    
+    // Sort so most recent is first
+    pending.sort((a,b) => {
+        return new Date(b.fecha).getTime() - new Date(a.fecha).getTime();
+    });
+    
+    // Limit to 5
+    if (pending.length > 5) {
+        const total = pending.length;
+        pending = pending.slice(0, 5);
+        setTimeout(() => {
+            if(document.getElementById('pendingPermsMostrandoMsg')) document.getElementById('pendingPermsMostrandoMsg').remove();
+            const msg = document.createElement('div');
+            msg.id = 'pendingPermsMostrandoMsg';
+            msg.style = 'text-align: center; font-size: 11px; color: var(--text-secondary); margin-top: 10px; margin-bottom: 15px; font-style: italic;';
+            msg.innerText = `Mostrando los 5 permisos más recientes de ${total} pendientes.`;
+            document.getElementById('pendingPermissionsTableBody').parentElement.parentElement.appendChild(msg);
+        }, 100);
+    } else {
+        setTimeout(() => {
+            if(document.getElementById('pendingPermsMostrandoMsg')) document.getElementById('pendingPermsMostrandoMsg').remove();
+        }, 100);
+    }
     
     tbody.innerHTML = '';
     
@@ -4571,7 +6396,11 @@ async function renderPendingPermissions() {
                 <td style="padding: 12px; font-weight: 500;">${p.gestor}</td>
                 <td style="padding: 12px;"><span class="badge pending">${p.tipo}</span></td>
                 <td style="padding: 12px; color: var(--text-secondary); font-size: 13px;">${p.fecha}<br>${p.horaInicio} a ${p.horaFin}</td>
-                <td style="padding: 12px; font-size: 13px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${p.motivo}">${p.motivo}</td>
+                <td style="padding: 12px; font-size: 13px;">
+                    <div style="max-width: 250px; max-height: 60px; overflow-y: auto; white-space: normal; word-wrap: break-word; padding-right: 5px; font-style: italic; color: var(--text-secondary);">
+                        ${p.motivo}
+                    </div>
+                </td>
                 <td style="padding: 12px; text-align: center;">
                     <div id="perm-action-btns-${p.fb_id}">
                         <button class="btn btn-success" style="padding: 5px 10px; font-size: 12px; margin-right: 5px;" onclick="showPermApproveBox('${p.fb_id}')"><i class='bx bx-check'></i></button>
@@ -4720,11 +6549,22 @@ window.exportShiftReport = async function(fb_id) {
         const reportText = r.reporte || 'Sin reporte detallado.';
         const splitText = doc.splitTextToSize(reportText, 180);
         
-        doc.text(splitText, 15, 90);
+        let y = 90;
+        const pageHeight = doc.internal.pageSize.height;
+        
+        splitText.forEach(line => {
+            if (y > pageHeight - 20) {
+                doc.addPage();
+                y = 20;
+            }
+            doc.text(line, 15, y);
+            y += 5;
+        });
         
         // Guardar
         const safeName = (r.gestor || 'Gestor').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        const dateStr = new Date(r.timestamp || Date.now()).toISOString().split('T')[0];
+        const d = new Date(r.timestamp || Date.now());
+        const dateStr = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, '0') + "-" + String(d.getDate()).padStart(2, '0');
         doc.save(`Reporte_${safeName}_${dateStr}.pdf`);
         
     } catch(e) {
@@ -4960,53 +6800,103 @@ function setupSidebar() {
     const navTeletrabajo = document.getElementById('navTeletrabajo');
     const navDocs = document.getElementById('navDocs');
     const navPermisos = document.getElementById('navPermisos');
+    const navComunicados = document.getElementById('navComunicados');
+    
+    const adminNavGroup = document.getElementById('adminNavGroup');
+    const navAdminComunicados = document.getElementById('navAdminComunicados');
     const navTurnos = document.getElementById('navTurnos');
     const navAprobaciones = document.getElementById('navAprobaciones');
     const navMonitoreo = document.getElementById('navMonitoreo');
+    const navIndicadores = document.getElementById('navIndicadores');
+    
     const navSoporte = document.getElementById('navSoporte');
 
     if (currentUser && (currentUser.role === 'Admin' || currentUser.role === 'Supervisor')) {
-        // Admin/Supervisor Order:
-        // 1. Monitoreo
-        // 2. Historial de turnos
-        // 3. Aprobaciones
-        // 4. Historial de permisos
-        // 5. Horario
-        // 6. Teletrabajo
-        // 7. Documentación
-        // 8. Mis Tareas
-        // 9. Soporte
+        // Admin/Supervisor Order
+        if (adminNavGroup) { adminNavGroup.style.display = 'block'; sidebarNav.appendChild(adminNavGroup); }
+        if (navMonitoreo) { navMonitoreo.style.display = 'flex'; adminNavGroup.appendChild(navMonitoreo); }
+        if (navIndicadores) { navIndicadores.style.display = 'flex'; adminNavGroup.appendChild(navIndicadores); }
+        if (navTiempos) { navTiempos.style.display = 'flex'; adminNavGroup.appendChild(navTiempos); }
+        if (navAdminComunicados) { navAdminComunicados.style.display = 'flex'; adminNavGroup.appendChild(navAdminComunicados); }
+        if (navTurnos) { navTurnos.style.display = 'flex'; adminNavGroup.appendChild(navTurnos); }
+        if (navAprobaciones) { navAprobaciones.style.display = 'flex'; adminNavGroup.appendChild(navAprobaciones); }
         
-        if (navMonitoreo) { navMonitoreo.style.display = 'flex'; sidebarNav.appendChild(navMonitoreo); }
-        if (navTurnos) { navTurnos.style.display = 'flex'; sidebarNav.appendChild(navTurnos); }
-        if (navAprobaciones) { navAprobaciones.style.display = 'flex'; sidebarNav.appendChild(navAprobaciones); }
-        if (navPermisos) { navPermisos.style.display = 'flex'; sidebarNav.appendChild(navPermisos); }
+        if (navWorkspace) { navWorkspace.style.display = 'flex'; sidebarNav.appendChild(navWorkspace); }
+        if (navComunicados) { navComunicados.style.display = 'none'; }
         if (navHorario) { navHorario.style.display = 'flex'; sidebarNav.appendChild(navHorario); }
         if (navTeletrabajo) { navTeletrabajo.style.display = 'flex'; sidebarNav.appendChild(navTeletrabajo); }
         if (navDocs) { navDocs.style.display = 'flex'; sidebarNav.appendChild(navDocs); }
-        if (navWorkspace) { navWorkspace.style.display = 'flex'; sidebarNav.appendChild(navWorkspace); }
+        if (navPermisos) { navPermisos.style.display = 'flex'; sidebarNav.appendChild(navPermisos); }
+        
         if (navSoporte) { navSoporte.style.display = 'flex'; sidebarNav.appendChild(navSoporte); }
     } else {
-        // Gestor Order:
-        // 1. Mis Tareas
-        // 2. Horario
-        // 3. Teletrabajo
-        // 4. Documentación
-        // 5. Historial de permisos (Permisos)
-        // 6. Soporte
-        
+        // Gestor Order
         if (navWorkspace) { navWorkspace.style.display = 'flex'; sidebarNav.appendChild(navWorkspace); }
-        if (navHorario) { navHorario.style.display = 'flex'; sidebarNav.appendChild(navHorario); }
-        if (navTeletrabajo) { navTeletrabajo.style.display = 'flex'; sidebarNav.appendChild(navTeletrabajo); }
+        if (navComunicados) { navComunicados.style.display = 'flex'; sidebarNav.appendChild(navComunicados); }
+        
+        // Merge Horario and Teletrabajo into "Mi Jornada" ONLY for Gestor
+        if (navHorario) {
+            navHorario.style.display = 'flex';
+            sidebarNav.appendChild(navHorario);
+            navHorario.innerHTML = "<i class='bx bx-calendar'></i> Mi Jornada";
+        }
+        
+        if (navTeletrabajo) {
+            navTeletrabajo.style.display = 'none'; // Ocultar pestaña separada
+        }
+
+        // Mover contenido de Teletrabajo dentro de Horario
+        const viewHorario = document.getElementById('view-horario');
+        const viewTeletrabajo = document.getElementById('view-teletrabajo');
+        if (viewHorario && viewTeletrabajo) {
+            const teletrabajoContent = viewTeletrabajo.querySelector('.glass-panel');
+            if (teletrabajoContent && !document.getElementById('mergedTeletrabajoPanel')) {
+                teletrabajoContent.id = 'mergedTeletrabajoPanel';
+                
+                // Cambiar el título dentro del contenedor Horario
+                const panelTitle = viewHorario.querySelector('.panel-title');
+                if (panelTitle) panelTitle.innerHTML = "<i class='bx bx-calendar'></i> Mi Jornada";
+                
+                // Agregar encabezados sutiles para separarlos visualmente
+                const hrPanel = viewHorario.querySelector('.glass-panel');
+                if (hrPanel && !hrPanel.querySelector('.section-header')) {
+                    const h3Horario = document.createElement('h3');
+                    h3Horario.className = 'section-header';
+                    h3Horario.style.cssText = "color: var(--accent-primary); margin-bottom: 15px; font-size: 16px;";
+                    h3Horario.innerText = "Horario Semanal";
+                    hrPanel.insertBefore(h3Horario, hrPanel.firstChild);
+                }
+                
+                if (!teletrabajoContent.querySelector('.section-header')) {
+                    const h3Tele = document.createElement('h3');
+                    h3Tele.className = 'section-header';
+                    h3Tele.style.cssText = "color: var(--success); margin-bottom: 15px; font-size: 16px;";
+                    h3Tele.innerText = "Cronograma de Teletrabajo";
+                    teletrabajoContent.insertBefore(h3Tele, teletrabajoContent.firstChild);
+                }
+
+                viewHorario.appendChild(teletrabajoContent);
+            }
+        }
+
         if (navDocs) { navDocs.style.display = 'flex'; sidebarNav.appendChild(navDocs); }
         if (navPermisos) { navPermisos.style.display = 'flex'; sidebarNav.appendChild(navPermisos); }
         
         // Hide Admin tabs for Gestor
-        if (navTurnos) navTurnos.style.display = 'none';
-        if (navAprobaciones) navAprobaciones.style.display = 'none';
-        if (navMonitoreo) navMonitoreo.style.display = 'none';
+        if (adminNavGroup) adminNavGroup.style.display = 'none';
         
         if (navSoporte) { navSoporte.style.display = 'flex'; sidebarNav.appendChild(navSoporte); }
+        
+        // --- LUNCH BUTTON VISIBILITY ---
+        const toggleLunchBtn = document.getElementById('toggleLunchBtn');
+        if (toggleLunchBtn) {
+            toggleLunchBtn.style.display = 'flex';
+        }
+        
+        const toggleBreakfastBtn = document.getElementById('toggleBreakfastBtn');
+        if (toggleBreakfastBtn) {
+            toggleBreakfastBtn.style.display = 'flex';
+        }
     }
 }
 
@@ -5015,9 +6905,10 @@ let allActiveSessions = {};
 const availableAvatars = [
     "Alexander Villada.png",
     "Camilo Espinosa.png",
-    "Daniel Benavidez.png",
+    "Daniel Benavides.png",
     "Josue Alvarez.png",
     "Juan Jose Diaz.png",
+    "Luis Fuentes.png",
     "Maria Sanchez.png",
     "Marilyn Jimenez.png",
     "Oriana Borja.png",
@@ -5036,7 +6927,6 @@ function startActiveSessionsListener() {
             allActiveSessions = {};
         }
         renderActiveSessionsDashboard();
-        updateGlobalStats();
     }, (error) => {
         console.error("Error cargando monitoreo en tiempo real:", error);
     });
@@ -5098,12 +6988,15 @@ function renderActiveSessionsDashboard() {
     // Filtering active sessions
     let filteredUids = uids.filter(uid => {
         const session = allActiveSessions[uid];
-        if (!session) return false;
+        if (!session || !session.name) return false;
         
         const fullName = (session.name || '').trim();
         const email = (session.email || '');
         const shift = session.shift || 'Mañana';
-        const isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
+        let isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
+        if (session.status === 'En Almuerzo' || session.status === 'En Desayuno' || session.status === 'Inactivo') {
+            isOnline = false;
+        }
 
         // Search match (accent-insensitive substring)
         if (searchQuery && !normalizeName(fullName).includes(searchQuery) && !normalizeName(email).includes(searchQuery)) {
@@ -5133,7 +7026,6 @@ function renderActiveSessionsDashboard() {
                 <p style="font-size: 12px; margin-top: 5px; opacity: 0.7;">Los gestores activos se listarán aquí automáticamente al ingresar.</p>
             </div>
         `;
-        updateGlobalStats();
         return;
     }
 
@@ -5141,7 +7033,34 @@ function renderActiveSessionsDashboard() {
         const session = allActiveSessions[uid];
         if (!session) return;
         
-        const isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
+        let isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
+        
+        // Fix: If they stopped pinging Firebase for over 2 minutes and aren't on break, force them to Inactivo locally
+        if (!isOnline && session.status !== 'En Almuerzo' && session.status !== 'En Desayuno') {
+            session.status = 'Inactivo';
+        }
+
+        let displayStatus = isOnline ? 'En Línea' : 'Inactivo';
+        
+        let statusBadge = '';
+        let statusDot = isOnline ? '<div class="pulse-dot"></div>' : '<div class="pulse-dot offline"></div>';
+
+        if (session.status === 'En Almuerzo') {
+            statusBadge = '<span style="background: rgba(40,167,69,0.2); color: #28a745; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;"><i class="bx bx-restaurant"></i> Almuerzo/Cena</span>';
+            displayStatus = 'En Almuerzo/Cena 🍽️';
+            statusDot = '<div style="width: 8px; height: 8px; border-radius: 50%; background: #28a745; margin-right: 6px;"></div>';
+        } else if (session.status === 'En Desayuno') {
+            statusBadge = '<span style="background: rgba(255,193,7,0.2); color: #ffc107; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;"><i class="bx bx-coffee"></i> Desayuno</span>';
+            displayStatus = 'En Desayuno ☕';
+            statusDot = '<div style="width: 8px; height: 8px; border-radius: 50%; background: #ffc107; margin-right: 6px;"></div>';
+        } else if (session.status === 'Inactivo') {
+            isOnline = false;
+            displayStatus = 'Inactivo 💤';
+            statusDot = '<div class="pulse-dot offline"></div>';
+        } else if (session.status === 'En Línea') {
+            displayStatus = 'En Línea';
+        }
+        
         const lastActiveTime = session.lastActive ? new Date(session.lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Nunca';
         const loginTimeStr = session.loginTime ? new Date(session.loginTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Pendiente (Falta actualizar)';
         const delayBadge = calculateShiftDelay(session);
@@ -5150,14 +7069,78 @@ function renderActiveSessionsDashboard() {
         let matchedAvatar = availableAvatars.find(img => namesMatch(fullName, img.replace('.png', '')));
         let avatarSrc = matchedAvatar ? `assets/src/img/${matchedAvatar}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0D8ABC&color=fff`;
 
-        const completedTasks = session.finalizedTasks || 0;
+        let completedCount = session.completedTasks !== undefined ? session.completedTasks : 0;
+        let notDoneCount = session.notDoneTasks !== undefined ? session.notDoneTasks : 0;
         const totalTasks = session.totalTasks || 0;
-        const percentage = session.percentage || 0;
+        
+        // Fallback for older sessions that haven't synced the new variables yet
+        if (session.completedTasks === undefined && session.tasks) {
+            completedCount = Object.values(session.tasks).filter(t => t.status === 'Finalizada').length;
+            notDoneCount = Object.values(session.tasks).filter(t => t.status === 'No Realizada').length;
+        }
+
+        const compPct = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
+        const notDonePct = totalTasks > 0 ? Math.round((notDoneCount / totalTasks) * 100) : 0;
+        const totalPct = compPct + notDonePct;
+
+        const tasks = session.tasks || {};
+        
+        let assignedTasks = [];
+        if (globalCronogramaData) {
+            assignedTasks = getAssignedTasksForGestor(fullName, session.shift || 'Mañana');
+        }
+
+        let displayTasks = [];
+        if (assignedTasks && assignedTasks.length > 0) {
+            assignedTasks.forEach(taskName => {
+                let taskStatus = 'Pendiente';
+                for (let key in tasks) {
+                    if (tasks[key].name === taskName) {
+                        taskStatus = tasks[key].status;
+                        break;
+                    }
+                }
+                displayTasks.push({ name: taskName, status: taskStatus });
+            });
+        }
+        
+        // Agregar las tareas extras
+        for (let key in tasks) {
+            if (key.startsWith('extra_')) {
+                displayTasks.push({ name: tasks[key].name, status: tasks[key].status });
+            }
+        }
+
+        let tasksHtml = '';
+        if (displayTasks.length > 0) {
+            tasksHtml = '<div style="margin-top: 15px; max-height: 80px; overflow-y: auto; font-size: 11px; border: 1px solid var(--glass-border); border-radius: 4px; padding: 5px; background: rgba(0,0,0,0.02);">';
+            displayTasks.forEach(t => {
+                let icon = "<i class='bx bx-radio-circle' style='color: var(--text-secondary)'></i>";
+                
+                let textStyle = '';
+                if (t.status === 'Finalizada') {
+                    icon = "<i class='bx bx-check-circle' style='color: var(--success)'></i>";
+                    textStyle = "color: var(--success); font-weight: bold;";
+                } else if (t.status === 'En Proceso') {
+                    icon = "<i class='bx bx-time-five' style='color: var(--warning)'></i>";
+                    textStyle = "color: var(--warning);";
+                } else if (t.status === 'No Realizada') {
+                    icon = "<i class='bx bx-x-circle' style='color: var(--danger)'></i>";
+                    textStyle = "color: var(--danger); text-decoration: line-through;";
+                }
+
+                tasksHtml += `<div style="display: flex; align-items: center; gap: 5px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: ${t.status==='Pendiente'?0.7:1};">${icon} <span title="${t.name}" style="${textStyle}">${t.name}</span></div>`;
+            });
+            tasksHtml += '</div>';
+        } else {
+            tasksHtml = '<div style="margin-top: 15px; font-size: 11px; color: var(--text-secondary); text-align: center; font-style: italic;">' + 
+                        (globalCronogramaData ? 'No tiene tareas asignadas en este turno' : 'Cargando cronograma...') + '</div>';
+        }
 
         const card = document.createElement('div');
         card.className = 'monitoreo-card';
         card.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: start;">
+            <div style="display: flex; justify-content: space-between; align-items: start; gap: 8px;">
                 <div class="monitoreo-user-info">
                     <img src="${avatarSrc}" alt="${fullName}" class="monitoreo-avatar" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0D8ABC&color=fff';">
                     <div class="monitoreo-details">
@@ -5167,7 +7150,7 @@ function renderActiveSessionsDashboard() {
                 </div>
                 <div class="status-indicator-badge ${isOnline ? 'status-online' : 'status-offline'}">
                     <div class="pulse-dot ${isOnline ? '' : 'offline'}"></div>
-                    ${isOnline ? 'En Línea' : 'Inactivo'}
+                    ${displayStatus}
                 </div>
             </div>
             
@@ -5188,100 +7171,95 @@ function renderActiveSessionsDashboard() {
             <div class="progress-container">
                 <div class="progress-label-row">
                     <span>Avance de Tareas</span>
-                    <strong>${percentage}% (${completedTasks}/${totalTasks})</strong>
+                    <div style="display: flex; gap: 6px; font-size: 11px;">
+                        <strong style="color: var(--success);" title="Realizadas">${completedCount} <i class='bx bx-check'></i></strong>
+                        <strong style="color: var(--danger);" title="No Realizadas">${notDoneCount} <i class='bx bx-x'></i></strong>
+                        <strong style="color: var(--text-secondary); margin-left: 4px;">/ ${totalTasks} (${totalPct}%)</strong>
+                    </div>
                 </div>
-                <div class="progress-bar-bg">
-                    <div class="progress-bar-fill" style="width: ${percentage}%;"></div>
+                <div class="progress-bar-bg" style="display: flex; overflow: hidden; background: rgba(255,255,255,0.05);">
+                    <div class="progress-bar-fill" style="width: ${compPct}%; border-radius: 0; background: linear-gradient(90deg, var(--success), #34d399); transition: width 0.5s;"></div>
+                    <div style="width: ${notDonePct}%; background: linear-gradient(90deg, var(--danger), #fb7185); transition: width 0.5s;"></div>
                 </div>
             </div>
 
-            <div style="margin-top: 15px; display: flex; justify-content: flex-end;">
-                <button class="btn btn-outline" style="width: auto; padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;" onclick="openMonitoreoDetails('${uid}')">
-                    <i class='bx bx-search-alt-2'></i> Ver Tareas
+            ${tasksHtml}
+
+            <div style="margin-top: 15px; display: flex; gap: 5px; justify-content: flex-end;">
+                <button class="btn btn-outline" style="flex: 1; padding: 6px 10px; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="openMonitoreoDetails('${uid}')">
+                    <i class='bx bx-search-alt-2'></i> Detalles
+                </button>
+                <button class="btn btn-outline" style="flex: 1; padding: 6px 10px; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px; border-color: var(--warning); color: var(--warning);" onclick="viewTimelineInMonitoreo('${uid}')">
+                    <i class='bx bx-time'></i> Bitácora
                 </button>
             </div>
         `;
         grid.appendChild(card);
     });
-
-    updateGlobalStats();
 }
 
-function updateGlobalStats() {
-    const statsGestores = document.getElementById('statsGestores');
-    const statsKpi = document.getElementById('statsKpi');
-    const statsGestoresTitle = document.getElementById('statsGestoresTitle');
+function viewTimelineInMonitoreo(uid) {
+    const session = allActiveSessions[uid];
+    if (!session) return;
+    
+    const modal = document.getElementById('timelineModal');
+    const tbody = document.getElementById('timelineTableBody');
+    if (!modal || !tbody) return;
+    
+    document.getElementById('timelineModalName').innerText = session.name || 'Gestor';
+    
+    const timeline = session.timeline || [];
+    tbody.innerHTML = '';
+    
+    // Filter out very short glitches (under 60 seconds) that have already ended
+    let validTimeline = timeline.filter(ev => {
+        if (ev.end && (ev.end - ev.start) < 60000) return false;
+        return true;
+    });
 
-    const uids = Object.keys(allActiveSessions);
-    const totalGestores = uids.length;
-
-    // Determine current system shift based on system hour
-    let shiftName = "Mañana";
-    const hour = new Date().getHours();
-    if (hour >= 6 && hour < 14) {
-        shiftName = "Mañana";
-    } else if (hour >= 14 && hour < 22) {
-        shiftName = "Tarde";
-    } else {
-        shiftName = "Noche";
-    }
-
-    // Overwrite system shift if there is a dominant shift in active sessions
-    if (totalGestores > 0) {
-        const shifts = uids.map(uid => allActiveSessions[uid] ? allActiveSessions[uid].shift : null).filter(Boolean);
-        if (shifts.length > 0) {
-            const counts = {};
-            shifts.forEach(s => {
-                const cat = getShiftCategory(s);
-                if (cat) counts[cat] = (counts[cat] || 0) + 1;
+    // Inyectar dinámicamente el bloque de inactividad actual si el gestor perdió conexión (PC suspendido) y no está en pausa
+    const lastPing = session.lastActive ? new Date(session.lastActive).getTime() : 0;
+    const now = Date.now();
+    if (lastPing && (now - lastPing) > 120000 && session.status !== 'En Almuerzo' && session.status !== 'En Desayuno') { // más de 2 minutos sin dar señal y no está en break
+        const hasOngoingInactividad = validTimeline.some(ev => ev.type === 'Inactividad' && !ev.end);
+        if (!hasOngoingInactividad) {
+            validTimeline.push({
+                type: 'Inactividad',
+                start: lastPing,
+                end: null // En curso
             });
-            let dominantShift = shiftName;
-            let maxCount = 0;
-            for (const [s, count] of Object.entries(counts)) {
-                if (count > maxCount) {
-                    maxCount = count;
-                    dominantShift = s;
-                }
-            }
-            shiftName = dominantShift;
         }
     }
 
-    // Get filter shift selection
-    const shiftSelectEl = document.getElementById('filterShiftSelect');
-    const selectedShift = shiftSelectEl ? shiftSelectEl.value : '';
-    const targetShift = selectedShift || shiftName;
+    if (validTimeline.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-secondary);">No hay pausas ni inactividades registradas en este turno.</td></tr>';
+    } else {
+        validTimeline.forEach(ev => {
+            const s = new Date(ev.start).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'});
+            let eTime = "No regresó";
+            let durationStr = "En curso...";
+            if (ev.end) {
+                eTime = new Date(ev.end).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'});
+                const mins = Math.max(1, Math.round((ev.end - ev.start) / 60000));
+                durationStr = `${mins} min`;
+            }
+            
+            let icon = "<i class='bx bx-time'></i>";
+            if (ev.type === 'Almuerzo') icon = "<i class='bx bx-restaurant' style='color: var(--success)'></i>";
+            if (ev.type === 'Desayuno') icon = "<i class='bx bx-coffee' style='color: var(--warning)'></i>";
+            if (ev.type === 'Inactividad') icon = "<i class='bx bx-sleepy' style='color: var(--danger)'></i>";
 
-    // Count online managers belonging to targetShift
-    const onlineCountForShift = uids.filter(uid => {
-        const session = allActiveSessions[uid];
-        if (!session) return false;
-        const isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
-        const sessionShiftCat = getShiftCategory(session.shift || 'Mañana');
-        return isOnline && (sessionShiftCat === targetShift);
-    }).length;
-
-    // Get total scheduled managers for targetShift today
-    const scheduledCountForShift = getScheduledGestoresCountForShift(targetShift);
-
-    if (statsGestores) {
-        statsGestores.textContent = `${onlineCountForShift} / ${scheduledCountForShift}`;
+            tbody.innerHTML += `
+                <tr style="border-bottom: 1px solid var(--glass-border);">
+                    <td style="padding: 10px; font-weight: 500;">${icon} ${ev.type}</td>
+                    <td style="padding: 10px; font-size: 13px;">${s} - ${eTime}</td>
+                    <td style="padding: 10px; text-align: center;"><span class="badge" style="background: rgba(255,255,255,0.05);">${durationStr}</span></td>
+                </tr>
+            `;
+        });
     }
-
-    if (statsGestoresTitle) {
-        statsGestoresTitle.textContent = `Gestores Activos (${targetShift})`;
-    }
-
-    // Compute average KPI
-    let totalPercentage = 0;
-    uids.forEach(uid => {
-        const session = allActiveSessions[uid];
-        totalPercentage += session ? (session.percentage || 0) : 0;
-    });
-    const avgKpi = totalGestores > 0 ? Math.round(totalPercentage / totalGestores) : 0;
-    if (statsKpi) {
-        statsKpi.textContent = `${avgKpi}%`;
-    }
+    
+    modal.classList.add('active');
 }
 
 window.openMonitoreoDetails = function(uid) {
@@ -5378,6 +7356,1439 @@ function populateGestoresDropdown() {
         }
     }).catch(err => {
         console.error("Error populating gestores dropdown:", err);
+    });
+}
+
+// --- Lógica del Portal de Indicadores de Gestión (KPIs) ---
+
+window.kpiUsersData = {}; // email -> name
+window.retirosGlobalData = null; // Carga automática del backend
+window.kpiTaskLists = { finalizadas: [], no_realizadas: [], pendientes: [] };
+
+// Cargar data de retiros automáticamente (JSON pre-procesado por el bat)
+function loadRetirosData() {
+    fetch('Retiros/retiros_data.json')
+        .then(response => {
+            if (!response.ok) throw new Error('No se encontró el JSON');
+            return response.json();
+        })
+        .then(data => {
+            window.retirosGlobalData = data;
+            console.log("Data de retiros cargada automáticamente:", Object.keys(data).length, "gestores");
+        })
+        .catch(err => {
+            console.warn("No hay data de retiros automatizada o hubo un error:", err);
+            window.retirosGlobalData = null;
+        });
+}
+
+function loadGestoresForKPIs() {
+    const selectEl = document.getElementById('kpiGestorSelect');
+    if (!selectEl) return;
+    
+    if (selectEl.options.length > 2) {
+        // If already loaded, just return. We don't want to overwrite and re-trigger calculation
+        return;
+    }
+    
+    selectEl.innerHTML = '<option value="todos" selected>Todos los gestores</option><option value="">Selecciona un gestor...</option>';
+    
+    database.ref('users').once('value').then(snapshot => {
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            window.kpiUsersData = {};
+            
+            const targetGestores = [
+                "oriana borja",
+                "marilyn",
+                "sebastian hincapie",
+                "sebastian arango",
+                "sebastiana",
+                "juan jose diaz",
+                "yefferson",
+                "alexander villada",
+                "daniel",
+                "josue alvarez",
+                "luis"
+            ];
+            
+            const gestores = Object.keys(data)
+                .map(k => {
+                    const u = data[k];
+                    if (u && u.email && u.name) {
+                        window.kpiUsersData[u.email.toLowerCase()] = u.name.trim();
+                    }
+                    return u;
+                })
+                .filter(u => {
+                    if (!u || u.role !== 'Gestor' || u.approved !== true) return false;
+                    const nameLower = u.name.toLowerCase();
+                    return targetGestores.some(t => nameLower.includes(t));
+                })
+                .map(u => u.name.trim())
+                .sort((a, b) => a.localeCompare(b));
+            
+            const uniqueGestores = [...new Set(gestores)];
+            
+            uniqueGestores.forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                selectEl.appendChild(opt);
+            });
+            
+            // Auto-trigger KPI calculation once loaded to map the global view
+            calcularIndicadores();
+        }
+    }).catch(err => console.error("Error populating KPI gestores dropdown:", err));
+}
+
+async function calcularIndicadores() {
+    const gestorName = document.getElementById('kpiGestorSelect').value;
+    const periodo = document.getElementById('kpiPeriodoSelect').value;
+    const db = firebase.database();
+    
+    // Resetear listas de detalle
+    window.kpiTaskLists = { finalizadas: [], no_realizadas: [], pendientes: [] };
+    window.kpiBitacoraHTML = "";
+
+    // Limpiar UI anterior
+    document.getElementById('kpiResultsContainer').style.display = 'none';
+    
+    if (!gestorName) {
+        alert("Por favor, selecciona un gestor primero.");
+        return;
+    }
+    
+    const resultsContainer = document.getElementById('kpiResultsContainer');
+    resultsContainer.style.display = 'none'; // hide while loading
+    
+    const analyzeBtn = document.querySelector('button[onclick="calcularIndicadores()"]');
+    const originalBtnHTML = analyzeBtn ? analyzeBtn.innerHTML : null;
+    if (analyzeBtn) {
+        analyzeBtn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Analizando...";
+        analyzeBtn.disabled = true;
+    }
+    
+    let shiftReports = [];
+    try {
+        let snapshotReports, snapshotActive;
+        
+        if (gestorName === 'todos') {
+            snapshotReports = await database.ref('shift_reports').once('value');
+            snapshotActive = await database.ref('active_sessions').once('value');
+        } else {
+            snapshotReports = await database.ref('shift_reports').orderByChild('gestor').equalTo(gestorName).once('value');
+            snapshotActive = await database.ref('active_sessions').orderByChild('name').equalTo(gestorName).once('value');
+        }
+        
+        if (snapshotReports.exists()) {
+            const data = snapshotReports.val();
+            shiftReports = shiftReports.concat(Object.values(data));
+        }
+        
+        if (snapshotActive.exists()) {
+            const data = snapshotActive.val();
+            // Normalizar active_sessions para que coincida con el formato de shift_reports
+            const activeArr = Object.values(data).map(session => ({
+                ...session,
+                gestor: session.name, // Asegurar que exista el campo gestor
+                timestamp: typeof session.loginTime === 'string' ? new Date(session.loginTime).getTime() : session.loginTime
+            }));
+            shiftReports = shiftReports.concat(activeArr);
+        }
+    } catch(e) {
+        if (analyzeBtn) {
+            analyzeBtn.innerHTML = originalBtnHTML;
+            analyzeBtn.disabled = false;
+        }
+        console.error("Error cargando shift reports para KPIs", e);
+        alert("Hubo un error cargando los datos.");
+        return;
+    }
+    
+    if (shiftReports.length === 0) {
+        if (analyzeBtn) {
+            analyzeBtn.innerHTML = originalBtnHTML;
+            analyzeBtn.disabled = false;
+        }
+        alert(`No se encontraron turnos registrados para ${gestorName}.`);
+        return;
+    }
+    // Filtro por fecha
+    const now = Date.now();
+    
+    const getTimestamp = (r) => {
+        let t = r.timestamp || r.loginTime;
+        if (typeof t === 'string') return new Date(t).getTime();
+        return t;
+    };
+    
+    if (periodo === 'hoy') {
+        const hoyStart = new Date().setHours(0,0,0,0);
+        shiftReports = shiftReports.filter(r => { const t = getTimestamp(r); return t && t >= hoyStart; });
+    } else if (periodo === 'ayer') {
+        const hoyStart = new Date().setHours(0,0,0,0);
+        const ayerStart = hoyStart - (24 * 60 * 60 * 1000);
+        shiftReports = shiftReports.filter(r => { const t = getTimestamp(r); return t && t >= ayerStart && t < hoyStart; });
+    } else if (periodo === 'semanal') {
+        const unaSemanaAtras = now - (7 * 24 * 60 * 60 * 1000);
+        shiftReports = shiftReports.filter(r => { const t = getTimestamp(r); return t && t >= unaSemanaAtras; });
+    } else if (periodo === '30dias') {
+        const unMesAtras = now - (30 * 24 * 60 * 60 * 1000);
+        shiftReports = shiftReports.filter(r => { const t = getTimestamp(r); return t && t >= unMesAtras; });
+    } else if (periodo === 'mes') {
+        const esteMesStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+        shiftReports = shiftReports.filter(r => { const t = getTimestamp(r); return t && t >= esteMesStart; });
+    } else if (periodo === 'custom') {
+        const customDateStr = document.getElementById('kpiCustomDateInput').value;
+        if (customDateStr) {
+            const parts = customDateStr.split('-');
+            const customStart = new Date(parts[0], parts[1]-1, parts[2]).getTime();
+            const customEnd = customStart + 86400000;
+            shiftReports = shiftReports.filter(r => { const t = getTimestamp(r); return t && t >= customStart && t < customEnd; });
+        } else {
+            alert("Por favor selecciona una fecha específica en el calendario.");
+            return;
+        }
+    }
+    
+    if (shiftReports.length === 0) {
+        console.warn(`No hay reportes de turno para ${gestorName} en esta fecha/periodo.`);
+        // No hacer return, permitir que el código continúe para cargar los datos de Retiros
+    }
+
+    let totalFinalizadas = 0;
+    let totalNoRealizadas = 0;
+    let totalPendientes = 0;
+    let turnosAnalizados = shiftReports.length;
+    let totalMinutosConectados = 0;
+    let turnosValidosParaTiempo = 0;
+    
+    shiftReports.forEach(report => {
+        // Calcular duración del turno
+        if (report.horaInicio && report.horaFin) {
+            const baseMs = report.timestamp || report.loginTime || Date.now();
+            
+            const parseTime = (timeStr, baseDateMs) => {
+                if (typeof timeStr === 'string') {
+                    timeStr = timeStr.replace(/a\.\s*m\./i, 'AM').replace(/p\.\s*m\./i, 'PM');
+                }
+                let d = new Date(timeStr);
+                if (!isNaN(d.getTime())) return d.getTime();
+                
+                if (typeof timeStr === 'string' && timeStr.includes(':')) {
+                    const parts = timeStr.match(/(\d+):(\d+)/);
+                    if (parts) {
+                        const base = new Date(baseDateMs);
+                        let hours = parseInt(parts[1], 10);
+                        if (timeStr.toUpperCase().includes('PM') && hours < 12) hours += 12;
+                        if (timeStr.toUpperCase().includes('AM') && hours === 12) hours = 0;
+                        base.setHours(hours, parseInt(parts[2], 10), 0, 0);
+                        return base.getTime();
+                    }
+                }
+                return NaN;
+            };
+
+            const startMs = parseTime(report.horaInicio, baseMs);
+            const endMs = parseTime(report.horaFin, baseMs);
+            
+            if (!isNaN(startMs) && !isNaN(endMs)) {
+                let diffMins = (endMs - startMs) / 60000;
+                if (diffMins < 0) diffMins += 1440; // Cruzó la medianoche
+                
+                if (diffMins > 0 && diffMins <= 1440) {
+                    totalMinutosConectados += diffMins;
+                    turnosValidosParaTiempo++;
+                }
+            }
+        }
+
+        // Construir HTML de bitácora para el modal/tarjeta
+        const shiftDateStr = new Date(report.timestamp || report.loginTime || Date.now()).toLocaleDateString('es-CO');
+        let html = `<div style="background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">`;
+        html += `<div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">`;
+        html += `<div style="font-weight: 600; color: var(--accent-primary); font-size: 14px;"><i class='bx bx-calendar-event'></i> Turno del ${shiftDateStr}</div>`;
+        html += `<div style="font-size: 12px; color: var(--text-primary); background: var(--glass-border); padding: 5px 12px; border-radius: 20px; font-weight: 500;"><i class='bx bx-user'></i> ${report.gestor || 'Desconocido'}</div>`;
+        html += `</div>`;
+        
+        let horaI = report.horaInicio ? report.horaInicio : (report.loginTime ? new Date(report.loginTime).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'}) : 'N/A');
+        let horaF = report.horaFin || (report.status === "En Línea" ? "<span style='color:var(--success)'><i class='bx bx-radio-circle-marked bx-flashing'></i> En Curso</span>" : 'N/A');
+        
+        html += `<div style="display: flex; gap: 15px; font-size: 13px; color: var(--text-secondary); margin-bottom: 15px; flex-wrap: wrap;">`;
+        html += `<div style="background: var(--bg-primary); border: 1px solid var(--glass-border); padding: 8px 15px; border-radius: 8px;"><i class='bx bx-log-in-circle' style="color: var(--accent-primary);"></i> Ingreso: <span style="color: var(--text-primary); font-weight: 600;">${horaI}</span></div>`;
+        html += `<div style="background: var(--bg-primary); border: 1px solid var(--glass-border); padding: 8px 15px; border-radius: 8px;"><i class='bx bx-log-out-circle' style="color: var(--warning);"></i> Salida: <span style="color: var(--text-primary); font-weight: 600;">${horaF}</span></div>`;
+        html += `</div>`;
+
+        html += `<div style="display: flex; flex-direction: column; gap: 10px;">`;
+        
+        if (report.timeline && report.timeline.length > 0) {
+            report.timeline.forEach(ev => {
+                const s = new Date(ev.start).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'});
+                const eTime = ev.end ? new Date(ev.end).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'}) : "<span style='color:var(--warning)'>En Pausa</span>";
+                let icon = ev.type === 'Desayuno' ? "<i class='bx bx-coffee'></i>" : (ev.type === 'Almuerzo' ? "<i class='bx bx-restaurant'></i>" : "<i class='bx bx-time-five'></i>");
+                let color = ev.type === 'Desayuno' ? "var(--warning)" : (ev.type === 'Almuerzo' ? "var(--success)" : "var(--danger)");
+                let bgLight = ev.type === 'Desayuno' ? "var(--warning-bg)" : (ev.type === 'Almuerzo' ? "var(--success-bg)" : "var(--danger-bg)");
+                
+                html += `<div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-primary); padding: 12px 16px; border-radius: 10px; border-left: 4px solid ${color}; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">`;
+                html += `<div style="display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 13px; color: var(--text-primary);"><div style="background: ${bgLight}; color: ${color}; width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 16px;">${icon}</div> ${ev.type}</div>`;
+                html += `<div style="font-family: monospace; font-size: 12px; color: var(--text-primary); background: var(--bg-secondary); border: 1px solid var(--glass-border); padding: 5px 12px; border-radius: 8px; font-weight: 500;"><i class='bx bx-time' style="color: var(--text-secondary);"></i> ${s} - ${eTime}</div>`;
+                html += `</div>`;
+            });
+        } else if (report.reporte && report.reporte.includes("=== BITÁCORA DE TIEMPOS ===")) {
+            const parts = report.reporte.split("=== BITÁCORA DE TIEMPOS ===");
+            if (parts.length > 1) {
+                html += `<div style="font-family: monospace; font-size: 13px; color: var(--text-secondary); white-space: pre-wrap; background: var(--bg-primary); border: 1px solid var(--glass-border); padding: 15px; border-radius: 10px;">${parts[1].trim()}</div>`;
+            }
+        } else {
+            html += `<div style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 13px; background: var(--bg-primary); border-radius: 10px; border: 1px dashed var(--glass-border);"><i class='bx bx-info-circle' style="font-size: 18px; display: block; margin-bottom: 5px; opacity: 0.5;"></i> No se registraron pausas en este turno</div>`;
+        }
+        html += `</div></div>`;
+        
+        window.kpiBitacoraHTML = (window.kpiBitacoraHTML || "") + html;
+        
+        let tasks = report.tasks;
+        if (!tasks && report.reporte) {
+            tasks = {};
+            const regex = /\[\s*([A-Za-z_]+)\s*\]\s*-\s*([^\n]+)(?:\nObservación:\s*([^\n]+))?/g;
+            let match;
+            let i = 0;
+            while ((match = regex.exec(report.reporte)) !== null) {
+                tasks[`parsed_${i++}`] = {
+                    status: match[1].toLowerCase(),
+                    name: match[2].trim(),
+                    observation: match[3] ? match[3].trim() : 'N/A'
+                };
+            }
+        }
+        
+        if (!tasks) return;
+        
+        // Contar tareas
+        for (let taskId in tasks) {
+            const task = tasks[taskId];
+            const shiftDateStr = new Date(report.timestamp || report.loginTime || Date.now()).toLocaleDateString();
+            const taskObj = { name: task.name, date: shiftDateStr, type: task.type || 'N/A', observation: task.observation || 'N/A' };
+            
+            if (!task.status) continue;
+            const tStatus = task.status.toLowerCase().trim();
+            
+            if (tStatus === 'finalizada') {
+                totalFinalizadas++;
+                window.kpiTaskLists.finalizadas.push(taskObj);
+            } else if (tStatus === 'no_realizada' || tStatus === 'no realizada') {
+                totalNoRealizadas++;
+                window.kpiTaskLists.no_realizadas.push(taskObj);
+            } else if (tStatus === 'pendiente' || tStatus === 'en_proceso' || tStatus === 'en proceso') {
+                totalPendientes++;
+                window.kpiTaskLists.pendientes.push(taskObj);
+            }
+        }
+    });
+    
+    const totalTareas = totalFinalizadas + totalNoRealizadas + totalPendientes;
+    let porcentajeActividades = 0;
+    
+    if (totalTareas > 0) {
+        porcentajeActividades = (totalFinalizadas / totalTareas) * 100;
+    } else {
+        porcentajeActividades = 0; // Regla confirmada: 0% si no marcó nada
+    }
+    
+    porcentajeActividades = Math.round(porcentajeActividades);
+    
+    // Calcular Penalidad de Conectividad e Inactividad
+    let totalPenalidadConectividad = 0;
+    let totalInactividadMins = 0;
+    shiftReports.forEach(report => {
+        if (report.penalidadConectividadMins) {
+            // Regla confirmada: 1% menos por cada minuto sobrepasado
+            totalPenalidadConectividad += report.penalidadConectividadMins;
+        }
+        
+        if (report.inactividadTotalMins !== undefined) {
+            totalInactividadMins += report.inactividadTotalMins;
+        } else if (report.timeline && report.timeline.length > 0) {
+            // Fallback para reportes antiguos que no tienen inactividadTotalMins guardado
+            let fallbackMins = 0;
+            const now = Date.now();
+            report.timeline.forEach(ev => {
+                if (ev.type === 'Inactividad') {
+                    let eTime = ev.end ? ev.end : now;
+                    fallbackMins += (eTime - ev.start) / (1000 * 60);
+                }
+            });
+            totalInactividadMins += fallbackMins;
+        }
+    });
+    let diasTrabajados = shiftReports.length || 1;
+    let totalMinutosEsperados = diasTrabajados * 405; // 6:45 horas = 405 minutos por dia
+    let porcentajeInactividad = (totalInactividadMins / totalMinutosEsperados) * 100;
+    
+    let porcentajeConectividad = 100 - porcentajeInactividad;
+    porcentajeConectividad = Number(porcentajeConectividad.toFixed(2));
+    if (porcentajeConectividad < 0) porcentajeConectividad = 0;
+    if (porcentajeConectividad > 100) porcentajeConectividad = 100;
+
+    
+    // Aplicar penalidad de retiros si existe la data y llenar nuevas tarjetas
+    let penalidadRetiros = 0;
+    const cardRetiros = document.getElementById('kpiRetirosPenalidadCard');
+    const textPenalidad = document.getElementById('kpiPenalidadRetiros');
+    const textDemora = document.getElementById('kpiDemoraPromedioText');
+    const cardPagados = document.getElementById('kpiRetirosPagados');
+    const cardRechazados = document.getElementById('kpiRetirosRechazados');
+    const retirosCardsElements = document.querySelectorAll('.retiros-card');
+    
+    // Asegurar que controlOperativoRawData esté cargado
+    if (!window.controlOperativoRawData) {
+        try {
+            const resp = await fetch(`kpi_operativos_v2.json?v=${new Date().getTime()}`);
+            if (resp.ok) window.controlOperativoRawData = await resp.json();
+        } catch (e) {
+            console.error("Error al cargar datos de operativos", e);
+        }
+    }
+    
+    let finalStats = { totalAprobados: 0, totalRechazados: 0, montoProcesado: 0, minutosDemoraTotales: 0, retirosConTiempo: 0 };
+    
+    if (window.controlOperativoRawData) {
+        let targetDates = [];
+        const getLocalYYYYMMDD = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        const addDates = (d) => targetDates.push(getLocalYYYYMMDD(d));
+
+        if (periodo === 'hoy') {
+            addDates(todayStart);
+        } else if (periodo === 'ayer') {
+            addDates(new Date(todayStart.getTime() - 86400000));
+        } else if (periodo === 'semanal') {
+            for(let i=0; i<7; i++) addDates(new Date(todayStart.getTime() - (i * 86400000)));
+        } else if (periodo === '30dias') {
+            for(let i=0; i<30; i++) addDates(new Date(todayStart.getTime() - (i * 86400000)));
+        } else if (periodo === 'mes') {
+            for(let i=1; i<=31; i++){
+                const dt = new Date(todayStart.getFullYear(), todayStart.getMonth(), i);
+                if (dt.getMonth() === todayStart.getMonth() && dt <= todayStart) addDates(dt);
+            }
+        } else if (periodo === 'custom') {
+            const customDateStr = document.getElementById('kpiCustomDateInput').value;
+            if (customDateStr) targetDates.push(customDateStr);
+        }
+        
+        const gestoresToCheck = gestorName === 'todos' ? Object.keys(window.controlOperativoRawData) : [gestorName];
+        
+        for (let g of gestoresToCheck) {
+            if (!window.controlOperativoRawData[g]) continue; 
+            
+            for (let f in window.controlOperativoRawData[g]) {
+                if (periodo !== 'general' && !targetDates.includes(f)) continue;
+                
+                const dayData = window.controlOperativoRawData[g][f];
+                finalStats.totalAprobados += dayData.Retiros_Aprobados || 0;
+                finalStats.totalRechazados += dayData.Retiros_Rechazados || 0;
+                finalStats.minutosDemoraTotales += (dayData.Tiempo_Total_Desde_Creacion_Segundos || 0) / 60;
+                finalStats.retirosConTiempo += dayData.Retiros_Procesados || 0;
+            }
+        }
+    }
+
+    if (cardPagados) cardPagados.textContent = finalStats.totalAprobados;
+    if (cardRechazados) cardRechazados.textContent = finalStats.totalRechazados;
+    
+    if (finalStats.retirosConTiempo > 0) {
+        const avgDemoraMins = finalStats.minutosDemoraTotales / finalStats.retirosConTiempo;
+        
+        // Penalidad: si el promedio supera los 15 minutos, restar 1% por cada minuto extra (max 30% de penalidad)
+        if (avgDemoraMins > 15) {
+            penalidadRetiros = Math.floor(avgDemoraMins - 15);
+            if (penalidadRetiros > 30) penalidadRetiros = 30; // Cap
+        }
+        
+        if (cardRetiros) cardRetiros.style.display = 'flex';
+        if (textPenalidad) textPenalidad.textContent = `-${penalidadRetiros}%`;
+        if (textDemora) textDemora.textContent = `Promedio: ${Math.round(avgDemoraMins)} min / ${finalStats.retirosConTiempo} retiros`;
+    } else {
+        if (cardRetiros) cardRetiros.style.display = 'none';
+    }
+    
+    let porcentajeRetiros = 100 - penalidadRetiros;
+    if (porcentajeRetiros < 0) porcentajeRetiros = 0;
+    
+    // SIEMPRE mostrar las tarjetas de retiros base, independientemente de si hay datos (excluyendo la de penalidad que es dinámica)
+    retirosCardsElements.forEach(el => el.style.display = 'flex');
+    
+    // Calcular promedio de horas y minutos
+    let promedioHoras = 0;
+    let promedioMinutosRestantes = 0;
+    if (turnosValidosParaTiempo > 0) {
+        const avgMinutosTotales = totalMinutosConectados / turnosValidosParaTiempo;
+        promedioHoras = Math.floor(avgMinutosTotales / 60);
+        promedioMinutosRestantes = Math.round(avgMinutosTotales % 60);
+    }
+    
+    // Update DOM
+    document.getElementById('kpiTotalFinalizadas').textContent = totalFinalizadas;
+    document.getElementById('kpiTotalNoRealizadas').textContent = totalNoRealizadas;
+    document.getElementById('kpiTotalPendientes').textContent = totalPendientes;
+    document.getElementById('kpiTurnosAnalizados').textContent = turnosAnalizados;
+    document.getElementById('kpiDuracionPromedio').textContent = turnosValidosParaTiempo > 0 ? `${promedioHoras}h ${promedioMinutosRestantes}m` : 'N/A';
+    
+    // Inactividad
+    let inactividadHoras = Math.floor(totalInactividadMins / 60);
+    let inactividadMinutos = Math.round(totalInactividadMins % 60);
+    let inactividadStr = totalInactividadMins > 0 ? `${inactividadHoras}h ${inactividadMinutos}m` : '0h 0m';
+    if(document.getElementById('kpiTiempoInactivo')) {
+        document.getElementById('kpiTiempoInactivo').textContent = inactividadStr;
+    }
+    
+    // Mostrar Bitácora integrada
+    const cardBitacora = document.getElementById('kpiBitacoraInlineCard');
+    const listBitacora = document.getElementById('kpiBitacoraInlineList');
+    if (cardBitacora && listBitacora) {
+        if (window.kpiBitacoraHTML && window.kpiBitacoraHTML.trim() !== '') {
+            listBitacora.innerHTML = window.kpiBitacoraHTML;
+            cardBitacora.style.display = 'flex';
+        } else {
+            cardBitacora.style.display = 'none';
+        }
+    }
+    
+    // Animar anillos independientes
+    const animateRing = (ringId, textId, badgeId, percentage) => {
+        const ring = document.getElementById(ringId);
+        const textPercent = document.getElementById(textId);
+        const badge = document.getElementById(badgeId);
+        if(!ring || !textPercent || !badge) return;
+        
+        const circumference = 251.2;
+        const offset = circumference - (percentage / 100) * circumference;
+        
+        ring.style.transition = 'none';
+        ring.style.strokeDashoffset = circumference;
+        
+        setTimeout(() => {
+            ring.style.transition = 'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)';
+            ring.style.strokeDashoffset = offset;
+            textPercent.textContent = percentage + '%';
+            
+            if (percentage >= 90) {
+                ring.style.stroke = 'var(--success)';
+                badge.style.background = 'rgba(16, 185, 129, 0.2)';
+                badge.style.color = 'var(--success)';
+                badge.textContent = 'Óptimo';
+            } else if (percentage >= 75) {
+                ring.style.stroke = 'var(--warning)';
+                badge.style.background = 'rgba(245, 158, 11, 0.2)';
+                badge.style.color = 'var(--warning)';
+                badge.textContent = 'Aceptable';
+            } else {
+                ring.style.stroke = 'var(--danger)';
+                badge.style.background = 'rgba(239, 68, 68, 0.2)';
+                badge.style.color = 'var(--danger)';
+                badge.textContent = 'Crítico';
+            }
+        }, 50);
+    };
+
+    animateRing('kpiScoreRingActividades', 'kpiScoreTextActividades', 'kpiVerdictBadgeActividades', porcentajeActividades);
+    animateRing('kpiScoreRingConectividad', 'kpiScoreTextConectividad', 'kpiVerdictBadgeConectividad', porcentajeConectividad);
+    animateRing('kpiScoreRingRetiros', 'kpiScoreTextRetiros', 'kpiVerdictBadgeRetiros', porcentajeRetiros);
+    
+    resultsContainer.style.display = 'flex';
+    if (analyzeBtn) {
+        analyzeBtn.innerHTML = originalBtnHTML;
+        analyzeBtn.disabled = false;
+    }
+}
+
+// Modal de Detalle de Tareas (KPIs)
+function openKpiTaskDetails(tipo) {
+    const modal = document.getElementById('kpiTaskDetailsModal');
+    const title = document.getElementById('kpiModalTitle');
+    const icon = document.getElementById('kpiModalIcon');
+    const list = document.getElementById('kpiModalTaskList');
+    
+    if (!window.kpiTaskLists) return;
+    
+    const tasks = window.kpiTaskLists[tipo] || [];
+    
+    // Configurar cabecera
+    if (tipo === 'finalizadas') {
+        title.textContent = 'Tareas Finalizadas';
+        icon.className = 'bx bx-check-double';
+        icon.style.color = 'var(--success)';
+    } else if (tipo === 'no_realizadas') {
+        title.textContent = 'Tareas No Realizadas';
+        icon.className = 'bx bx-x-circle';
+        icon.style.color = 'var(--danger)';
+    } else if (tipo === 'pendientes') {
+        title.textContent = 'Tareas Pendientes';
+        icon.className = 'bx bx-time';
+        icon.style.color = 'var(--warning)';
+    }
+    
+    list.innerHTML = '';
+    
+    if (tasks.length === 0) {
+        list.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 20px;">No hay tareas en este estado.</div>';
+    } else {
+        tasks.forEach(t => {
+            const tTypeColor = t.type === 'adicional' ? 'var(--warning)' : 'var(--accent-primary)';
+            const tTypeBadge = `<span style="font-size: 10px; background: ${tTypeColor}20; color: ${tTypeColor}; padding: 2px 6px; border-radius: 10px; margin-left: 8px;">${t.type === 'adicional' ? 'Adicional' : 'Set'}</span>`;
+            
+            list.innerHTML += `
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); padding: 10px 15px; border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="font-size: 13px; color: var(--text-primary); font-weight: 500;">
+                            ${t.name}
+                            ${tTypeBadge}
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-secondary);">
+                            <i class='bx bx-calendar'></i> ${t.date}
+                        </div>
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-secondary); background: rgba(0,0,0,0.2); padding: 6px 10px; border-radius: 4px; border-left: 2px solid ${tTypeColor};">
+                        <strong>Nota:</strong> ${t.observation}
+                    </div>
+                </div>
+            `;
+        });
+    }
+    
+    modal.classList.add('active');
+}
+
+function closeKpiTaskDetails() {
+    document.getElementById('kpiTaskDetailsModal').classList.remove('active');
+}
+
+// Inicialización al cargar el DOM
+document.addEventListener('DOMContentLoaded', () => {
+    preloadCronograma();
+    loadRetirosData();
+    // Iniciar Módulo de Comunicados
+    initComunicadosListener();
+    
+    // Restaurar botones de pausas
+    const btnLunch = document.getElementById('toggleLunchBtn');
+    if (btnLunch && isLunchBreak) {
+        btnLunch.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Almuerzo/Cena";
+        btnLunch.classList.remove('btn-outline');
+        btnLunch.style.backgroundColor = "rgba(0, 188, 212, 0.15)";
+        btnLunch.style.color = "#00bcd4";
+        btnLunch.style.borderColor = "rgba(0, 188, 212, 0.5)";
+        btnLunch.style.boxShadow = "0 0 15px rgba(0, 188, 212, 0.2)";
+    }
+    const btnBreak = document.getElementById('toggleBreakfastBtn');
+    if (btnBreak && isBreakfastBreak) {
+        btnBreak.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Desayuno";
+        btnBreak.classList.remove('btn-outline');
+        btnBreak.style.backgroundColor = "rgba(255, 152, 0, 0.15)";
+        btnBreak.style.color = "#ff9800";
+        btnBreak.style.borderColor = "rgba(255, 152, 0, 0.5)";
+        btnBreak.style.boxShadow = "0 0 15px rgba(255, 152, 0, 0.2)";
+    }
+    
+    const periodoSelect = document.getElementById('kpiPeriodoSelect');
+    if (periodoSelect) {
+        periodoSelect.addEventListener('change', function(e) {
+            const customInput = document.getElementById('kpiCustomDateInput');
+            const customContainer = document.getElementById('kpiCustomDateContainer');
+            if (customInput) {
+                customInput.style.display = e.target.value === 'custom' ? 'block' : 'none';
+            }
+            if (customContainer) {
+                customContainer.style.display = e.target.value === 'custom' ? 'block' : 'none';
+            }
+        });
+    }
+});
+
+// Window clicks para cerrar modales
+window.onclick = function(event) {
+    const modalPermiso = document.getElementById('permisoModal');
+    if (event.target == modalPermiso) {
+        cerrarModalPermiso();
+    }
+    
+    const taskDetailsModal = document.getElementById('kpiTaskDetailsModal');
+    if (event.target == taskDetailsModal) {
+        closeKpiTaskDetails();
+    }
+};
+
+// Cerrar modales con la tecla Escape
+window.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const activeModals = document.querySelectorAll('.modal-overlay.active');
+        activeModals.forEach(modal => {
+            modal.classList.remove('active');
+        });
+    }
+});
+
+// --- MÓDULO DE COMUNICADOS ---
+let globalComunicados = {};
+
+function initComunicadosListener() {
+    database.ref('announcements').on('value', snapshot => {
+        globalComunicados = snapshot.val() || {};
+        updateUnreadBadge();
+        checkUnreadUrgentAnnouncements();
+        
+        // Re-render views if they are open
+        const viewGestor = document.getElementById('view-comunicados');
+        if (viewGestor && viewGestor.style.display === 'block') {
+            renderGestorComunicados();
+        }
+        
+        const viewAdmin = document.getElementById('view-gestion-comunicados');
+        if (viewAdmin && viewAdmin.style.display === 'block') {
+            renderAdminComunicados();
+        }
+    });
+}
+
+function openNewComunicadoModal() {
+    document.getElementById('comunicadoTitle').value = '';
+    document.getElementById('comunicadoContent').innerHTML = '';
+    document.getElementById('newComunicadoModal').classList.add('active');
+}
+
+async function saveNewComunicado() {
+    const title = document.getElementById('comunicadoTitle').value.trim();
+    const content = document.getElementById('comunicadoContent').innerHTML.trim();
+    
+    if (!title || !content) {
+        alert("Por favor llena todos los campos.");
+        return;
+    }
+    
+    try {
+        const newRef = database.ref('announcements').push();
+        await newRef.set({
+            title: title,
+            content: content,
+            date: new Date().toISOString(),
+            author: currentUser.name || 'Admin',
+            readBy: {}
+        });
+        
+        alert("Comunicado publicado exitosamente.");
+        closeModal('newComunicadoModal');
+    } catch(e) {
+        console.error(e);
+        alert("Error al publicar.");
+    }
+}
+
+function updateUnreadBadge() {
+    if (!currentUser || currentUser.role === 'Admin' || currentUser.role === 'Supervisor') {
+        const badge = document.getElementById('unreadAnnouncementsBadge');
+        if (badge) badge.style.display = 'none';
+        return;
+    }
+    
+    let unreadCount = 0;
+    const uid = (currentUser && currentUser.uid) ? currentUser.uid : (firebase.auth().currentUser ? firebase.auth().currentUser.uid : 'unknown');
+    
+    Object.keys(globalComunicados).forEach(key => {
+        const c = globalComunicados[key];
+        if (!c.readBy || !c.readBy[uid]) {
+            unreadCount++;
+        }
+    });
+    
+    const badge = document.getElementById('unreadAnnouncementsBadge');
+    if (badge) {
+        if (unreadCount > 0) {
+            badge.textContent = unreadCount;
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+}
+
+function renderGestorComunicados() {
+    const list = document.getElementById('gestorComunicadosList');
+    if (!list) return;
+    
+    list.innerHTML = '';
+    const keys = Object.keys(globalComunicados).sort((a,b) => {
+        return new Date(globalComunicados[b].date) - new Date(globalComunicados[a].date);
+    });
+    
+    if (keys.length === 0) {
+        list.innerHTML = `<div class="glass-panel" style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay comunicados activos.</div>`;
+        return;
+    }
+    
+    const uid = (currentUser && currentUser.uid) ? currentUser.uid : (firebase.auth().currentUser ? firebase.auth().currentUser.uid : 'unknown');
+    
+    keys.forEach(key => {
+        const c = globalComunicados[key];
+        const isRead = c.readBy && c.readBy[uid];
+        const formattedDate = new Date(c.date).toLocaleString('es-CO');
+        
+        let actionsHtml = '';
+        if (isRead) {
+            actionsHtml = `<div style="color: var(--success); font-size: 13px; margin-top: 15px; font-weight: 500;"><i class='bx bx-check-double'></i> Leído el ${new Date(c.readBy[uid].readAt).toLocaleString('es-CO')}</div>`;
+        } else {
+            actionsHtml = `<button class="btn btn-primary" style="margin-top: 15px; width: 100%; max-width: 300px; background: var(--success); border-color: var(--success);" onclick="markComunicadoAsRead('${key}')"><i class='bx bx-check'></i> Marcar como Leído y Entendido</button>`;
+        }
+        
+        list.innerHTML += `
+            <div class="glass-panel" style="padding: 20px; border-left: 4px solid ${isRead ? 'var(--glass-border)' : 'var(--danger)'};">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                    <h3 style="color: ${isRead ? 'var(--text-primary)' : 'var(--danger)'}; margin: 0; font-size: 18px;">${c.title}</h3>
+                    <span style="font-size: 11px; color: var(--text-secondary); background: rgba(0,0,0,0.1); padding: 3px 8px; border-radius: 10px;">${formattedDate} por ${c.author}</span>
+                </div>
+                <div class="rich-text" style="font-size: 14px; color: var(--text-secondary); margin-top: 10px; line-height: 1.5; overflow-wrap: break-word;">${c.content}</div>
+                ${actionsHtml}
+            </div>
+        `;
+    });
+}
+
+async function markComunicadoAsRead(id) {
+    try {
+        const uid = (currentUser && currentUser.uid) ? currentUser.uid : (firebase.auth().currentUser ? firebase.auth().currentUser.uid : 'unknown');
+        await database.ref(`announcements/${id}/readBy/${uid}`).set({
+            name: currentUser.name,
+            readAt: new Date().toISOString()
+        });
+    } catch(e) {
+        console.error(e);
+        alert("Error al marcar como leído.");
+    }
+}
+
+function checkUnreadUrgentAnnouncements() {
+    if (!currentUser || !currentUser.uid) return;
+    const uid = currentUser.uid;
+    
+    const modal = document.getElementById('urgentAnnouncementModal');
+    if (modal && modal.classList.contains('active')) return;
+    
+    const keys = Object.keys(globalComunicados).sort((a,b) => {
+        return new Date(globalComunicados[a].date) - new Date(globalComunicados[b].date);
+    });
+    
+    for (let key of keys) {
+        const c = globalComunicados[key];
+        const isRead = c.readBy && c.readBy[uid];
+        
+        if (!isRead) {
+            document.getElementById('urgentAnnouncementTitle').innerText = c.title;
+            document.getElementById('urgentAnnouncementAuthor').innerText = c.author;
+            document.getElementById('urgentAnnouncementDate').innerText = new Date(c.date).toLocaleString('es-CO');
+            document.getElementById('urgentAnnouncementBody').innerHTML = c.content;
+            
+            const btn = document.getElementById('btnUrgentUnderstand');
+            btn.onclick = () => markUrgentComunicadoAsRead(key);
+            
+            modal.classList.add('active');
+            return;
+        }
+    }
+}
+
+async function markUrgentComunicadoAsRead(id) {
+    const btn = document.getElementById('btnUrgentUnderstand');
+    btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Registrando...";
+    btn.disabled = true;
+    
+    try {
+        await markComunicadoAsRead(id);
+        
+        document.getElementById('urgentAnnouncementModal').classList.remove('active');
+        btn.innerHTML = "<i class='bx bx-check-double'></i> He leído y entendido este comunicado";
+        btn.disabled = false;
+        
+        setTimeout(() => {
+            checkUnreadUrgentAnnouncements();
+        }, 500);
+        
+    } catch(e) {
+        btn.innerHTML = "<i class='bx bx-check-double'></i> He leído y entendido este comunicado";
+        btn.disabled = false;
+    }
+}
+
+function renderAdminComunicados() {
+    const tbody = document.getElementById('adminComunicadosTableBody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    const keys = Object.keys(globalComunicados).sort((a,b) => {
+        return new Date(globalComunicados[b].date) - new Date(globalComunicados[a].date);
+    });
+    
+    if (keys.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay comunicados creados.</td></tr>`;
+        return;
+    }
+    
+    keys.forEach(key => {
+        const c = globalComunicados[key];
+        const formattedDate = new Date(c.date).toLocaleString('es-CO');
+        const readCount = c.readBy ? Object.keys(c.readBy).length : 0;
+        
+        tbody.innerHTML += `
+            <tr style="border-bottom: 1px solid var(--glass-border);">
+                <td style="padding: 12px; font-size: 13px;">${formattedDate}</td>
+                <td style="padding: 12px; font-weight: 500;">
+                    <a href="javascript:void(0)" onclick="viewComunicadoContent('${key}')" style="color: var(--accent-primary); text-decoration: none; cursor: pointer; transition: color 0.2s;" onmouseover="this.style.textDecoration='underline'; this.style.color='var(--text-primary)'" onmouseout="this.style.textDecoration='none'; this.style.color='var(--accent-primary)'">${c.title}</a>
+                </td>
+                <td style="padding: 12px; color: var(--text-secondary); font-size: 13px;">${c.author}</td>
+                <td style="padding: 12px; text-align: center;"><span class="badge" style="background: var(--success);">${readCount} lecturas</span></td>
+                <td style="padding: 12px; text-align: center;">
+                    <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px;" onclick="viewComunicadoContent('${key}')"><i class='bx bx-book-open'></i> Leer</button>
+                    <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px; margin-left: 5px;" onclick="viewComunicadoLecturas('${key}')"><i class='bx bx-user-check'></i> Lecturas</button>
+                    <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px; margin-left: 5px;" onclick="deleteComunicado('${key}')"><i class='bx bx-trash'></i></button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+function viewComunicadoContent(id) {
+    const c = globalComunicados[id];
+    if (!c) return;
+    
+    document.getElementById('viewComunicadoContentTitle').innerText = c.title;
+    document.getElementById('viewComunicadoContentAuthor').innerText = c.author;
+    document.getElementById('viewComunicadoContentDate').innerText = new Date(c.date).toLocaleString('es-CO');
+    document.getElementById('viewComunicadoContentBody').innerHTML = c.content;
+    
+    document.getElementById('viewComunicadoContentModal').classList.add('active');
+}
+
+async function viewComunicadoLecturas(id) {
+    const c = globalComunicados[id];
+    if (!c) return;
+    
+    document.getElementById('comunicadoLecturasModal').classList.add('active');
+    const readList = document.getElementById('comunicadoReadList');
+    const unreadList = document.getElementById('comunicadoUnreadList');
+    
+    readList.innerHTML = '';
+    unreadList.innerHTML = '<li style="color: var(--text-secondary);">Cargando usuarios...</li>';
+    
+    // Poblar leídos
+    const readers = c.readBy || {};
+    const readerUids = Object.keys(readers).sort((a,b) => new Date(readers[b].readAt) - new Date(readers[a].readAt));
+    
+    const readNames = new Set();
+    if (readerUids.length === 0) {
+        readList.innerHTML = '<li style="color: var(--text-secondary); margin-bottom: 5px;">Nadie ha leído esto aún.</li>';
+    } else {
+        readerUids.forEach(uid => {
+            const r = readers[uid];
+            if (r.name) readNames.add(r.name.trim().toLowerCase());
+            readList.innerHTML += `<li style="margin-bottom: 8px; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-weight: 500; font-size: 13px;">${r.name}</div>
+                <div style="font-size: 11px; color: var(--text-secondary);">${new Date(r.readAt).toLocaleString('es-CO')}</div>
+            </li>`;
+        });
+    }
+    
+    // Fetch all active gestores to find who hasn't read
+    try {
+        const snap = await database.ref('users').once('value');
+        if (snap.exists()) {
+            const allUsers = snap.val();
+            unreadList.innerHTML = '';
+            
+            let unreadCount = 0;
+            Object.keys(allUsers).forEach(uKey => {
+                const u = allUsers[uKey];
+                // Solo listamos como pendientes a los gestores aprobados
+                if (u.approved === true && (u.role === 'Gestor' || u.role === undefined)) {
+                    const uName = (u.name || '').trim().toLowerCase();
+                    // Verificar que el UID no haya leído Y que el nombre no esté en la lista de los que ya leyeron (evita duplicados de cuentas)
+                    if (!readers[uKey] && !readNames.has(uName)) {
+                        unreadCount++;
+                        unreadList.innerHTML += `<li style="margin-bottom: 8px; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;">
+                            <div style="font-weight: 500; color: var(--danger); font-size: 13px;"><i class='bx bx-x'></i> ${u.name || 'Sin nombre'}</div>
+                        </li>`;
+                        // Añadimos el nombre al set para evitar imprimir al mismo usuario varias veces si tiene múltiples cuentas viejas
+                        if (uName) readNames.add(uName);
+                    }
+                }
+            });
+            
+            if (unreadCount === 0) {
+                unreadList.innerHTML = '<li style="color: var(--success); margin-bottom: 5px; text-align: center; font-weight: 500;"><i class="bx bx-check-double"></i> ¡Todos han leído!</li>';
+            }
+        }
+    } catch(e) {
+        console.error(e);
+        unreadList.innerHTML = '<li style="color: var(--danger);">Error al cargar usuarios.</li>';
+    }
+}
+
+let pendingDeleteComunicadoId = null;
+
+function deleteComunicado(id) {
+    pendingDeleteComunicadoId = id;
+    document.getElementById('confirmDeleteModal').classList.add('active');
+}
+
+document.getElementById('confirmDeleteBtn')?.addEventListener('click', async () => {
+    if (!pendingDeleteComunicadoId) return;
+    
+    const btn = document.getElementById('confirmDeleteBtn');
+    const prevText = btn.innerHTML;
+    btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Eliminando...";
+    btn.disabled = true;
+    
+    try {
+        await database.ref('announcements/' + pendingDeleteComunicadoId).remove();
+        closeModal('confirmDeleteModal');
+    } catch(e) {
+        console.error(e);
+        alert("No se pudo eliminar.");
+    } finally {
+        btn.innerHTML = prevText;
+        btn.disabled = false;
+        pendingDeleteComunicadoId = null;
+    }
+});
+
+// ==========================================
+// CONTROL OPERATIVO Y EFICIENCIA EN RETIROS
+// ==========================================
+let controlOperativoCharts = {};
+
+function destroyChart(id) {
+    if (controlOperativoCharts[id]) {
+        controlOperativoCharts[id].destroy();
+        delete controlOperativoCharts[id];
+    }
+}
+
+window.controlOperativoRawData = null;
+
+function toggleOperativoCustomDates() {
+    const val = document.getElementById('filtroFechaOperativo').value;
+    const container = document.getElementById('operativoCustomDateContainer');
+    if (val === 'custom') {
+        container.style.display = 'flex';
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+async function loadControlOperativoData() {
+    try {
+        const response = await fetch('kpi_operativos_v2.json?' + new Date().getTime());
+        if (!response.ok) throw new Error("No se pudo cargar kpi_operativos_v2.json");
+        const data = await response.json();
+        window.controlOperativoRawData = data;
+        
+        // Merge Inactividad from Firebase shift_reports
+        try {
+            if (window.database) {
+                // Ensure kpiUsersData is populated
+                if (!window.kpiUsersData || Object.keys(window.kpiUsersData).length === 0) {
+                    const usersSnap = await window.database.ref('users').once('value');
+                    if (usersSnap.exists()) {
+                        window.kpiUsersData = {};
+                        Object.values(usersSnap.val()).forEach(u => {
+                            if (u && u.email && u.name) {
+                                window.kpiUsersData[u.email.toLowerCase()] = u.name.trim();
+                            }
+                        });
+                    }
+                }
+                
+                const snapshot = await window.database.ref('shift_reports').once('value');
+                if (snapshot.exists()) {
+                    const shifts = snapshot.val();
+                    Object.values(shifts).forEach(report => {
+                        if (!report.email || !report.date) return;
+                        
+                        // Find gestor name from email using kpiUsersData
+                        const email = report.email.toLowerCase();
+                        const gestorName = window.kpiUsersData && window.kpiUsersData[email] ? window.kpiUsersData[email] : null;
+                        
+                        if (gestorName) {
+                            // Encontrar el nombre real en controlOperativoRawData ignorando mayúsculas y acentos
+                            const rawKeys = Object.keys(window.controlOperativoRawData);
+                            const searchName = gestorName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                            let realGestor = rawKeys.find(k => k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === searchName);
+                            
+                            // Fallback: Si no coincide exacto, buscar si contiene al menos el primer nombre y apellido
+                            if (!realGestor) {
+                                const parts = searchName.split(' ');
+                                if (parts.length >= 2) {
+                                    realGestor = rawKeys.find(k => {
+                                        const normK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                                        return normK.includes(parts[0]) && normK.includes(parts[1]);
+                                    });
+                                }
+                            }
+                            
+                            if (realGestor && window.controlOperativoRawData[realGestor]) {
+                                // Ensure date object exists
+                            if (!window.controlOperativoRawData[realGestor][report.date]) {
+                                window.controlOperativoRawData[realGestor][report.date] = {
+                                    Dias_Laborados: 0,
+                                    Minutos_Inactividad_Total: 0,
+                                    Retiros_Procesados: 0,
+                                    Retiros_Aprobados: 0,
+                                    Retiros_Rechazados: 0,
+                                    ART_Desde_Creacion_Minutos: 0
+                                };
+                            }
+                            
+                            // Calculate inactivity for this report
+                            let inactMins = 0;
+                            if (report.inactividadTotalMins !== undefined) {
+                                inactMins = report.inactividadTotalMins;
+                            } else if (report.timeline && report.timeline.length > 0) {
+                                const now = Date.now();
+                                report.timeline.forEach(ev => {
+                                    if (ev.type === 'Inactividad') {
+                                        let eTime = ev.end ? ev.end : now;
+                                        inactMins += (eTime - ev.start) / (1000 * 60);
+                                    }
+                                });
+                            }
+                            
+                            // Add to raw data
+                            window.controlOperativoRawData[realGestor][report.date].Minutos_Inactividad_Total = (window.controlOperativoRawData[realGestor][report.date].Minutos_Inactividad_Total || 0) + inactMins;
+                            }
+                        }
+                    });
+                }
+            }
+        } catch (fbErr) {
+            console.error("Error fetching shift_reports for inactivity:", fbErr);
+        }
+        
+        // Populate dropdowns
+        const gestores = Object.keys(data).sort();
+        const selectGestor = document.getElementById('filtroGestorOperativo');
+        selectGestor.innerHTML = '<option value="Todos">Todos los gestores</option>';
+        gestores.forEach(g => {
+            const opt = document.createElement('option');
+            opt.value = g;
+            opt.textContent = g;
+            selectGestor.appendChild(opt);
+        });
+        
+        renderControlOperativoFiltered();
+    } catch (error) {
+        console.error("Error loading Control Operativo:", error);
+        alert("Error cargando datos operativos. Detalle: " + error.message);
+    }
+}
+
+function renderControlOperativoFiltered() {
+    if (!window.controlOperativoRawData) return;
+    
+    const selectedGestor = document.getElementById('filtroGestorOperativo').value;
+    const selectedFecha = document.getElementById('filtroFechaOperativo').value;
+    
+    const getLocalYYYYMMDD = (d) => {
+        const tzOffset = d.getTimezoneOffset() * 60000;
+        return new Date(d.getTime() - tzOffset).toISOString().split('T')[0];
+    };
+    
+    const todayStr = getLocalYYYYMMDD(new Date());
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = getLocalYYYYMMDD(yesterday);
+    
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoStr = getLocalYYYYMMDD(sevenDaysAgo);
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysAgoStr = getLocalYYYYMMDD(thirtyDaysAgo);
+    
+    const thisMonth = todayStr.substring(0, 7);
+    
+    const lastMonthDate = new Date();
+    lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
+    const lastMonth = getLocalYYYYMMDD(lastMonthDate).substring(0, 7);
+
+    const customStart = document.getElementById('operativoDateStart')?.value;
+    const customEnd = document.getElementById('operativoDateEnd')?.value;
+    
+    // Aggregation logic
+    let aggregatedData = {};
+    
+    for (const gestor in window.controlOperativoRawData) {
+        if (selectedGestor !== 'Todos' && gestor !== selectedGestor) continue;
+        
+        aggregatedData[gestor] = {
+            Retiros_Aprobados: 0,
+            Retiros_Rechazados: 0,
+            Tiempo_Total_Desde_Creacion_Segundos: 0,
+            Retiros_Con_Fuga: 0,
+            Dias_Tarde: 0,
+            Minutos_Tarde_Total: 0,
+            Minutos_Inactividad_Total: 0,
+            Dias_Laborados: 0
+        };
+        
+        for (const fecha in window.controlOperativoRawData[gestor]) {
+            let inRange = false;
+            if (selectedFecha === 'Todas') {
+                inRange = true;
+            } else if (selectedFecha === 'today' && fecha === todayStr) {
+                inRange = true;
+            } else if (selectedFecha === 'yesterday' && fecha === yesterdayStr) {
+                inRange = true;
+            } else if (selectedFecha === '7' && fecha >= sevenDaysAgoStr && fecha <= todayStr) {
+                inRange = true;
+            } else if (selectedFecha === '30' && fecha >= thirtyDaysAgoStr && fecha <= todayStr) {
+                inRange = true;
+            } else if (selectedFecha === 'thisMonth' && fecha.startsWith(thisMonth)) {
+                inRange = true;
+            } else if (selectedFecha === 'lastMonth' && fecha.startsWith(lastMonth)) {
+                inRange = true;
+            } else if (selectedFecha === 'custom') {
+                if (customStart && customEnd) {
+                    if (fecha >= customStart && fecha <= customEnd) inRange = true;
+                } else if (customStart) {
+                    if (fecha >= customStart) inRange = true;
+                } else if (customEnd) {
+                    if (fecha <= customEnd) inRange = true;
+                } else {
+                    inRange = true;
+                }
+            }
+            
+            if (!inRange) continue;
+            
+            const d = window.controlOperativoRawData[gestor][fecha];
+            aggregatedData[gestor].Retiros_Aprobados += d.Retiros_Aprobados || 0;
+            aggregatedData[gestor].Retiros_Rechazados += d.Retiros_Rechazados || 0;
+            aggregatedData[gestor].Tiempo_Total_Desde_Creacion_Segundos += d.Tiempo_Total_Desde_Creacion_Segundos || 0;
+            aggregatedData[gestor].Retiros_Con_Fuga += d.Retiros_Con_Fuga || 0;
+            aggregatedData[gestor].Dias_Tarde += d.Dias_Tarde || 0;
+            aggregatedData[gestor].Minutos_Tarde_Total += d.Minutos_Tarde_Total || 0;
+            aggregatedData[gestor].Minutos_Inactividad_Total += d.Minutos_Inactividad_Total || 0;
+            aggregatedData[gestor].Dias_Laborados += d.Dias_Laborados || 0;
+        }
+    }
+    
+    // Calculate final metrics per gestor
+    for (const gestor in aggregatedData) {
+        const d = aggregatedData[gestor];
+        const dl = d.Dias_Laborados > 0 ? d.Dias_Laborados : 1;
+        
+        d.Prom_Minutos_Tarde = Math.round((d.Minutos_Tarde_Total / dl) * 100) / 100;
+        d.Prom_Inactividad_Diaria = Math.round((d.Minutos_Inactividad_Total / dl) * 100) / 100;
+        d.Retiros_Procesados = d.Retiros_Aprobados + d.Retiros_Rechazados;
+        d.ART_Desde_Creacion_Minutos = d.Retiros_Procesados > 0 ? Math.round((d.Tiempo_Total_Desde_Creacion_Segundos / d.Retiros_Procesados) / 60 * 100) / 100 : 0;
+        d.Porcentaje_Fuga = d.Retiros_Aprobados > 0 ? Math.round((d.Retiros_Con_Fuga / d.Retiros_Aprobados) * 100 * 100) / 100 : 0;
+    }
+    
+    // Render table
+    const tbody = document.querySelector('#tablaResumenOperativo tbody');
+    tbody.innerHTML = '';
+    
+    let globalProcesados = 0;
+    let globalAprobados = 0;
+    let globalRechazados = 0;
+    let globalARTTotal = 0;
+    let gestoresContados = 0;
+
+    for (const gestor in aggregatedData) {
+        const d = aggregatedData[gestor];
+        if (d.Retiros_Procesados === 0 && d.Dias_Laborados === 0) continue; // Skip empty rows if filtered out
+        
+        globalProcesados += d.Retiros_Procesados;
+        globalAprobados += d.Retiros_Aprobados;
+        globalRechazados += d.Retiros_Rechazados;
+        globalARTTotal += d.ART_Desde_Creacion_Minutos;
+        if (d.Retiros_Procesados > 0) gestoresContados++;
+        
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid rgba(0,0,0,0.05)';
+        tr.style.transition = 'background 0.2s ease';
+        tr.onmouseover = () => tr.style.background = 'var(--bg-secondary, #f8f9fa)';
+        tr.onmouseout = () => tr.style.background = 'transparent';
+        
+        const badgeAprobados = `<span style="background: rgba(16, 185, 129, 0.15); color: var(--success); padding: 4px 10px; border-radius: 20px; font-weight: 700;">${d.Retiros_Aprobados}</span>`;
+        const badgeRechazados = `<span style="background: rgba(239, 68, 68, 0.15); color: var(--danger); padding: 4px 10px; border-radius: 20px; font-weight: 700;">${d.Retiros_Rechazados}</span>`;
+        
+        tr.innerHTML = `
+            <td style="padding: 16px 20px; font-weight: 600; color: var(--text-primary);">${gestor}</td>
+            <td style="padding: 16px 20px;">${badgeAprobados}</td>
+            <td style="padding: 16px 20px;">${badgeRechazados}</td>
+            <td style="padding: 16px 20px; font-weight: 600; color: var(--text-secondary);">${d.Retiros_Procesados}</td>
+            <td style="padding: 16px 20px; font-weight: 600; color: var(--text-secondary);">${d.Porcentaje_Fuga}%</td>
+            <td style="padding: 16px 20px; font-weight: 600; color: var(--text-secondary);">${d.ART_Desde_Creacion_Minutos}</td>
+        `;
+        tbody.appendChild(tr);
+    }
+    
+    // Update summary widgets
+    const avgArt = gestoresContados > 0 ? (globalARTTotal / gestoresContados).toFixed(1) : 0;
+    const wTotal = document.getElementById('operativoWidgetTotal');
+    const wAprob = document.getElementById('operativoWidgetAprobados');
+    const wRech = document.getElementById('operativoWidgetRechazados');
+    const wArt = document.getElementById('operativoWidgetART');
+    
+    if(wTotal) wTotal.textContent = globalProcesados;
+    if(wAprob) wAprob.textContent = globalAprobados;
+    if(wRech) wRech.textContent = globalRechazados;
+    if(wArt) wArt.innerHTML = `${avgArt}<span style="font-size: 16px; font-weight: 600; margin-left: 4px;">min</span>`;
+    
+    // Render charts
+    // Filter out empty gestores for charts
+    const filteredForCharts = {};
+    for (const gestor in aggregatedData) {
+        if (aggregatedData[gestor].Retiros_Procesados > 0 || aggregatedData[gestor].Dias_Laborados > 0) {
+            filteredForCharts[gestor] = aggregatedData[gestor];
+        }
+    }
+    renderControlOperativoCharts(filteredForCharts);
+}
+
+function renderControlOperativoCharts(data) {
+    const gestores = Object.keys(data);
+    if (gestores.length === 0) return;
+    
+    // Sort logic
+    const sortBy = (key, asc=false) => [...gestores].sort((a,b) => asc ? data[a][key] - data[b][key] : data[b][key] - data[a][key]);
+    
+    // 1. Top Alerta Tardanzas (Peores 5, orden DESC)
+    const peoresTardanzas = sortBy('Prom_Minutos_Tarde').slice(0, 5);
+    drawChart('chartTardanzasPeores', 'bar', peoresTardanzas, peoresTardanzas.map(g => data[g].Prom_Minutos_Tarde), 'Minutos Tarde (Promedio)', 'rgba(245, 108, 108, 0.7)', 'rgba(245, 108, 108, 1)', { indexAxis: 'y' });
+    
+    // 2. Top Excelencia Puntualidad (Mejores 5, orden ASC)
+    const mejoresTardanzas = sortBy('Prom_Minutos_Tarde', true).slice(0, 5);
+    drawChart('chartTardanzasMejores', 'bar', mejoresTardanzas, mejoresTardanzas.map(g => data[g].Prom_Minutos_Tarde), 'Minutos Tarde (Promedio)', 'rgba(103, 194, 58, 0.7)', 'rgba(103, 194, 58, 1)', { indexAxis: 'y' });
+    
+    // 3. Top Inactividad Diaria (DESC)
+    const inactividadTop = sortBy('Prom_Inactividad_Diaria');
+    const bgColors = inactividadTop.map(g => {
+        let v = data[g].Prom_Inactividad_Diaria;
+        return v > 45 ? 'rgba(245, 108, 108, 0.7)' : (v > 20 ? 'rgba(230, 162, 60, 0.7)' : 'rgba(103, 194, 58, 0.7)');
+    });
+    drawChart('chartInactividad', 'bar', inactividadTop, inactividadTop.map(g => data[g].Prom_Inactividad_Diaria), 'Minutos Inactividad', bgColors, bgColors);
+    
+    // 4. Eficiencia y Volumen (Combinado)
+    const volTop = sortBy('Retiros_Procesados');
+    drawCombinedChart('chartEficiencia', volTop, data);
+    
+    // 5. Matriz de Fugas vs Velocidad (Scatter)
+    drawScatterMatriz('chartMatrizFuga', gestores, data);
+}
+
+function drawChart(id, type, labels, dataArr, labelStr, bgColor, borderColor, extraOptions = {}) {
+    destroyChart(id);
+    const ctx = document.getElementById(id).getContext('2d');
+    controlOperativoCharts[id] = new Chart(ctx, {
+        type: type,
+        data: {
+            labels: labels,
+            datasets: [{
+                label: labelStr,
+                data: dataArr,
+                backgroundColor: bgColor,
+                borderColor: borderColor,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            ...extraOptions
+        }
+    });
+}
+
+function drawCombinedChart(id, labels, data) {
+    destroyChart(id);
+    const ctx = document.getElementById(id).getContext('2d');
+    controlOperativoCharts[id] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Aprobados',
+                    data: labels.map(g => data[g].Retiros_Aprobados),
+                    backgroundColor: 'rgba(103, 194, 58, 0.7)'
+                },
+                {
+                    label: 'Rechazados',
+                    data: labels.map(g => data[g].Retiros_Rechazados),
+                    backgroundColor: 'rgba(245, 108, 108, 0.7)'
+                },
+                {
+                    label: 'ART (Mins)',
+                    data: labels.map(g => data[g].ART_Desde_Creacion_Minutos),
+                    type: 'line',
+                    borderColor: 'rgba(64, 158, 255, 1)',
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true, position: 'left' },
+                y1: { position: 'right', grid: { drawOnChartArea: false } }
+            }
+        }
+    });
+}
+
+function drawScatterMatriz(id, gestores, data) {
+    destroyChart(id);
+    const ctx = document.getElementById(id).getContext('2d');
+    
+    const scatterData = gestores.map(g => ({
+        x: data[g].ART_Desde_Creacion_Minutos,
+        y: data[g].Porcentaje_Fuga,
+        name: g
+    }));
+    
+    controlOperativoCharts[id] = new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: 'Gestores',
+                data: scatterData,
+                backgroundColor: 'rgba(230, 162, 60, 0.8)',
+                pointRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            let item = ctx.raw;
+                            return `${item.name}: Vel=${item.x}min, Fuga=${item.y}%`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { title: { display: true, text: 'ART Desde Creación (Mins)' } },
+                y: { title: { display: true, text: 'Porcentaje Fuga (%)' } }
+            }
+        }
     });
 }
 
