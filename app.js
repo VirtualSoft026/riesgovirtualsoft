@@ -5332,3 +5332,70 @@ function drawScatterMatriz(id, gestores, data) {
         }
     });
 }
+
+// ==========================================
+// ACTIVE SUPERVISOR BADGE LOGIC
+// ==========================================
+function updateActiveSupervisorBadge() {
+    if (typeof globalScheduleRows === 'undefined' || !globalScheduleRows || globalScheduleRows.length === 0) return;
+    
+    const badge = document.getElementById('activeSupervisorBadge');
+    if (!badge) return;
+    
+    let activeSup = null;
+    let now = new Date();
+    let currentHour = now.getHours();
+    let currentMin = now.getMinutes();
+    let timeFloat = currentHour + (currentMin / 60);
+
+    const supervisors = [
+        {name: 'Maria', full: 'Maria Sanchez'}, 
+        {name: 'Sara', full: 'Sara Santamaría'}
+    ];
+
+    for (let sup of supervisors) {
+        let shiftStr = typeof getShiftForDate === 'function' ? getShiftForDate(globalScheduleRows, globalScheduleBlocks, sup.name, now) : null;
+        
+        if (shiftStr && typeof shiftStr === 'string' && shiftStr !== 'Descansa' && shiftStr !== 'Por Asignar' && shiftStr !== 'Vacaciones') {
+            let match = shiftStr.match(/(\d+)(am|pm|a\.m\.|p\.m\.)\s*-\s*(\d+)(am|pm|a\.m\.|p\.m\.)/i);
+            if (match) {
+                let startH = parseInt(match[1]);
+                let startMeridiem = match[2].toLowerCase().replace(/\./g, '');
+                if (startMeridiem === 'pm' && startH !== 12) startH += 12;
+                if (startMeridiem === 'am' && startH === 12) startH = 0;
+                
+                let endH = parseInt(match[3]);
+                let endMeridiem = match[4].toLowerCase().replace(/\./g, '');
+                if (endMeridiem === 'pm' && endH !== 12) endH += 12;
+                if (endMeridiem === 'am' && endH === 12) endH = 0;
+                
+                let startFloat = startH;
+                let endFloat = endH;
+                
+                let isActive = false;
+                if (endFloat <= startFloat) {
+                    if (timeFloat >= startFloat || timeFloat < endFloat) isActive = true;
+                } else {
+                    if (timeFloat >= startFloat && timeFloat < endFloat) isActive = true;
+                }
+                
+                if (isActive) {
+                    activeSup = sup.full;
+                    break;
+                }
+            } else if (shiftStr.toLowerCase().includes('turno')) {
+                activeSup = sup.full;
+            }
+        }
+    }
+    
+    if (activeSup) {
+        badge.innerHTML = `<i class='bx bx-support'></i> Sup: ${activeSup}`;
+    } else {
+        badge.innerHTML = `<i class='bx bx-support'></i> Sup: Ninguna (Fuera de turno)`;
+    }
+    badge.style.display = 'inline-flex';
+}
+
+setInterval(updateActiveSupervisorBadge, 60000); // Check every minute
+setTimeout(updateActiveSupervisorBadge, 3000); // Initial check after loading
