@@ -17,7 +17,7 @@
     <!-- Chart.js for data visualization -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
-    <link rel="stylesheet" href="styles.css?v=84">
+    <link rel="stylesheet" href="styles.css?v=20260710_2">
 </head>
 <body>
     <!-- Mobile Blocker -->
@@ -281,11 +281,17 @@
                                 <label>Especifique</label>
                                 <input type="text" name="Especificacion_Otro" id="otroPermisoInput" class="modern-input" style="min-height: 40px;">
                             </div>
-                            <label>Fecha del Permiso</label>
-                            <input type="date" name="Fecha" class="modern-input" required style="min-height: 40px; margin-bottom: 10px;">
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-                                <div><label>Hora Inicio</label><input type="time" name="Hora_Inicio" class="modern-input" required style="min-height: 40px; width: 100%;"></div>
-                                <div><label>Hora Fin</label><input type="time" name="Hora_Fin" class="modern-input" required style="min-height: 40px; width: 100%;"></div>
+                            <div id="standardDateContainer">
+                                <label>Fecha del Permiso</label>
+                                <input type="date" name="Fecha" id="permisoFecha" class="modern-input" required style="min-height: 40px; margin-bottom: 10px;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                                    <div><label>Hora Inicio</label><input type="time" name="Hora_Inicio" id="permisoHoraInicio" class="modern-input" required style="min-height: 40px; width: 100%;"></div>
+                                    <div><label>Hora Fin</label><input type="time" name="Hora_Fin" id="permisoHoraFin" class="modern-input" required style="min-height: 40px; width: 100%;"></div>
+                                </div>
+                            </div>
+                            <div id="vacacionesDateContainer" style="display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                                <div><label>Desde (Fecha)</label><input type="date" name="Fecha_Desde" id="permisoFechaDesde" class="modern-input" style="min-height: 40px; width: 100%;"></div>
+                                <div><label>Hasta (Fecha)</label><input type="date" name="Fecha_Hasta" id="permisoFechaHasta" class="modern-input" style="min-height: 40px; width: 100%;"></div>
                             </div>
                             <label>Motivo y Justificación</label>
                             <textarea name="Justificacion" class="modern-input" required style="min-height: 100px;"></textarea>
@@ -1178,7 +1184,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <script src="firebase-config.js?v=59"></script>
+    <script src="firebase-config.js?v=20260710_2"></script>
     <!-- Modal de Detalles de Tareas KPI -->
     <div id="kpiTaskDetailsModal" class="modal-overlay">
         <div class="modal glass-panel" style="max-width: 600px; padding: 20px;">
@@ -1373,7 +1379,7 @@
 
 
     <!-- Custom JS -->
-    <script src="app.js?v=20260629_3"></script>
-    <script src="js/tiempos.js?v=20260616_3"></script>
+    <script src="app.js?v=20260710_2"></script>
+    <script src="js/tiempos.js?v=20260710_2"></script>
 </body>
 </html>

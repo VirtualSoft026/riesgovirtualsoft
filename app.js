@@ -2301,6 +2301,8 @@ async function initApp() {
     const pSelect = document.getElementById('tipoPermisoSelect');
     const pOtroCont = document.getElementById('otroPermisoContainer');
     const pOtroInp = document.getElementById('otroPermisoInput');
+    const stdDateCont = document.getElementById('standardDateContainer');
+    const vacDateCont = document.getElementById('vacacionesDateContainer');
     if(pSelect && pOtroCont && pOtroInp) {
         pSelect.addEventListener('change', (e) => {
             if(e.target.value === 'Otro') {
@@ -2310,6 +2312,26 @@ async function initApp() {
                 pOtroCont.style.display = 'none';
                 pOtroInp.required = false;
                 pOtroInp.value = '';
+            }
+            
+            if(stdDateCont && vacDateCont) {
+                if(e.target.value === 'Vacaciones') {
+                    stdDateCont.style.display = 'none';
+                    vacDateCont.style.display = 'grid';
+                    document.getElementById('permisoFecha').required = false;
+                    document.getElementById('permisoHoraInicio').required = false;
+                    document.getElementById('permisoHoraFin').required = false;
+                    document.getElementById('permisoFechaDesde').required = true;
+                    document.getElementById('permisoFechaHasta').required = true;
+                } else {
+                    stdDateCont.style.display = 'block';
+                    vacDateCont.style.display = 'none';
+                    document.getElementById('permisoFecha').required = true;
+                    document.getElementById('permisoHoraInicio').required = true;
+                    document.getElementById('permisoHoraFin').required = true;
+                    document.getElementById('permisoFechaDesde').required = false;
+                    document.getElementById('permisoFechaHasta').required = false;
+                }
             }
         });
     }
@@ -2325,13 +2347,23 @@ async function initApp() {
             const especifico = formData.get("Especificacion_Otro");
             const finalTipo = tipo === 'Otro' ? `Otro (${especifico})` : tipo;
 
+            let finalFecha = formData.get("Fecha");
+            let finalHoraInicio = formData.get("Hora_Inicio");
+            let finalHoraFin = formData.get("Hora_Fin");
+            
+            if (tipo === 'Vacaciones') {
+                finalFecha = `Desde: ${formData.get("Fecha_Desde")} - Hasta: ${formData.get("Fecha_Hasta")}`;
+                finalHoraInicio = 'N/A';
+                finalHoraFin = 'N/A';
+            }
+
             const newPermiso = {
                 id: Date.now(),
                 gestor: formData.get("Gestor"),
                 tipo: finalTipo,
-                fecha: formData.get("Fecha"),
-                horaInicio: formData.get("Hora_Inicio"),
-                horaFin: formData.get("Hora_Fin"),
+                fecha: finalFecha,
+                horaInicio: finalHoraInicio,
+                horaFin: finalHoraFin,
                 motivo: formData.get("Justificacion"),
                 status: 'Pendiente',
                 notified: false,
@@ -4935,10 +4967,10 @@ async function loadControlOperativoData() {
         
         // Merge Inactividad from Firebase shift_reports
         try {
-            if (window.database) {
+            if (database) {
                 // Ensure kpiUsersData is populated
                 if (!window.kpiUsersData || Object.keys(window.kpiUsersData).length === 0) {
-                    const usersSnap = await window.database.ref('users').once('value');
+                    const usersSnap = await database.ref('users').once('value');
                     if (usersSnap.exists()) {
                         window.kpiUsersData = {};
                         Object.values(usersSnap.val()).forEach(u => {
@@ -4949,37 +4981,42 @@ async function loadControlOperativoData() {
                     }
                 }
                 
-                const snapshot = await window.database.ref('shift_reports').once('value');
+                const snapshot = await database.ref('shift_reports').once('value');
                 if (snapshot.exists()) {
                     const shifts = snapshot.val();
                     Object.values(shifts).forEach(report => {
-                        if (!report.email || !report.date) return;
+                        if (report.rol !== 'Gestor') return;
+                        const gestorName = report.gestor;
+                        if (!gestorName) return;
                         
-                        // Find gestor name from email using kpiUsersData
-                        const email = report.email.toLowerCase();
-                        const gestorName = window.kpiUsersData && window.kpiUsersData[email] ? window.kpiUsersData[email] : null;
+                        const reportDate = report.timestamp ? new Date(report.timestamp) : new Date();
+                        const reportDateStr = reportDate.toISOString().split('T')[0];
                         
-                        if (gestorName) {
-                            // Encontrar el nombre real en controlOperativoRawData ignorando mayúsculas y acentos
-                            const rawKeys = Object.keys(window.controlOperativoRawData);
-                            const searchName = gestorName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                            let realGestor = rawKeys.find(k => k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === searchName);
-                            
-                            // Fallback: Si no coincide exacto, buscar si contiene al menos el primer nombre y apellido
-                            if (!realGestor) {
-                                const parts = searchName.split(' ');
-                                if (parts.length >= 2) {
-                                    realGestor = rawKeys.find(k => {
-                                        const normK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                                        return normK.includes(parts[0]) && normK.includes(parts[1]);
-                                    });
-                                }
+                        // Encontrar el nombre real en controlOperativoRawData ignorando mayúsculas y acentos
+                        const rawKeys = Object.keys(window.controlOperativoRawData);
+                        const searchName = gestorName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        let realGestor = rawKeys.find(k => k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === searchName);
+                        
+                        // Fallback: Si no coincide exacto, buscar si contiene al menos el primer nombre y apellido
+                        if (!realGestor) {
+                            const parts = searchName.split(' ');
+                            if (parts.length >= 2) {
+                                realGestor = rawKeys.find(k => {
+                                    const normK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                                    return normK.includes(parts[0]) && normK.includes(parts[1]);
+                                });
                             }
-                            
-                            if (realGestor && window.controlOperativoRawData[realGestor]) {
-                                // Ensure date object exists
-                            if (!window.controlOperativoRawData[realGestor][report.date]) {
-                                window.controlOperativoRawData[realGestor][report.date] = {
+                        }
+                        
+                        if (!realGestor) {
+                            realGestor = gestorName;
+                            window.controlOperativoRawData[realGestor] = {};
+                        }
+
+                        if (realGestor) {
+                            // Ensure date object exists
+                            if (!window.controlOperativoRawData[realGestor][reportDateStr]) {
+                                window.controlOperativoRawData[realGestor][reportDateStr] = {
                                     Dias_Laborados: 0,
                                     Minutos_Inactividad_Total: 0,
                                     Retiros_Procesados: 0,
@@ -5004,8 +5041,8 @@ async function loadControlOperativoData() {
                             }
                             
                             // Add to raw data
-                            window.controlOperativoRawData[realGestor][report.date].Minutos_Inactividad_Total = (window.controlOperativoRawData[realGestor][report.date].Minutos_Inactividad_Total || 0) + inactMins;
-                            }
+                            window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Inactividad_Total = (window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Inactividad_Total || 0) + inactMins;
+                            window.controlOperativoRawData[realGestor][reportDateStr].Dias_Laborados = 1; // Un turno reportado = 1 día laborado
                         }
                     });
                 }
@@ -5015,7 +5052,7 @@ async function loadControlOperativoData() {
         }
         
         // Populate dropdowns
-        const gestores = Object.keys(data).sort();
+        const gestores = Object.keys(window.controlOperativoRawData).sort();
         const selectGestor = document.getElementById('filtroGestorOperativo');
         selectGestor.innerHTML = '<option value="Todos">Todos los gestores</option>';
         gestores.forEach(g => {
