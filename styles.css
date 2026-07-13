@@ -233,6 +233,15 @@ a { text-decoration: none; color: inherit; }
     overflow: hidden;
 }
 
+.view-panel {
+    flex-grow: 1;
+    overflow-y: auto;
+    width: 100%;
+    /* Estilo para una barra de desplazamiento ms delgada y elegante */
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-primary) var(--bg-dark);
+}
+
 /* Top Header */
 .top-header {
     height: 70px;
