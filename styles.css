@@ -383,7 +383,7 @@ a { text-decoration: none; color: inherit; }
 .tree-header .bx { transition: transform 0.3s; }
 .tree-header.open .bx { transform: rotate(90deg); }
 
-.badge { margin-left: auto; font-size: 13px; padding: 5px 12px; border-radius: 14px; font-weight: 600; }
+.badge { margin-left: auto; font-size: 13px; padding: 5px 12px; border-radius: 14px; font-weight: 600; display: inline-block; white-space: nowrap; }
 .badge.pending { background: var(--pending-bg); color: #9CA3AF; }
 .badge.in-progress { background: rgba(59,130,246,0.15); color: #3B82F6; }
 .badge.vacaciones-badge { background: var(--success-bg); color: var(--success); }
