@@ -2193,38 +2193,32 @@ async function initApp() {
     // Inyectar documentos reales de la carpeta "Procesos" en el Módulo de Docs
     const docsGrid = document.querySelector('.docs-grid');
     if(docsGrid) {
-        const archivos = [
-            "Instructivo de revisión de apuestas casino.pdf",
-            "Instructivo de validación de GGR Casino.pdf",
-            "Política Procedimiento De Aprobación De Retiros.pdf",
-            "Procedimiento Identificación de jineteo.pdf",
-            "Proceso de Eliminación de Cuentas - Implementaciones.pdf",
-            "VALIDACIÓN DE ABUSO DE BONOS EN CAMPAÑAS DE CRM.pdf",
-            "Revisión de Eventos Deportivos.mp4",
-            "Revisión de Eventos.mp4",
-            "Validación SEON.mp4",
-            "Guia Jira EGT - Proveedor de Casino.pdf"
-        ];
+        fetch('procesos_list.json?t=' + Date.now())
+        .then(res => res.json())
+        .then(archivos => {
+            archivos.forEach(file => {
+                const isVideo = file.toLowerCase().endsWith('.mp4');
+                const isWord = file.toLowerCase().endsWith('.docx') || file.toLowerCase().endsWith('.doc');
+                const isExcel = file.toLowerCase().endsWith('.xlsx') || file.toLowerCase().endsWith('.xls');
+                const isHtml = file.toLowerCase().endsWith('.html');
+                
+                let icon = 'bx-file-pdf';
+                let color = '#FF5A5A'; // PDF red
+                
+                if(isVideo) { icon = 'bx-video'; color = '#3B82F6'; }
+                else if(isWord) { icon = 'bx-file-blank'; color = '#2563EB'; } // Word blue
+                else if(isExcel) { icon = 'bx-table'; color = '#10B981'; } // Excel green
+                else if(isHtml) { icon = 'bx-globe'; color = '#F59E0B'; } // HTML orange
 
-        archivos.forEach(file => {
-            const isVideo = file.toLowerCase().endsWith('.mp4');
-            const isWord = file.toLowerCase().endsWith('.docx') || file.toLowerCase().endsWith('.doc');
-            const isExcel = file.toLowerCase().endsWith('.xlsx') || file.toLowerCase().endsWith('.xls');
-            
-            let icon = 'bx-file-pdf';
-            let color = '#FF5A5A'; // PDF red
-            
-            if(isVideo) { icon = 'bx-video'; color = '#3B82F6'; }
-            else if(isWord) { icon = 'bx-file-blank'; color = '#2563EB'; } // Word blue
-            else if(isExcel) { icon = 'bx-table'; color = '#10B981'; } // Excel green
-
-            docsGrid.innerHTML += `
-                <a href="${getDocUrl(file)}" target="_blank" class="glass-panel" style="padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; transition: transform 0.2s;">
-                    <i class='bx ${icon}' style="font-size: 40px; color: ${color};"></i>
-                    <span style="font-size: 14px; color: var(--text-primary); font-weight: 500;">${file.replace(/\.[^/.]+$/, "")}</span>
-                </a>
-            `;
-        });
+                docsGrid.innerHTML += `
+                    <a href="${getDocUrl(file)}" target="_blank" class="glass-panel" style="padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; transition: transform 0.2s;">
+                        <i class='bx ${icon}' style="font-size: 40px; color: ${color};"></i>
+                        <span style="font-size: 14px; color: var(--text-primary); font-weight: 500;">${file.replace(/\.[^/.]+$/, "")}</span>
+                    </a>
+                `;
+            });
+        })
+        .catch(err => console.error("Error cargando la lista de procesos:", err));
     }
 
     // Poblar nombre en form de permisos y manejar envío por AJAX

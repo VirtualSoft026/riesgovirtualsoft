@@ -22,6 +22,7 @@ echo.
 echo ============================================================
 echo Procesando datos de Retiros locales (Python)...
 python build_retiros.py
+python build_docs.py
 
 echo.
 echo ============================================================
