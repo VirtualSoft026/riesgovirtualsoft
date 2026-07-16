@@ -2202,7 +2202,8 @@ async function initApp() {
             "VALIDACIÓN DE ABUSO DE BONOS EN CAMPAÑAS DE CRM.pdf",
             "Revisión de Eventos Deportivos.mp4",
             "Revisión de Eventos.mp4",
-            "Validación SEON.mp4"
+            "Validación SEON.mp4",
+            "Guia Jira EGT - Proveedor de Casino.pdf"
         ];
 
         archivos.forEach(file => {
