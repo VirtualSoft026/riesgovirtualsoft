@@ -5374,7 +5374,7 @@ function updateActiveSupervisorBadge() {
     const badge = document.getElementById('activeSupervisorBadge');
     if (!badge) return;
     
-    let activeSup = null;
+    let activeSups = [];
     let now = new Date();
     let currentHour = now.getHours();
     let currentMin = now.getMinutes();
@@ -5412,17 +5412,16 @@ function updateActiveSupervisorBadge() {
                 }
                 
                 if (isActive) {
-                    activeSup = sup.full;
-                    break;
+                    if (!activeSups.includes(sup.full)) activeSups.push(sup.full);
                 }
             } else if (shiftStr.toLowerCase().includes('turno')) {
-                activeSup = sup.full;
+                if (!activeSups.includes(sup.full)) activeSups.push(sup.full);
             }
         }
     }
     
-    if (activeSup) {
-        badge.innerHTML = `<i class='bx bx-support'></i> Sup: ${activeSup}`;
+    if (activeSups.length > 0) {
+        badge.innerHTML = `<i class='bx bx-support'></i> Sup: ${activeSups.join(' y ')}`;
     } else {
         badge.innerHTML = `<i class='bx bx-support'></i> Sup: Ninguna (Fuera de turno)`;
     }
