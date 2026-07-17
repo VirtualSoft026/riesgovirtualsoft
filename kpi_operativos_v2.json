@@ -64,6 +64,38 @@
       "ART_Desde_Creacion_Minutos": 2496.63,
       "Porcentaje_Fuga": 0.0
     },
+    "2026-07-13": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 154,
+      "Retiros_Rechazados": 11,
+      "Tiempo_Total_Desde_Creacion_Segundos": 6271710.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 165,
+      "ART_Desde_Creacion_Minutos": 633.51,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-12": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 130,
+      "Retiros_Rechazados": 3,
+      "Tiempo_Total_Desde_Creacion_Segundos": 460616.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 133,
+      "ART_Desde_Creacion_Minutos": 57.72,
+      "Porcentaje_Fuga": 0.0
+    },
     "2026-06-20": {
       "Dias_Laborados": 1,
       "Dias_Tarde": 0,
@@ -160,6 +192,22 @@
       "ART_Desde_Creacion_Minutos": 879.72,
       "Porcentaje_Fuga": 0.0
     },
+    "2026-07-16": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 181,
+      "Retiros_Rechazados": 0,
+      "Tiempo_Total_Desde_Creacion_Segundos": 1056761.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 181,
+      "ART_Desde_Creacion_Minutos": 97.31,
+      "Porcentaje_Fuga": 0.0
+    },
     "2026-06-11": {
       "Dias_Laborados": 1,
       "Dias_Tarde": 0,
@@ -222,6 +270,22 @@
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 137,
       "ART_Desde_Creacion_Minutos": 305.39,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-14": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 89,
+      "Retiros_Rechazados": 2,
+      "Tiempo_Total_Desde_Creacion_Segundos": 1538925.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 91,
+      "ART_Desde_Creacion_Minutos": 281.85,
       "Porcentaje_Fuga": 0.0
     },
     "2026-06-29": {
@@ -594,6 +658,22 @@
       "ART_Desde_Creacion_Minutos": 1675.04,
       "Porcentaje_Fuga": 0.0
     },
+    "2026-07-11": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 74,
+      "Retiros_Rechazados": 4,
+      "Tiempo_Total_Desde_Creacion_Segundos": 1809251.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 78,
+      "ART_Desde_Creacion_Minutos": 386.59,
+      "Porcentaje_Fuga": 0.0
+    },
     "2026-06-21": {
       "Dias_Laborados": 1,
       "Dias_Tarde": 0,
@@ -602,13 +682,13 @@
       "Retiros_Aprobados": 237,
       "Retiros_Rechazados": 7,
       "Tiempo_Total_Desde_Creacion_Segundos": 9962107.0,
-      "Retiros_Con_Fuga": 1,
+      "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
       "Porcentaje_Frecuencia_Tarde": 0.0,
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 244,
       "ART_Desde_Creacion_Minutos": 680.47,
-      "Porcentaje_Fuga": 0.42
+      "Porcentaje_Fuga": 0.0
     },
     "2026-06-18": {
       "Dias_Laborados": 1,
@@ -640,6 +720,22 @@
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 264,
       "ART_Desde_Creacion_Minutos": 755.06,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-14": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 12,
+      "Retiros_Rechazados": 0,
+      "Tiempo_Total_Desde_Creacion_Segundos": 1456239.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 12,
+      "ART_Desde_Creacion_Minutos": 2022.55,
       "Porcentaje_Fuga": 0.0
     },
     "2026-06-09": {
@@ -754,6 +850,22 @@
       "ART_Desde_Creacion_Minutos": 57.15,
       "Porcentaje_Fuga": 0.0
     },
+    "2026-07-13": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 19,
+      "Retiros_Rechazados": 2,
+      "Tiempo_Total_Desde_Creacion_Segundos": 3791295.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 21,
+      "ART_Desde_Creacion_Minutos": 3008.96,
+      "Porcentaje_Fuga": 0.0
+    },
     "2026-06-10": {
       "Dias_Laborados": 1,
       "Dias_Tarde": 0,
@@ -768,6 +880,22 @@
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 7,
       "ART_Desde_Creacion_Minutos": 1393.64,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-12": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 68,
+      "Retiros_Rechazados": 3,
+      "Tiempo_Total_Desde_Creacion_Segundos": 7237636.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 71,
+      "ART_Desde_Creacion_Minutos": 1698.98,
       "Porcentaje_Fuga": 0.0
     },
     "2026-06-30": {
@@ -816,6 +944,22 @@
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 12,
       "ART_Desde_Creacion_Minutos": 1946.57,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-15": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 1,
+      "Retiros_Rechazados": 0,
+      "Tiempo_Total_Desde_Creacion_Segundos": 74449.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 1,
+      "ART_Desde_Creacion_Minutos": 1240.82,
       "Porcentaje_Fuga": 0.0
     },
     "2026-07-05": {
@@ -900,13 +1044,45 @@
       "ART_Desde_Creacion_Minutos": 808.89,
       "Porcentaje_Fuga": 0.0
     },
+    "2026-07-15": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 425,
+      "Retiros_Rechazados": 9,
+      "Tiempo_Total_Desde_Creacion_Segundos": 28802240.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 434,
+      "ART_Desde_Creacion_Minutos": 1106.08,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-16": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 512,
+      "Retiros_Rechazados": 19,
+      "Tiempo_Total_Desde_Creacion_Segundos": 14634545.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 531,
+      "ART_Desde_Creacion_Minutos": 459.34,
+      "Porcentaje_Fuga": 0.0
+    },
     "2026-07-07": {
       "Dias_Laborados": 1,
       "Dias_Tarde": 0,
       "Minutos_Tarde_Total": 0,
       "Minutos_Inactividad_Total": 0,
-      "Retiros_Aprobados": 196,
-      "Retiros_Rechazados": 2,
+      "Retiros_Aprobados": 193,
+      "Retiros_Rechazados": 5,
       "Tiempo_Total_Desde_Creacion_Segundos": 3769096.0,
       "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
@@ -914,6 +1090,22 @@
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 198,
       "ART_Desde_Creacion_Minutos": 317.26,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-13": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 391,
+      "Retiros_Rechazados": 7,
+      "Tiempo_Total_Desde_Creacion_Segundos": 3458348.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 398,
+      "ART_Desde_Creacion_Minutos": 144.82,
       "Porcentaje_Fuga": 0.0
     },
     "2026-06-21": {
@@ -924,13 +1116,13 @@
       "Retiros_Aprobados": 355,
       "Retiros_Rechazados": 7,
       "Tiempo_Total_Desde_Creacion_Segundos": 17562945.0,
-      "Retiros_Con_Fuga": 1,
+      "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
       "Porcentaje_Frecuencia_Tarde": 0.0,
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 362,
       "ART_Desde_Creacion_Minutos": 808.61,
-      "Porcentaje_Fuga": 0.28
+      "Porcentaje_Fuga": 0.0
     },
     "2026-06-06": {
       "Dias_Laborados": 1,
@@ -946,6 +1138,22 @@
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 114,
       "ART_Desde_Creacion_Minutos": 46.39,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-14": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 369,
+      "Retiros_Rechazados": 9,
+      "Tiempo_Total_Desde_Creacion_Segundos": 34857397.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 378,
+      "ART_Desde_Creacion_Minutos": 1536.92,
       "Porcentaje_Fuga": 0.0
     },
     "2026-06-19": {
@@ -1092,6 +1300,22 @@
       "ART_Desde_Creacion_Minutos": 2482.82,
       "Porcentaje_Fuga": 0.0
     },
+    "2026-07-12": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 279,
+      "Retiros_Rechazados": 0,
+      "Tiempo_Total_Desde_Creacion_Segundos": 2403789.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 279,
+      "ART_Desde_Creacion_Minutos": 143.6,
+      "Porcentaje_Fuga": 0.0
+    },
     "2026-06-13": {
       "Dias_Laborados": 1,
       "Dias_Tarde": 0,
@@ -1100,13 +1324,13 @@
       "Retiros_Aprobados": 251,
       "Retiros_Rechazados": 0,
       "Tiempo_Total_Desde_Creacion_Segundos": 3666813.0,
-      "Retiros_Con_Fuga": 2,
+      "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
       "Porcentaje_Frecuencia_Tarde": 0.0,
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 251,
       "ART_Desde_Creacion_Minutos": 243.48,
-      "Porcentaje_Fuga": 0.8
+      "Porcentaje_Fuga": 0.0
     },
     "2026-07-08": {
       "Dias_Laborados": 1,
@@ -1132,13 +1356,13 @@
       "Retiros_Aprobados": 63,
       "Retiros_Rechazados": 6,
       "Tiempo_Total_Desde_Creacion_Segundos": 7555332.0,
-      "Retiros_Con_Fuga": 1,
+      "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
       "Porcentaje_Frecuencia_Tarde": 0.0,
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 69,
       "ART_Desde_Creacion_Minutos": 1824.96,
-      "Porcentaje_Fuga": 1.59
+      "Porcentaje_Fuga": 0.0
     },
     "2026-06-26": {
       "Dias_Laborados": 1,
@@ -1186,6 +1410,22 @@
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 12,
       "ART_Desde_Creacion_Minutos": 825.37,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-10": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 27,
+      "Retiros_Rechazados": 0,
+      "Tiempo_Total_Desde_Creacion_Segundos": 44852.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 27,
+      "ART_Desde_Creacion_Minutos": 27.69,
       "Porcentaje_Fuga": 0.0
     },
     "2026-06-09": {
@@ -1454,13 +1694,13 @@
       "Retiros_Aprobados": 152,
       "Retiros_Rechazados": 1,
       "Tiempo_Total_Desde_Creacion_Segundos": 1289115.0,
-      "Retiros_Con_Fuga": 1,
+      "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
       "Porcentaje_Frecuencia_Tarde": 0.0,
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 153,
       "ART_Desde_Creacion_Minutos": 140.43,
-      "Porcentaje_Fuga": 0.66
+      "Porcentaje_Fuga": 0.0
     },
     "2026-06-19": {
       "Dias_Laborados": 1,
@@ -1556,6 +1796,22 @@
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 41,
       "ART_Desde_Creacion_Minutos": 566.65,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-16": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 84,
+      "Retiros_Rechazados": 3,
+      "Tiempo_Total_Desde_Creacion_Segundos": 697346.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 87,
+      "ART_Desde_Creacion_Minutos": 133.59,
       "Porcentaje_Fuga": 0.0
     },
     "2026-07-04": {
@@ -1686,6 +1942,22 @@
       "ART_Desde_Creacion_Minutos": 1940.89,
       "Porcentaje_Fuga": 0.0
     },
+    "2026-07-15": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 11,
+      "Retiros_Rechazados": 0,
+      "Tiempo_Total_Desde_Creacion_Segundos": 26897.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 11,
+      "ART_Desde_Creacion_Minutos": 40.75,
+      "Porcentaje_Fuga": 0.0
+    },
     "2026-06-29": {
       "Dias_Laborados": 1,
       "Dias_Tarde": 0,
@@ -1776,13 +2048,13 @@
       "Retiros_Aprobados": 387,
       "Retiros_Rechazados": 11,
       "Tiempo_Total_Desde_Creacion_Segundos": 3289931.0,
-      "Retiros_Con_Fuga": 1,
+      "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
       "Porcentaje_Frecuencia_Tarde": 0.0,
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 398,
       "ART_Desde_Creacion_Minutos": 137.77,
-      "Porcentaje_Fuga": 0.26
+      "Porcentaje_Fuga": 0.0
     },
     "2026-06-10": {
       "Dias_Laborados": 1,
@@ -1856,13 +2128,13 @@
       "Retiros_Aprobados": 399,
       "Retiros_Rechazados": 3,
       "Tiempo_Total_Desde_Creacion_Segundos": 19041134.0,
-      "Retiros_Con_Fuga": 2,
+      "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
       "Porcentaje_Frecuencia_Tarde": 0.0,
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 402,
       "ART_Desde_Creacion_Minutos": 789.43,
-      "Porcentaje_Fuga": 0.5
+      "Porcentaje_Fuga": 0.0
     },
     "2026-06-26": {
       "Dias_Laborados": 1,
@@ -1896,6 +2168,22 @@
       "ART_Desde_Creacion_Minutos": 809.0,
       "Porcentaje_Fuga": 0.0
     },
+    "2026-07-12": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 203,
+      "Retiros_Rechazados": 8,
+      "Tiempo_Total_Desde_Creacion_Segundos": 4336284.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 211,
+      "ART_Desde_Creacion_Minutos": 342.52,
+      "Porcentaje_Fuga": 0.0
+    },
     "2026-06-12": {
       "Dias_Laborados": 1,
       "Dias_Tarde": 0,
@@ -1904,13 +2192,13 @@
       "Retiros_Aprobados": 638,
       "Retiros_Rechazados": 19,
       "Tiempo_Total_Desde_Creacion_Segundos": 22640794.0,
-      "Retiros_Con_Fuga": 2,
+      "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
       "Porcentaje_Frecuencia_Tarde": 0.0,
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 657,
       "ART_Desde_Creacion_Minutos": 574.35,
-      "Porcentaje_Fuga": 0.31
+      "Porcentaje_Fuga": 0.0
     },
     "2026-07-02": {
       "Dias_Laborados": 1,
@@ -1942,6 +2230,22 @@
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 39,
       "ART_Desde_Creacion_Minutos": 315.52,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-15": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 35,
+      "Retiros_Rechazados": 0,
+      "Tiempo_Total_Desde_Creacion_Segundos": 1116205.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 35,
+      "ART_Desde_Creacion_Minutos": 531.53,
       "Porcentaje_Fuga": 0.0
     },
     "2026-07-05": {
@@ -2104,6 +2408,22 @@
       "ART_Desde_Creacion_Minutos": 865.88,
       "Porcentaje_Fuga": 0.0
     },
+    "2026-07-13": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 156,
+      "Retiros_Rechazados": 12,
+      "Tiempo_Total_Desde_Creacion_Segundos": 16609520.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 168,
+      "ART_Desde_Creacion_Minutos": 1647.77,
+      "Porcentaje_Fuga": 0.0
+    },
     "2026-06-01": {
       "Dias_Laborados": 1,
       "Dias_Tarde": 0,
@@ -2205,8 +2525,8 @@
       "Dias_Tarde": 0,
       "Minutos_Tarde_Total": 0,
       "Minutos_Inactividad_Total": 0,
-      "Retiros_Aprobados": 71,
-      "Retiros_Rechazados": 3,
+      "Retiros_Aprobados": 70,
+      "Retiros_Rechazados": 4,
       "Tiempo_Total_Desde_Creacion_Segundos": 3630989.0,
       "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
@@ -2230,6 +2550,22 @@
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 8,
       "ART_Desde_Creacion_Minutos": 1619.3,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-14": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 77,
+      "Retiros_Rechazados": 0,
+      "Tiempo_Total_Desde_Creacion_Segundos": 3275363.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 77,
+      "ART_Desde_Creacion_Minutos": 708.95,
       "Porcentaje_Fuga": 0.0
     },
     "2026-07-07": {
@@ -2314,6 +2650,54 @@
       "ART_Desde_Creacion_Minutos": 275.45,
       "Porcentaje_Fuga": 0.0
     },
+    "2026-07-15": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 484,
+      "Retiros_Rechazados": 22,
+      "Tiempo_Total_Desde_Creacion_Segundos": 13251859.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 506,
+      "ART_Desde_Creacion_Minutos": 436.49,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-14": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 258,
+      "Retiros_Rechazados": 20,
+      "Tiempo_Total_Desde_Creacion_Segundos": 9154553.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 278,
+      "ART_Desde_Creacion_Minutos": 548.83,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-13": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 72,
+      "Retiros_Rechazados": 3,
+      "Tiempo_Total_Desde_Creacion_Segundos": 324594.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 75,
+      "ART_Desde_Creacion_Minutos": 72.13,
+      "Porcentaje_Fuga": 0.0
+    },
     "2026-06-25": {
       "Dias_Laborados": 1,
       "Dias_Tarde": 0,
@@ -2328,6 +2712,22 @@
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 15,
       "ART_Desde_Creacion_Minutos": 402.92,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-16": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 509,
+      "Retiros_Rechazados": 28,
+      "Tiempo_Total_Desde_Creacion_Segundos": 22117418.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 537,
+      "ART_Desde_Creacion_Minutos": 686.45,
       "Porcentaje_Fuga": 0.0
     },
     "2026-06-28": {
@@ -2660,13 +3060,13 @@
       "Retiros_Aprobados": 103,
       "Retiros_Rechazados": 3,
       "Tiempo_Total_Desde_Creacion_Segundos": 2838673.0,
-      "Retiros_Con_Fuga": 1,
+      "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
       "Porcentaje_Frecuencia_Tarde": 0.0,
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 106,
       "ART_Desde_Creacion_Minutos": 446.33,
-      "Porcentaje_Fuga": 0.97
+      "Porcentaje_Fuga": 0.0
     },
     "2026-06-14": {
       "Dias_Laborados": 1,
@@ -2721,8 +3121,8 @@
       "Dias_Tarde": 0,
       "Minutos_Tarde_Total": 0,
       "Minutos_Inactividad_Total": 0,
-      "Retiros_Aprobados": 596,
-      "Retiros_Rechazados": 12,
+      "Retiros_Aprobados": 593,
+      "Retiros_Rechazados": 15,
       "Tiempo_Total_Desde_Creacion_Segundos": 58760535.0,
       "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
@@ -2737,8 +3137,8 @@
       "Dias_Tarde": 0,
       "Minutos_Tarde_Total": 0,
       "Minutos_Inactividad_Total": 0,
-      "Retiros_Aprobados": 657,
-      "Retiros_Rechazados": 16,
+      "Retiros_Aprobados": 654,
+      "Retiros_Rechazados": 19,
       "Tiempo_Total_Desde_Creacion_Segundos": 37460999.0,
       "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
@@ -2812,6 +3212,22 @@
       "ART_Desde_Creacion_Minutos": 752.48,
       "Porcentaje_Fuga": 0.0
     },
+    "2026-07-11": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 209,
+      "Retiros_Rechazados": 10,
+      "Tiempo_Total_Desde_Creacion_Segundos": 9695618.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 219,
+      "ART_Desde_Creacion_Minutos": 737.87,
+      "Porcentaje_Fuga": 0.0
+    },
     "2026-06-10": {
       "Dias_Laborados": 1,
       "Dias_Tarde": 0,
@@ -2833,15 +3249,15 @@
       "Dias_Tarde": 0,
       "Minutos_Tarde_Total": 0,
       "Minutos_Inactividad_Total": 0,
-      "Retiros_Aprobados": 383,
-      "Retiros_Rechazados": 2,
-      "Tiempo_Total_Desde_Creacion_Segundos": 29433595.0,
+      "Retiros_Aprobados": 371,
+      "Retiros_Rechazados": 20,
+      "Tiempo_Total_Desde_Creacion_Segundos": 29000636.0,
       "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
       "Porcentaje_Frecuencia_Tarde": 0.0,
       "Prom_Inactividad_Diaria": 0.0,
-      "Retiros_Procesados": 385,
-      "ART_Desde_Creacion_Minutos": 1274.18,
+      "Retiros_Procesados": 391,
+      "ART_Desde_Creacion_Minutos": 1236.17,
       "Porcentaje_Fuga": 0.0
     },
     "2026-07-09": {
@@ -2849,15 +3265,15 @@
       "Dias_Tarde": 0,
       "Minutos_Tarde_Total": 0,
       "Minutos_Inactividad_Total": 0,
-      "Retiros_Aprobados": 348,
-      "Retiros_Rechazados": 11,
-      "Tiempo_Total_Desde_Creacion_Segundos": 22181525.0,
+      "Retiros_Aprobados": 336,
+      "Retiros_Rechazados": 12,
+      "Tiempo_Total_Desde_Creacion_Segundos": 22010920.0,
       "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
       "Porcentaje_Frecuencia_Tarde": 0.0,
       "Prom_Inactividad_Diaria": 0.0,
-      "Retiros_Procesados": 359,
-      "ART_Desde_Creacion_Minutos": 1029.78,
+      "Retiros_Procesados": 348,
+      "ART_Desde_Creacion_Minutos": 1054.16,
       "Porcentaje_Fuga": 0.0
     },
     "2026-06-29": {
@@ -3084,6 +3500,22 @@
       "ART_Desde_Creacion_Minutos": 246.06,
       "Porcentaje_Fuga": 0.0
     },
+    "2026-07-13": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 20,
+      "Retiros_Rechazados": 1,
+      "Tiempo_Total_Desde_Creacion_Segundos": 3564504.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 21,
+      "ART_Desde_Creacion_Minutos": 2828.97,
+      "Porcentaje_Fuga": 0.0
+    },
     "2026-06-02": {
       "Dias_Laborados": 1,
       "Dias_Tarde": 0,
@@ -3114,6 +3546,38 @@
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 53,
       "ART_Desde_Creacion_Minutos": 956.06,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-14": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 7,
+      "Retiros_Rechazados": 0,
+      "Tiempo_Total_Desde_Creacion_Segundos": 1698209.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 7,
+      "ART_Desde_Creacion_Minutos": 4043.35,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-12": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 76,
+      "Retiros_Rechazados": 7,
+      "Tiempo_Total_Desde_Creacion_Segundos": 4528530.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 83,
+      "ART_Desde_Creacion_Minutos": 909.34,
       "Porcentaje_Fuga": 0.0
     }
   },
@@ -3270,13 +3734,13 @@
       "Retiros_Aprobados": 261,
       "Retiros_Rechazados": 0,
       "Tiempo_Total_Desde_Creacion_Segundos": 5741370.0,
-      "Retiros_Con_Fuga": 1,
+      "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
       "Porcentaje_Frecuencia_Tarde": 0.0,
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 261,
       "ART_Desde_Creacion_Minutos": 366.63,
-      "Porcentaje_Fuga": 0.38
+      "Porcentaje_Fuga": 0.0
     },
     "2026-06-11": {
       "Dias_Laborados": 1,
@@ -3340,6 +3804,22 @@
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 302,
       "ART_Desde_Creacion_Minutos": 133.7,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-10": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 212,
+      "Retiros_Rechazados": 0,
+      "Tiempo_Total_Desde_Creacion_Segundos": 307270.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 212,
+      "ART_Desde_Creacion_Minutos": 24.16,
       "Porcentaje_Fuga": 0.0
     },
     "2026-06-12": {
@@ -3542,13 +4022,29 @@
       "Retiros_Aprobados": 165,
       "Retiros_Rechazados": 0,
       "Tiempo_Total_Desde_Creacion_Segundos": 3239834.0,
-      "Retiros_Con_Fuga": 2,
+      "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
       "Porcentaje_Frecuencia_Tarde": 0.0,
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 165,
       "ART_Desde_Creacion_Minutos": 327.26,
-      "Porcentaje_Fuga": 1.21
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-13": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 13,
+      "Retiros_Rechazados": 0,
+      "Tiempo_Total_Desde_Creacion_Segundos": 27722.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 13,
+      "ART_Desde_Creacion_Minutos": 35.54,
+      "Porcentaje_Fuga": 0.0
     },
     "2026-06-28": {
       "Dias_Laborados": 1,
@@ -3653,15 +4149,31 @@
       "Dias_Tarde": 0,
       "Minutos_Tarde_Total": 0,
       "Minutos_Inactividad_Total": 0,
-      "Retiros_Aprobados": 361,
-      "Retiros_Rechazados": 24,
-      "Tiempo_Total_Desde_Creacion_Segundos": 12324756.0,
+      "Retiros_Aprobados": 344,
+      "Retiros_Rechazados": 28,
+      "Tiempo_Total_Desde_Creacion_Segundos": 12266081.0,
       "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
       "Porcentaje_Frecuencia_Tarde": 0.0,
       "Prom_Inactividad_Diaria": 0.0,
-      "Retiros_Procesados": 385,
-      "ART_Desde_Creacion_Minutos": 533.54,
+      "Retiros_Procesados": 372,
+      "ART_Desde_Creacion_Minutos": 549.56,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-10": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 348,
+      "Retiros_Rechazados": 29,
+      "Tiempo_Total_Desde_Creacion_Segundos": 11138975.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 377,
+      "ART_Desde_Creacion_Minutos": 492.44,
       "Porcentaje_Fuga": 0.0
     },
     "2026-07-01": {
@@ -3685,8 +4197,8 @@
       "Dias_Tarde": 0,
       "Minutos_Tarde_Total": 0,
       "Minutos_Inactividad_Total": 0,
-      "Retiros_Aprobados": 299,
-      "Retiros_Rechazados": 15,
+      "Retiros_Aprobados": 298,
+      "Retiros_Rechazados": 16,
       "Tiempo_Total_Desde_Creacion_Segundos": 19673998.0,
       "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
@@ -3824,20 +4336,36 @@
       "ART_Desde_Creacion_Minutos": 1640.08,
       "Porcentaje_Fuga": 0.0
     },
-    "2026-07-10": {
+    "2026-07-13": {
       "Dias_Laborados": 1,
       "Dias_Tarde": 0,
       "Minutos_Tarde_Total": 0,
       "Minutos_Inactividad_Total": 0,
-      "Retiros_Aprobados": 183,
-      "Retiros_Rechazados": 2,
-      "Tiempo_Total_Desde_Creacion_Segundos": 10341999.0,
+      "Retiros_Aprobados": 83,
+      "Retiros_Rechazados": 1,
+      "Tiempo_Total_Desde_Creacion_Segundos": 30113919.0,
       "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
       "Porcentaje_Frecuencia_Tarde": 0.0,
       "Prom_Inactividad_Diaria": 0.0,
-      "Retiros_Procesados": 185,
-      "ART_Desde_Creacion_Minutos": 931.71,
+      "Retiros_Procesados": 84,
+      "ART_Desde_Creacion_Minutos": 5974.98,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-11": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 363,
+      "Retiros_Rechazados": 19,
+      "Tiempo_Total_Desde_Creacion_Segundos": 14285364.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 382,
+      "ART_Desde_Creacion_Minutos": 623.27,
       "Porcentaje_Fuga": 0.0
     },
     "2026-06-17": {
@@ -3864,13 +4392,13 @@
       "Retiros_Aprobados": 96,
       "Retiros_Rechazados": 0,
       "Tiempo_Total_Desde_Creacion_Segundos": 753553.0,
-      "Retiros_Con_Fuga": 1,
+      "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
       "Porcentaje_Frecuencia_Tarde": 0.0,
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 96,
       "ART_Desde_Creacion_Minutos": 130.83,
-      "Porcentaje_Fuga": 1.04
+      "Porcentaje_Fuga": 0.0
     },
     "2026-06-27": {
       "Dias_Laborados": 1,
@@ -3896,13 +4424,13 @@
       "Retiros_Aprobados": 22,
       "Retiros_Rechazados": 0,
       "Tiempo_Total_Desde_Creacion_Segundos": 812924.0,
-      "Retiros_Con_Fuga": 1,
+      "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
       "Porcentaje_Frecuencia_Tarde": 0.0,
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 22,
       "ART_Desde_Creacion_Minutos": 615.85,
-      "Porcentaje_Fuga": 4.55
+      "Porcentaje_Fuga": 0.0
     },
     "2026-06-18": {
       "Dias_Laborados": 1,
@@ -3976,13 +4504,13 @@
       "Retiros_Aprobados": 61,
       "Retiros_Rechazados": 0,
       "Tiempo_Total_Desde_Creacion_Segundos": 738373.0,
-      "Retiros_Con_Fuga": 2,
+      "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
       "Porcentaje_Frecuencia_Tarde": 0.0,
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 61,
       "ART_Desde_Creacion_Minutos": 201.74,
-      "Porcentaje_Fuga": 3.28
+      "Porcentaje_Fuga": 0.0
     },
     "2026-06-24": {
       "Dias_Laborados": 1,
@@ -4016,6 +4544,22 @@
       "ART_Desde_Creacion_Minutos": 1196.89,
       "Porcentaje_Fuga": 0.0
     },
+    "2026-07-16": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 96,
+      "Retiros_Rechazados": 2,
+      "Tiempo_Total_Desde_Creacion_Segundos": 6267482.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 98,
+      "ART_Desde_Creacion_Minutos": 1065.9,
+      "Porcentaje_Fuga": 0.0
+    },
     "2026-07-04": {
       "Dias_Laborados": 1,
       "Dias_Tarde": 0,
@@ -4046,6 +4590,22 @@
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 8,
       "ART_Desde_Creacion_Minutos": 2676.42,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-15": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 1,
+      "Retiros_Rechazados": 0,
+      "Tiempo_Total_Desde_Creacion_Segundos": 1318.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 1,
+      "ART_Desde_Creacion_Minutos": 21.97,
       "Porcentaje_Fuga": 0.0
     },
     "2026-06-19": {
@@ -4103,8 +4663,8 @@
       "Dias_Tarde": 0,
       "Minutos_Tarde_Total": 0,
       "Minutos_Inactividad_Total": 0,
-      "Retiros_Aprobados": 84,
-      "Retiros_Rechazados": 1,
+      "Retiros_Aprobados": 83,
+      "Retiros_Rechazados": 2,
       "Tiempo_Total_Desde_Creacion_Segundos": 9633072.0,
       "Retiros_Con_Fuga": 0,
       "Prom_Minutos_Tarde": 0.0,
@@ -4306,6 +4866,54 @@
       "ART_Desde_Creacion_Minutos": 569.59,
       "Porcentaje_Fuga": 0.0
     },
+    "2026-07-16": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 133,
+      "Retiros_Rechazados": 1,
+      "Tiempo_Total_Desde_Creacion_Segundos": 447561.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 134,
+      "ART_Desde_Creacion_Minutos": 55.67,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-15": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 326,
+      "Retiros_Rechazados": 0,
+      "Tiempo_Total_Desde_Creacion_Segundos": 1310917.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 326,
+      "ART_Desde_Creacion_Minutos": 67.02,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-13": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 131,
+      "Retiros_Rechazados": 0,
+      "Tiempo_Total_Desde_Creacion_Segundos": 595850.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 131,
+      "ART_Desde_Creacion_Minutos": 75.81,
+      "Porcentaje_Fuga": 0.0
+    },
     "2026-06-08": {
       "Dias_Laborados": 1,
       "Dias_Tarde": 0,
@@ -4400,6 +5008,38 @@
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 66,
       "ART_Desde_Creacion_Minutos": 20.95,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-14": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 75,
+      "Retiros_Rechazados": 0,
+      "Tiempo_Total_Desde_Creacion_Segundos": 279515.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 75,
+      "ART_Desde_Creacion_Minutos": 62.11,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-12": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 131,
+      "Retiros_Rechazados": 0,
+      "Tiempo_Total_Desde_Creacion_Segundos": 261785.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 131,
+      "ART_Desde_Creacion_Minutos": 33.31,
       "Porcentaje_Fuga": 0.0
     },
     "2026-06-16": {
@@ -4692,6 +5332,22 @@
       "ART_Desde_Creacion_Minutos": 506.75,
       "Porcentaje_Fuga": 0.0
     },
+    "2026-07-11": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 36,
+      "Retiros_Rechazados": 0,
+      "Tiempo_Total_Desde_Creacion_Segundos": 317709.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 36,
+      "ART_Desde_Creacion_Minutos": 147.09,
+      "Porcentaje_Fuga": 0.0
+    },
     "2026-06-23": {
       "Dias_Laborados": 1,
       "Dias_Tarde": 0,
@@ -4788,6 +5444,22 @@
       "ART_Desde_Creacion_Minutos": 2543.42,
       "Porcentaje_Fuga": 0.0
     },
+    "2026-07-13": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 1,
+      "Retiros_Rechazados": 0,
+      "Tiempo_Total_Desde_Creacion_Segundos": 133925.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 1,
+      "ART_Desde_Creacion_Minutos": 2232.08,
+      "Porcentaje_Fuga": 0.0
+    },
     "2026-07-09": {
       "Dias_Laborados": 1,
       "Dias_Tarde": 0,
@@ -4802,6 +5474,22 @@
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 5,
       "ART_Desde_Creacion_Minutos": 1342.8,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-12": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 3,
+      "Retiros_Rechazados": 0,
+      "Tiempo_Total_Desde_Creacion_Segundos": 142525.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 3,
+      "ART_Desde_Creacion_Minutos": 791.81,
       "Porcentaje_Fuga": 0.0
     }
   },
@@ -4918,6 +5606,22 @@
       "ART_Desde_Creacion_Minutos": 649.83,
       "Porcentaje_Fuga": 0.0
     },
+    "2026-07-11": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 141,
+      "Retiros_Rechazados": 7,
+      "Tiempo_Total_Desde_Creacion_Segundos": 7332055.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 148,
+      "ART_Desde_Creacion_Minutos": 825.68,
+      "Porcentaje_Fuga": 0.0
+    },
     "2026-07-04": {
       "Dias_Laborados": 1,
       "Dias_Tarde": 0,
@@ -4964,6 +5668,22 @@
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 35,
       "ART_Desde_Creacion_Minutos": 751.82,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-16": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 107,
+      "Retiros_Rechazados": 0,
+      "Tiempo_Total_Desde_Creacion_Segundos": 1419821.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 107,
+      "ART_Desde_Creacion_Minutos": 221.16,
       "Porcentaje_Fuga": 0.0
     },
     "2026-06-25": {
@@ -5030,6 +5750,22 @@
       "ART_Desde_Creacion_Minutos": 184.65,
       "Porcentaje_Fuga": 0.0
     },
+    "2026-07-13": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 1,
+      "Retiros_Rechazados": 0,
+      "Tiempo_Total_Desde_Creacion_Segundos": 236735.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 1,
+      "ART_Desde_Creacion_Minutos": 3945.58,
+      "Porcentaje_Fuga": 0.0
+    },
     "2026-07-02": {
       "Dias_Laborados": 1,
       "Dias_Tarde": 0,
@@ -5046,22 +5782,6 @@
       "ART_Desde_Creacion_Minutos": 117.08,
       "Porcentaje_Fuga": 0.0
     },
-    "2026-07-10": {
-      "Dias_Laborados": 1,
-      "Dias_Tarde": 0,
-      "Minutos_Tarde_Total": 0,
-      "Minutos_Inactividad_Total": 0,
-      "Retiros_Aprobados": 63,
-      "Retiros_Rechazados": 0,
-      "Tiempo_Total_Desde_Creacion_Segundos": 1231677.0,
-      "Retiros_Con_Fuga": 0,
-      "Prom_Minutos_Tarde": 0.0,
-      "Porcentaje_Frecuencia_Tarde": 0.0,
-      "Prom_Inactividad_Diaria": 0.0,
-      "Retiros_Procesados": 63,
-      "ART_Desde_Creacion_Minutos": 325.84,
-      "Porcentaje_Fuga": 0.0
-    },
     "2026-07-09": {
       "Dias_Laborados": 1,
       "Dias_Tarde": 0,
@@ -5076,6 +5796,22 @@
       "Prom_Inactividad_Diaria": 0.0,
       "Retiros_Procesados": 64,
       "ART_Desde_Creacion_Minutos": 1382.35,
+      "Porcentaje_Fuga": 0.0
+    },
+    "2026-07-10": {
+      "Dias_Laborados": 1,
+      "Dias_Tarde": 0,
+      "Minutos_Tarde_Total": 0,
+      "Minutos_Inactividad_Total": 0,
+      "Retiros_Aprobados": 28,
+      "Retiros_Rechazados": 1,
+      "Tiempo_Total_Desde_Creacion_Segundos": 236632.0,
+      "Retiros_Con_Fuga": 0,
+      "Prom_Minutos_Tarde": 0.0,
+      "Porcentaje_Frecuencia_Tarde": 0.0,
+      "Prom_Inactividad_Diaria": 0.0,
+      "Retiros_Procesados": 29,
+      "ART_Desde_Creacion_Minutos": 136.0,
       "Porcentaje_Fuga": 0.0
     }
   },
