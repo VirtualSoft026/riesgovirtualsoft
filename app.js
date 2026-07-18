@@ -5255,10 +5255,10 @@ function renderControlOperativoFiltered() {
             filteredForCharts[gestor] = aggregatedData[gestor];
         }
     }
-    renderControlOperativoCharts(filteredForCharts);
+    renderControlOperativoCharts(filteredForCharts, dailyData);
 }
 
-function renderControlOperativoCharts(data) {
+function renderControlOperativoCharts(data, dailyData) {
     const gestores = Object.keys(data);
     if (gestores.length === 0) return;
     
