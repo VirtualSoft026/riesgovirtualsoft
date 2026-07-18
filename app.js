@@ -5271,7 +5271,12 @@ function drawChart(id, type, labels, dataArr, labelStr, bgColor, borderColor, ex
     const datalabelsConfig = {
         formatter: function(value) {
             if (value === 0 || value === "0") return "";
-            return Number(value).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const num = Number(value);
+            const isInt = Number.isInteger(num);
+            return num.toLocaleString('es-CO', { 
+                minimumFractionDigits: isInt ? 0 : 2, 
+                maximumFractionDigits: isInt ? 0 : 2 
+            });
         },
         anchor: 'end',
         align: isHorizontal ? 'right' : 'top',
@@ -5317,12 +5322,17 @@ function drawCombinedChart(id, labels, data) {
     const datalabelsConfig = {
         formatter: function(value) {
             if (value === 0 || value === "0") return "";
-            return Number(value).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const num = Number(value);
+            const isInt = Number.isInteger(num);
+            return num.toLocaleString('es-CO', { 
+                minimumFractionDigits: isInt ? 0 : 2, 
+                maximumFractionDigits: isInt ? 0 : 2 
+            });
         },
         anchor: 'end',
         align: 'top',
         color: '#666',
-        font: { size: 10, weight: 'bold' }
+        font: { size: 11, weight: 'bold' }
     };
 
     controlOperativoCharts[id] = new Chart(ctx, {
@@ -5335,13 +5345,13 @@ function drawCombinedChart(id, labels, data) {
                     label: 'Aprobados',
                     data: labels.map(g => data[g].Retiros_Aprobados),
                     backgroundColor: 'rgba(103, 194, 58, 0.7)',
-                    datalabels: { align: 'center', anchor: 'center', color: '#fff' }
+                    datalabels: { align: 'center', anchor: 'center', color: '#fff', textStrokeColor: 'rgba(0,0,0,0.5)', textStrokeWidth: 3 }
                 },
                 {
                     label: 'Rechazados',
                     data: labels.map(g => data[g].Retiros_Rechazados),
                     backgroundColor: 'rgba(245, 108, 108, 0.7)',
-                    datalabels: { align: 'center', anchor: 'center', color: '#fff' }
+                    datalabels: { align: 'center', anchor: 'center', color: '#fff', textStrokeColor: 'rgba(0,0,0,0.6)', textStrokeWidth: 3 }
                 },
                 {
                     label: 'ART (Mins)',
@@ -5350,7 +5360,7 @@ function drawCombinedChart(id, labels, data) {
                     borderColor: 'rgba(64, 158, 255, 1)',
                     backgroundColor: 'rgba(64, 158, 255, 1)',
                     yAxisID: 'y1',
-                    datalabels: { align: 'top', anchor: 'end', color: 'rgba(64, 158, 255, 1)' }
+                    datalabels: { align: 'top', anchor: 'end', color: '#fff', textStrokeColor: 'rgba(64, 158, 255, 1)', textStrokeWidth: 3 }
                 }
             ]
         },
