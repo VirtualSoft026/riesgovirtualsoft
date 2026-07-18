@@ -4962,7 +4962,7 @@ function generarAnalisisTextual() {
         return;
     }
     
-    const excludedGestores = ['Sara Santamaría Foronda', 'Maria Sanchez', 'Sara', 'Maria'];
+    const excludedGestores = ['Sara Santamaría Foronda', 'Maria Sanchez', 'Sara', 'Maria', 'Camilo Espinosa', 'Camilo'];
     const filtroGestor = document.getElementById('filtroGestorOperativo').value;
     
     // Calcular fechas del filtro actual (reutilizando la lógica existente o leyendo las fechas)
@@ -5073,7 +5073,7 @@ function generarAnalisisTextual() {
     } else {
         html += `<h3 style="color: var(--accent-primary);">Resumen Ejecutivo del Equipo</h3>`;
         if (excludedCount > 0) {
-            html += `<p style="font-size: 12px; color: var(--text-secondary);">* Nota: Se han excluido a Sara y Maria de este análisis global por configuración del sistema.</p>`;
+            html += `<p style="font-size: 12px; color: var(--text-secondary);">* Nota: Se han excluido a Sara, Maria y Camilo de este análisis global por configuración del sistema.</p>`;
         }
         html += `<p>El equipo procesó un volumen total de <strong>${totalProcesados} solicitudes</strong> en el periodo evaluado. La tasa global de aprobación es altísima (${((totalAprobados/totalProcesados)*100).toFixed(1)}%), sugiriendo flujos estables y predecibles.</p>`;
         
