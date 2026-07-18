@@ -347,7 +347,7 @@ a { text-decoration: none; color: inherit; }
 /* Scrollbar styling */
 .panel::-webkit-scrollbar, .tree-container::-webkit-scrollbar { width: 6px; }
 .panel::-webkit-scrollbar-track, .tree-container::-webkit-scrollbar-track { background: transparent; }
-.panel::-webkit-scrollbar-thumb, .tree-container::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
+.panel::-webkit-scrollbar-thumb, .tree-container::-webkit-scrollbar-thumb { background: var(--text-secondary); border-radius: 10px; opacity: 0.5; }
 .panel::-webkit-scrollbar-thumb:hover, .tree-container::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
 
 .panel-title {
