@@ -5178,8 +5178,11 @@ function renderControlOperativoFiltered() {
     let globalARTTotal = 0;
     let gestoresContados = 0;
 
-    for (const gestor in aggregatedData) {
-        const d = aggregatedData[gestor];
+    const gestoresArray = Object.keys(aggregatedData).map(gestor => ({ gestor, ...aggregatedData[gestor] }));
+    gestoresArray.sort((a, b) => b.Retiros_Aprobados - a.Retiros_Aprobados);
+
+    for (const d of gestoresArray) {
+        const gestor = d.gestor;
         if (d.Retiros_Procesados === 0 && d.Dias_Laborados === 0) continue; // Skip empty rows if filtered out
         
         globalProcesados += d.Retiros_Procesados;
@@ -5371,7 +5374,11 @@ function drawCombinedChart(id, labels, data) {
                 padding: { top: 30 }
             },
             plugins: {
-                datalabels: datalabelsConfig
+                datalabels: datalabelsConfig,
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
             },
             scales: {
                 x: { stacked: true },
