@@ -5099,6 +5099,7 @@ function renderControlOperativoFiltered() {
     
     // Aggregation logic
     let aggregatedData = {};
+    let dailyData = {};
     
     for (const gestor in window.controlOperativoRawData) {
         if (selectedGestor !== 'Todos' && gestor !== selectedGestor) continue;
@@ -5148,6 +5149,12 @@ function renderControlOperativoFiltered() {
             aggregatedData[gestor].Retiros_Aprobados += d.Retiros_Aprobados || 0;
             aggregatedData[gestor].Retiros_Rechazados += d.Retiros_Rechazados || 0;
             aggregatedData[gestor].Tiempo_Total_Desde_Creacion_Segundos += d.Tiempo_Total_Desde_Creacion_Segundos || 0;
+            
+            if (!dailyData[fecha]) {
+                dailyData[fecha] = { Aprobados: 0, Rechazados: 0 };
+            }
+            dailyData[fecha].Aprobados += d.Retiros_Aprobados || 0;
+            dailyData[fecha].Rechazados += d.Retiros_Rechazados || 0;
             aggregatedData[gestor].Retiros_Con_Fuga += d.Retiros_Con_Fuga || 0;
             aggregatedData[gestor].Dias_Tarde += d.Dias_Tarde || 0;
             aggregatedData[gestor].Minutos_Tarde_Total += d.Minutos_Tarde_Total || 0;
@@ -5273,6 +5280,63 @@ function renderControlOperativoCharts(data) {
         return v > 45 ? 'rgba(245, 108, 108, 0.7)' : (v > 20 ? 'rgba(230, 162, 60, 0.7)' : 'rgba(103, 194, 58, 0.7)');
     });
     drawChart('chartInactividad', 'bar', inactividadTop, inactividadTop.map(g => data[g].Prom_Inactividad_Diaria), 'Minutos Inactividad', bgColors, bgColors);
+    
+    // Render Aprobaciones por Día Chart
+    const sortedDates = Object.keys(dailyData).sort();
+    const dailyAprobados = sortedDates.map(date => dailyData[date].Aprobados);
+    const dailyRechazados = sortedDates.map(date => dailyData[date].Rechazados);
+    
+    destroyChart('chartAprobacionesDia');
+    const ctxAprobDia = document.getElementById('chartAprobacionesDia').getContext('2d');
+    
+    // Compartir datalabelsConfig de drawCombinedChart, pero ajustada o simplemente instanciar
+    const datalabelsDaily = {
+        formatter: function(value) {
+            if (value === 0 || value === "0") return "";
+            return value.toLocaleString('es-CO');
+        },
+        anchor: 'end', align: 'top', color: '#666', font: { size: 10, weight: 'bold' }
+    };
+
+    controlOperativoCharts['chartAprobacionesDia'] = new Chart(ctxAprobDia, {
+        type: 'line',
+        plugins: [typeof ChartDataLabels !== 'undefined' ? ChartDataLabels : {}],
+        data: {
+            labels: sortedDates,
+            datasets: [
+                {
+                    label: 'Aprobados',
+                    data: dailyAprobados,
+                    borderColor: 'rgba(103, 194, 58, 1)',
+                    backgroundColor: 'rgba(103, 194, 58, 0.2)',
+                    fill: true,
+                    tension: 0.3,
+                    datalabels: { align: 'top', anchor: 'end', color: '#fff', textStrokeColor: 'rgba(103, 194, 58, 1)', textStrokeWidth: 3 }
+                },
+                {
+                    label: 'Rechazados',
+                    data: dailyRechazados,
+                    borderColor: 'rgba(245, 108, 108, 1)',
+                    backgroundColor: 'rgba(245, 108, 108, 0.2)',
+                    fill: true,
+                    tension: 0.3,
+                    datalabels: { align: 'top', anchor: 'end', color: '#fff', textStrokeColor: 'rgba(245, 108, 108, 1)', textStrokeWidth: 3 }
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { padding: { top: 30 } },
+            plugins: {
+                datalabels: datalabelsDaily,
+                tooltip: { mode: 'index', intersect: false }
+            },
+            scales: {
+                y: { beginAtZero: true, grace: '15%' }
+            }
+        }
+    });
     
     // 4. Eficiencia y Volumen (Combinado)
     const volTop = sortBy('Retiros_Procesados');
