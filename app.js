@@ -5265,8 +5265,26 @@ function renderControlOperativoCharts(data) {
 function drawChart(id, type, labels, dataArr, labelStr, bgColor, borderColor, extraOptions = {}) {
     destroyChart(id);
     const ctx = document.getElementById(id).getContext('2d');
+    
+    // Configuración de datalabels compartida
+    const isHorizontal = extraOptions.indexAxis === 'y';
+    const datalabelsConfig = {
+        formatter: function(value) {
+            if (value === 0 || value === "0") return "";
+            return Number(value).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        },
+        anchor: 'end',
+        align: isHorizontal ? 'right' : 'top',
+        color: '#666',
+        font: { size: 10, weight: 'bold' }
+    };
+
+    if (!extraOptions.plugins) extraOptions.plugins = {};
+    if (!extraOptions.plugins.datalabels) extraOptions.plugins.datalabels = datalabelsConfig;
+
     controlOperativoCharts[id] = new Chart(ctx, {
         type: type,
+        plugins: [typeof ChartDataLabels !== 'undefined' ? ChartDataLabels : {}],
         data: {
             labels: labels,
             datasets: [{
@@ -5280,6 +5298,12 @@ function drawChart(id, type, labels, dataArr, labelStr, bgColor, borderColor, ex
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    top: isHorizontal ? 0 : 20,
+                    right: isHorizontal ? 40 : 0
+                }
+            },
             ...extraOptions
         }
     });
@@ -5288,33 +5312,57 @@ function drawChart(id, type, labels, dataArr, labelStr, bgColor, borderColor, ex
 function drawCombinedChart(id, labels, data) {
     destroyChart(id);
     const ctx = document.getElementById(id).getContext('2d');
+    
+    // Configuración compartida de datalabels
+    const datalabelsConfig = {
+        formatter: function(value) {
+            if (value === 0 || value === "0") return "";
+            return Number(value).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        },
+        anchor: 'end',
+        align: 'top',
+        color: '#666',
+        font: { size: 10, weight: 'bold' }
+    };
+
     controlOperativoCharts[id] = new Chart(ctx, {
         type: 'bar',
+        plugins: [typeof ChartDataLabels !== 'undefined' ? ChartDataLabels : {}],
         data: {
             labels: labels,
             datasets: [
                 {
                     label: 'Aprobados',
                     data: labels.map(g => data[g].Retiros_Aprobados),
-                    backgroundColor: 'rgba(103, 194, 58, 0.7)'
+                    backgroundColor: 'rgba(103, 194, 58, 0.7)',
+                    datalabels: { align: 'center', anchor: 'center', color: '#fff' }
                 },
                 {
                     label: 'Rechazados',
                     data: labels.map(g => data[g].Retiros_Rechazados),
-                    backgroundColor: 'rgba(245, 108, 108, 0.7)'
+                    backgroundColor: 'rgba(245, 108, 108, 0.7)',
+                    datalabels: { align: 'center', anchor: 'center', color: '#fff' }
                 },
                 {
                     label: 'ART (Mins)',
                     data: labels.map(g => data[g].ART_Desde_Creacion_Minutos),
                     type: 'line',
                     borderColor: 'rgba(64, 158, 255, 1)',
-                    yAxisID: 'y1'
+                    backgroundColor: 'rgba(64, 158, 255, 1)',
+                    yAxisID: 'y1',
+                    datalabels: { align: 'top', anchor: 'end', color: 'rgba(64, 158, 255, 1)' }
                 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: {
+                padding: { top: 20 }
+            },
+            plugins: {
+                datalabels: datalabelsConfig
+            },
             scales: {
                 x: { stacked: true },
                 y: { stacked: true, position: 'left' },
