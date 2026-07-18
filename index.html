@@ -17,7 +17,7 @@
     <!-- Chart.js for data visualization -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
-    <link rel="stylesheet" href="styles.css?v=20260718_8">
+    <link rel="stylesheet" href="styles.css?v=20260718_9">
 </head>
 <body>
     <!-- Mobile Blocker -->
@@ -1395,6 +1395,32 @@
 
 
 
+    <!-- Print Report Container -->
+    <div id="printReportContainer" style="display: none;">
+        <!-- Membrete Placeholder -->
+        <div class="print-header" style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid var(--accent-primary); padding-bottom: 10px;">
+            <img id="printMembreteImg" src="img/membrete.png" alt="Membrete" style="max-width: 100%; height: auto; max-height: 120px; display: none;" onload="this.style.display='inline-block'" onerror="this.style.display='none'">
+            <h1 style="color: var(--accent-primary); font-size: 24px; margin: 15px 0 5px 0;">Reporte de Desempeño Operativo</h1>
+            <p id="printReportMeta" style="color: var(--text-secondary); font-size: 14px; margin: 0;"></p>
+        </div>
+        
+        <!-- IA Analysis Text -->
+        <div id="printAnalysisText" class="rich-text" style="font-size: 15px; line-height: 1.6; margin-bottom: 30px;">
+        </div>
+
+        <!-- Charts Container -->
+        <div class="print-charts">
+            <div style="margin-bottom: 30px; page-break-inside: avoid;">
+                <h3 style="color: var(--accent-primary); text-align: center; margin-bottom: 10px;">Distribución de Retiros</h3>
+                <img id="printChart1" src="" style="width: 100%; max-width: 600px; display: block; margin: 0 auto;">
+            </div>
+            <div style="page-break-inside: avoid;">
+                <h3 style="color: var(--accent-primary); text-align: center; margin-bottom: 10px;">Evolución de Tiempos de Resolución</h3>
+                <img id="printChart2" src="" style="width: 100%; max-width: 600px; display: block; margin: 0 auto;">
+            </div>
+        </div>
+    </div>
+
     <!-- Analysis Modal -->
     <div id="analysisModal" class="modal-overlay">
         <div class="modal glass-panel" style="max-width: 700px; width: 95%;">
@@ -1406,14 +1432,14 @@
                 <!-- El análisis se inyectará aquí dinámicamente -->
             </div>
             <div class="modal-actions" style="margin-top: 25px;">
-                <button class="btn btn-primary" onclick="window.print()"><i class='bx bx-download'></i> Exportar a PDF</button>
+                <button class="btn btn-primary" id="btnExportPDF" onclick="generarReporteEjecutivoPDF()"><i class='bx bx-download'></i> Exportar a PDF</button>
                 <button class="btn btn-outline" onclick="closeModal('analysisModal')">Cerrar</button>
             </div>
         </div>
     </div>
 
     <!-- Custom JS -->
-    <script src="app.js?v=20260718_15"></script>
+    <script src="app.js?v=20260718_16"></script>
     <script src="js/tiempos.js?v=20260710_2"></script>
 </body>
 </html>

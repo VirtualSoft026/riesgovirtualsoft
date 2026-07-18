@@ -5112,6 +5112,61 @@ function generarAnalisisTextual() {
     document.getElementById('analysisModal').classList.add('active');
 }
 
+// ==========================================
+// Función para Generar Informe Ejecutivo en PDF
+// ==========================================
+function generarReporteEjecutivoPDF() {
+    // 1. Obtener metadatos (gestor y periodo)
+    const gestorSelect = document.getElementById('filtroGestorOperativo');
+    const gestorText = gestorSelect.options[gestorSelect.selectedIndex].text;
+    
+    const periodoSelect = document.getElementById('filtroFechaOperativo');
+    let periodoText = periodoSelect.options[periodoSelect.selectedIndex].text;
+    
+    if (periodoSelect.value === 'custom') {
+        const start = document.getElementById('operativoDateStart').value;
+        const end = document.getElementById('operativoDateEnd').value;
+        periodoText = `Personalizado (${start || 'Inicio'} a ${end || 'Fin'})`;
+    }
+
+    const now = new Date();
+    document.getElementById('printReportMeta').innerText = `Fecha de generación: ${now.toLocaleString()} | Gestor(es): ${gestorText} | Periodo: ${periodoText}`;
+
+    // 2. Copiar el análisis de IA
+    const analisisHtml = document.getElementById('analysisModalBody').innerHTML;
+    document.getElementById('printAnalysisText').innerHTML = analisisHtml;
+
+    // 3. Capturar gráficas como imágenes (evita cortes y mal renderizado al imprimir)
+    const chartExcelencia = document.getElementById('chartTopExcelencia');
+    const chartAprobaciones = document.getElementById('chartAprobacionesDia');
+
+    const imgChart1 = document.getElementById('printChart1');
+    const imgChart2 = document.getElementById('printChart2');
+
+    if (chartExcelencia) {
+        try {
+            imgChart1.src = chartExcelencia.toDataURL("image/png");
+        } catch (e) {
+            console.error(e);
+        }
+    }
+    
+    if (chartAprobaciones) {
+        try {
+            imgChart2.src = chartAprobaciones.toDataURL("image/png");
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    // Cambiar los títulos de las gráficas en el reporte impreso para que coincidan
+    imgChart1.previousElementSibling.innerText = "Ranking de Excelencia (Top 10 Más Ágiles)";
+    imgChart2.previousElementSibling.innerText = "Evolución Diaria de Retiros";
+
+    // 4. Llamar a imprimir
+    window.print();
+}
+
 
 
 async function loadControlOperativoData() {
