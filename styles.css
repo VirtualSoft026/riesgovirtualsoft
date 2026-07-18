@@ -494,7 +494,7 @@ a { text-decoration: none; color: inherit; }
 }
 
 .modern-input:focus { border-color: var(--accent-primary); box-shadow: var(--shadow-accent); }
-select.modern-input { min-height: auto; background-color: var(--bg-panel); color: var(--text-primary); }
+select.modern-input, input.modern-input { min-height: auto; background-color: var(--bg-panel); color: var(--text-primary); }
 select.modern-input option { background-color: #ffffff; color: #000000; }
 
 /* Fix date and time input icons in dark mode */
