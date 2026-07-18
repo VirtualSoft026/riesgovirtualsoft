@@ -4957,7 +4957,10 @@ function toggleOperativoCustomDates() {
 // Función para Generar Análisis Textual IA
 // ==========================================
 function generarAnalisisTextual() {
-    if (!window.kpiData) return;
+    if (!window.controlOperativoRawData) {
+        alert("Aún no se han cargado los datos. Por favor, espera un momento o haz clic en Actualizar Datos.");
+        return;
+    }
     
     const excludedGestores = ['Sara Santamaría Foronda', 'Maria Sanchez', 'Sara', 'Maria'];
     const filtroGestor = document.getElementById('filtroGestorOperativo').value;
@@ -4975,7 +4978,7 @@ function generarAnalisisTextual() {
     let excludedCount = 0;
 
     // First pass: aggregate data
-    for (const gestor in window.kpiData) {
+    for (const gestor in window.controlOperativoRawData) {
         if (filtroGestor !== 'Todos' && gestor !== filtroGestor) continue;
         
         // Exclude specific users if we are looking at "Todos"
@@ -4990,7 +4993,7 @@ function generarAnalisisTextual() {
         let gARTTotal = 0;
         let gARTCount = 0;
 
-        for (const date in window.kpiData[gestor]) {
+        for (const date in window.controlOperativoRawData[gestor]) {
             // Apply date filter logic (simplified for the analysis generator)
             let includeDate = true;
             const itemDate = new Date(date + 'T00:00:00');
@@ -5025,7 +5028,7 @@ function generarAnalisisTextual() {
 
             if (!includeDate) continue;
 
-            const dayData = window.kpiData[gestor][date];
+            const dayData = window.controlOperativoRawData[gestor][date];
             gProcesados += dayData.Retiros_Procesados || 0;
             gAprobados += dayData.Retiros_Aprobados || 0;
             gRechazados += dayData.Retiros_Rechazados || 0;
