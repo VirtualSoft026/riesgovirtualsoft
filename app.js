@@ -4954,6 +4954,162 @@ function toggleOperativoCustomDates() {
 }
 
 // ==========================================
+// Función para Generar Análisis Textual IA
+// ==========================================
+function generarAnalisisTextual() {
+    if (!window.kpiData) return;
+    
+    const excludedGestores = ['Sara Santamaría Foronda', 'Maria Sanchez', 'Sara', 'Maria'];
+    const filtroGestor = document.getElementById('filtroGestorOperativo').value;
+    
+    // Calcular fechas del filtro actual (reutilizando la lógica existente o leyendo las fechas)
+    const filtroFecha = document.getElementById('filtroFechaOperativo').value;
+    const isCustom = filtroFecha === 'custom';
+    const dateStart = isCustom ? document.getElementById('operativoDateStart').value : null;
+    const dateEnd = isCustom ? document.getElementById('operativoDateEnd').value : null;
+
+    let totalProcesados = 0;
+    let totalAprobados = 0;
+    let totalRechazados = 0;
+    let gestoresStats = {};
+    let excludedCount = 0;
+
+    // First pass: aggregate data
+    for (const gestor in window.kpiData) {
+        if (filtroGestor !== 'Todos' && gestor !== filtroGestor) continue;
+        
+        // Exclude specific users if we are looking at "Todos"
+        if (filtroGestor === 'Todos' && excludedGestores.some(ex => gestor.includes(ex))) {
+            excludedCount++;
+            continue;
+        }
+
+        let gProcesados = 0;
+        let gAprobados = 0;
+        let gRechazados = 0;
+        let gARTTotal = 0;
+        let gARTCount = 0;
+
+        for (const date in window.kpiData[gestor]) {
+            // Apply date filter logic (simplified for the analysis generator)
+            let includeDate = true;
+            const itemDate = new Date(date + 'T00:00:00');
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            if (filtroFecha === 'today') {
+                if (itemDate.getTime() !== today.getTime()) includeDate = false;
+            } else if (filtroFecha === 'yesterday') {
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+                if (itemDate.getTime() !== yesterday.getTime()) includeDate = false;
+            } else if (filtroFecha === '7') {
+                const sevenDaysAgo = new Date(today);
+                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                if (itemDate < sevenDaysAgo) includeDate = false;
+            } else if (filtroFecha === '30') {
+                const thirtyDaysAgo = new Date(today);
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                if (itemDate < thirtyDaysAgo) includeDate = false;
+            } else if (filtroFecha === 'thisMonth') {
+                if (itemDate.getMonth() !== today.getMonth() || itemDate.getFullYear() !== today.getFullYear()) includeDate = false;
+            } else if (filtroFecha === 'lastMonth') {
+                const lastMonth = new Date(today);
+                lastMonth.setMonth(lastMonth.getMonth() - 1);
+                if (itemDate.getMonth() !== lastMonth.getMonth() || itemDate.getFullYear() !== lastMonth.getFullYear()) includeDate = false;
+            } else if (isCustom && dateStart && dateEnd) {
+                const startObj = new Date(dateStart + 'T00:00:00');
+                const endObj = new Date(dateEnd + 'T23:59:59');
+                if (itemDate < startObj || itemDate > endObj) includeDate = false;
+            }
+
+            if (!includeDate) continue;
+
+            const dayData = window.kpiData[gestor][date];
+            gProcesados += dayData.Retiros_Procesados || 0;
+            gAprobados += dayData.Retiros_Aprobados || 0;
+            gRechazados += dayData.Retiros_Rechazados || 0;
+            if (dayData.ART_Desde_Creacion_Minutos > 0) {
+                gARTTotal += dayData.ART_Desde_Creacion_Minutos;
+                gARTCount++;
+            }
+        }
+
+        if (gProcesados > 0) {
+            totalProcesados += gProcesados;
+            totalAprobados += gAprobados;
+            totalRechazados += gRechazados;
+            gestoresStats[gestor] = {
+                procesados: gProcesados,
+                aprobados: gAprobados,
+                rechazados: gRechazados,
+                artPromedio: gARTCount > 0 ? (gARTTotal / gARTCount) : 0
+            };
+        }
+    }
+
+    let html = ``;
+    
+    if (Object.keys(gestoresStats).length === 0) {
+        html = `<p>No hay suficientes datos procesados para el periodo o gestor seleccionado para generar un análisis.</p>`;
+    } else if (filtroGestor !== 'Todos') {
+        const stats = gestoresStats[filtroGestor];
+        html += `<h3 style="color: var(--accent-primary);">Reporte Individual: ${filtroGestor}</h3>`;
+        html += `<p>Durante el periodo seleccionado, <strong>${filtroGestor}</strong> procesó un total de <strong>${stats.procesados} retiros</strong> (aprobando ${stats.aprobados} y rechazando ${stats.rechazados}).</p>`;
+        html += `<p>Su Tiempo Promedio de Resolución (ART) fue de <strong>${stats.artPromedio.toFixed(2)} minutos</strong>.</p>`;
+        
+        if (stats.artPromedio > 1200) {
+            html += `<div style="background: rgba(239, 68, 68, 0.1); border-left: 4px solid var(--danger); padding: 15px; margin-top: 15px;">
+                <strong>⚠️ Área de Oportunidad:</strong> El tiempo de resolución es significativamente alto (más de 20 horas). Se sugiere revisar si hay bloqueos o si los casos asignados son de alta complejidad.
+            </div>`;
+        } else if (stats.artPromedio < 900) {
+            html += `<div style="background: rgba(16, 185, 129, 0.1); border-left: 4px solid var(--success); padding: 15px; margin-top: 15px;">
+                <strong>✅ Excelente Velocidad:</strong> El gestor mantiene tiempos de respuesta altamente competitivos, por debajo del estándar de 15 horas.
+            </div>`;
+        }
+    } else {
+        html += `<h3 style="color: var(--accent-primary);">Resumen Ejecutivo del Equipo</h3>`;
+        if (excludedCount > 0) {
+            html += `<p style="font-size: 12px; color: var(--text-secondary);">* Nota: Se han excluido a Sara y Maria de este análisis global por configuración del sistema.</p>`;
+        }
+        html += `<p>El equipo procesó un volumen total de <strong>${totalProcesados} solicitudes</strong> en el periodo evaluado. La tasa global de aprobación es altísima (${((totalAprobados/totalProcesados)*100).toFixed(1)}%), sugiriendo flujos estables y predecibles.</p>`;
+        
+        const sortedByVol = Object.entries(gestoresStats).sort((a,b) => b[1].procesados - a[1].procesados);
+        const sortedByART = Object.entries(gestoresStats).filter(a => a[1].artPromedio > 0).sort((a,b) => a[1].artPromedio - b[1].artPromedio);
+        
+        if (sortedByVol.length > 0) {
+            html += `<h4>🏆 Liderazgo en Volumen</h4>`;
+            html += `<p>El gestor con mayor carga operativa es <strong>${sortedByVol[0][0]}</strong> con ${sortedByVol[0][1].procesados} procesados.`;
+            if (sortedByVol.length > 1) {
+                html += ` Le sigue <strong>${sortedByVol[1][0]}</strong> con ${sortedByVol[1][1].procesados}.</p>`;
+            } else {
+                html += `</p>`;
+            }
+        }
+
+        if (sortedByART.length > 0) {
+            html += `<h4>⚡ Rendimiento en Velocidad (ART)</h4>`;
+            html += `<p>El gestor más ágil en resolución es <strong>${sortedByART[0][0]}</strong> con un tiempo promedio de <strong>${sortedByART[0][1].artPromedio.toFixed(2)} minutos</strong>.`;
+            if (sortedByART.length > 1) {
+                html += ` En segundo lugar destaca <strong>${sortedByART[1][0]}</strong> con ${sortedByART[1][1].artPromedio.toFixed(2)} mins.</p>`;
+            } else {
+                html += `</p>`;
+            }
+
+            const slowest = sortedByART[sortedByART.length - 1];
+            if (slowest[1].artPromedio > 1200) {
+                html += `<div style="background: rgba(239, 68, 68, 0.1); border-left: 4px solid var(--danger); padding: 15px; margin-top: 15px;">
+                    <strong>⚠️ Cuello de Botella Detectado:</strong> <strong>${slowest[0]}</strong> registra un tiempo promedio elevado (${slowest[1].artPromedio.toFixed(2)} min). Se recomienda una intervención para revisar bloqueos operativos o desbalance de cargas.
+                </div>`;
+            }
+        }
+    }
+
+    document.getElementById('analysisModalBody').innerHTML = html;
+    document.getElementById('analysisModal').style.display = 'flex';
+}
+
+// ==========================================
 // Función para Generar Informe PDF
 // ==========================================
 function generarInformePDF() {

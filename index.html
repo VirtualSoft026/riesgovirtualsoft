@@ -729,6 +729,9 @@
                         </div>
 
                         <div style="display: flex; align-items: flex-end; gap: 10px;">
+                            <button class="btn btn-secondary" onclick="generarAnalisisTextual()" style="height: 48px; padding: 0 25px; border-radius: 12px; font-weight: 600; font-size: 14px; letter-spacing: 0.5px; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; background: rgba(59, 130, 246, 0.1); color: var(--accent-primary); border: 1px solid rgba(59, 130, 246, 0.3);">
+                                <i class='bx bx-brain' style="font-size: 18px;"></i> Análisis IA
+                            </button>
                             <button class="btn btn-secondary" onclick="generarInformePDF()" style="height: 48px; padding: 0 25px; border-radius: 12px; font-weight: 600; font-size: 14px; letter-spacing: 0.5px; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; background: var(--bg-panel); color: var(--text-primary); border: 1px solid var(--glass-border);">
                                 <i class='bx bx-printer' style="font-size: 18px;"></i> PDF
                             </button>
@@ -1395,8 +1398,24 @@
 
 
 
+    <!-- Analysis Modal -->
+    <div id="analysisModal" class="modal-overlay">
+        <div class="modal glass-panel" style="max-width: 700px; width: 95%;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+                <h2 style="margin: 0; font-size: 24px; color: var(--accent-primary);"><i class='bx bx-brain'></i> Análisis de Control Operativo</h2>
+                <span class="close-modal" onclick="closeModal('analysisModal')" style="cursor: pointer; font-size: 28px; color: var(--text-secondary); line-height: 1;">&times;</span>
+            </div>
+            <div id="analysisModalBody" class="modal-body rich-text" style="max-height: 60vh; overflow-y: auto; padding-right: 10px; color: var(--text-primary); font-size: 15px; line-height: 1.6;">
+                <!-- El análisis se inyectará aquí dinámicamente -->
+            </div>
+            <div class="modal-actions" style="margin-top: 25px;">
+                <button class="btn btn-outline" onclick="closeModal('analysisModal')">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Custom JS -->
-    <script src="app.js?v=20260717_11"></script>
+    <script src="app.js?v=20260717_12"></script>
     <script src="js/tiempos.js?v=20260710_2"></script>
 </body>
 </html>
