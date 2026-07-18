@@ -369,8 +369,8 @@ a { text-decoration: none; color: inherit; }
     overflow-y: auto;
     overflow-x: hidden;
     min-height: 0;
-    max-height: 55vh;
     padding-right: 5px;
+    padding-bottom: 20px;
 }
 .tree-item { display: flex; flex-direction: column; gap: 4px; }
 
