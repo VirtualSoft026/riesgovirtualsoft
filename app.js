@@ -5057,17 +5057,51 @@ function generarAnalisisTextual() {
         html = `<p>No hay suficientes datos procesados para el periodo o gestor seleccionado para generar un análisis.</p>`;
     } else if (filtroGestor !== 'Todos') {
         const stats = gestoresStats[filtroGestor];
-        html += `<h3 style="color: var(--accent-primary);">Reporte Individual: ${filtroGestor}</h3>`;
-        html += `<p>Durante el periodo seleccionado, <strong>${filtroGestor}</strong> procesó un total de <strong>${stats.procesados} retiros</strong> (aprobando ${stats.aprobados} y rechazando ${stats.rechazados}).</p>`;
-        html += `<p>Su Tiempo Promedio de Resolución (ART) fue de <strong>${stats.artPromedio.toFixed(2)} minutos</strong>.</p>`;
+        const tasaAprobacion = stats.procesados > 0 ? ((stats.aprobados / stats.procesados) * 100).toFixed(1) : 0;
+        const tasaRechazo = stats.procesados > 0 ? ((stats.rechazados / stats.procesados) * 100).toFixed(1) : 0;
+
+        html += `<h3 style="color: var(--accent-primary); border-bottom: 2px solid var(--accent-primary); padding-bottom: 5px; margin-bottom: 15px;">Reporte Individual: ${filtroGestor}</h3>`;
+        html += `<p>Resumen de rendimiento operativo para el periodo seleccionado. A continuación se presentan las métricas clave evaluadas:</p>`;
         
+        html += `
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
+            <thead>
+                <tr style="background-color: var(--accent-primary); color: white;">
+                    <th style="padding: 10px; border: 1px solid #ddd;">Métrica</th>
+                    <th style="padding: 10px; border: 1px solid #ddd;">Valor Alcanzado</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>Total Retiros Procesados</strong></td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; font-size: 16px;">${stats.procesados}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">Retiros Aprobados</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center; color: var(--success);">${stats.aprobados} (${tasaAprobacion}%)</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">Retiros Rechazados</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center; color: var(--danger);">${stats.rechazados} (${tasaRechazo}%)</td>
+                </tr>
+                <tr style="background-color: #f9f9f9;">
+                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>Tiempo Promedio de Resolución (ART)</strong></td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; font-size: 16px;">${stats.artPromedio.toFixed(2)} min</td>
+                </tr>
+            </tbody>
+        </table>`;
+
         if (stats.artPromedio > 1200) {
             html += `<div style="background: rgba(239, 68, 68, 0.1); border-left: 4px solid var(--danger); padding: 15px; margin-top: 15px;">
                 <strong>⚠️ Área de Oportunidad:</strong> El tiempo de resolución es significativamente alto (más de 20 horas). Se sugiere revisar si hay bloqueos o si los casos asignados son de alta complejidad.
             </div>`;
         } else if (stats.artPromedio < 900) {
             html += `<div style="background: rgba(16, 185, 129, 0.1); border-left: 4px solid var(--success); padding: 15px; margin-top: 15px;">
-                <strong>✅ Excelente Velocidad:</strong> El gestor mantiene tiempos de respuesta altamente competitivos, por debajo del estándar de 15 horas.
+                <strong>🏆 Excelente Velocidad:</strong> El gestor mantiene tiempos de respuesta altamente competitivos, por debajo del estándar de 15 horas.
+            </div>`;
+        } else {
+            html += `<div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-primary); padding: 15px; margin-top: 15px;">
+                <strong>📊 Rendimiento Estable:</strong> El gestor mantiene tiempos de respuesta dentro de los promedios esperados de la operación.
             </div>`;
         }
     } else {
@@ -5136,32 +5170,43 @@ function generarReporteEjecutivoPDF() {
     const analisisHtml = document.getElementById('analysisModalBody').innerHTML;
     document.getElementById('printAnalysisText').innerHTML = analisisHtml;
 
-    // 3. Capturar gráficas como imágenes (evita cortes y mal renderizado al imprimir)
-    const chartExcelencia = controlOperativoCharts['chartTopExcelencia'];
+    // 3. Capturar gráficas como imágenes
+    const isGlobal = (gestorSelect.value === 'Todos');
+    const chartExcelencia = window.chartTopExcelenciaInstance; // from tiempos.js
     const chartAprobaciones = controlOperativoCharts['chartAprobacionesDia'];
 
     const imgChart1 = document.getElementById('printChart1');
     const imgChart2 = document.getElementById('printChart2');
 
-    if (chartExcelencia) {
+    // Chart 1: Si es global mostramos Excelencia, si es individual mostramos otra cosa o la ocultamos
+    if (isGlobal && chartExcelencia) {
         try {
             imgChart1.src = chartExcelencia.toBase64Image();
+            imgChart1.style.display = 'block';
+            imgChart1.previousElementSibling.innerText = "Ranking de Excelencia (Top 10 Más Ágiles)";
+            imgChart1.previousElementSibling.style.display = 'block';
         } catch (e) {
             console.error("Error capturando chartExcelencia:", e);
         }
+    } else {
+        imgChart1.style.display = 'none';
+        imgChart1.previousElementSibling.style.display = 'none';
     }
     
+    // Chart 2: Evolución diaria aplica para global e individual
     if (chartAprobaciones) {
         try {
             imgChart2.src = chartAprobaciones.toBase64Image();
+            imgChart2.style.display = 'block';
+            imgChart2.previousElementSibling.innerText = "Evolución Diaria de Retiros";
+            imgChart2.previousElementSibling.style.display = 'block';
         } catch (e) {
             console.error("Error capturando chartAprobaciones:", e);
         }
+    } else {
+        imgChart2.style.display = 'none';
+        imgChart2.previousElementSibling.style.display = 'none';
     }
-
-    // Cambiar los títulos de las gráficas en el reporte impreso para que coincidan
-    imgChart1.previousElementSibling.innerText = "Ranking de Excelencia (Top 10 Más Ágiles)";
-    imgChart2.previousElementSibling.innerText = "Evolución Diaria de Retiros";
 
     // 4. Llamar a imprimir
     window.print();
