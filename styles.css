@@ -952,7 +952,6 @@ select.modern-input option { background-color: #ffffff; color: #000000; }
     }
     
     .view-panel {
-        display: block !important; /* Ensure the active view is displayed correctly */
         padding: 0 !important;
         height: auto !important;
         overflow: visible !important;
