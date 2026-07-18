@@ -5137,25 +5137,25 @@ function generarReporteEjecutivoPDF() {
     document.getElementById('printAnalysisText').innerHTML = analisisHtml;
 
     // 3. Capturar gráficas como imágenes (evita cortes y mal renderizado al imprimir)
-    const chartExcelencia = document.getElementById('chartTopExcelencia');
-    const chartAprobaciones = document.getElementById('chartAprobacionesDia');
+    const chartExcelencia = controlOperativoCharts['chartTopExcelencia'];
+    const chartAprobaciones = controlOperativoCharts['chartAprobacionesDia'];
 
     const imgChart1 = document.getElementById('printChart1');
     const imgChart2 = document.getElementById('printChart2');
 
     if (chartExcelencia) {
         try {
-            imgChart1.src = chartExcelencia.toDataURL("image/png");
+            imgChart1.src = chartExcelencia.toBase64Image();
         } catch (e) {
-            console.error(e);
+            console.error("Error capturando chartExcelencia:", e);
         }
     }
     
     if (chartAprobaciones) {
         try {
-            imgChart2.src = chartAprobaciones.toDataURL("image/png");
+            imgChart2.src = chartAprobaciones.toBase64Image();
         } catch (e) {
-            console.error(e);
+            console.error("Error capturando chartAprobaciones:", e);
         }
     }
 
