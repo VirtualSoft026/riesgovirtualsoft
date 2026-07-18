@@ -1,3 +1,4 @@
+#printMembreteImg { display: none; }
 :root, [data-theme="dark"] {
     /* Color Palette - Dark Premium Theme */
     --bg-primary: #0B0E14;
@@ -1020,6 +1021,7 @@ select.modern-input option { background-color: #ffffff; color: #000000; }
 
     /* Imagen de fondo a página completa */
     #printMembreteImg {
+        display: block !important;
         position: fixed;
         top: 0;
         left: 0;
