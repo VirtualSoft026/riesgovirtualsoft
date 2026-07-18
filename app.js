@@ -5368,7 +5368,7 @@ function drawCombinedChart(id, labels, data) {
             responsive: true,
             maintainAspectRatio: false,
             layout: {
-                padding: { top: 20 }
+                padding: { top: 30 }
             },
             plugins: {
                 datalabels: datalabelsConfig
