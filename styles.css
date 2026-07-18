@@ -327,6 +327,7 @@ a { text-decoration: none; color: inherit; }
 .workspace-grid {
     display: grid;
     grid-template-columns: 300px 1fr 320px;
+    grid-template-rows: 1fr;
     gap: var(--spacing-sm);
     flex-grow: 1;
     overflow: hidden;
@@ -334,6 +335,7 @@ a { text-decoration: none; color: inherit; }
 
 .workspace-grid.no-right-panel {
     grid-template-columns: 300px 1fr;
+    grid-template-rows: 1fr;
 }
 
 .panel {
