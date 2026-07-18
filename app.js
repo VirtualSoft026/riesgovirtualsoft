@@ -5109,7 +5109,7 @@ function generarAnalisisTextual() {
     }
 
     document.getElementById('analysisModalBody').innerHTML = html;
-    document.getElementById('analysisModal').style.display = 'flex';
+    document.getElementById('analysisModal').classList.add('active');
 }
 
 // ==========================================
