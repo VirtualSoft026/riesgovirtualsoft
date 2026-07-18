@@ -5193,9 +5193,26 @@ function renderControlOperativoFiltered() {
         
         const tr = document.createElement('tr');
         tr.style.borderBottom = '1px solid rgba(0,0,0,0.05)';
-        tr.style.transition = 'background 0.2s ease';
+        tr.style.transition = 'background 0.2s ease, transform 0.1s ease';
+        tr.style.cursor = 'pointer';
+        tr.title = 'Haz clic para filtrar o quitar filtro de este gestor';
         tr.onmouseover = () => tr.style.background = 'var(--bg-secondary, #f8f9fa)';
         tr.onmouseout = () => tr.style.background = 'transparent';
+        
+        tr.onclick = () => {
+            const select = document.getElementById('filtroGestorOperativo');
+            if (select) {
+                if (select.value === gestor) {
+                    select.value = "Todos"; // Deseleccionar si ya estaba seleccionado
+                } else {
+                    select.value = gestor; // Seleccionar
+                }
+                if (typeof renderControlOperativoFiltered === 'function') {
+                    renderControlOperativoFiltered();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            }
+        };
         
         const badgeAprobados = `<span style="background: rgba(16, 185, 129, 0.15); color: var(--success); padding: 4px 10px; border-radius: 20px; font-weight: 700;">${d.Retiros_Aprobados}</span>`;
         const badgeRechazados = `<span style="background: rgba(239, 68, 68, 0.15); color: var(--danger); padding: 4px 10px; border-radius: 20px; font-weight: 700;">${d.Retiros_Rechazados}</span>`;
