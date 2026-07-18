@@ -676,7 +676,15 @@
 
                 <!-- Vista: Eficiencia Operativa (Admin) -->
                 <div id="view-eficiencia-operativa" class="view-panel" style="display: none; padding: 20px; overflow-y: auto; width: 100%; box-sizing: border-box; flex: 1;">
-                    <h2 class="panel-title" style="margin-bottom: 25px; color: var(--accent-primary);"><i class='bx bx-line-chart'></i> Control Operativo y Eficiencia en Retiros</h2>
+                    <div id="printHeaderOperativo" class="print-only" style="display: none; text-align: center; margin-bottom: 20px;">
+                        <h1 style="color: var(--accent-primary); margin-bottom: 5px;">Informe de Control Operativo</h1>
+                        <h3 id="printHeaderGestor" style="color: var(--text-primary); margin-bottom: 5px;">Gestor: Todos</h3>
+                        <h4 id="printHeaderPeriodo" style="color: var(--text-secondary); margin-bottom: 10px;">Periodo: Todas las fechas</h4>
+                        <p style="font-size: 12px; color: #888;">Generado el: <span id="printHeaderFechaG"></span></p>
+                        <hr style="border: 0; border-top: 1px solid #eee; margin-top: 15px;">
+                    </div>
+                    
+                    <h2 class="panel-title no-print" style="margin-bottom: 25px; color: var(--accent-primary);"><i class='bx bx-line-chart'></i> Control Operativo y Eficiencia en Retiros</h2>
                     
                     <!-- Panel de Filtros Horizontal Superior para Operativo -->
                     <div class="glass-panel filter-section" style="margin-bottom: 25px; display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap;">
@@ -720,8 +728,11 @@
                             </div>
                         </div>
 
-                        <div style="display: flex; align-items: flex-end;">
-                            <button class="btn btn-primary" onclick="loadControlOperativoData()" style="height: 50px; padding: 0 35px; border-radius: 12px; font-weight: 600; font-size: 15px; letter-spacing: 0.5px; box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3); transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;">
+                        <div style="display: flex; align-items: flex-end; gap: 10px;">
+                            <button class="btn btn-secondary" onclick="generarInformePDF()" style="height: 48px; padding: 0 25px; border-radius: 12px; font-weight: 600; font-size: 14px; letter-spacing: 0.5px; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; background: var(--bg-panel); color: var(--text-primary); border: 1px solid var(--glass-border);">
+                                <i class='bx bx-printer' style="font-size: 18px;"></i> PDF
+                            </button>
+                            <button class="btn btn-primary" onclick="loadControlOperativoData()" style="height: 48px; padding: 0 35px; border-radius: 12px; font-weight: 600; font-size: 14px; letter-spacing: 0.5px; box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3); transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;">
                                 <i class='bx bx-refresh' style="font-size: 18px;"></i> Actualizar Datos
                             </button>
                         </div>
@@ -1385,7 +1396,7 @@
 
 
     <!-- Custom JS -->
-    <script src="app.js?v=20260717_10"></script>
+    <script src="app.js?v=20260717_11"></script>
     <script src="js/tiempos.js?v=20260710_2"></script>
 </body>
 </html>

@@ -4953,6 +4953,34 @@ function toggleOperativoCustomDates() {
     }
 }
 
+// ==========================================
+// Función para Generar Informe PDF
+// ==========================================
+function generarInformePDF() {
+    // 1. Obtener los valores actuales de los filtros
+    const gestorSelect = document.getElementById('filtroGestorOperativo');
+    const gestorText = gestorSelect.options[gestorSelect.selectedIndex].text;
+    
+    const periodoSelect = document.getElementById('filtroFechaOperativo');
+    let periodoText = periodoSelect.options[periodoSelect.selectedIndex].text;
+    
+    if (periodoSelect.value === 'custom') {
+        const start = document.getElementById('operativoDateStart').value;
+        const end = document.getElementById('operativoDateEnd').value;
+        periodoText = `Personalizado (${start || 'Inicio'} a ${end || 'Fin'})`;
+    }
+
+    // 2. Llenar los datos en el encabezado de impresión
+    document.getElementById('printHeaderGestor').innerText = `Gestor Evaluado: ${gestorText}`;
+    document.getElementById('printHeaderPeriodo').innerText = `Periodo: ${periodoText}`;
+    
+    const now = new Date();
+    document.getElementById('printHeaderFechaG').innerText = now.toLocaleString();
+
+    // 3. Disparar impresión
+    window.print();
+}
+
 async function loadControlOperativoData() {
     try {
         const response = await fetch('kpi_operativos_v2.json?' + new Date().getTime());

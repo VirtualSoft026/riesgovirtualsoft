@@ -918,3 +918,86 @@ select.modern-input option { background-color: #ffffff; color: #000000; }
 .rich-text ol {
     list-style-type: decimal;
 }
+
+/* ==========================================================================
+   Print Styles
+   ========================================================================== */
+@media print {
+    body {
+        background-color: #fff;
+        color: #000;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* Hide elements that shouldn't be printed */
+    .sidebar,
+    .top-nav,
+    .no-print,
+    .filter-section,
+    #toast-container,
+    #idleDetectorWarning,
+    .btn,
+    .mobile-blocker {
+        display: none !important;
+    }
+    
+    /* Ensure content takes full width */
+    .main-content {
+        margin-left: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+    
+    .view-panel {
+        display: block !important; /* Ensure the active view is displayed correctly */
+        padding: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    /* Print header for reports */
+    .print-only {
+        display: block !important;
+    }
+    
+    /* Charts and grids for print */
+    .glass-panel {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+        margin-bottom: 20px !important;
+        page-break-inside: avoid;
+        background: #fff !important;
+    }
+    
+    .dashboard-grid, .grid-2-cols {
+        display: block !important; /* Stack elements instead of grid if needed, or keep grid if it fits */
+    }
+    
+    .dashboard-grid > div, .grid-2-cols > div {
+        width: 100% !important;
+        margin-bottom: 20px !important;
+        page-break-inside: avoid;
+    }
+    
+    /* Ensure canvases scale properly */
+    canvas {
+        max-width: 100% !important;
+        height: auto !important;
+        page-break-inside: avoid;
+    }
+    
+    /* Table for print */
+    .table-container {
+        overflow: visible !important;
+        max-height: none !important;
+        page-break-inside: auto;
+    }
+    
+    tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+}
