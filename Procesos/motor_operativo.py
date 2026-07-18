@@ -212,6 +212,10 @@ class MicroStrategyConnector:
                 
                 if "rechazado" in estado_mstr_lower or "cancelado" in estado_mstr_lower:
                     estado = "rechazado"
+                elif "eliminado" in estado_mstr_lower and banco != "":
+                    estado = "ignorar"
+                elif "activo" in estado_mstr_lower and banco != "":
+                    estado = "ignorar"
                 else:
                     estado = "aprobado"
                 
@@ -219,10 +223,9 @@ class MicroStrategyConnector:
                 agent_lower = agent_id.lower().strip()
                 if agent_lower in GESTORES_PERMITIDOS:
                     agent_name_clean = GESTORES_PERMITIDOS[agent_lower]
-                elif agent_lower == "":
-                    agent_name_clean = "Sistema (Automatizado)"
                 else:
-                    agent_name_clean = agent_id.title()
+                    # Skip any gestores not registered
+                    continue
                 
                 if agent_name_clean and estado in ["aprobado", "rechazado"] and ciclo >= 0:
                     parsed_retiros.append({
