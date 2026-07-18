@@ -5375,8 +5375,8 @@ function drawCombinedChart(id, labels, data) {
             },
             scales: {
                 x: { stacked: true },
-                y: { stacked: true, position: 'left' },
-                y1: { position: 'right', grid: { drawOnChartArea: false } }
+                y: { stacked: true, position: 'left', grace: '10%' },
+                y1: { position: 'right', grid: { drawOnChartArea: false }, grace: '15%' }
             }
         }
     });
