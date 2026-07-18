@@ -922,7 +922,7 @@ select.modern-input option { background-color: #ffffff; color: #000000; }
    ========================================================================== */
 @media print {
     body {
-        background-color: #fff;
+        background-color: transparent !important;
         color: #000;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
@@ -1064,7 +1064,7 @@ select.modern-input option { background-color: #ffffff; color: #000000; }
     #printReportContainer {
         display: block !important;
         width: 100% !important;
-        background: #fff !important;
+        background: transparent !important;
         color: #000 !important;
     }
     
