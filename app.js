@@ -5172,7 +5172,7 @@ function generarReporteEjecutivoPDF() {
 
     // 3. Capturar gráficas como imágenes
     const isGlobal = (gestorSelect.value === 'Todos');
-    const chartExcelencia = window.chartTopExcelenciaInstance; // from tiempos.js
+    const chartExcelencia = isGlobal ? controlOperativoCharts['chartTardanzasMejores'] : null;
     const chartAprobaciones = controlOperativoCharts['chartAprobacionesDia'];
 
     const imgChart1 = document.getElementById('printChart1');
@@ -5183,7 +5183,7 @@ function generarReporteEjecutivoPDF() {
         try {
             imgChart1.src = chartExcelencia.toBase64Image();
             imgChart1.style.display = 'block';
-            imgChart1.previousElementSibling.innerText = "Ranking de Excelencia (Top 10 Más Ágiles)";
+            imgChart1.previousElementSibling.innerText = "Ranking de Excelencia (Top 5 Más Ágiles)";
             imgChart1.previousElementSibling.style.display = 'block';
         } catch (e) {
             console.error("Error capturando chartExcelencia:", e);
@@ -5586,6 +5586,7 @@ function renderControlOperativoCharts(data, dailyData) {
             ]
         },
         options: {
+            animation: false,
             responsive: true,
             maintainAspectRatio: false,
             layout: { padding: { top: 30 } },
@@ -5646,6 +5647,7 @@ function drawChart(id, type, labels, dataArr, labelStr, bgColor, borderColor, ex
             }]
         },
         options: {
+            animation: false,
             responsive: true,
             maintainAspectRatio: false,
             layout: {
@@ -5710,6 +5712,7 @@ function drawCombinedChart(id, labels, data) {
             ]
         },
         options: {
+            animation: false,
             responsive: true,
             maintainAspectRatio: false,
             layout: {
@@ -5752,6 +5755,7 @@ function drawScatterMatriz(id, gestores, data) {
             }]
         },
         options: {
+            animation: false,
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
