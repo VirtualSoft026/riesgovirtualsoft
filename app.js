@@ -5679,7 +5679,7 @@ function renderControlOperativoCharts(data, dailyData, selectedGestor) {
     drawChart('chartTardanzasPeores', 'bar', peoresTardanzas, peoresData, 'Minutos Tarde (Promedio)', peoresColors, peoresBorders, { indexAxis: 'y' });
     
     // 2. Top Excelencia Puntualidad (Mejores 5, orden ASC)
-    const mejoresTardanzas = sortBy('Prom_Minutos_Tarde', true).slice(0, 5);
+    const mejoresTardanzas = sortBy('Prom_Minutos_Tarde', true).slice(0, 5).reverse();
     const mejoresColors = mejoresTardanzas.map(g => (selectedGestor !== 'Todos' && g === selectedGestor) ? 'rgba(54, 162, 235, 1)' : 'rgba(103, 194, 58, 0.7)');
     const mejoresBorders = mejoresTardanzas.map(g => (selectedGestor !== 'Todos' && g === selectedGestor) ? 'rgba(54, 162, 235, 1)' : 'rgba(103, 194, 58, 1)');
     drawChart('chartTardanzasMejores', 'bar', mejoresTardanzas, mejoresTardanzas.map(g => data[g].Prom_Minutos_Tarde), 'Minutos Tarde (Promedio)', mejoresColors, mejoresBorders, { indexAxis: 'y' });
