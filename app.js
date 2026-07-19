@@ -5236,6 +5236,19 @@ function generarReporteEjecutivoPDF() {
         if (imgChart4.previousElementSibling) imgChart4.previousElementSibling.style.display = 'none';
     }
 
+    // 3.5. Tabla de Resumen
+    const printTableContainer = document.getElementById('printTableContainer');
+    if (printTableContainer) {
+        if (isGlobal) {
+            const tableDiv = document.getElementById('tablaResumenOperativo').parentElement;
+            printTableContainer.innerHTML = `<h3 style="color: var(--accent-primary); text-align: center; margin-bottom: 20px; font-size: 16px;">Resumen de Retiros por Gestor</h3>` + tableDiv.outerHTML;
+            printTableContainer.style.display = 'block';
+        } else {
+            printTableContainer.style.display = 'none';
+            printTableContainer.innerHTML = '';
+        }
+    }
+
     // 4. Llamar a imprimir
     setTimeout(() => {
         window.print();
