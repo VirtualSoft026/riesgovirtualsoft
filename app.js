@@ -5209,7 +5209,9 @@ function generarReporteEjecutivoPDF() {
     }
 
     // 4. Llamar a imprimir
-    window.print();
+    setTimeout(() => {
+        window.print();
+    }, 800);
 }
 
 
