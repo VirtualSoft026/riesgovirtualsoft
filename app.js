@@ -5171,82 +5171,51 @@ function generarReporteEjecutivoPDF() {
     document.getElementById('printAnalysisText').innerHTML = analisisHtml;
 
     // 3. Capturar gráficas como imágenes
-    const isGlobal = (gestorSelect.value === 'Todos');
-    const chartExcelencia = isGlobal ? controlOperativoCharts['chartTardanzasMejores'] : null;
+    const chartExcelencia = controlOperativoCharts['chartTardanzasMejores'];
+    const chartPeores = controlOperativoCharts['chartTardanzasPeores'];
     const chartAprobaciones = controlOperativoCharts['chartAprobacionesDia'];
-
-    const imgChart1 = document.getElementById('printChart1');
-    const imgChart2 = document.getElementById('printChart2');
-    const imgChart3 = document.getElementById('printChart3');
-    const imgChart4 = document.getElementById('printChart4');
-
-    // Chart 1: Si es global mostramos Excelencia, si es individual mostramos otra cosa o la ocultamos
-    if (isGlobal && chartExcelencia) {
-        try {
-            imgChart1.src = chartExcelencia.toBase64Image();
-            imgChart1.style.display = 'block';
-            imgChart1.previousElementSibling.innerText = "Ranking de Excelencia (Top 5 Más Ágiles)";
-            imgChart1.previousElementSibling.style.display = 'block';
-        } catch (e) {
-            console.error("Error capturando chartExcelencia:", e);
-        }
-    } else {
-        imgChart1.style.display = 'none';
-        if (imgChart1.previousElementSibling) imgChart1.previousElementSibling.style.display = 'none';
-    }
-    
-    // Chart 2: Evolución diaria aplica para global e individual
-    if (chartAprobaciones) {
-        try {
-            imgChart2.src = chartAprobaciones.toBase64Image();
-            imgChart2.style.display = 'block';
-            imgChart2.previousElementSibling.innerText = "Evolución Diaria de Retiros";
-            imgChart2.previousElementSibling.style.display = 'block';
-        } catch (e) {
-            console.error("Error capturando chartAprobaciones:", e);
-        }
-    } else {
-        imgChart2.style.display = 'none';
-        if (imgChart2.previousElementSibling) imgChart2.previousElementSibling.style.display = 'none';
-    }
-
-    // Chart 3 & 4: Inactividad y Eficiencia (Solo Global)
     const chartInactividad = controlOperativoCharts['chartInactividad'];
     const chartEficiencia = controlOperativoCharts['chartEficiencia'];
 
-    if (isGlobal && chartInactividad) {
-        try {
-            imgChart3.src = chartInactividad.toBase64Image();
-            imgChart3.style.display = 'block';
-            if (imgChart3.previousElementSibling) imgChart3.previousElementSibling.style.display = 'block';
-        } catch(e) { console.error(e); }
-    } else {
-        imgChart3.style.display = 'none';
-        if (imgChart3.previousElementSibling) imgChart3.previousElementSibling.style.display = 'none';
-    }
+    const imgChart1 = document.getElementById('printChart1'); // Excelencia
+    const imgChart2 = document.getElementById('printChart2'); // Aprobaciones
+    const imgChart3 = document.getElementById('printChart3'); // Inactividad
+    const imgChart4 = document.getElementById('printChart4'); // Eficiencia
+    const imgChart5 = document.getElementById('printChart5'); // Peores
 
-    if (isGlobal && chartEficiencia) {
-        try {
-            imgChart4.src = chartEficiencia.toBase64Image();
-            imgChart4.style.display = 'block';
-            if (imgChart4.previousElementSibling) imgChart4.previousElementSibling.style.display = 'block';
-        } catch(e) { console.error(e); }
-    } else {
-        imgChart4.style.display = 'none';
-        if (imgChart4.previousElementSibling) imgChart4.previousElementSibling.style.display = 'none';
-    }
+    // Función auxiliar para imprimir chart
+    const renderPrintChart = (chartObj, imgEl, titleText) => {
+        if (chartObj && imgEl) {
+            try {
+                imgEl.src = chartObj.toBase64Image();
+                imgEl.style.display = 'block';
+                if (imgEl.previousElementSibling) {
+                    imgEl.previousElementSibling.innerText = titleText;
+                    imgEl.previousElementSibling.style.display = 'block';
+                }
+                imgEl.parentElement.style.display = 'block';
+            } catch (e) {
+                console.error("Error capturando chart:", titleText, e);
+            }
+        } else if (imgEl) {
+            imgEl.style.display = 'none';
+            if (imgEl.previousElementSibling) imgEl.previousElementSibling.style.display = 'none';
+            imgEl.parentElement.style.display = 'none';
+        }
+    };
+
+    renderPrintChart(chartPeores, imgChart5, "Top Alerta Tardanzas (Peores)");
+    renderPrintChart(chartExcelencia, imgChart1, "Top Excelencia Puntualidad (Mejores)");
+    renderPrintChart(chartAprobaciones, imgChart2, "Evolución Diaria de Retiros");
+    renderPrintChart(chartInactividad, imgChart3, "Promedio Inactividad Diaria (Min)");
+    renderPrintChart(chartEficiencia, imgChart4, "Eficiencia y Volumen de Retiros");
 
     // 3.5. Tabla de Resumen
     const printTableContainer = document.getElementById('printTableContainer');
     if (printTableContainer) {
-        if (isGlobal) {
-            const tableDiv = document.getElementById('tablaResumenOperativo').parentElement;
-            printTableContainer.innerHTML = `<h3 style="color: var(--accent-primary); text-align: center; margin-bottom: 20px; font-size: 16px;">Resumen de Retiros por Gestor</h3>` + tableDiv.outerHTML;
-            printTableContainer.style.display = 'block';
-        } else {
-            printTableContainer.style.display = 'none';
-            printTableContainer.innerHTML = '';
-        }
+        const tableDiv = document.getElementById('tablaResumenOperativo').parentElement;
+        printTableContainer.innerHTML = `<h3 style="color: var(--accent-primary); text-align: center; margin-bottom: 20px; font-size: 16px;">Resumen de Retiros por Gestor</h3>` + tableDiv.outerHTML;
+        printTableContainer.style.display = 'block';
     }
 
     // 4. Llamar a imprimir

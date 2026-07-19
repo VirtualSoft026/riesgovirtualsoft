@@ -1410,15 +1410,15 @@
         <div id="printAnalysisText" class="rich-text" style="font-size: 15px; line-height: 1.6; margin-bottom: 30px;">
         </div>
 
-        <!-- Charts Container -->
+                <!-- Charts Container -->
         <div class="print-charts">
-            <div style="margin-bottom: 30px; page-break-inside: avoid;">
-                <h3 style="color: var(--accent-primary); text-align: center; margin-bottom: 10px;">Distribución de Retiros</h3>
-                <img id="printChart1" src="" style="width: 100%; max-width: 600px; display: block; margin: 0 auto;">
-            </div>
             <div style="page-break-inside: avoid; margin-bottom: 30px;">
-                <h3 style="color: var(--accent-primary); text-align: center; margin-bottom: 10px;">Evolución de Tiempos de Resolución</h3>
-                <img id="printChart2" src="" style="width: 100%; max-width: 600px; display: block; margin: 0 auto;">
+                <h3 style="color: var(--accent-primary); text-align: center; margin-bottom: 10px;">Top Alerta Tardanzas</h3>
+                <img id="printChart5" src="" style="width: 100%; max-width: 600px; display: block; margin: 0 auto;">
+            </div>
+            <div style="margin-bottom: 30px; page-break-inside: avoid;">
+                <h3 style="color: var(--accent-primary); text-align: center; margin-bottom: 10px;">Top Excelencia Puntualidad</h3>
+                <img id="printChart1" src="" style="width: 100%; max-width: 600px; display: block; margin: 0 auto;">
             </div>
             <div style="page-break-inside: avoid; margin-bottom: 30px;">
                 <h3 style="color: var(--accent-primary); text-align: center; margin-bottom: 10px;">Promedio Inactividad Diaria (Min)</h3>
@@ -1426,9 +1426,13 @@
             </div>
             <div style="page-break-inside: avoid; margin-bottom: 30px;">
                 <h3 style="color: var(--accent-primary); text-align: center; margin-bottom: 10px;">Eficiencia y Volumen de Retiros</h3>
-                <img id="printChart4" src="" style="width: 100%; max-width: 600px; display: block; margin: 0 auto;">
+                <img id="printChart4" src="" style="width: 100%; max-width: 800px; display: block; margin: 0 auto;">
             </div>
-            <div id="printTableContainer" style="page-break-inside: auto; margin-bottom: 30px; display: none;">
+            <div style="page-break-inside: avoid; margin-bottom: 30px;">
+                <h3 style="color: var(--accent-primary); text-align: center; margin-bottom: 10px;">Aprobaciones por Día</h3>
+                <img id="printChart2" src="" style="width: 100%; max-width: 800px; display: block; margin: 0 auto;">
+            </div>
+            <div id="printTableContainer" style="page-break-inside: auto; margin-bottom: 30px; display: block;">
             </div>
         </div>
     </div>
@@ -1451,7 +1455,7 @@
     </div>
 
     <!-- Custom JS -->
-    <script src="app.js?v=20260718_35"></script>
+    <script src="app.js?v=20260718_36"></script>
     <script src="js/tiempos.js?v=20260710_2"></script>
 </body>
 </html>
