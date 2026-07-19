@@ -5765,7 +5765,7 @@ function drawChart(id, type, labels, dataArr, labelStr, bgColor, borderColor, ex
     const isHorizontal = extraOptions.indexAxis === 'y';
     const datalabelsConfig = {
         formatter: function(value) {
-            if (value === 0 || value === "0") return "";
+            if (value === 0 || value === "0") return "0 min";
             const num = Number(value);
             const isInt = Number.isInteger(num);
             return num.toLocaleString('es-CO', { 
