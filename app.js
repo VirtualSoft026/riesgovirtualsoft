@@ -5662,10 +5662,19 @@ function renderControlOperativoCharts(data, dailyData, selectedGestor) {
     const sortBy = (key, asc=false) => [...gestores].sort((a,b) => asc ? data[a][key] - data[b][key] : data[b][key] - data[a][key]);
     
     // 1. Top Alerta Tardanzas (Peores 5, orden DESC)
-    const peoresTardanzas = sortBy('Prom_Minutos_Tarde').slice(0, 5);
-    const peoresColors = peoresTardanzas.map(g => (selectedGestor !== 'Todos' && g === selectedGestor) ? 'rgba(54, 162, 235, 1)' : 'rgba(245, 108, 108, 0.7)');
-    const peoresBorders = peoresTardanzas.map(g => (selectedGestor !== 'Todos' && g === selectedGestor) ? 'rgba(54, 162, 235, 1)' : 'rgba(245, 108, 108, 1)');
-    drawChart('chartTardanzasPeores', 'bar', peoresTardanzas, peoresTardanzas.map(g => data[g].Prom_Minutos_Tarde), 'Minutos Tarde (Promedio)', peoresColors, peoresBorders, { indexAxis: 'y' });
+    let peoresTardanzas = sortBy('Prom_Minutos_Tarde').filter(g => data[g].Prom_Minutos_Tarde > 0).slice(0, 5);
+    let peoresColors, peoresBorders, peoresData;
+    if (peoresTardanzas.length === 0) {
+        peoresTardanzas = ['Equipo 100% Puntual'];
+        peoresData = [0];
+        peoresColors = ['rgba(103, 194, 58, 0.7)'];
+        peoresBorders = ['rgba(103, 194, 58, 1)'];
+    } else {
+        peoresData = peoresTardanzas.map(g => data[g].Prom_Minutos_Tarde);
+        peoresColors = peoresTardanzas.map(g => (selectedGestor !== 'Todos' && g === selectedGestor) ? 'rgba(54, 162, 235, 1)' : 'rgba(245, 108, 108, 0.7)');
+        peoresBorders = peoresTardanzas.map(g => (selectedGestor !== 'Todos' && g === selectedGestor) ? 'rgba(54, 162, 235, 1)' : 'rgba(245, 108, 108, 1)');
+    }
+    drawChart('chartTardanzasPeores', 'bar', peoresTardanzas, peoresData, 'Minutos Tarde (Promedio)', peoresColors, peoresBorders, { indexAxis: 'y' });
     
     // 2. Top Excelencia Puntualidad (Mejores 5, orden ASC)
     const mejoresTardanzas = sortBy('Prom_Minutos_Tarde', true).slice(0, 5);
