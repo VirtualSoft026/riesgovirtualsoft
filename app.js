@@ -5403,12 +5403,12 @@ function renderControlOperativoFiltered() {
     
     // Aggregation logic
     let aggregatedData = {};
+    let aggregatedDataGlobal = {};
     let dailyData = {};
     
     for (const gestor in window.controlOperativoRawData) {
-        if (selectedGestor !== 'Todos' && gestor !== selectedGestor) continue;
         
-        aggregatedData[gestor] = {
+        aggregatedDataGlobal[gestor] = {
             Retiros_Aprobados: 0,
             Retiros_Rechazados: 0,
             Tiempo_Total_Desde_Creacion_Segundos: 0,
@@ -5418,6 +5418,19 @@ function renderControlOperativoFiltered() {
             Minutos_Inactividad_Total: 0,
             Dias_Laborados: 0
         };
+
+        if (selectedGestor === 'Todos' || gestor === selectedGestor) {
+            aggregatedData[gestor] = {
+                Retiros_Aprobados: 0,
+                Retiros_Rechazados: 0,
+                Tiempo_Total_Desde_Creacion_Segundos: 0,
+                Retiros_Con_Fuga: 0,
+                Dias_Tarde: 0,
+                Minutos_Tarde_Total: 0,
+                Minutos_Inactividad_Total: 0,
+                Dias_Laborados: 0
+            };
+        }
         
         for (const fecha in window.controlOperativoRawData[gestor]) {
             let inRange = false;
@@ -5431,45 +5444,63 @@ function renderControlOperativoFiltered() {
                 inRange = true;
             } else if (selectedFecha === '30' && fecha >= thirtyDaysAgoStr && fecha <= todayStr) {
                 inRange = true;
-            } else if (selectedFecha === 'thisMonth' && fecha.startsWith(thisMonth)) {
+            } else if (selectedFecha === 'mes' && fecha.substring(0, 7) === thisMonth) {
                 inRange = true;
-            } else if (selectedFecha === 'lastMonth' && fecha.startsWith(lastMonth)) {
+            } else if (selectedFecha === 'mes_anterior' && fecha.substring(0, 7) === lastMonth) {
                 inRange = true;
-            } else if (selectedFecha === 'custom') {
-                if (customStart && customEnd) {
-                    if (fecha >= customStart && fecha <= customEnd) inRange = true;
-                } else if (customStart) {
-                    if (fecha >= customStart) inRange = true;
-                } else if (customEnd) {
-                    if (fecha <= customEnd) inRange = true;
-                } else {
-                    inRange = true;
+            } else if (selectedFecha === 'custom' && customStart && customEnd && fecha >= customStart && fecha <= customEnd) {
+                inRange = true;
+            }
+            
+            if (inRange) {
+                const d = window.controlOperativoRawData[gestor][fecha];
+                
+                // Add to Global Data
+                aggregatedDataGlobal[gestor].Retiros_Aprobados += d.Retiros_Aprobados || 0;
+                aggregatedDataGlobal[gestor].Retiros_Rechazados += d.Retiros_Rechazados || 0;
+                aggregatedDataGlobal[gestor].Tiempo_Total_Desde_Creacion_Segundos += d.Tiempo_Total_Desde_Creacion_Segundos || 0;
+                aggregatedDataGlobal[gestor].Retiros_Con_Fuga += d.Retiros_Con_Fuga || 0;
+                aggregatedDataGlobal[gestor].Dias_Tarde += d.Dias_Tarde || 0;
+                aggregatedDataGlobal[gestor].Minutos_Tarde_Total += d.Minutos_Tarde_Total || 0;
+                aggregatedDataGlobal[gestor].Minutos_Inactividad_Total += d.Minutos_Inactividad_Total || 0;
+                aggregatedDataGlobal[gestor].Dias_Laborados += d.Dias_Laborados || 0;
+
+                // Add to Filtered Data (only if this gestor is selected)
+                if (selectedGestor === 'Todos' || gestor === selectedGestor) {
+                    if (!dailyData[fecha]) {
+                        dailyData[fecha] = { Aprobados: 0, Rechazados: 0 };
+                    }
+                    dailyData[fecha].Aprobados += d.Retiros_Aprobados || 0;
+                    dailyData[fecha].Rechazados += d.Retiros_Rechazados || 0;
+                    
+                    aggregatedData[gestor].Retiros_Aprobados += d.Retiros_Aprobados || 0;
+                    aggregatedData[gestor].Retiros_Rechazados += d.Retiros_Rechazados || 0;
+                    aggregatedData[gestor].Tiempo_Total_Desde_Creacion_Segundos += d.Tiempo_Total_Desde_Creacion_Segundos || 0;
+                    aggregatedData[gestor].Retiros_Con_Fuga += d.Retiros_Con_Fuga || 0;
+                    aggregatedData[gestor].Dias_Tarde += d.Dias_Tarde || 0;
+                    aggregatedData[gestor].Minutos_Tarde_Total += d.Minutos_Tarde_Total || 0;
+                    aggregatedData[gestor].Minutos_Inactividad_Total += d.Minutos_Inactividad_Total || 0;
+                    aggregatedData[gestor].Dias_Laborados += d.Dias_Laborados || 0;
                 }
             }
-            
-            if (!inRange) continue;
-            
-            const d = window.controlOperativoRawData[gestor][fecha];
-            aggregatedData[gestor].Retiros_Aprobados += d.Retiros_Aprobados || 0;
-            aggregatedData[gestor].Retiros_Rechazados += d.Retiros_Rechazados || 0;
-            aggregatedData[gestor].Tiempo_Total_Desde_Creacion_Segundos += d.Tiempo_Total_Desde_Creacion_Segundos || 0;
-            
-            if (!dailyData[fecha]) {
-                dailyData[fecha] = { Aprobados: 0, Rechazados: 0 };
-            }
-            dailyData[fecha].Aprobados += d.Retiros_Aprobados || 0;
-            dailyData[fecha].Rechazados += d.Retiros_Rechazados || 0;
-            aggregatedData[gestor].Retiros_Con_Fuga += d.Retiros_Con_Fuga || 0;
-            aggregatedData[gestor].Dias_Tarde += d.Dias_Tarde || 0;
-            aggregatedData[gestor].Minutos_Tarde_Total += d.Minutos_Tarde_Total || 0;
-            aggregatedData[gestor].Minutos_Inactividad_Total += d.Minutos_Inactividad_Total || 0;
-            aggregatedData[gestor].Dias_Laborados += d.Dias_Laborados || 0;
         }
     }
     
     // Calculate final metrics per gestor
     for (const gestor in aggregatedData) {
         const d = aggregatedData[gestor];
+        const dl = d.Dias_Laborados > 0 ? d.Dias_Laborados : 1;
+        
+        d.Prom_Minutos_Tarde = Math.round((d.Minutos_Tarde_Total / dl) * 100) / 100;
+        d.Prom_Inactividad_Diaria = Math.round((d.Minutos_Inactividad_Total / dl) * 100) / 100;
+        d.Retiros_Procesados = d.Retiros_Aprobados + d.Retiros_Rechazados;
+        d.ART_Desde_Creacion_Minutos = d.Retiros_Procesados > 0 ? Math.round((d.Tiempo_Total_Desde_Creacion_Segundos / d.Retiros_Procesados) / 60 * 100) / 100 : 0;
+        d.Porcentaje_Fuga = d.Retiros_Aprobados > 0 ? Math.round((d.Retiros_Con_Fuga / d.Retiros_Aprobados) * 100 * 100) / 100 : 0;
+    }
+
+    // Calculate final metrics per gestor GLOBAL
+    for (const gestor in aggregatedDataGlobal) {
+        const d = aggregatedDataGlobal[gestor];
         const dl = d.Dias_Laborados > 0 ? d.Dias_Laborados : 1;
         
         d.Prom_Minutos_Tarde = Math.round((d.Minutos_Tarde_Total / dl) * 100) / 100;
@@ -5552,17 +5583,20 @@ function renderControlOperativoFiltered() {
     if(wArt) wArt.innerHTML = `${avgArt}<span style="font-size: 16px; font-weight: 600; margin-left: 4px;">min</span>`;
     
     // Render charts
-    // Filter out empty gestores for charts
-    const filteredForCharts = {};
-    for (const gestor in aggregatedData) {
-        if (aggregatedData[gestor].Retiros_Procesados > 0 || aggregatedData[gestor].Dias_Laborados > 0) {
-            filteredForCharts[gestor] = aggregatedData[gestor];
+    // Filter out empty gestores for global charts
+    const globalForCharts = {};
+    for (const gestor in aggregatedDataGlobal) {
+        if (aggregatedDataGlobal[gestor].Retiros_Procesados > 0 || aggregatedDataGlobal[gestor].Dias_Laborados > 0) {
+            globalForCharts[gestor] = aggregatedDataGlobal[gestor];
         }
     }
-    renderControlOperativoCharts(filteredForCharts, dailyData);
+    
+    // We pass globalForCharts to the charts so rankings always compare the whole team.
+    // However, we pass dailyData which is specific to the selected gestor so the line chart is filtered.
+    renderControlOperativoCharts(globalForCharts, dailyData, selectedGestor);
 }
 
-function renderControlOperativoCharts(data, dailyData) {
+function renderControlOperativoCharts(data, dailyData, selectedGestor) {
     const gestores = Object.keys(data);
     if (gestores.length === 0) return;
     
@@ -5571,15 +5605,20 @@ function renderControlOperativoCharts(data, dailyData) {
     
     // 1. Top Alerta Tardanzas (Peores 5, orden DESC)
     const peoresTardanzas = sortBy('Prom_Minutos_Tarde').slice(0, 5);
-    drawChart('chartTardanzasPeores', 'bar', peoresTardanzas, peoresTardanzas.map(g => data[g].Prom_Minutos_Tarde), 'Minutos Tarde (Promedio)', 'rgba(245, 108, 108, 0.7)', 'rgba(245, 108, 108, 1)', { indexAxis: 'y' });
+    const peoresColors = peoresTardanzas.map(g => (selectedGestor !== 'Todos' && g === selectedGestor) ? 'rgba(54, 162, 235, 1)' : 'rgba(245, 108, 108, 0.7)');
+    const peoresBorders = peoresTardanzas.map(g => (selectedGestor !== 'Todos' && g === selectedGestor) ? 'rgba(54, 162, 235, 1)' : 'rgba(245, 108, 108, 1)');
+    drawChart('chartTardanzasPeores', 'bar', peoresTardanzas, peoresTardanzas.map(g => data[g].Prom_Minutos_Tarde), 'Minutos Tarde (Promedio)', peoresColors, peoresBorders, { indexAxis: 'y' });
     
     // 2. Top Excelencia Puntualidad (Mejores 5, orden ASC)
     const mejoresTardanzas = sortBy('Prom_Minutos_Tarde', true).slice(0, 5);
-    drawChart('chartTardanzasMejores', 'bar', mejoresTardanzas, mejoresTardanzas.map(g => data[g].Prom_Minutos_Tarde), 'Minutos Tarde (Promedio)', 'rgba(103, 194, 58, 0.7)', 'rgba(103, 194, 58, 1)', { indexAxis: 'y' });
+    const mejoresColors = mejoresTardanzas.map(g => (selectedGestor !== 'Todos' && g === selectedGestor) ? 'rgba(54, 162, 235, 1)' : 'rgba(103, 194, 58, 0.7)');
+    const mejoresBorders = mejoresTardanzas.map(g => (selectedGestor !== 'Todos' && g === selectedGestor) ? 'rgba(54, 162, 235, 1)' : 'rgba(103, 194, 58, 1)');
+    drawChart('chartTardanzasMejores', 'bar', mejoresTardanzas, mejoresTardanzas.map(g => data[g].Prom_Minutos_Tarde), 'Minutos Tarde (Promedio)', mejoresColors, mejoresBorders, { indexAxis: 'y' });
     
     // 3. Top Inactividad Diaria (DESC)
-    const inactividadTop = sortBy('Prom_Inactividad_Diaria');
+    const inactividadTop = sortBy('Prom_Inactividad_Diaria').slice(0, 10);
     const bgColors = inactividadTop.map(g => {
+        if (selectedGestor !== 'Todos' && g === selectedGestor) return 'rgba(54, 162, 235, 1)';
         let v = data[g].Prom_Inactividad_Diaria;
         return v > 45 ? 'rgba(245, 108, 108, 0.7)' : (v > 20 ? 'rgba(230, 162, 60, 0.7)' : 'rgba(103, 194, 58, 0.7)');
     });
