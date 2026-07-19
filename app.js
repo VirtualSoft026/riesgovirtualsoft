@@ -5106,9 +5106,6 @@ function generarAnalisisTextual() {
         }
     } else {
         html += `<h3 style="color: var(--accent-primary);">Resumen Ejecutivo del Equipo</h3>`;
-        if (excludedCount > 0) {
-            html += `<p style="font-size: 12px; color: var(--text-secondary);">* Nota: Se han excluido a Sara, Maria y Camilo de este análisis global por configuración del sistema.</p>`;
-        }
         html += `<p>El equipo procesó un volumen total de <strong>${totalProcesados} solicitudes</strong> en el periodo evaluado. La tasa global de aprobación es altísima (${((totalAprobados/totalProcesados)*100).toFixed(1)}%), sugiriendo flujos estables y predecibles.</p>`;
         
         const sortedByVol = Object.entries(gestoresStats).sort((a,b) => b[1].procesados - a[1].procesados);
@@ -5214,7 +5211,7 @@ function generarReporteEjecutivoPDF() {
     const printTableContainer = document.getElementById('printTableContainer');
     if (printTableContainer) {
         const tableDiv = document.getElementById('tablaResumenOperativo').parentElement;
-        printTableContainer.innerHTML = `<h3 style="color: var(--accent-primary); text-align: center; margin-bottom: 20px; font-size: 16px;">Resumen de Retiros por Gestor</h3>` + tableDiv.outerHTML;
+        printTableContainer.innerHTML = `<h3 style="color: #000; text-align: center; margin-bottom: 10px; font-size: 14pt; font-weight: bold; page-break-after: avoid;">Resumen de Retiros por Gestor</h3>` + tableDiv.outerHTML;
         printTableContainer.style.display = 'block';
     }
 
