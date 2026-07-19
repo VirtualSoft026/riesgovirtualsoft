@@ -5664,7 +5664,7 @@ function renderControlOperativoCharts(data, dailyData, selectedGestor) {
     const sortBy = (key, asc=false) => [...gestores].sort((a,b) => asc ? data[a][key] - data[b][key] : data[b][key] - data[a][key]);
     
     // 1. Top Alerta Tardanzas (Peores 5, orden DESC)
-    let peoresTardanzas = sortBy('Prom_Minutos_Tarde').filter(g => data[g].Prom_Minutos_Tarde > 0).slice(0, 5).reverse();
+    let peoresTardanzas = sortBy('Prom_Minutos_Tarde').filter(g => data[g].Prom_Minutos_Tarde > 0).slice(0, 5);
     let peoresColors, peoresBorders, peoresData;
     if (peoresTardanzas.length === 0) {
         peoresTardanzas = ['Equipo 100% Puntual'];
