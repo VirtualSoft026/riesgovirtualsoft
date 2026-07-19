@@ -5643,7 +5643,9 @@ function renderControlOperativoFiltered() {
     // Render charts
     // Filter out empty gestores for global charts
     const globalForCharts = {};
+    const excludedGestoresGlobal = ['Sara Santamaría', 'Maria Sanchez', 'Camilo Espinosa'];
     for (const gestor in aggregatedDataGlobal) {
+        if (excludedGestoresGlobal.some(ex => gestor.includes(ex) || gestor.includes('Sara Santamar'))) continue;
         if (aggregatedDataGlobal[gestor].Retiros_Procesados > 0 || aggregatedDataGlobal[gestor].Dias_Laborados > 0) {
             globalForCharts[gestor] = aggregatedDataGlobal[gestor];
         }
