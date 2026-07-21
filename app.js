@@ -5647,7 +5647,7 @@ function renderControlOperativoCharts(data, dailyData, selectedGestor) {
         if (elTitleMejores) elTitleMejores.innerHTML = `<i class='bx bx-check-double'></i> Fechas de Conexión a Tiempo - ${selectedGestor}`;
         if (elTitleInactividad) elTitleInactividad.innerHTML = `<i class='bx bx-coffee-togo'></i> Inactividad Diaria por Fecha - ${selectedGestor}`;
         if (elTitleEficiencia) elTitleEficiencia.innerHTML = `<i class='bx bx-layer'></i> Evolución Diaria de Retiros - ${selectedGestor}`;
-        if (elTitleMatriz) elTitleMatriz.innerHTML = `<i class='bx bx-target-lock'></i> Posición de Riesgo: ${selectedGestor}`;
+        if (elTitleMatriz) elTitleMatriz.innerHTML = `<i class='bx bx-target-lock'></i> % Rechazos: ${selectedGestor}`;
     }
 
     let activeData = {};
@@ -5814,11 +5814,11 @@ function drawPunctualDatesChart(id, dates, dataArr, bgColors) {
     
     const datalabelsConfig = {
         formatter: function() {
-            return "A Tiempo (0 min)";
+            return "✓ 0 min";
         },
-        anchor: 'end',
-        align: 'right',
-        color: '#67C23A',
+        anchor: 'center',
+        align: 'center',
+        color: '#ffffff',
         font: { size: 10, weight: 'bold' }
     };
 
@@ -5829,9 +5829,9 @@ function drawPunctualDatesChart(id, dates, dataArr, bgColors) {
             labels: dates,
             datasets: [{
                 label: 'Conexión a Tiempo',
-                data: dataArr,
-                backgroundColor: bgColors,
-                borderColor: bgColors,
+                data: dates.map(() => 100),
+                backgroundColor: 'rgba(103, 194, 58, 0.75)',
+                borderColor: 'rgba(103, 194, 58, 1)',
                 borderWidth: 1
             }]
         },
@@ -5839,22 +5839,30 @@ function drawPunctualDatesChart(id, dates, dataArr, bgColors) {
             animation: false,
             responsive: true,
             maintainAspectRatio: false,
-            indexAxis: 'y',
             layout: {
-                padding: { right: 110 }
+                padding: { top: 25 }
             },
             plugins: {
                 datalabels: datalabelsConfig,
                 tooltip: {
                     callbacks: {
-                        label: function() {
-                            return "Conexión a Tiempo (0 min tarde)";
+                        label: function(ctx) {
+                            return `${ctx.label}: Conexión a Tiempo (0 min tarde)`;
                         }
                     }
                 }
             },
             scales: {
-                x: { beginAtZero: true, max: 1 }
+                x: {
+                    ticks: { maxRotation: 45, minRotation: 0, font: { size: 10 } }
+                },
+                y: {
+                    beginAtZero: true,
+                    max: 120,
+                    ticks: {
+                        callback: function(v) { return v === 100 ? 'A tiempo' : ''; }
+                    }
+                }
             }
         }
     });
