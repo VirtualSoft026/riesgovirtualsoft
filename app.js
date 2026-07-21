@@ -5520,6 +5520,8 @@ function renderControlOperativoFiltered() {
         d.Retiros_Procesados = d.Retiros_Aprobados + d.Retiros_Rechazados;
         d.ART_Desde_Creacion_Minutos = d.Retiros_Procesados > 0 ? Math.round((d.Tiempo_Total_Desde_Creacion_Segundos / d.Retiros_Procesados) / 60 * 100) / 100 : 0;
         d.Porcentaje_Fuga = d.Retiros_Aprobados > 0 ? Math.round((d.Retiros_Con_Fuga / d.Retiros_Aprobados) * 100 * 100) / 100 : 0;
+        d.Porcentaje_Rechazos = d.Retiros_Aprobados > 0 ? Math.round((d.Retiros_Rechazados / d.Retiros_Aprobados) * 100 * 100) / 100 : 0;
+        d.Tasa_Aprobacion_Dia = Math.round((d.Retiros_Aprobados / dl) * 100) / 100;
     }
 
     // Calculate final metrics per gestor GLOBAL
@@ -5532,6 +5534,8 @@ function renderControlOperativoFiltered() {
         d.Retiros_Procesados = d.Retiros_Aprobados + d.Retiros_Rechazados;
         d.ART_Desde_Creacion_Minutos = d.Retiros_Procesados > 0 ? Math.round((d.Tiempo_Total_Desde_Creacion_Segundos / d.Retiros_Procesados) / 60 * 100) / 100 : 0;
         d.Porcentaje_Fuga = d.Retiros_Aprobados > 0 ? Math.round((d.Retiros_Con_Fuga / d.Retiros_Aprobados) * 100 * 100) / 100 : 0;
+        d.Porcentaje_Rechazos = d.Retiros_Aprobados > 0 ? Math.round((d.Retiros_Rechazados / d.Retiros_Aprobados) * 100 * 100) / 100 : 0;
+        d.Tasa_Aprobacion_Dia = Math.round((d.Retiros_Aprobados / dl) * 100) / 100;
     }
     
     // Render table
@@ -5588,8 +5592,8 @@ function renderControlOperativoFiltered() {
             <td style="padding: 16px 20px;">${badgeAprobados}</td>
             <td style="padding: 16px 20px;">${badgeRechazados}</td>
             <td style="padding: 16px 20px; font-weight: 600; color: var(--text-secondary);">${d.Retiros_Procesados}</td>
-            <td style="padding: 16px 20px; font-weight: 600; color: var(--text-secondary);">${d.Porcentaje_Fuga}%</td>
-            <td style="padding: 16px 20px; font-weight: 600; color: var(--text-secondary);">${d.ART_Desde_Creacion_Minutos}</td>
+            <td style="padding: 16px 20px; font-weight: 600; color: var(--text-secondary);">${d.Porcentaje_Rechazos}%</td>
+            <td style="padding: 16px 20px; font-weight: 600; color: var(--text-secondary);">${d.Tasa_Aprobacion_Dia}</td>
         `;
         tbody.appendChild(tr);
     }
