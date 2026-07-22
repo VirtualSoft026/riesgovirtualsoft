@@ -3829,6 +3829,8 @@ function viewTimelineInMonitoreo(uid) {
     
     modal.classList.add('active');
 }
+window.viewTimelineInMonitoreo = viewTimelineInMonitoreo;
+
 
 window.openMonitoreoDetails = function(uid) {
     const session = allActiveSessions[uid];
