@@ -6431,3 +6431,7 @@ function filterLoginHistoryTable() {
 
     renderLoginHistoryTable(filtered);
 }
+
+window.openLoginHistoryModal = openLoginHistoryModal;
+window.filterLoginHistoryTable = filterLoginHistoryTable;
+
