@@ -3850,10 +3850,10 @@ window.openMonitoreoDetails = function(uid) {
     }
 
     const nameEl = document.getElementById('monitoreoModalName');
-    if (nameEl) nameEl.textContent = "Tareas de " + fullName;
+    if (nameEl) nameEl.textContent = "Detalle de Tareas: " + fullName;
     
     const lastActiveTime = session.lastActive ? new Date(session.lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Nunca';
-    const loginTimeStr = session.loginTime ? new Date(session.loginTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pendiente (Falta actualizar)';
+    const loginTimeStr = session.loginTime ? new Date(session.loginTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pendiente';
     const infoEl = document.getElementById('monitoreoModalInfo');
     if (infoEl) infoEl.textContent = `Turno: ${session.shift || 'Mañana'} | Inicio: ${loginTimeStr} | Actividad: ${lastActiveTime}`;
 
@@ -3862,33 +3862,81 @@ window.openMonitoreoDetails = function(uid) {
         tasksList.innerHTML = '';
 
         const tasks = session.tasks || {};
-        const taskIds = Object.keys(tasks);
+        
+        let assignedTasks = [];
+        if (typeof globalCronogramaData !== 'undefined' && globalCronogramaData) {
+            assignedTasks = getAssignedTasksForGestor(fullName, session.shift || 'Mañana');
+        }
 
-        if (taskIds.length === 0) {
+        let displayTasks = [];
+        if (assignedTasks && assignedTasks.length > 0) {
+            assignedTasks.forEach(taskName => {
+                let taskStatus = 'Pendiente';
+                let obs = '';
+                for (let key in tasks) {
+                    if (tasks[key].name === taskName) {
+                        taskStatus = tasks[key].status;
+                        obs = tasks[key].observation || '';
+                        break;
+                    }
+                }
+                displayTasks.push({ name: taskName, status: taskStatus, observation: obs });
+            });
+        }
+
+        // Extras
+        for (let key in tasks) {
+            if (key.startsWith('extra_')) {
+                displayTasks.push({ 
+                    name: tasks[key].name, 
+                    status: tasks[key].status || 'Pendiente', 
+                    observation: tasks[key].observation || 'Tarea extra agregada durante el turno.' 
+                });
+            }
+        }
+
+        // Direct tasks fallback if displayTasks is empty
+        if (displayTasks.length === 0 && Object.keys(tasks).length > 0) {
+            for (let key in tasks) {
+                displayTasks.push({
+                    name: tasks[key].name || key,
+                    status: tasks[key].status || 'Pendiente',
+                    observation: tasks[key].observation || ''
+                });
+            }
+        }
+
+        if (displayTasks.length === 0) {
             tasksList.innerHTML = `
                 <div style="padding: 20px; text-align: center; color: var(--text-secondary);">
-                    Este gestor aún no ha registrado avances de tareas en su turno.
+                    Este gestor aún no tiene tareas asignadas en este turno.
                 </div>
             `;
         } else {
-            taskIds.forEach(id => {
-                const t = tasks[id];
-                
+            displayTasks.forEach(t => {
                 let badgeClass = 'pending';
-                if (t.status === 'Finalizada') badgeClass = 'completed';
-                else if (t.status === 'En Proceso') badgeClass = 'in-progress';
-                else if (t.status === 'No Realizada') badgeClass = 'not-done';
+                let badgeStyle = 'background: rgba(148,163,184,0.15); color: #94a3b8;';
+                if (t.status === 'Finalizada') {
+                    badgeClass = 'completed';
+                    badgeStyle = 'background: rgba(16,185,129,0.15); color: var(--success);';
+                } else if (t.status === 'En Proceso') {
+                    badgeClass = 'in-progress';
+                    badgeStyle = 'background: rgba(245,158,11,0.15); color: var(--warning);';
+                } else if (t.status === 'No Realizada') {
+                    badgeClass = 'not-done';
+                    badgeStyle = 'background: rgba(239,68,68,0.15); color: var(--danger);';
+                }
 
                 const observationText = t.observation ? t.observation.trim() : 'Sin observaciones cargadas.';
 
                 tasksList.innerHTML += `
-                    <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); padding: 12px; border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 8px;">
+                    <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--glass-border); padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px;">
                         <div style="display: flex; justify-content: space-between; align-items: start; gap: 10px;">
-                            <span style="font-weight: 500; font-size: 13.5px; color: var(--text-primary);">${t.name}</span>
-                            <span class="monitoreo-task-badge ${badgeClass}">${t.status}</span>
+                            <span style="font-weight: 600; font-size: 13.5px; color: var(--text-primary);">${t.name}</span>
+                            <span class="monitoreo-task-badge ${badgeClass}" style="padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; ${badgeStyle}">${t.status}</span>
                         </div>
-                        <div style="font-size: 12px; color: var(--text-secondary); background: rgba(0,0,0,0.15); padding: 8px; border-radius: 4px; border-left: 3px solid var(--accent-primary);">
-                            <strong>Notas Técnicas:</strong> ${observationText}
+                        <div style="font-size: 12px; color: var(--text-secondary); background: rgba(0,0,0,0.03); padding: 8px 10px; border-radius: 6px; border-left: 3px solid var(--accent-primary);">
+                            <strong>Notas u Observaciones:</strong> ${observationText}
                         </div>
                     </div>
                 `;
