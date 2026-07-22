@@ -1184,6 +1184,48 @@
             <div class="modal-actions" style="margin-top: 20px;">
                 <button class="btn btn-outline" id="closeMonitoreoModalBtn" style="width: auto;">Cerrar</button>
             </div>
+    <!-- Login History Modal (Historial de Accesos) -->
+    <div id="loginHistoryModal" class="modal-overlay">
+        <div class="modal glass-panel" style="max-width: 900px; width: 95%; max-height: 85vh; display: flex; flex-direction: column; padding: 25px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px;">
+                <h2 style="margin: 0; font-size: 20px; color: var(--accent-primary); display: flex; align-items: center; gap: 10px;">
+                    <i class='bx bx-history'></i> Historial de Accesos e Inicios de Sesión
+                </h2>
+                <button class="btn btn-outline" onclick="closeModal('loginHistoryModal')" style="padding: 5px 12px; font-size: 13px;">✕ Cerrar</button>
+            </div>
+
+            <!-- Filtros del Modal -->
+            <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; background: rgba(0,0,0,0.03); padding: 12px 15px; border-radius: 12px; border: 1px solid var(--glass-border);">
+                <div style="flex: 1; min-width: 200px;">
+                    <input type="text" id="loginHistorySearch" class="modern-input" placeholder="Buscar por gestor..." oninput="filterLoginHistoryTable()" style="width: 100%; padding: 8px 12px; font-size: 13px;">
+                </div>
+                <div>
+                    <select id="loginHistoryDateFilter" class="modern-input" onchange="filterLoginHistoryTable()" style="padding: 8px 12px; font-size: 13px; min-width: 150px;">
+                        <option value="todos">Todas las Fechas</option>
+                        <option value="hoy">Hoy</option>
+                        <option value="7d">Últimos 7 Días</option>
+                        <option value="30d">Últimos 30 Días</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Tabla del Historial -->
+            <div style="overflow-y: auto; flex: 1; border-radius: 12px; border: 1px solid rgba(0,0,0,0.05);">
+                <table class="data-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid rgba(0,0,0,0.05); background: rgba(0,0,0,0.02); position: sticky; top: 0; z-index: 1;">
+                            <th style="padding: 12px 16px; font-size: 11px; text-transform: uppercase;">Gestor</th>
+                            <th style="padding: 12px 16px; font-size: 11px; text-transform: uppercase;">Turno</th>
+                            <th style="padding: 12px 16px; font-size: 11px; text-transform: uppercase;">Hora Inicio / Acceso</th>
+                            <th style="padding: 12px 16px; font-size: 11px; text-transform: uppercase;">Estado de Ingreso</th>
+                            <th style="padding: 12px 16px; font-size: 11px; text-transform: uppercase;">Última Actividad</th>
+                        </tr>
+                    </thead>
+                    <tbody id="loginHistoryTableBody">
+                        <!-- Filas dinámicas -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -1470,7 +1512,7 @@
     </div>
 
     <!-- Custom JS -->
-    <script src="app.js?v=20260721_42"></script>
+    <script src="app.js?v=20260722_43"></script>
     <script src="js/tiempos.js?v=20260710_2"></script>
 </body>
 </html>
