@@ -5745,22 +5745,39 @@ function renderControlOperativoCharts(data, dailyData, selectedGestor) {
     
     } else {
         // SINGLE GESTOR:
-        // 1. Fechas con Llegadas Tarde (Dates where Minutos_Tarde_Total > 0)
-        const lateDates = [];
-        const lateMins = [];
-        sortedDates.forEach(date => {
+        // 1. Fechas con Llegadas Tarde (Show all dates in sortedDates with red bars for late minutes)
+        const dailyLateMins = sortedDates.map(date => {
             const raw = window.controlOperativoRawData[selectedGestor]?.[date];
-            if (raw && (raw.Minutos_Tarde_Total || 0) > 0) {
-                lateDates.push(date);
-                lateMins.push(raw.Minutos_Tarde_Total);
-            }
+            return (raw && (raw.Minutos_Tarde_Total || 0) > 0) ? raw.Minutos_Tarde_Total : 0;
         });
 
-        if (lateDates.length === 0) {
-            drawChart('chartTardanzasPeores', 'bar', ['Sin Llegadas Tardes en el Periodo'], [0], 'Minutos Tarde', ['rgba(103, 194, 58, 0.7)'], ['rgba(103, 194, 58, 1)'], { indexAxis: 'y' });
+        const hasLate = dailyLateMins.some(v => v > 0);
+
+        if (!hasLate) {
+            drawChart('chartTardanzasPeores', 'bar', ['Sin Llegadas Tardes en el Periodo'], [0], 'Minutos Tarde', ['rgba(103, 194, 58, 0.7)'], ['rgba(103, 194, 58, 1)'], {
+                maxBarThickness: 36,
+                plugins: {
+                    datalabels: {
+                        formatter: function() { return "🎉 ¡Sin tardanzas!"; },
+                        anchor: 'center', align: 'center', color: 'var(--success)', font: { size: 12, weight: 'bold' }
+                    }
+                }
+            });
         } else {
-            const lateColors = lateDates.map(() => 'rgba(245, 108, 108, 0.8)');
-            drawChart('chartTardanzasPeores', 'bar', lateDates, lateMins, 'Minutos Tarde', lateColors, lateColors, { indexAxis: 'y' });
+            const lateColors = dailyLateMins.map(v => v > 0 ? 'rgba(245, 108, 108, 0.85)' : 'rgba(0,0,0,0)');
+            drawChart('chartTardanzasPeores', 'bar', sortedDates, dailyLateMins, 'Minutos Tarde', lateColors, lateColors, {
+                maxBarThickness: 36,
+                plugins: {
+                    datalabels: {
+                        formatter: function(val) { return val > 0 ? `+${val}m` : ''; },
+                        anchor: 'end', align: 'top', color: 'var(--danger)', font: { size: 10, weight: 'bold' }
+                    }
+                },
+                scales: {
+                    x: { ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 45, minRotation: 0, font: { size: 10 } } },
+                    y: { beginAtZero: true, grace: '20%' }
+                }
+            });
         }
 
         // 2. Fechas de Conexión a Tiempo (Dates where Dias_Laborados > 0 AND Minutos_Tarde_Total === 0)
@@ -5773,7 +5790,7 @@ function renderControlOperativoCharts(data, dailyData, selectedGestor) {
         });
 
         if (punctualDates.length === 0) {
-            drawChart('chartTardanzasMejores', 'bar', ['Sin Conexiones a Tiempo en el Periodo'], [0], 'Conexión a Tiempo', ['rgba(245, 108, 108, 0.7)'], ['rgba(245, 108, 108, 1)'], { indexAxis: 'y' });
+            drawChart('chartTardanzasMejores', 'bar', ['Sin Conexiones a Tiempo en el Periodo'], [0], 'Conexión a Tiempo', ['rgba(245, 108, 108, 0.7)'], ['rgba(245, 108, 108, 1)'], { maxBarThickness: 36 });
         } else {
             const punctualData = punctualDates.map(() => 0);
             const punctualColors = punctualDates.map(() => 'rgba(103, 194, 58, 0.8)');
@@ -5787,9 +5804,14 @@ function renderControlOperativoCharts(data, dailyData, selectedGestor) {
         const dailyBgColors = dailyInactivityValues.map(v => {
             return v > 45 ? 'rgba(245, 108, 108, 0.7)' : (v > 20 ? 'rgba(230, 162, 60, 0.7)' : 'rgba(103, 194, 58, 0.7)');
         });
-        drawChart('chartInactividad', 'bar', sortedDates, dailyInactivityValues, `Inactividad (Min)`, dailyBgColors, dailyBgColors);
+        drawChart('chartInactividad', 'bar', sortedDates, dailyInactivityValues, `Inactividad (Min)`, dailyBgColors, dailyBgColors, {
+            maxBarThickness: 36,
+            scales: {
+                x: { ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 45, minRotation: 0, font: { size: 10 } } }
+            }
+        });
     }
-    
+
     // 4. Aprobaciones por Día Chart
     const dailyAprobados = sortedDates.map(date => dailyData[date].Aprobados);
     const dailyRechazados = sortedDates.map(date => dailyData[date].Rechazados);
@@ -5841,6 +5863,7 @@ function renderControlOperativoCharts(data, dailyData, selectedGestor) {
                 tooltip: { mode: 'index', intersect: false }
             },
             scales: {
+                x: { ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 45, minRotation: 0, font: { size: 10 } } },
                 y: { beginAtZero: true, grace: '15%' }
             }
         }
@@ -5880,9 +5903,10 @@ function drawPunctualDatesChart(id, dates, dataArr, bgColors) {
             datasets: [{
                 label: 'Conexión a Tiempo',
                 data: dates.map(() => 100),
-                backgroundColor: 'rgba(103, 194, 58, 0.75)',
+                backgroundColor: 'rgba(103, 194, 58, 0.8)',
                 borderColor: 'rgba(103, 194, 58, 1)',
-                borderWidth: 1
+                borderWidth: 1,
+                maxBarThickness: 36
             }]
         },
         options: {
@@ -5904,7 +5928,7 @@ function drawPunctualDatesChart(id, dates, dataArr, bgColors) {
             },
             scales: {
                 x: {
-                    ticks: { maxRotation: 45, minRotation: 0, font: { size: 10 } }
+                    ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 45, minRotation: 0, font: { size: 10 } }
                 },
                 y: {
                     beginAtZero: true,
