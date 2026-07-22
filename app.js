@@ -6357,20 +6357,31 @@ async function openLoginHistoryModal() {
             const reportsData = snapReports.val();
             for (let id in reportsData) {
                 const r = reportsData[id];
-                if (!r || !r.name) continue;
-                const loginTimeStr = r.loginTime || r.startTime || r.reportDate || (r.timestamp ? new Date(r.timestamp).toISOString() : '');
-                const key = `${r.name.trim().toLowerCase()}_${loginTimeStr.substring(0, 16)}`;
+                if (!r) continue;
+                const gestorName = (r.gestor || r.name || r.userName || '').trim();
+                if (!gestorName) continue;
+
+                const shiftStr = r.turnoProgramado || r.shift || 'General';
+                const loginTimeStr = r.horaInicio || r.loginTime || r.startTime || r.reportDate || (r.timestamp ? new Date(r.timestamp).toISOString() : '');
+                const endTimeStr = r.horaFin || r.endTime || (r.timestamp ? new Date(r.timestamp).toLocaleString('es-CO') : 'Turno Finalizado');
+
+                const key = `${gestorName.toLowerCase()}_${loginTimeStr.substring(0, 16)}`;
                 if (seenKeys.has(key)) continue;
                 seenKeys.add(key);
 
+                let statusLabel = 'Turno Completado';
+                if (shiftStr.toLowerCase().includes('descansa')) {
+                    statusLabel = 'Ingreso en Día de Descanso';
+                }
+
                 allLoginHistoryRecords.push({
-                    name: r.name,
+                    name: gestorName,
                     email: r.email || '',
-                    shift: r.shift || 'General',
+                    shift: shiftStr,
                     loginTime: loginTimeStr,
-                    lastActive: r.endTime ? new Date(r.endTime).toLocaleString('es-CO') : 'Turno Finalizado',
+                    lastActive: endTimeStr,
                     isOnline: false,
-                    status: 'Turno Completado',
+                    status: statusLabel,
                     source: 'Bitácora'
                 });
             }
@@ -6404,7 +6415,9 @@ function renderLoginHistoryTable(records) {
         const formattedLogin = loginDateObj && !isNaN(loginDateObj) ? loginDateObj.toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'medium' }) : (r.loginTime || 'N/A');
         
         let delayBadge = '';
-        if (loginDateObj && !isNaN(loginDateObj) && r.shift) {
+        if (r.shift && r.shift.toLowerCase().includes('descansa')) {
+            delayBadge = `<span style="background: rgba(139,92,246,0.15); color: #8b5cf6; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; margin-left: 6px;">Descanso</span>`;
+        } else if (loginDateObj && !isNaN(loginDateObj) && r.shift) {
             const shiftStr = r.shift.toLowerCase().trim();
             const match = shiftStr.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
             if (match) {
@@ -6430,6 +6443,8 @@ function renderLoginHistoryTable(records) {
         let statusBadge = `<span style="background: rgba(59,130,246,0.15); color: var(--accent-primary); padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">${r.status}</span>`;
         if (r.isOnline) {
             statusBadge = `<span style="background: rgba(16,185,129,0.15); color: var(--success); padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700;"><i class='bx bx-radio-circle-marked'></i> En Línea</span>`;
+        } else if (r.status === 'Ingreso en Día de Descanso') {
+            statusBadge = `<span style="background: rgba(139,92,246,0.15); color: #8b5cf6; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">Ingreso en Descanso</span>`;
         }
 
         html += `
