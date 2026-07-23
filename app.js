@@ -1864,7 +1864,7 @@ async function initApp() {
             const navEficienciaOperativa = document.getElementById('navEficienciaOperativa');
             if(navEficienciaOperativa) navEficienciaOperativa.style.display = 'flex';
 
-            if(navWorkspace) navWorkspace.style.display = 'flex'; // Keep Mis Tareas visible
+            if(navWorkspace) navWorkspace.style.display = 'none'; // Hide Mis Tareas for Admin/Supervisor
             
             // Ocultar el panel de Progreso del Turno / Documentos de Acceso Rápido en Mis Tareas para Admin o Supervisor
             const rightPanel = document.querySelector('.right-panel');
@@ -3376,11 +3376,58 @@ function setupSidebar() {
     const navAprobaciones = document.getElementById('navAprobaciones');
     const navMonitoreo = document.getElementById('navMonitoreo');
     const navIndicadores = document.getElementById('navIndicadores');
+    const navTiempos = document.getElementById('navTiempos');
     
     const navSoporte = document.getElementById('navSoporte');
 
+    // Unify Horario and Teletrabajo into one tab for all roles
+    if (navHorario) {
+        navHorario.style.display = 'flex';
+        navHorario.innerHTML = "<i class='bx bx-calendar'></i> Horario y Teletrabajo";
+    }
+    if (navTeletrabajo) {
+        navTeletrabajo.style.display = 'none';
+    }
+
+    // Merge Teletrabajo view content into Horario view for everyone
+    const viewHorario = document.getElementById('view-horario');
+    const viewTeletrabajo = document.getElementById('view-teletrabajo');
+    if (viewHorario && viewTeletrabajo) {
+        const teletrabajoContent = viewTeletrabajo.querySelector('.glass-panel');
+        if (teletrabajoContent && !document.getElementById('mergedTeletrabajoPanel')) {
+            teletrabajoContent.id = 'mergedTeletrabajoPanel';
+            
+            // Update main view title
+            const panelTitle = viewHorario.querySelector('.panel-title');
+            if (panelTitle) panelTitle.innerHTML = "<i class='bx bx-calendar'></i> Horario y Teletrabajo";
+            
+            // Add sub-section headers
+            const hrPanel = viewHorario.querySelector('.glass-panel');
+            if (hrPanel && !hrPanel.querySelector('.section-header')) {
+                const h3Horario = document.createElement('h3');
+                h3Horario.className = 'section-header';
+                h3Horario.style.cssText = "color: var(--accent-primary); margin-bottom: 15px; font-size: 16px;";
+                h3Horario.innerText = "Horario Semanal";
+                hrPanel.insertBefore(h3Horario, hrPanel.firstChild);
+            }
+            
+            if (!teletrabajoContent.querySelector('.section-header')) {
+                const h3Tele = document.createElement('h3');
+                h3Tele.className = 'section-header';
+                h3Tele.style.cssText = "color: var(--success); margin-bottom: 15px; font-size: 16px;";
+                h3Tele.innerText = "Cronograma de Teletrabajo";
+                teletrabajoContent.insertBefore(h3Tele, teletrabajoContent.firstChild);
+            }
+
+            viewHorario.appendChild(teletrabajoContent);
+        }
+    }
+
     if (currentUser && (currentUser.role === 'Admin' || currentUser.role === 'Supervisor')) {
         // Admin/Supervisor Order
+        if (navWorkspace) { navWorkspace.style.display = 'none'; } // HIDE Mis Tareas for Admin and Supervisor
+        if (navComunicados) { navComunicados.style.display = 'none'; }
+
         if (adminNavGroup) { adminNavGroup.style.display = 'block'; sidebarNav.appendChild(adminNavGroup); }
         if (navMonitoreo) { navMonitoreo.style.display = 'flex'; adminNavGroup.appendChild(navMonitoreo); }
         if (navIndicadores) { navIndicadores.style.display = 'flex'; adminNavGroup.appendChild(navIndicadores); }
@@ -3389,10 +3436,7 @@ function setupSidebar() {
         if (navTurnos) { navTurnos.style.display = 'flex'; adminNavGroup.appendChild(navTurnos); }
         if (navAprobaciones) { navAprobaciones.style.display = 'flex'; adminNavGroup.appendChild(navAprobaciones); }
         
-        if (navWorkspace) { navWorkspace.style.display = 'flex'; sidebarNav.appendChild(navWorkspace); }
-        if (navComunicados) { navComunicados.style.display = 'none'; }
-        if (navHorario) { navHorario.style.display = 'flex'; sidebarNav.appendChild(navHorario); }
-        if (navTeletrabajo) { navTeletrabajo.style.display = 'flex'; sidebarNav.appendChild(navTeletrabajo); }
+        if (navHorario) { sidebarNav.appendChild(navHorario); }
         if (navDocs) { navDocs.style.display = 'flex'; sidebarNav.appendChild(navDocs); }
         if (navPermisos) { navPermisos.style.display = 'flex'; sidebarNav.appendChild(navPermisos); }
         
@@ -3401,52 +3445,7 @@ function setupSidebar() {
         // Gestor Order
         if (navWorkspace) { navWorkspace.style.display = 'flex'; sidebarNav.appendChild(navWorkspace); }
         if (navComunicados) { navComunicados.style.display = 'flex'; sidebarNav.appendChild(navComunicados); }
-        
-        // Merge Horario and Teletrabajo into "Mi Jornada" ONLY for Gestor
-        if (navHorario) {
-            navHorario.style.display = 'flex';
-            sidebarNav.appendChild(navHorario);
-            navHorario.innerHTML = "<i class='bx bx-calendar'></i> Mi Jornada";
-        }
-        
-        if (navTeletrabajo) {
-            navTeletrabajo.style.display = 'none'; // Ocultar pestaña separada
-        }
-
-        // Mover contenido de Teletrabajo dentro de Horario
-        const viewHorario = document.getElementById('view-horario');
-        const viewTeletrabajo = document.getElementById('view-teletrabajo');
-        if (viewHorario && viewTeletrabajo) {
-            const teletrabajoContent = viewTeletrabajo.querySelector('.glass-panel');
-            if (teletrabajoContent && !document.getElementById('mergedTeletrabajoPanel')) {
-                teletrabajoContent.id = 'mergedTeletrabajoPanel';
-                
-                // Cambiar el título dentro del contenedor Horario
-                const panelTitle = viewHorario.querySelector('.panel-title');
-                if (panelTitle) panelTitle.innerHTML = "<i class='bx bx-calendar'></i> Mi Jornada";
-                
-                // Agregar encabezados sutiles para separarlos visualmente
-                const hrPanel = viewHorario.querySelector('.glass-panel');
-                if (hrPanel && !hrPanel.querySelector('.section-header')) {
-                    const h3Horario = document.createElement('h3');
-                    h3Horario.className = 'section-header';
-                    h3Horario.style.cssText = "color: var(--accent-primary); margin-bottom: 15px; font-size: 16px;";
-                    h3Horario.innerText = "Horario Semanal";
-                    hrPanel.insertBefore(h3Horario, hrPanel.firstChild);
-                }
-                
-                if (!teletrabajoContent.querySelector('.section-header')) {
-                    const h3Tele = document.createElement('h3');
-                    h3Tele.className = 'section-header';
-                    h3Tele.style.cssText = "color: var(--success); margin-bottom: 15px; font-size: 16px;";
-                    h3Tele.innerText = "Cronograma de Teletrabajo";
-                    teletrabajoContent.insertBefore(h3Tele, teletrabajoContent.firstChild);
-                }
-
-                viewHorario.appendChild(teletrabajoContent);
-            }
-        }
-
+        if (navHorario) { sidebarNav.appendChild(navHorario); }
         if (navDocs) { navDocs.style.display = 'flex'; sidebarNav.appendChild(navDocs); }
         if (navPermisos) { navPermisos.style.display = 'flex'; sidebarNav.appendChild(navPermisos); }
         
