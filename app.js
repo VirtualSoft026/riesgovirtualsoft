@@ -3431,7 +3431,7 @@ function setupSidebar() {
         if (adminNavGroup) { adminNavGroup.style.display = 'block'; sidebarNav.appendChild(adminNavGroup); }
         if (navMonitoreo) { navMonitoreo.style.display = 'flex'; adminNavGroup.appendChild(navMonitoreo); }
         if (navIndicadores) { navIndicadores.style.display = 'flex'; adminNavGroup.appendChild(navIndicadores); }
-        if (navTiempos) { navTiempos.style.display = 'flex'; adminNavGroup.appendChild(navTiempos); }
+        if (navTiempos) { navTiempos.style.display = 'none'; }
         if (navAdminComunicados) { navAdminComunicados.style.display = 'flex'; adminNavGroup.appendChild(navAdminComunicados); }
         if (navTurnos) { navTurnos.style.display = 'flex'; adminNavGroup.appendChild(navTurnos); }
         if (navAprobaciones) { navAprobaciones.style.display = 'flex'; adminNavGroup.appendChild(navAprobaciones); }
