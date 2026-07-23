@@ -1848,7 +1848,6 @@ async function initApp() {
             const navAprobaciones = document.getElementById('navAprobaciones');
             const navTurnos = document.getElementById('navTurnos');
             const navMonitoreo = document.getElementById('navMonitoreo');
-            const navIndicadores = document.getElementById('navIndicadores');
             const navWorkspace = document.getElementById('navWorkspace');
             const viewWorkspace = document.getElementById('view-workspace');
             const viewAprobaciones = document.getElementById('view-aprobaciones');
@@ -1859,8 +1858,7 @@ async function initApp() {
             if(navAprobaciones) navAprobaciones.style.display = 'flex';
             if(navTurnos) navTurnos.style.display = 'flex';
             if(navMonitoreo) navMonitoreo.style.display = 'flex';
-            if(navIndicadores) navIndicadores.style.display = 'flex';
-            
+
             const navEficienciaOperativa = document.getElementById('navEficienciaOperativa');
             if(navEficienciaOperativa) navEficienciaOperativa.style.display = 'flex';
 
@@ -2163,11 +2161,6 @@ async function initApp() {
                 const viewMonitoreo = document.getElementById('view-monitoreo');
                 if (viewMonitoreo) viewMonitoreo.style.display = 'block';
                 renderActiveSessionsDashboard();
-            } else if (item.id === 'navIndicadores') {
-                const viewIndicadores = document.getElementById('view-indicadores');
-                if (viewIndicadores) viewIndicadores.style.display = 'block';
-                if (topHeader) topHeader.style.display = 'none'; // Ocultar header según solicitud
-                loadGestoresForKPIs();
             } else if (item.id === 'navEficienciaOperativa') {
                 const viewEficiencia = document.getElementById('view-eficiencia-operativa');
                 if (viewEficiencia) viewEficiencia.style.display = 'block';
@@ -3393,7 +3386,6 @@ function setupSidebar() {
     const navTurnos = document.getElementById('navTurnos');
     const navAprobaciones = document.getElementById('navAprobaciones');
     const navMonitoreo = document.getElementById('navMonitoreo');
-    const navIndicadores = document.getElementById('navIndicadores');
     const navTiempos = document.getElementById('navTiempos');
     
     const navSoporte = document.getElementById('navSoporte');
@@ -3448,7 +3440,7 @@ function setupSidebar() {
 
         if (adminNavGroup) { adminNavGroup.style.display = 'block'; sidebarNav.appendChild(adminNavGroup); }
         if (navMonitoreo) { navMonitoreo.style.display = 'flex'; adminNavGroup.appendChild(navMonitoreo); }
-        if (navIndicadores) { navIndicadores.style.display = 'none'; }
+
         if (navTiempos) { navTiempos.style.display = 'none'; }
         if (navAdminComunicados) { navAdminComunicados.style.display = 'flex'; adminNavGroup.appendChild(navAdminComunicados); }
         if (navTurnos) { navTurnos.style.display = 'flex'; adminNavGroup.appendChild(navTurnos); }
