@@ -3206,8 +3206,26 @@ function applyShiftReportsFilters() {
     filtered.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     
     filtered.forEach(r => {
-        // Formatear el reporte de tareas para que sea legible en HTML
-        const safeReport = (r.reporte || 'Sin reporte').replace(/\n/g, '<br>').replace(/\[(.*?)\]/g, '<strong>[$1]</strong>');
+        let reportText = r.reporte || 'Sin reporte';
+        let bitacoraHTML = '';
+        if (reportText.includes('=== BITÁCORA DE TIEMPOS ===')) {
+            const parts = reportText.split('=== BITÁCORA DE TIEMPOS ===');
+            reportText = parts[0].trim();
+            const bitacoraContent = parts[1].trim().replace(/\n/g, '<br>');
+            if (bitacoraContent) {
+                bitacoraHTML = `
+                    <details style="margin-top: 8px; border-top: 1px dashed var(--glass-border); padding-top: 6px;">
+                        <summary style="cursor: pointer; color: var(--accent-primary); font-weight: 600; font-size: 11px; outline: none; list-style: none; display: flex; align-items: center; gap: 4px;">
+                            <i class='bx bx-chevron-down'></i> Ver Bitácora de Tiempos
+                        </summary>
+                        <div style="font-size: 11px; margin-top: 5px; color: var(--text-secondary); line-height: 1.5; background: rgba(0,0,0,0.15); padding: 6px; border-radius: 4px;">
+                            ${bitacoraContent}
+                        </div>
+                    </details>
+                `;
+            }
+        }
+        const safeReport = reportText.replace(/\n/g, '<br>').replace(/\[(.*?)\]/g, '<strong>[$1]</strong>') + bitacoraHTML;
         
         tbody.innerHTML += `
             <tr style="border-bottom: 1px solid var(--glass-border);">
@@ -3218,8 +3236,8 @@ function applyShiftReportsFilters() {
                 <td style="padding: 12px; color: var(--accent-primary);">${r.setTrabajado}</td>
                 <td style="padding: 12px; font-size: 13px;">${r.horaInicio}</td>
                 <td style="padding: 12px; font-size: 13px;">${r.horaFin}</td>
-                <td style="padding: 12px; font-size: 12px; color: var(--text-secondary); max-width: 300px; text-align: left;">
-                    <div style="max-height: 80px; overflow-y: auto; background: var(--bg-dark); padding: 5px; border-radius: 4px;">
+                <td style="padding: 12px; font-size: 12px; color: var(--text-secondary); max-width: 350px; text-align: left;">
+                    <div style="max-height: 120px; overflow-y: auto; background: var(--bg-dark); padding: 8px; border-radius: 6px;">
                         ${safeReport}
                     </div>
                 </td>
@@ -3430,7 +3448,7 @@ function setupSidebar() {
 
         if (adminNavGroup) { adminNavGroup.style.display = 'block'; sidebarNav.appendChild(adminNavGroup); }
         if (navMonitoreo) { navMonitoreo.style.display = 'flex'; adminNavGroup.appendChild(navMonitoreo); }
-        if (navIndicadores) { navIndicadores.style.display = 'flex'; adminNavGroup.appendChild(navIndicadores); }
+        if (navIndicadores) { navIndicadores.style.display = 'none'; }
         if (navTiempos) { navTiempos.style.display = 'none'; }
         if (navAdminComunicados) { navAdminComunicados.style.display = 'flex'; adminNavGroup.appendChild(navAdminComunicados); }
         if (navTurnos) { navTurnos.style.display = 'flex'; adminNavGroup.appendChild(navTurnos); }
@@ -4061,30 +4079,38 @@ function loadGestoresForKPIs() {
 }
 
 async function calcularIndicadores() {
-    const gestorName = document.getElementById('kpiGestorSelect').value;
-    const periodo = document.getElementById('kpiPeriodoSelect').value;
-    const db = firebase.database();
-    
+    const gestorEl = document.getElementById('filtroGestorOperativo');
+    const fechaEl = document.getElementById('filtroFechaOperativo');
+    if (!gestorEl || !fechaEl) return;
+
+    let gestorName = gestorEl.value;
+    if (gestorName === 'Todos') {
+        gestorName = 'todos';
+    }
+
+    const selectedFecha = fechaEl.value;
+    let periodo = 'general';
+    if (selectedFecha === 'today') periodo = 'hoy';
+    else if (selectedFecha === 'yesterday') periodo = 'ayer';
+    else if (selectedFecha === '7') periodo = 'semanal';
+    else if (selectedFecha === '30') periodo = '30dias';
+    else if (selectedFecha === 'thisMonth') periodo = 'mes';
+    else if (selectedFecha === 'lastMonth') periodo = 'lastMonth';
+    else if (selectedFecha === 'Todas') periodo = 'general';
+    else if (selectedFecha === 'custom') periodo = 'custom';
+
     // Resetear listas de detalle
     window.kpiTaskLists = { finalizadas: [], no_realizadas: [], pendientes: [] };
     window.kpiBitacoraHTML = "";
 
     // Limpiar UI anterior
-    document.getElementById('kpiResultsContainer').style.display = 'none';
-    
-    if (!gestorName) {
-        alert("Por favor, selecciona un gestor primero.");
-        return;
+    const resultsContainer = document.getElementById('kpiResultsContainer');
+    if (resultsContainer) {
+        resultsContainer.style.display = 'none';
     }
     
-    const resultsContainer = document.getElementById('kpiResultsContainer');
-    resultsContainer.style.display = 'none'; // hide while loading
-    
-    const analyzeBtn = document.querySelector('button[onclick="calcularIndicadores()"]');
-    const originalBtnHTML = analyzeBtn ? analyzeBtn.innerHTML : null;
-    if (analyzeBtn) {
-        analyzeBtn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Analizando...";
-        analyzeBtn.disabled = true;
+    if (!gestorName) {
+        return;
     }
     
     let shiftReports = [];
@@ -4115,23 +4141,10 @@ async function calcularIndicadores() {
             shiftReports = shiftReports.concat(activeArr);
         }
     } catch(e) {
-        if (analyzeBtn) {
-            analyzeBtn.innerHTML = originalBtnHTML;
-            analyzeBtn.disabled = false;
-        }
         console.error("Error cargando shift reports para KPIs", e);
-        alert("Hubo un error cargando los datos.");
         return;
     }
     
-    if (shiftReports.length === 0) {
-        if (analyzeBtn) {
-            analyzeBtn.innerHTML = originalBtnHTML;
-            analyzeBtn.disabled = false;
-        }
-        alert(`No se encontraron turnos registrados para ${gestorName}.`);
-        return;
-    }
     // Filtro por fecha
     const now = Date.now();
     
@@ -4157,15 +4170,21 @@ async function calcularIndicadores() {
     } else if (periodo === 'mes') {
         const esteMesStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
         shiftReports = shiftReports.filter(r => { const t = getTimestamp(r); return t && t >= esteMesStart; });
+    } else if (periodo === 'lastMonth') {
+        const d = new Date();
+        const startLast = new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime();
+        const endLast = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+        shiftReports = shiftReports.filter(r => { const t = getTimestamp(r); return t && t >= startLast && t < endLast; });
     } else if (periodo === 'custom') {
-        const customDateStr = document.getElementById('kpiCustomDateInput').value;
-        if (customDateStr) {
-            const parts = customDateStr.split('-');
-            const customStart = new Date(parts[0], parts[1]-1, parts[2]).getTime();
-            const customEnd = customStart + 86400000;
+        const dateStartStr = document.getElementById('operativoDateStart')?.value;
+        const dateEndStr = document.getElementById('operativoDateEnd')?.value;
+        if (dateStartStr && dateEndStr) {
+            const startParts = dateStartStr.split('-');
+            const endParts = dateEndStr.split('-');
+            const customStart = new Date(startParts[0], startParts[1]-1, startParts[2]).getTime();
+            const customEnd = new Date(endParts[0], endParts[1]-1, endParts[2]).getTime() + 86400000;
             shiftReports = shiftReports.filter(r => { const t = getTimestamp(r); return t && t >= customStart && t < customEnd; });
         } else {
-            alert("Por favor selecciona una fecha específica en el calendario.");
             return;
         }
     }
@@ -4391,9 +4410,22 @@ async function calcularIndicadores() {
                 const dt = new Date(todayStart.getFullYear(), todayStart.getMonth(), i);
                 if (dt.getMonth() === todayStart.getMonth() && dt <= todayStart) addDates(dt);
             }
+        } else if (periodo === 'lastMonth') {
+            const firstLast = new Date(todayStart.getFullYear(), todayStart.getMonth() - 1, 1);
+            const lastLast = new Date(todayStart.getFullYear(), todayStart.getMonth(), 0);
+            for(let d = new Date(firstLast); d <= lastLast; d.setDate(d.getDate() + 1)) {
+                addDates(new Date(d));
+            }
         } else if (periodo === 'custom') {
-            const customDateStr = document.getElementById('kpiCustomDateInput').value;
-            if (customDateStr) targetDates.push(customDateStr);
+            const dateStartStr = document.getElementById('operativoDateStart')?.value;
+            const dateEndStr = document.getElementById('operativoDateEnd')?.value;
+            if (dateStartStr && dateEndStr) {
+                const start = new Date(dateStartStr);
+                const end = new Date(dateEndStr);
+                for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                    addDates(new Date(d));
+                }
+            }
         }
         
         const gestoresToCheck = gestorName === 'todos' ? Object.keys(window.controlOperativoRawData) : [gestorName];
@@ -4516,10 +4548,6 @@ async function calcularIndicadores() {
     animateRing('kpiScoreRingRetiros', 'kpiScoreTextRetiros', 'kpiVerdictBadgeRetiros', porcentajeRetiros);
     
     resultsContainer.style.display = 'flex';
-    if (analyzeBtn) {
-        analyzeBtn.innerHTML = originalBtnHTML;
-        analyzeBtn.disabled = false;
-    }
 }
 
 // Modal de Detalle de Tareas (KPIs)
@@ -5673,6 +5701,9 @@ function renderControlOperativoFiltered() {
     // We pass globalForCharts to the charts so rankings always compare the whole team.
     // However, we pass dailyData which is specific to the selected gestor so the line chart is filtered.
     renderControlOperativoCharts(globalForCharts, dailyData, selectedGestor);
+    
+    // Auto-refresh KPI rings every time filters change
+    calcularIndicadores();
 }
 
 function renderControlOperativoCharts(data, dailyData, selectedGestor) {
