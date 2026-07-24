@@ -76,11 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Registrando...";
             btn.disabled = true;
 
-            // Forzar permisos de Admin de forma invisible para la dueña de la plataforma
             let finalRole = role;
-            if (email.toLowerCase() === 'maria.sanchez@virtualsoft.tech') {
-                finalRole = 'Admin';
-            }
 
             try {
                 // 1. Create user in Firebase Auth
@@ -173,30 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.disabled = true;
 
             try {
-                let userCredential;
-                try {
-                    userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
-                } catch (authError) {
-                    // Auto-bootstrapping para la cuenta administradora inicial de Maria Sanchez
-                    if (email.toLowerCase() === 'maria.sanchez@virtualsoft.tech' && password === 'admin123' && (authError.code === 'auth/user-not-found' || authError.code === 'auth/wrong-password')) {
-                        try {
-                            userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
-                        } catch (createError) {
-                            throw authError;
-                        }
-                        
-                        await database.ref('users/' + userCredential.user.uid).set({
-                            name: "Maria Sanchez",
-                            email: "maria.sanchez@virtualsoft.tech",
-                            role: "Admin",
-                            approved: true,
-                            shift: "Master"
-                        });
-                    } else {
-                        throw authError;
-                    }
-                }
-
+                const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
                 const user = userCredential.user;
 
                 // Obtener perfil desde Realtime Database usando su UID de autenticación
@@ -204,18 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 let dbUser = snapshot.val();
 
                 if (!dbUser) {
-                    if (email.toLowerCase() === 'maria.sanchez@virtualsoft.tech') {
-                        dbUser = {
-                            name: "Maria Sanchez",
-                            email: "maria.sanchez@virtualsoft.tech",
-                            role: "Admin",
-                            approved: true,
-                            shift: "Master"
-                        };
-                        await database.ref('users/' + user.uid).set(dbUser);
-                    } else {
-                        throw { code: 'user-data-missing' };
-                    }
+                    throw { code: 'user-data-missing' };
                 }
 
                 if (dbUser.approved === 'Rechazado') {

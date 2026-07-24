@@ -4459,9 +4459,6 @@ async function calcularIndicadores() {
     let porcentajeRetiros = 100 - penalidadRetiros;
     if (porcentajeRetiros < 0) porcentajeRetiros = 0;
     
-    // SIEMPRE mostrar las tarjetas de retiros base, independientemente de si hay datos (excluyendo la de penalidad que es dinámica)
-    retirosCardsElements.forEach(el => el.style.display = 'flex');
-    
     // Calcular promedio de horas y minutos
     let promedioHoras = 0;
     let promedioMinutosRestantes = 0;

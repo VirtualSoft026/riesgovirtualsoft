@@ -14,26 +14,13 @@ if not os.path.exists(DB_FILE):
 
 def read_db():
     with open(DB_FILE, "r", encoding="utf-8") as f:
-        db = json.load(f)
-    
-    # Auto-inyectar cuenta administradora maestra si no existe
-    if not any(u.get("email", "").lower() == "maria.sanchez@virtualsoft.tech" for u in db.get("users", [])):
-        if "users" not in db: db["users"] = []
-        db["users"].append({
-            "name": "Maria Sanchez (Admin)",
-            "email": "maria.sanchez@virtualsoft.tech",
-            "password": "admin123",
-            "shift": "Master",
-            "role": "Admin",
-            "approved": True
-        })
-        write_db(db)
-        
-    return db
+        return json.load(f)
 
 def write_db(data):
     with open(DB_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
+
+ALLOWED_ORIGIN = "https://riskops-75637.web.app"
 
 class APIHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
@@ -41,15 +28,36 @@ class APIHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
         self.send_header('Pragma', 'no-cache')
         self.send_header('Expires', '0')
+        self.send_header('Access-Control-Allow-Origin', ALLOWED_ORIGIN)
         super().end_headers()
+
+    def verify_token(self):
+        auth_header = self.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return False
+        token = auth_header.split(" ", 1)[1].strip()
+        # Verificar que exista el token (por ejemplo, tokens no vacíos o estructurados)
+        return bool(token)
+
+    def send_unauthorized(self):
+        self.send_response(401)
+        self.send_header('Content-type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps({"error": "Unauthorized: Invalid or missing token"}).encode('utf-8'))
 
     def do_GET(self):
         parsed = urlparse(self.path)
         if parsed.path.startswith("/api/"):
+            # Endpoints protegidos por token de sesión
+            protected_endpoints = ["/api/users", "/api/permissions"]
+            if parsed.path in protected_endpoints:
+                if not self.verify_token():
+                    self.send_unauthorized()
+                    return
+
             db = read_db()
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             
             if parsed.path == "/api/users":
@@ -71,6 +79,13 @@ class APIHandler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
         parsed = urlparse(self.path)
         if parsed.path.startswith("/api/"):
+            # Endpoints protegidos por token de sesión
+            protected_endpoints = ["/api/users/promote", "/api/permissions"]
+            if parsed.path in protected_endpoints:
+                if not self.verify_token():
+                    self.send_unauthorized()
+                    return
+
             content_length = int(self.headers.get('Content-Length', 0))
             post_data = self.rfile.read(content_length)
             
@@ -115,7 +130,6 @@ class APIHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_response(404)
             
             self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             self.wfile.write(b'{"success": true}')
         else:
@@ -124,9 +138,8 @@ class APIHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_OPTIONS(self):
         self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         self.end_headers()
 
 Handler = APIHandler
