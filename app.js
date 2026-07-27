@@ -518,7 +518,7 @@ function parseSheetRange(sheetName, year = 2026, fallbackMonth = 0) {
     if (!sheetName) return null;
     let clean = sheetName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
     
-    let m = clean.match(/Semana\s+\d+\s*-\s*(\d+)\s+(?:de\s+)?(\w+)\s+al\s+(\d+)\s+(?:de\s+)?(\w+)/i);
+    let m = clean.match(/Semana\s+\d+\s*-\s*(\d+)\s+(?:de\s+)?(\w+)\s+(?:al|a|-)\s+(\d+)\s+(?:de\s+)?(\w+)/i);
     if (m) {
         let startDay = parseInt(m[1], 10);
         let startMStr = m[2].substring(0, 3).toLowerCase();
@@ -533,7 +533,7 @@ function parseSheetRange(sheetName, year = 2026, fallbackMonth = 0) {
         return { start: startDate, end: endDate };
     }
     
-    m = clean.match(/Semana\s+\d+\s*-\s*(\d+)\s+al\s+(\d+)\s+(?:de\s+)?(\w+)/i);
+    m = clean.match(/Semana\s+\d+\s*-\s*(\d+)\s+(?:al|a|-)\s+(\d+)\s+(?:de\s+)?(\w+)/i);
     if (m) {
         let startDay = parseInt(m[1], 10);
         let endDay = parseInt(m[2], 10);
