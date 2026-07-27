@@ -3177,6 +3177,8 @@ function applyShiftReportsFilters() {
 
     let filtered = [...allShiftReports];
 
+    const hasExplicitFilter = gestorQuery || fechaQuery;
+
     // Filter by Gestor name (accent-insensitive)
     if (gestorQuery) {
         filtered = filtered.filter(r => normalizeName(r.gestor).includes(gestorQuery));
@@ -3197,12 +3199,20 @@ function applyShiftReportsFilters() {
             if (r.horaFin && r.horaFin.includes(fechaQuery)) return true;
             return false;
         });
+    } else if (!hasExplicitFilter) {
+        // Si no hay filtro de fecha ni gestor, limitar por defecto a los últimos 2 días para máxima velocidad
+        const now = new Date();
+        const twoDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0).getTime(); // inicio de ayer
+        filtered = filtered.filter(r => {
+            const reportTime = r.timestamp || (r.horaInicio ? new Date(r.horaInicio).getTime() : 0);
+            return reportTime >= twoDaysAgo;
+        });
     }
 
     tbody.innerHTML = '';
     
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay historial de turnos registrados con los filtros seleccionados.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text-secondary);">${hasExplicitFilter ? 'No hay historial de turnos registrados con los filtros seleccionados.' : 'No hay turnos registrados en los últimos 2 días. Selecciona una fecha o escribe un gestor para consultar turnos anteriores.'}</td></tr>`;
         return;
     }
     
@@ -3253,6 +3263,21 @@ function applyShiftReportsFilters() {
             </tr>
         `;
     });
+
+    if (!hasExplicitFilter) {
+        setTimeout(() => {
+            if (document.getElementById('shiftReportsMostrandoMsg')) document.getElementById('shiftReportsMostrandoMsg').remove();
+            const msg = document.createElement('div');
+            msg.id = 'shiftReportsMostrandoMsg';
+            msg.style = 'text-align: center; font-size: 11px; color: var(--text-secondary); margin-top: 10px; font-style: italic;';
+            msg.innerText = `Mostrando turnos de los últimos 2 días (${filtered.length} turnos). Selecciona una fecha o escribe un gestor para consultar el historial antiguo complete.`;
+            tbody.parentElement.parentElement.appendChild(msg);
+        }, 50);
+    } else {
+        setTimeout(() => {
+            if (document.getElementById('shiftReportsMostrandoMsg')) document.getElementById('shiftReportsMostrandoMsg').remove();
+        }, 50);
+    }
 }
 
 
