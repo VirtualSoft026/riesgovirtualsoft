@@ -2714,6 +2714,18 @@ function handleEndShift() {
                 btn.disabled = true;
             }
 
+            // Recalcular inactividadTotalMins usando cleanTimeline limpio sin superposiciones ni duplicados
+            let inactividadMinsLimpia = 0;
+            if (cleanTimeline && cleanTimeline.length > 0) {
+                cleanTimeline.forEach(ev => {
+                    if (ev.type === 'Inactividad') {
+                        let eTime = ev.end ? ev.end : endDate.getTime();
+                        inactividadMinsLimpia += (eTime - ev.start) / (1000 * 60);
+                    }
+                });
+            }
+            inactividadMinsLimpia = parseFloat(inactividadMinsLimpia.toFixed(1));
+
             // --- RESPALDO SEGURO EN FIREBASE ---
             const shiftReportObject = {
                 gestor: localUser.name,
@@ -2724,9 +2736,9 @@ function handleEndShift() {
                 setTrabajado: setSelect ? setSelect.value : 'N/A',
                 reporte: report,
                 tasks: taskStateCache,
-                timeline: shiftTimeline,
+                timeline: cleanTimeline,
                 penalidadConectividadMins: penalidadConectividadMins,
-                inactividadTotalMins: inactividadMins,
+                inactividadTotalMins: inactividadMinsLimpia,
                 tiempoAlmuerzoMins: lunchMinutes,
                 tiempoDesayunoMins: breakfastMinutes,
                 timestamp: Date.now()
