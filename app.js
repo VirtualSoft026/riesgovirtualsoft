@@ -1489,11 +1489,9 @@ window.openPermisoDetailModal = async function(fb_id) {
         </div>
     `;
     
-    if (typeof openModal === 'function') {
-        openModal('permDetailModal');
-    } else {
-        const modal = document.getElementById('permDetailModal');
-        if (modal) modal.style.display = 'flex';
+    const modal = document.getElementById('permDetailModal');
+    if (modal) {
+        modal.classList.add('active');
     }
 };
 
