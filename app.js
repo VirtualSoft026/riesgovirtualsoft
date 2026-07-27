@@ -4517,19 +4517,60 @@ async function calcularIndicadores() {
             totalPenalidadConectividad += report.penalidadConectividadMins;
         }
         
-        if (report.inactividadTotalMins !== undefined) {
-            totalInactividadMins += report.inactividadTotalMins;
-        } else if (report.timeline && report.timeline.length > 0) {
-            // Fallback para reportes antiguos que no tienen inactividadTotalMins guardado
-            let fallbackMins = 0;
-            const now = Date.now();
-            report.timeline.forEach(ev => {
+        if (report.timeline && report.timeline.length > 0) {
+            // Limpiar y unificar timeline de reportes pasados para ignorar inactividades duplicadas/superpuestas
+            let cleanTimeline = [];
+            const breaks = report.timeline.filter(b => b.type === 'Desayuno' || b.type === 'Almuerzo');
+            let sortedEvs = [...report.timeline].sort((a, b) => a.start - b.start);
+            const reportEndTs = report.timestamp || Date.now();
+
+            sortedEvs.forEach(ev => {
+                let evStart = ev.start;
+                let evEnd = ev.end || reportEndTs;
+                if (evEnd <= evStart) return;
+
                 if (ev.type === 'Inactividad') {
-                    let eTime = ev.end ? ev.end : now;
-                    fallbackMins += (eTime - ev.start) / (1000 * 60);
+                    if (evEnd - evStart < 30000) return;
+                    let insideBreak = breaks.some(b => {
+                        let bStart = b.start;
+                        let bEnd = b.end || reportEndTs;
+                        return evStart >= bStart && evEnd <= bEnd;
+                    });
+                    if (insideBreak) return;
+                }
+
+                if (cleanTimeline.length === 0) {
+                    cleanTimeline.push({ type: ev.type, start: evStart, end: evEnd });
+                } else {
+                    let prev = cleanTimeline[cleanTimeline.length - 1];
+                    if (prev.type === ev.type && evStart <= prev.end + 60000) {
+                        prev.end = Math.max(prev.end, evEnd);
+                    } else if (evStart < prev.end) {
+                        if (ev.type === 'Inactividad') {
+                            if (evEnd > prev.end) {
+                                evStart = prev.end;
+                                if (evEnd - evStart >= 30000) {
+                                    cleanTimeline.push({ type: ev.type, start: evStart, end: evEnd });
+                                }
+                            }
+                        } else {
+                            cleanTimeline.push({ type: ev.type, start: evStart, end: evEnd });
+                        }
+                    } else {
+                        cleanTimeline.push({ type: ev.type, start: evStart, end: evEnd });
+                    }
+                }
+            });
+
+            let fallbackMins = 0;
+            cleanTimeline.forEach(ev => {
+                if (ev.type === 'Inactividad') {
+                    fallbackMins += (ev.end - ev.start) / (1000 * 60);
                 }
             });
             totalInactividadMins += fallbackMins;
+        } else if (report.inactividadTotalMins !== undefined) {
+            totalInactividadMins += report.inactividadTotalMins;
         }
     });
     let diasTrabajados = shiftReports.length || 1;
