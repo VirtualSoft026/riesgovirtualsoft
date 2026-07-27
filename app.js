@@ -2624,28 +2624,45 @@ function handleEndShift() {
             // Consolidar eventos duplicados o superpuestos en shiftTimeline antes de armar la bitácora
             let cleanTimeline = [];
             if (shiftTimeline && shiftTimeline.length > 0) {
-                // Ordenar por hora de inicio
+                // Separar pausas programadas (Desayuno / Almuerzo) de inactividades automáticas
+                const breaks = shiftTimeline.filter(b => b.type === 'Desayuno' || b.type === 'Almuerzo');
                 let sortedEvs = [...shiftTimeline].sort((a, b) => a.start - b.start);
+                
                 sortedEvs.forEach(ev => {
                     let evStart = ev.start;
                     let evEnd = ev.end || endDate.getTime();
-                    // Omitir inactividades menores a 30 segundos
-                    if (ev.type === 'Inactividad' && (evEnd - evStart < 30000)) return;
+                    if (evEnd <= evStart) return;
+
+                    // Si es Inactividad, descartar si dura menos de 30s o si cae totalmente dentro de un Desayuno/Almuerzo
+                    if (ev.type === 'Inactividad') {
+                        if (evEnd - evStart < 30000) return;
+                        let insideBreak = breaks.some(b => {
+                            let bStart = b.start;
+                            let bEnd = b.end || endDate.getTime();
+                            return evStart >= bStart && evEnd <= bEnd;
+                        });
+                        if (insideBreak) return;
+                    }
 
                     if (cleanTimeline.length === 0) {
                         cleanTimeline.push({ type: ev.type, start: evStart, end: evEnd });
                     } else {
                         let prev = cleanTimeline[cleanTimeline.length - 1];
                         if (prev.type === ev.type && evStart <= prev.end + 60000) {
-                            // Unificar si es del mismo tipo y continuo o se cruza
+                            // Unificar si es del mismo tipo y continuo (o con menos de 1 min de diferencia)
                             prev.end = Math.max(prev.end, evEnd);
-                        } else if (evStart < prev.end && ev.type === 'Inactividad') {
-                            // Si se solapa una inactividad con un evento previo (ej. pausa), se ignora la inactividad duplicada
-                            if (evEnd > prev.end) {
-                                evStart = prev.end;
-                                if (evEnd - evStart >= 30000) {
-                                    cleanTimeline.push({ type: ev.type, start: evStart, end: evEnd });
+                        } else if (evStart < prev.end) {
+                            // Si se traslapan eventos de distinto tipo:
+                            if (ev.type === 'Inactividad') {
+                                // Ajustar el inicio de la inactividad después de que termina el evento anterior
+                                if (evEnd > prev.end) {
+                                    evStart = prev.end;
+                                    if (evEnd - evStart >= 30000) {
+                                        cleanTimeline.push({ type: ev.type, start: evStart, end: evEnd });
+                                    }
                                 }
+                            } else {
+                                cleanTimeline.push({ type: ev.type, start: evStart, end: evEnd });
                             }
                         } else {
                             cleanTimeline.push({ type: ev.type, start: evStart, end: evEnd });
