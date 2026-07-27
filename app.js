@@ -1354,6 +1354,8 @@ function loadTeletrabajo() {
         });
 }
 
+let allLoadedPermissions = [];
+
 // Cargar Histórico de Permisos desde Firebase
 async function loadPermisos() {
     try {
@@ -1366,6 +1368,7 @@ async function loadPermisos() {
         if (snapshot.exists()) {
             const data = snapshot.val();
             let permisos = Object.keys(data).map(k => ({...data[k], fb_id: k}));
+            allLoadedPermissions = permisos;
             
             // Filtro de privacidad: Gestor solo ve lo suyo. Admin ve todo.
             if (currentUser && currentUser.role !== 'Admin' && currentUser.role !== 'Supervisor') {
@@ -1386,17 +1389,18 @@ async function loadPermisos() {
                 if(p.status === 'Aprobado') { badgeClass = 'in-progress'; icon = 'bx-check-double'; }
                 if(p.status === 'Rechazado') { badgeClass = 'not-done'; icon = 'bx-x'; }
                 
-                let rejectionHtml = p.rejectionReason ? `<br><small style="color:var(--danger)">Razón: ${p.rejectionReason}</small>` : '';
+                let rejectionHtml = p.rejectionReason ? `<br><small style="color:var(--danger)">Razón/Obs: ${p.rejectionReason}</small>` : '';
 
                 historicoContainer.innerHTML += `
-                    <div class="tree-item" style="margin-top: 10px;">
-                        <div class="tree-header">
-                            <i class='bx ${icon}'></i>
-                            <div style="display:flex; flex-direction:column;">
-                                <span>${p.tipo}</span>
-                                <small style="font-size:11px; opacity:0.7">${p.gestor} | ${p.fecha} (${p.horaInicio} a ${p.horaFin})${rejectionHtml}</small>
+                    <div class="tree-item" style="margin-top: 10px; cursor: pointer; transition: all 0.2s ease; border-radius: 8px;" onclick="openPermisoDetailModal('${p.fb_id}')" title="Haz clic para ver el detalle completo de este permiso">
+                        <div class="tree-header" style="padding: 12px; display: flex; align-items: center; gap: 10px;">
+                            <i class='bx ${icon}' style="font-size: 20px;"></i>
+                            <div style="display:flex; flex-direction:column; flex: 1;">
+                                <strong style="font-size: 14px; color: var(--text-primary);">${p.tipo}</strong>
+                                <small style="font-size:11px; opacity:0.8; color: var(--text-secondary); margin-top: 2px;">${p.gestor} | ${p.fecha} (${p.horaInicio} a ${p.horaFin})${rejectionHtml}</small>
                             </div>
-                            <span class="badge ${badgeClass}" style="margin-left: auto;">${p.status}</span>
+                            <span class="badge ${badgeClass}" style="margin-left: auto; padding: 4px 10px; font-size: 11px;">${p.status}</span>
+                            <i class='bx bx-chevron-right' style="font-size: 18px; color: var(--text-secondary); opacity: 0.6;"></i>
                         </div>
                     </div>
                 `;
@@ -1408,6 +1412,90 @@ async function loadPermisos() {
         console.error("No se pudo cargar permisos desde Firebase", e);
     }
 }
+
+// Modal de detalle completo de permiso
+window.openPermisoDetailModal = async function(fb_id) {
+    let perm = allLoadedPermissions.find(p => p.fb_id === fb_id);
+    if (!perm) {
+        try {
+            const snap = await database.ref('permissions/' + fb_id).once('value');
+            if (snap.exists()) perm = { ...snap.val(), fb_id };
+        } catch(e) { console.error(e); }
+    }
+    
+    if (!perm) {
+        alert("No se encontró información del permiso.");
+        return;
+    }
+    
+    const body = document.getElementById('permDetailModalBody');
+    if (!body) return;
+    
+    let statusColor = 'var(--warning)';
+    let statusIcon = 'bx-time';
+    if (perm.status === 'Aprobado') { statusColor = 'var(--success)'; statusIcon = 'bx-check-circle'; }
+    if (perm.status === 'Rechazado') { statusColor = 'var(--danger)'; statusIcon = 'bx-x-circle'; }
+    
+    let fechaRange = perm.fecha;
+    if (perm.fechaDesde && perm.fechaHasta && perm.fechaDesde !== perm.fechaHasta) {
+        fechaRange = `Desde ${perm.fechaDesde} hasta ${perm.fechaHasta}`;
+    }
+    
+    body.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 15px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 12px 15px; border-radius: 10px; border: 1px solid var(--glass-border);">
+                <div>
+                    <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-secondary); display: block;">Estado de Solicitud</span>
+                    <strong style="font-size: 16px; color: ${statusColor}; display: flex; align-items: center; gap: 6px; margin-top: 2px;">
+                        <i class='bx ${statusIcon}'></i> ${perm.status}
+                    </strong>
+                </div>
+                <div style="text-align: right;">
+                    <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-secondary); display: block;">Tipo de Permiso</span>
+                    <strong style="font-size: 14px; color: var(--accent-primary); margin-top: 2px; display: block;">${perm.tipo}</strong>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                <div style="background: rgba(255,255,255,0.02); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
+                    <small style="color: var(--text-secondary); display: block; font-size: 11px;">Gestor Solicitante</small>
+                    <strong style="font-size: 13px; color: var(--text-primary); margin-top: 3px; display: block;">${perm.gestor}</strong>
+                </div>
+                <div style="background: rgba(255,255,255,0.02); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
+                    <small style="color: var(--text-secondary); display: block; font-size: 11px;">Fecha del Permiso</small>
+                    <strong style="font-size: 13px; color: var(--text-primary); margin-top: 3px; display: block;">${fechaRange}</strong>
+                </div>
+                <div style="background: rgba(255,255,255,0.02); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
+                    <small style="color: var(--text-secondary); display: block; font-size: 11px;">Horario Solicitado</small>
+                    <strong style="font-size: 13px; color: var(--text-primary); margin-top: 3px; display: block;">${perm.horaInicio || 'N/A'} a ${perm.horaFin || 'N/A'}</strong>
+                </div>
+            </div>
+
+            <div style="background: rgba(255,255,255,0.03); padding: 12px 15px; border-radius: 10px; border: 1px solid var(--glass-border);">
+                <small style="color: var(--accent-primary); display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Motivo / Justificación del Gestor:</small>
+                <div style="font-size: 13px; color: var(--text-primary); line-height: 1.5; white-space: pre-wrap; word-break: break-word;">
+                    ${perm.motivo || 'Sin justificación detallada.'}
+                </div>
+            </div>
+
+            ${perm.rejectionReason ? `
+                <div style="background: rgba(239, 68, 68, 0.08); padding: 12px 15px; border-radius: 10px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                    <small style="color: var(--danger); display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Observación / Razón de Respuesta:</small>
+                    <div style="font-size: 13px; color: var(--text-primary); line-height: 1.5; white-space: pre-wrap; word-break: break-word;">
+                        ${perm.rejectionReason}
+                    </div>
+                </div>
+            ` : ''}
+        </div>
+    `;
+    
+    if (typeof openModal === 'function') {
+        openModal('permDetailModal');
+    } else {
+        const modal = document.getElementById('permDetailModal');
+        if (modal) modal.style.display = 'flex';
+    }
+};
 
 function renderTree(tasksBySet) {
     const container = document.querySelector('.tree-container');

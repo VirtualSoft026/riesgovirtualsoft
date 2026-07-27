@@ -96,7 +96,7 @@
                     <i class='bx bx-log-out-circle'></i> Finalizar Turno
                 </button>
                 <div style="font-size: 13px; font-weight: 500; color: var(--text-secondary); text-align: center; margin-top: 15px; opacity: 0.8; letter-spacing: 0.5px;">
-                    Build: 27/07 16:05 (v154)
+                    Build: 27/07 16:08 (v155)
                 </div>
             </div>
         </aside>
@@ -1272,6 +1272,22 @@
                 </tr>
             </tbody>
         </table>
+    </div>
+
+    <!-- Permiso Detail Modal -->
+    <div id="permDetailModal" class="modal-overlay">
+        <div class="modal glass-panel" style="max-width: 600px; width: 95%;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px;">
+                <h2 style="margin: 0; font-size: 20px; color: var(--accent-primary); display: flex; align-items: center; gap: 8px;"><i class='bx bx-calendar-event'></i> Detalle de Solicitud de Permiso</h2>
+                <span class="close-modal" onclick="closeModal('permDetailModal')" style="cursor: pointer; font-size: 28px; color: var(--text-secondary); line-height: 1;">&times;</span>
+            </div>
+            <div id="permDetailModalBody" class="modal-body" style="max-height: 70vh; overflow-y: auto; padding-right: 5px;">
+                <!-- Contenido inyectado dinámicamente -->
+            </div>
+            <div class="modal-actions" style="margin-top: 20px; text-align: right;">
+                <button class="btn btn-outline" onclick="closeModal('permDetailModal')">Cerrar</button>
+            </div>
+        </div>
     </div>
 
     <!-- Analysis Modal -->
