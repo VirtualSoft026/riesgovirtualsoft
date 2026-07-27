@@ -1396,6 +1396,14 @@ async function loadPermisos() {
                 if(p.status === 'Rechazado') { badgeClass = 'not-done'; icon = 'bx-x'; }
                 
                 let rejectionHtml = p.rejectionReason ? `<br><small style="color:var(--danger)">Razón/Obs: ${p.rejectionReason}</small>` : '';
+                
+                let createdTimeText = p.horaSolicitud;
+                if (!createdTimeText && p.id) {
+                    try {
+                        const d = new Date(p.id);
+                        createdTimeText = `${d.toLocaleDateString('es-CO')} ${d.toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', hour12:true})}`;
+                    } catch(err) { createdTimeText = 'N/A'; }
+                }
 
                 historicoContainer.innerHTML += `
                     <div class="tree-item" style="margin-top: 10px; cursor: pointer; transition: all 0.2s ease; border-radius: 8px;" onclick="openPermisoDetailModal('${p.fb_id}')" title="Haz clic para ver el detalle completo de este permiso">
@@ -1403,7 +1411,12 @@ async function loadPermisos() {
                             <i class='bx ${icon}' style="font-size: 20px;"></i>
                             <div style="display:flex; flex-direction:column; flex: 1;">
                                 <strong style="font-size: 14px; color: var(--text-primary);">${p.tipo}</strong>
-                                <small style="font-size:11px; opacity:0.8; color: var(--text-secondary); margin-top: 2px;">${p.gestor} | ${p.fecha} (${p.horaInicio} a ${p.horaFin})${rejectionHtml}</small>
+                                <small style="font-size:11px; opacity:0.8; color: var(--text-secondary); margin-top: 2px;">
+                                    ${p.gestor} | ${p.fecha} (${p.horaInicio} a ${p.horaFin})${rejectionHtml}
+                                </small>
+                                <small style="font-size:10px; color: var(--accent-primary); margin-top: 2px; font-weight: 500;">
+                                    <i class='bx bx-calendar-event'></i> Solicitado el: ${createdTimeText || 'N/A'}
+                                </small>
                             </div>
                             <span class="badge ${badgeClass}" style="margin-left: auto; padding: 4px 10px; font-size: 11px;">${p.status}</span>
                             <i class='bx bx-chevron-right' style="font-size: 18px; color: var(--text-secondary); opacity: 0.6;"></i>
@@ -1447,7 +1460,15 @@ window.openPermisoDetailModal = async function(fb_id) {
         fechaRange = `Desde ${perm.fechaDesde} hasta ${perm.fechaHasta}`;
     }
     
-    body.innerHTML = `
+            let createdTimeText = perm.horaSolicitud;
+            if (!createdTimeText && perm.id) {
+                try {
+                    const d = new Date(perm.id);
+                    createdTimeText = `${d.toLocaleDateString('es-CO')} ${d.toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', hour12:true})}`;
+                } catch(err) { createdTimeText = 'N/A'; }
+            }
+
+            body.innerHTML = `
         <div style="display: flex; flex-direction: column; gap: 15px;">
             <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 12px 15px; border-radius: 10px; border: 1px solid var(--glass-border);">
                 <div>
@@ -1462,10 +1483,14 @@ window.openPermisoDetailModal = async function(fb_id) {
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
                 <div style="background: rgba(255,255,255,0.02); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
                     <small style="color: var(--text-secondary); display: block; font-size: 11px;">Gestor Solicitante</small>
                     <strong style="font-size: 13px; color: var(--text-primary); margin-top: 3px; display: block;">${perm.gestor}</strong>
+                </div>
+                <div style="background: rgba(255,255,255,0.02); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
+                    <small style="color: var(--text-secondary); display: block; font-size: 11px;">Fecha de Solicitud (Creación)</small>
+                    <strong style="font-size: 13px; color: var(--accent-primary); margin-top: 3px; display: block;">${createdTimeText || 'N/A'}</strong>
                 </div>
                 <div style="background: rgba(255,255,255,0.02); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
                     <small style="color: var(--text-secondary); display: block; font-size: 11px;">Fecha del Permiso</small>
@@ -2429,13 +2454,19 @@ async function initApp() {
                 finalHoraFin = 'N/A';
             }
 
+            const now = new Date();
+            const fechaSolicitudStr = now.toLocaleDateString('es-CO', { year: 'numeric', month: '2-digit', day: '2-digit' });
+            const horaSolicitudStr = now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+            const timestampSolicitud = `${fechaSolicitudStr} ${horaSolicitudStr}`;
+
             const newPermiso = {
-                id: Date.now(),
+                id: now.getTime(),
                 gestor: formData.get("Gestor"),
                 tipo: finalTipo,
                 fecha: finalFecha,
                 horaInicio: finalHoraInicio,
                 horaFin: finalHoraFin,
+                horaSolicitud: timestampSolicitud,
                 motivo: formData.get("Justificacion"),
                 status: 'Pendiente',
                 notified: false,
@@ -3098,10 +3129,21 @@ async function renderPendingPermissions() {
     }
     
     pending.forEach(p => {
+        let createdTimeText = p.horaSolicitud;
+        if (!createdTimeText && p.id) {
+            try {
+                const d = new Date(p.id);
+                createdTimeText = `${d.toLocaleDateString('es-CO')} ${d.toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', hour12:true})}`;
+            } catch(err) { createdTimeText = 'N/A'; }
+        }
+
         tbody.innerHTML += `
             <tr style="border-bottom: 1px solid var(--glass-border);">
                 <td style="padding: 12px; font-weight: 600; color: var(--text-primary);">${p.gestor}</td>
-                <td style="padding: 12px;"><span class="badge pending">${p.tipo}</span></td>
+                <td style="padding: 12px;">
+                    <span class="badge pending">${p.tipo}</span>
+                    <br><small style="font-size:10px; color:var(--accent-primary); font-weight:500;"><i class='bx bx-time-five'></i> ${createdTimeText}</small>
+                </td>
                 <td style="padding: 12px; color: var(--text-secondary); font-size: 12px; white-space: nowrap;"><strong>${p.fecha}</strong><br><span style="opacity: 0.85;">${p.horaInicio} a ${p.horaFin}</span></td>
                 <td style="padding: 12px; font-size: 13px; min-width: 250px;">
                     <div style="background: rgba(255, 255, 255, 0.04); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--glass-border); color: var(--text-primary); line-height: 1.45; word-break: break-word; white-space: pre-wrap;">
