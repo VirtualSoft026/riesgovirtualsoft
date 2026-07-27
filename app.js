@@ -2954,31 +2954,33 @@ async function renderPendingPermissions() {
     pending.forEach(p => {
         tbody.innerHTML += `
             <tr style="border-bottom: 1px solid var(--glass-border);">
-                <td style="padding: 12px; font-weight: 500;">${p.gestor}</td>
+                <td style="padding: 12px; font-weight: 600; color: var(--text-primary);">${p.gestor}</td>
                 <td style="padding: 12px;"><span class="badge pending">${p.tipo}</span></td>
-                <td style="padding: 12px; color: var(--text-secondary); font-size: 13px;">${p.fecha}<br>${p.horaInicio} a ${p.horaFin}</td>
-                <td style="padding: 12px; font-size: 13px;">
-                    <div style="max-width: 250px; max-height: 60px; overflow-y: auto; white-space: normal; word-wrap: break-word; padding-right: 5px; font-style: italic; color: var(--text-secondary);">
-                        ${p.motivo}
+                <td style="padding: 12px; color: var(--text-secondary); font-size: 12px; white-space: nowrap;"><strong>${p.fecha}</strong><br><span style="opacity: 0.85;">${p.horaInicio} a ${p.horaFin}</span></td>
+                <td style="padding: 12px; font-size: 13px; min-width: 250px;">
+                    <div style="background: rgba(255, 255, 255, 0.04); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--glass-border); color: var(--text-primary); line-height: 1.45; word-break: break-word; white-space: pre-wrap;">
+                        ${p.motivo || 'Sin observación'}
                     </div>
                 </td>
-                <td style="padding: 12px; text-align: center;">
-                    <div id="perm-action-btns-${p.fb_id}">
-                        <button class="btn btn-success" style="padding: 5px 10px; font-size: 12px; margin-right: 5px;" onclick="showPermApproveBox('${p.fb_id}')"><i class='bx bx-check'></i></button>
-                        <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="showPermRejectBox('${p.fb_id}')"><i class='bx bx-x'></i></button>
+                <td style="padding: 12px; text-align: center; min-width: 220px;">
+                    <div id="perm-action-btns-${p.fb_id}" style="display:flex; justify-content:center; gap:8px;">
+                        <button class="btn btn-success" style="padding: 6px 14px; font-size: 12px; display:inline-flex; align-items:center; gap:4px;" onclick="showPermApproveBox('${p.fb_id}')"><i class='bx bx-check' style="font-size:16px;"></i> Aprobar</button>
+                        <button class="btn btn-danger" style="padding: 6px 14px; font-size: 12px; display:inline-flex; align-items:center; gap:4px;" onclick="showPermRejectBox('${p.fb_id}')"><i class='bx bx-x' style="font-size:16px;"></i> Rechazar</button>
                     </div>
-                    <div id="perm-approve-box-${p.fb_id}" style="display:none; flex-direction:column; gap:5px; margin-top:5px;">
-                        <input type="text" id="perm-approve-reason-${p.fb_id}" placeholder="Motivo de aprobación" class="modern-input" style="padding:4px; font-size:11px; width:100%;">
-                        <div style="display:flex; gap:5px;">
-                            <button class="btn btn-success" style="padding: 2px 5px; font-size: 10px;" onclick="confirmApprovePerm('${p.fb_id}')">Confirmar</button>
-                            <button class="btn btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="cancelApprovePerm('${p.fb_id}')">Cancelar</button>
+                    <div id="perm-approve-box-${p.fb_id}" style="display:none; flex-direction:column; gap:8px; margin-top:5px; background: rgba(16, 185, 129, 0.08); padding: 10px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                        <label style="font-size:11px; font-weight:600; color:var(--success); text-align:left;">Observación de aprobación:</label>
+                        <textarea id="perm-approve-reason-${p.fb_id}" placeholder="Escribe un comentario u observación para el gestor..." class="modern-input" style="padding:8px; font-size:12px; width:100%; min-height:60px; resize:vertical; box-sizing:border-box; border-radius:6px; font-family:inherit;"></textarea>
+                        <div style="display:flex; gap:6px; justify-content:flex-end;">
+                            <button class="btn btn-success" style="padding: 5px 12px; font-size: 11px;" onclick="confirmApprovePerm('${p.fb_id}')">Confirmar Aprobar</button>
+                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;" onclick="cancelApprovePerm('${p.fb_id}')">Cancelar</button>
                         </div>
                     </div>
-                    <div id="perm-reject-box-${p.fb_id}" style="display:none; flex-direction:column; gap:5px; margin-top:5px;">
-                        <input type="text" id="perm-reason-${p.fb_id}" placeholder="Motivo de rechazo" class="modern-input" style="padding:4px; font-size:11px; width:100%;">
-                        <div style="display:flex; gap:5px;">
-                            <button class="btn btn-danger" style="padding: 2px 5px; font-size: 10px;" onclick="confirmRejectPerm('${p.fb_id}')">Confirmar</button>
-                            <button class="btn btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="cancelRejectPerm('${p.fb_id}')">Cancelar</button>
+                    <div id="perm-reject-box-${p.fb_id}" style="display:none; flex-direction:column; gap:8px; margin-top:5px; background: rgba(239, 68, 68, 0.08); padding: 10px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                        <label style="font-size:11px; font-weight:600; color:var(--danger); text-align:left;">Motivo de rechazo:</label>
+                        <textarea id="perm-reason-${p.fb_id}" placeholder="Escribe la razón por la cual se rechaza..." class="modern-input" style="padding:8px; font-size:12px; width:100%; min-height:60px; resize:vertical; box-sizing:border-box; border-radius:6px; font-family:inherit;"></textarea>
+                        <div style="display:flex; gap:6px; justify-content:flex-end;">
+                            <button class="btn btn-danger" style="padding: 5px 12px; font-size: 11px;" onclick="confirmRejectPerm('${p.fb_id}')">Confirmar Rechazo</button>
+                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;" onclick="cancelRejectPerm('${p.fb_id}')">Cancelar</button>
                         </div>
                     </div>
                 </td>
@@ -3019,7 +3021,7 @@ function showPermRejectBox(id) {
 
 function cancelRejectPerm(id) {
     document.getElementById('perm-reject-box-' + id).style.display = 'none';
-    document.getElementById('perm-action-btns-' + id).style.display = 'block';
+    document.getElementById('perm-action-btns-' + id).style.display = 'flex';
     document.getElementById('perm-reason-' + id).value = '';
 }
 
@@ -3039,17 +3041,19 @@ function showPermApproveBox(id) {
 
 function cancelApprovePerm(id) {
     document.getElementById('perm-approve-box-' + id).style.display = 'none';
-    document.getElementById('perm-action-btns-' + id).style.display = 'block';
+    document.getElementById('perm-action-btns-' + id).style.display = 'flex';
     document.getElementById('perm-approve-reason-' + id).value = '';
+}
+
+function cancelRejectPerm(id) {
+    document.getElementById('perm-reject-box-' + id).style.display = 'none';
+    document.getElementById('perm-action-btns-' + id).style.display = 'flex';
+    document.getElementById('perm-reason-' + id).value = '';
 }
 
 async function confirmApprovePerm(id) {
     const reason = document.getElementById('perm-approve-reason-' + id).value.trim();
-    if (!reason) {
-        alert("Debes escribir una observación para aprobar el permiso.");
-        return;
-    }
-    await updatePermissionStatus(id, 'Aprobado', reason);
+    await updatePermissionStatus(id, 'Aprobado', reason || 'Aprobado sin observaciones adicionales');
 }
 
 async function updatePermissionStatus(fb_id, newStatus, reason = null) {
@@ -3140,6 +3144,13 @@ let allShiftReports = [];
 async function renderShiftReports() {
     const tbody = document.getElementById('shiftReportsTableBody');
     if (!tbody) return;
+    
+    // Si ya tenemos los reportes precargados, aplicamos filtros rápido
+    if (allShiftReports.length > 0) {
+        applyShiftReportsFilters();
+    } else {
+        tbody.innerHTML = `<tr><td colspan="6" style="padding: 30px; text-align: center; color: var(--accent-primary);"><i class='bx bx-loader-alt bx-spin' style='font-size: 24px;'></i><br><span style='font-size:12px; margin-top:5px; display:inline-block;'>Cargando historial de turnos...</span></td></tr>`;
+    }
     
     try { 
         const snapshot = await database.ref('shift_reports').once('value');
