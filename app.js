@@ -65,6 +65,8 @@ try {
             if (e.type !== 'Inactividad') return true;
             let eStart = e.start;
             let eEnd = e.end || Date.now();
+            // Ignorar inactividades inválidas o duraciones menores a 30 segundos
+            if (eEnd - eStart < 30000) return false;
             let overlaps = breaks.some(b => {
                 let bStart = b.start;
                 let bEnd = b.end || Date.now();
@@ -89,6 +91,10 @@ try {
 function pushTimelineEvent(type, action) {
     const now = Date.now();
     if (action === 'start') {
+        // Cerrar cualquier evento sin finalizar antes de iniciar uno nuevo
+        shiftTimeline.forEach(ev => {
+            if (ev.end === null) ev.end = now;
+        });
         shiftTimeline.push({ type, start: now, end: null });
     } else if (action === 'end') {
         for (let i = shiftTimeline.length - 1; i >= 0; i--) {
@@ -1571,16 +1577,8 @@ function syncActiveSessionToFirebase() {
     
     // --- INACTIVITY LOGIC ---
     let nowMs = Date.now();
-    let loopDelta = nowMs - lastSyncLoopTimestamp;
     lastSyncLoopTimestamp = nowMs;
-    
     loadBreakState();
-    if (loopDelta > (3 * 60 * 1000)) {
-        if (!isLunchBreak && !isBreakfastBreak) {
-            shiftTimeline.push({ type: 'Inactividad', start: nowMs - loopDelta, end: nowMs });
-            localStorage.setItem('riskOps_timeline', JSON.stringify(shiftTimeline));
-        }
-    }
 
     let newLastActive = Date.now();
     let currentStatus = 'Activo';
@@ -2623,10 +2621,43 @@ function handleEndShift() {
             formData.append("Exceso_Pausas_Penalidad", penalidadConectividadMins + " minutos");
             formData.append("Horas_Efectivas_Trabajadas", effectiveHours + " hrs");
             
+            // Consolidar eventos duplicados o superpuestos en shiftTimeline antes de armar la bitácora
+            let cleanTimeline = [];
+            if (shiftTimeline && shiftTimeline.length > 0) {
+                // Ordenar por hora de inicio
+                let sortedEvs = [...shiftTimeline].sort((a, b) => a.start - b.start);
+                sortedEvs.forEach(ev => {
+                    let evStart = ev.start;
+                    let evEnd = ev.end || endDate.getTime();
+                    // Omitir inactividades menores a 30 segundos
+                    if (ev.type === 'Inactividad' && (evEnd - evStart < 30000)) return;
+
+                    if (cleanTimeline.length === 0) {
+                        cleanTimeline.push({ type: ev.type, start: evStart, end: evEnd });
+                    } else {
+                        let prev = cleanTimeline[cleanTimeline.length - 1];
+                        if (prev.type === ev.type && evStart <= prev.end + 60000) {
+                            // Unificar si es del mismo tipo y continuo o se cruza
+                            prev.end = Math.max(prev.end, evEnd);
+                        } else if (evStart < prev.end && ev.type === 'Inactividad') {
+                            // Si se solapa una inactividad con un evento previo (ej. pausa), se ignora la inactividad duplicada
+                            if (evEnd > prev.end) {
+                                evStart = prev.end;
+                                if (evEnd - evStart >= 30000) {
+                                    cleanTimeline.push({ type: ev.type, start: evStart, end: evEnd });
+                                }
+                            }
+                        } else {
+                            cleanTimeline.push({ type: ev.type, start: evStart, end: evEnd });
+                        }
+                    }
+                });
+            }
+
             // Construir reporte de bitácora
             let bitacoraTexto = "";
-            if (shiftTimeline.length > 0) {
-                shiftTimeline.forEach(ev => {
+            if (cleanTimeline.length > 0) {
+                cleanTimeline.forEach(ev => {
                     const s = new Date(ev.start).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'});
                     const eTime = ev.end ? new Date(ev.end).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'}) : "No regresó";
                     bitacoraTexto += `- ${ev.type}: inicio ${s} fin ${eTime}\n`;
