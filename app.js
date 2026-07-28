@@ -3413,8 +3413,17 @@ function applyShiftReportsFilters() {
         if (reportText.includes('=== BITÁCORA DE TIEMPOS ===')) {
             const parts = reportText.split('=== BITÁCORA DE TIEMPOS ===');
             reportText = parts[0].trim();
-            const bitacoraContent = parts[1].trim().replace(/\n/g, '<br>');
-            if (bitacoraContent) {
+            const rawBitacora = parts[1].trim();
+            if (rawBitacora) {
+                // Filtrar y desduplicar líneas de la bitácora textual
+                const lines = rawBitacora.split('\n').map(l => l.trim()).filter(Boolean);
+                const uniqueLines = [];
+                lines.forEach(line => {
+                    if (!uniqueLines.includes(line)) {
+                        uniqueLines.push(line);
+                    }
+                });
+                const bitacoraContent = uniqueLines.join('<br>');
                 bitacoraHTML = `
                     <details style="margin-top: 8px; border-top: 1px dashed var(--glass-border); padding-top: 6px;">
                         <summary style="cursor: pointer; color: var(--accent-primary); font-weight: 600; font-size: 11px; outline: none; list-style: none; display: flex; align-items: center; gap: 4px;">
@@ -4491,7 +4500,15 @@ async function calcularIndicadores() {
         } else if (report.reporte && report.reporte.includes("=== BITÁCORA DE TIEMPOS ===")) {
             const parts = report.reporte.split("=== BITÁCORA DE TIEMPOS ===");
             if (parts.length > 1) {
-                html += `<div style="font-family: monospace; font-size: 13px; color: var(--text-secondary); white-space: pre-wrap; background: var(--bg-primary); border: 1px solid var(--glass-border); padding: 15px; border-radius: 10px;">${parts[1].trim()}</div>`;
+                const rawBitacora = parts[1].trim();
+                const lines = rawBitacora.split('\n').map(l => l.trim()).filter(Boolean);
+                const uniqueLines = [];
+                lines.forEach(line => {
+                    if (!uniqueLines.includes(line)) {
+                        uniqueLines.push(line);
+                    }
+                });
+                html += `<div style="font-family: monospace; font-size: 13px; color: var(--text-secondary); white-space: pre-wrap; background: var(--bg-primary); border: 1px solid var(--glass-border); padding: 15px; border-radius: 10px;">${uniqueLines.join('\n')}</div>`;
             }
         } else {
             html += `<div style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 13px; background: var(--bg-primary); border-radius: 10px; border: 1px dashed var(--glass-border);"><i class='bx bx-info-circle' style="font-size: 18px; display: block; margin-bottom: 5px; opacity: 0.5;"></i> No se registraron pausas en este turno</div>`;
