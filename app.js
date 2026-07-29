@@ -6066,8 +6066,15 @@ async function loadControlOperativoData() {
                             
                             // Add to raw data
                             window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Inactividad_Total = (window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Inactividad_Total || 0) + inactMins;
-                            window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Tarde_Total = (window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Tarde_Total || 0) + tardMins;
-                            window.controlOperativoRawData[realGestor][reportDateStr].Dias_Tarde = (window.controlOperativoRawData[realGestor][reportDateStr].Dias_Tarde || 0) + (tardMins > 0 ? 1 : 0);
+                            
+                            // Guardar solo la llegada tardía del PRIMER turno/inicio de sesión del día
+                            if (window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Tarde_Total === undefined || 
+                                (window.controlOperativoRawData[realGestor][reportDateStr]._earliestLogin && loginDate && loginDate < window.controlOperativoRawData[realGestor][reportDateStr]._earliestLogin)) {
+                                window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Tarde_Total = tardMins;
+                                window.controlOperativoRawData[realGestor][reportDateStr].Dias_Tarde = tardMins > 0 ? 1 : 0;
+                                window.controlOperativoRawData[realGestor][reportDateStr]._earliestLogin = loginDate;
+                            }
+                            
                             window.controlOperativoRawData[realGestor][reportDateStr].Dias_Laborados = 1; // Un turno reportado = 1 día laborado
                         }
                     });
