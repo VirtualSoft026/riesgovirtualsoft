@@ -3264,100 +3264,14 @@ async function updatePermissionStatus(fb_id, newStatus, reason = null) {
 // Exportar Reporte a PDF
 window.exportShiftReport = async function(fb_id) {
     try {
-        const snapshot = await database.ref('shift_reports/' + fb_id).once('value');
-        if(!snapshot.exists()) return alert("No se encontró el reporte en la base de datos.");
+        let reportObj = allShiftReports.find(r => r.fb_id === fb_id);
+        if (!reportObj) {
+            const snapshot = await database.ref('shift_reports/' + fb_id).once('value');
+            if(snapshot.exists()) reportObj = snapshot.val();
+        }
+        if(!reportObj) return alert("No se encontró el reporte en la base de datos.");
         
-        const r = snapshot.val();
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF('p', 'mm', 'a4');
-        const pageWidth = doc.internal.pageSize.width;
-        const pageHeight = doc.internal.pageSize.height;
-        const margin = 14;
-        const contentWidth = pageWidth - (margin * 2);
-
-        // Header Background
-        doc.setFillColor(15, 23, 42); // Dark background
-        doc.rect(0, 0, pageWidth, 28, 'F');
-        
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(59, 130, 246); // Accent blue
-        doc.text("RISK MANAGER", margin, 12);
-        
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(148, 163, 184);
-        doc.text("Detalle de Turno y Control Operativo", margin, 18);
-
-        const fechaDoc = r.timestamp ? new Date(r.timestamp).toLocaleDateString('es-CO') : (r.horaInicio ? r.horaInicio.split(',')[0] : '');
-        doc.setFontSize(9);
-        doc.text(`Fecha: ${fechaDoc}`, pageWidth - margin - 35, 12);
-
-        let y = 35;
-
-        // Card 1: Gestor Info Box
-        doc.setFillColor(248, 250, 252);
-        doc.setDrawColor(226, 232, 240);
-        doc.roundedRect(margin, y, contentWidth, 22, 3, 3, 'FD');
-
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(100, 116, 139);
-        doc.text("GESTOR", margin + 6, y + 6);
-        doc.text("SET PRINCIPAL TRABAJADO", margin + contentWidth - 55, y + 6);
-
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(15, 23, 42);
-        doc.text(r.gestor || 'N/A', margin + 6, y + 13);
-
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(16, 185, 129); // Green
-        doc.text(r.setTrabajado || 'N/A', margin + contentWidth - 55, y + 13);
-
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(59, 130, 246);
-        doc.text(`Rol: ${r.rol || 'Gestor'}`, margin + 6, y + 18);
-
-        y += 28;
-
-        // Cards 2: Metrics Grid (5 boxes)
-        const metrics = [
-            { label: 'Hora Inicio Turno', value: r.horaInicio || 'N/A', color: [15, 23, 42] },
-            { label: 'Hora Fin Turno', value: r.horaFin || 'N/A', color: [15, 23, 42] },
-            { label: 'Almuerzo Descontado', value: r.tiempoAlmuerzoMins != null ? `${r.tiempoAlmuerzoMins} mins` : 'N/A', color: [16, 185, 129] },
-            { label: 'Desayuno Descontado', value: r.tiempoDesayunoMins != null ? `${r.tiempoDesayunoMins} mins` : 'N/A', color: [245, 158, 11] },
-            { label: 'Inactividad / Exceso', value: r.inactividadTotalMins != null ? `${r.inactividadTotalMins} mins` : 'N/A', color: [239, 68, 68] }
-        ];
-
-        const cardW = (contentWidth - 8) / 3;
-        const cardH = 14;
-
-        metrics.forEach((m, idx) => {
-            let cx = margin + (idx % 3) * (cardW + 4);
-            let cy = y + Math.floor(idx / 3) * (cardH + 4);
-
-            doc.setFillColor(248, 250, 252);
-            doc.setDrawColor(226, 232, 240);
-            doc.roundedRect(cx, cy, cardW, cardH, 2, 2, 'FD');
-
-            doc.setFontSize(7);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor(100, 116, 139);
-            doc.text(m.label, cx + 4, cy + 5);
-
-            doc.setFontSize(8);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(m.color[0], m.color[1], m.color[2]);
-            doc.text(String(m.value), cx + 4, cy + 10.5);
-        });
-
-        y += (cardH * 2) + 12;
-
-        // Extract bitacora & report text
-        let reportText = r.reporte || 'Sin reporte detallado';
+        let reportText = reportObj.reporte || 'Sin reporte detallado';
         let bitacoraLines = [];
         if (reportText.includes('=== BITÁCORA DE TIEMPOS ===')) {
             const parts = reportText.split('=== BITÁCORA DE TIEMPOS ===');
@@ -3371,74 +3285,100 @@ window.exportShiftReport = async function(fb_id) {
             }
         }
 
-        // Section: Bitácora de Tiempos
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(59, 130, 246);
-        doc.text("Bitácora de Tiempos", margin, y);
-        y += 4;
+        const formattedReportText = reportText.replace(/\n/g, '<br>').replace(/\[(.*?)\]/g, '<span style="background: #E0E7FF; color: #3730A3; padding: 2px 6px; border-radius: 4px; font-weight: 600;">$1</span>');
 
+        let bitacoraHtml = '';
         if (bitacoraLines.length > 0) {
-            doc.setFontSize(8);
-            doc.setFont('courier', 'normal');
-            doc.setTextColor(51, 65, 85);
-            bitacoraLines.forEach(line => {
-                if (y > pageHeight - 15) {
-                    doc.addPage();
-                    y = 15;
-                }
-                doc.setFillColor(241, 245, 249);
-                doc.roundedRect(margin, y - 3, contentWidth, 5.5, 1, 1, 'F');
-                doc.text(line, margin + 3, y + 0.8);
-                y += 6.5;
-            });
+            bitacoraHtml = bitacoraLines.map(l => `<div style="padding: 6px 10px; background: #F1F5F9; border-radius: 4px; font-family: monospace; font-size: 11px; color: #334155; margin-bottom: 4px; border-left: 3px solid #3B82F6;">${l}</div>`).join('');
         } else {
-            doc.setFontSize(8);
-            doc.setFont('helvetica', 'italic');
-            doc.setTextColor(148, 163, 184);
-            doc.text("No se registraron pausas o inactividades en este turno.", margin, y + 2);
-            y += 6;
+            bitacoraHtml = '<div style="color: #64748B; font-size: 12px; font-style: italic;">No se registraron pausas o inactividades en este turno.</div>';
         }
 
-        y += 6;
+        // Crear elemento HTML temporal limpio para renderizado PDF
+        const pdfContainer = document.createElement('div');
+        pdfContainer.style = "width: 750px; padding: 25px; background: #FFFFFF; font-family: 'Inter', sans-serif; color: #0F172A;";
+        pdfContainer.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3B82F6; padding-bottom: 12px; margin-bottom: 20px;">
+                <div>
+                    <h1 style="margin: 0; font-size: 22px; color: #1E293B; font-weight: 700;">RISK MANAGER</h1>
+                    <span style="font-size: 12px; color: #64748B;">Detalle de Turno y Control Operativo</span>
+                </div>
+                <div style="text-align: right;">
+                    <span style="font-size: 11px; color: #64748B; display: block;">Fecha de Generación</span>
+                    <strong style="font-size: 12px; color: #0F172A;">${new Date().toLocaleDateString('es-CO')}</strong>
+                </div>
+            </div>
 
-        // Section: Resumen de Tareas y Observaciones
-        if (y > pageHeight - 25) {
-            doc.addPage();
-            y = 15;
+            <!-- Encabezado Gestor y Rol -->
+            <div style="display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; padding: 16px; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 15px;">
+                <div>
+                    <span style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #64748B; display: block;">GESTOR</span>
+                    <strong style="font-size: 18px; color: #0F172A; margin-top: 2px; display: block;">${reportObj.gestor}</strong>
+                    <span style="font-size: 12px; color: #2563EB; font-weight: 600;">Rol: ${reportObj.rol || 'Gestor'}</span>
+                </div>
+                <div style="text-align: right;">
+                    <span style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #64748B; display: block;">SET PRINCIPAL TRABAJADO</span>
+                    <strong style="font-size: 15px; color: #059669; margin-top: 2px; display: block;">${reportObj.setTrabajado || 'N/A'}</strong>
+                </div>
+            </div>
+
+            <!-- Tiempos e Indicadores -->
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
+                <div style="background: #F8FAFC; padding: 10px 12px; border-radius: 6px; border: 1px solid #E2E8F0;">
+                    <small style="color: #64748B; display: block; font-size: 10px;">Hora Inicio Turno</small>
+                    <strong style="font-size: 12px; color: #0F172A; margin-top: 2px; display: block;">${reportObj.horaInicio || 'N/A'}</strong>
+                </div>
+                <div style="background: #F8FAFC; padding: 10px 12px; border-radius: 6px; border: 1px solid #E2E8F0;">
+                    <small style="color: #64748B; display: block; font-size: 10px;">Hora Fin Turno</small>
+                    <strong style="font-size: 12px; color: #0F172A; margin-top: 2px; display: block;">${reportObj.horaFin || 'N/A'}</strong>
+                </div>
+                <div style="background: #F8FAFC; padding: 10px 12px; border-radius: 6px; border: 1px solid #E2E8F0;">
+                    <small style="color: #64748B; display: block; font-size: 10px;">Almuerzo Descontado</small>
+                    <strong style="font-size: 12px; color: #059669; margin-top: 2px; display: block;">${reportObj.tiempoAlmuerzoMins != null ? reportObj.tiempoAlmuerzoMins + ' minutos' : 'N/A'}</strong>
+                </div>
+                <div style="background: #F8FAFC; padding: 10px 12px; border-radius: 6px; border: 1px solid #E2E8F0;">
+                    <small style="color: #64748B; display: block; font-size: 10px;">Desayuno Descontado</small>
+                    <strong style="font-size: 12px; color: #D97706; margin-top: 2px; display: block;">${reportObj.tiempoDesayunoMins != null ? reportObj.tiempoDesayunoMins + ' minutos' : 'N/A'}</strong>
+                </div>
+                <div style="background: #F8FAFC; padding: 10px 12px; border-radius: 6px; border: 1px solid #E2E8F0; grid-column: span 2;">
+                    <small style="color: #64748B; display: block; font-size: 10px;">Inactividad / Exceso Pausas</small>
+                    <strong style="font-size: 12px; color: #DC2626; margin-top: 2px; display: block;">${reportObj.inactividadTotalMins != null ? reportObj.inactividadTotalMins + ' minutos' : 'N/A'}</strong>
+                </div>
+            </div>
+
+            <!-- Bitácora de Tiempos -->
+            <div style="background: #F8FAFC; padding: 12px 14px; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 15px;">
+                <h4 style="font-size: 12px; color: #2563EB; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px;">Bitácora de Tiempos</h4>
+                <div>${bitacoraHtml}</div>
+            </div>
+
+            <!-- Resumen de Tareas -->
+            <div style="background: #F8FAFC; padding: 14px; border-radius: 8px; border: 1px solid #E2E8F0;">
+                <h4 style="font-size: 12px; color: #2563EB; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 0.5px;">Resumen de Tareas y Observaciones</h4>
+                <div style="font-size: 12px; color: #1E293B; line-height: 1.6; white-space: pre-wrap; word-break: break-word;">${formattedReportText}</div>
+            </div>
+        `;
+
+        document.body.appendChild(pdfContainer);
+
+        const safeName = (reportObj.gestor || 'Gestor').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const dateStr = (reportObj.timestamp ? new Date(reportObj.timestamp).toLocaleDateString('es-CO') : 'fecha').replace(/[^a-z0-9]/gi, '_');
+
+        const opt = {
+            margin:       10,
+            filename:     `Reporte_Turno_${safeName}_${dateStr}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, logging: false },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        if (window.html2pdf) {
+            await window.html2pdf().set(opt).from(pdfContainer).save();
+        } else {
+            alert("Cargando motor de generación PDF, por favor intenta en unos segundos.");
         }
 
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(59, 130, 246);
-        doc.text("Resumen de Tareas y Observaciones", margin, y);
-        y += 6;
-
-        doc.setFontSize(8.5);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(30, 41, 59);
-
-        const cleanReportLines = reportText.split('\n');
-        cleanReportLines.forEach(line => {
-            if (y > pageHeight - 15) {
-                doc.addPage();
-                y = 15;
-            }
-            const wrapped = doc.splitTextToSize(line, contentWidth);
-            wrapped.forEach(wLine => {
-                if (y > pageHeight - 15) {
-                    doc.addPage();
-                    y = 15;
-                }
-                doc.text(wLine, margin, y);
-                y += 4.5;
-            });
-        });
-
-        // Save file
-        const safeName = (r.gestor || 'Gestor').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        const dateStr = fechaDoc.replace(/[^a-z0-9]/gi, '_');
-        doc.save(`Reporte_Turno_${safeName}_${dateStr}.pdf`);
+        document.body.removeChild(pdfContainer);
         
     } catch(e) {
         alert("Hubo un error al intentar exportar el reporte.");
