@@ -1167,27 +1167,19 @@ async function loadSchedule() {
             let selectedGestor = '';
 
             // Extraer lista única de gestores de la hoja de cálculo
-            const allGestores = new Set();
+            const allGestoresSet = new Set();
             allScheduleBlocks.forEach(block => {
                 for (let rIdx = block.startRow + 2; rIdx < rows.length; rIdx++) {
                     const row = rows[rIdx];
                     if (!row || !row[0] || String(row[0]).trim() === '' || String(row[0]).trim().toUpperCase() === 'GESTOR') break;
-                    allGestores.add(String(row[0]).trim());
+                    allGestoresSet.add(String(row[0]).trim());
                 }
             });
+            const sortedGestores = Array.from(allGestoresSet).sort((a, b) => a.localeCompare(b));
 
-            if (scheduleGestorFilter) {
-                const sortedGestores = Array.from(allGestores).sort((a, b) => a.localeCompare(b));
-                scheduleGestorFilter.innerHTML = '<option value="">Todos los gestores</option>';
-                sortedGestores.forEach(g => {
-                    scheduleGestorFilter.innerHTML += `<option value="${g}">${g}</option>`;
-                });
-
-                scheduleGestorFilter.addEventListener('change', (e) => {
-                    selectedGestor = e.target.value;
-                    renderScheduleBlock(parseInt(weekSelector ? weekSelector.value : defaultBlockRow));
-                });
-            }
+            setupCustomMultiSelect('scheduleGestorMultiSelect', sortedGestores, (selectedList) => {
+                renderScheduleBlock(parseInt(weekSelector ? weekSelector.value : defaultBlockRow));
+            });
 
             if (weekSelector) {
                 weekSelector.innerHTML = '';
@@ -1208,6 +1200,7 @@ async function loadSchedule() {
             function renderScheduleBlock(blockStartRow) {
                 const dateRow = rows[blockStartRow];
                 const dayRow = rows[blockStartRow + 1];
+                const selectedList = getSelectedMultiSelectValues('scheduleGestorMultiSelect');
                 
                 let numCols = 0;
                 for(let i=1; i<dateRow.length; i++) {
@@ -1232,7 +1225,7 @@ async function loadSchedule() {
                     if (!r || !r[0] || String(r[0]).trim() === '' || String(r[0]).trim().toUpperCase() === 'GESTOR') break;
                     
                     const gestorName = String(r[0]).trim();
-                    if (selectedGestor && normalizeName(gestorName) !== normalizeName(selectedGestor)) {
+                    if (selectedList.length > 0 && !selectedList.some(sel => normalizeName(gestorName) === normalizeName(sel))) {
                         continue;
                     }
 
@@ -1336,36 +1329,25 @@ function loadTeletrabajo() {
             const tableHead = document.getElementById('teletrabajoTableHead');
             const tableBody = document.getElementById('teletrabajoTableBody');
             
-            const teletrabajoGestorFilter = document.getElementById('teletrabajoGestorFilter');
-            let selectedTeleGestor = '';
-
             const allTeleGestores = new Set();
             allBlocks.forEach(b => {
                 b.data.forEach(r => {
                     if (r.gestor) allTeleGestores.add(String(r.gestor).trim());
                 });
             });
+            const sortedTeleGestores = Array.from(allTeleGestores).sort((a,b) => a.localeCompare(b));
 
-            if (teletrabajoGestorFilter) {
-                const sorted = Array.from(allTeleGestores).sort((a,b) => a.localeCompare(b));
-                teletrabajoGestorFilter.innerHTML = '<option value="">Todos los gestores</option>';
-                sorted.forEach(g => {
-                    teletrabajoGestorFilter.innerHTML += `<option value="${g}">${g}</option>`;
-                });
-                teletrabajoGestorFilter.addEventListener('change', (e) => {
-                    selectedTeleGestor = e.target.value;
-                    renderTeletrabajoBlock(allBlocks[weekSelector ? weekSelector.value : defaultBlockIdx]);
-                });
-            }
+            let defaultBlockIdx = allBlocks.length - 1;
+
+            setupCustomMultiSelect('teletrabajoGestorMultiSelect', sortedTeleGestores, () => {
+                renderTeletrabajoBlock(allBlocks[weekSelector ? weekSelector.value : defaultBlockIdx]);
+            });
 
             if(weekSelector) {
                 weekSelector.innerHTML = '';
                 allBlocks.forEach((block, idx) => {
                     weekSelector.innerHTML += `<option value="${idx}">${block.label}</option>`;
                 });
-                
-                // Mostrar siempre la última semana disponible al inicio
-                let defaultBlockIdx = allBlocks.length - 1;
                 
                 weekSelector.value = defaultBlockIdx;
                 
@@ -1377,6 +1359,7 @@ function loadTeletrabajo() {
             }
             
             function renderTeletrabajoBlock(block) {
+                const selectedList = getSelectedMultiSelectValues('teletrabajoGestorMultiSelect');
                 tableHead.innerHTML = `
                     <tr style="border-bottom: 1px solid var(--glass-border);">
                         <th style="padding: 12px; color: var(--accent-primary); text-align: left; position: sticky; left: 0; background: var(--bg-panel); z-index: 2;">GESTOR <i class='bx bx-refresh' style='cursor:pointer; margin-left:5px;' onclick='loadTeletrabajo()' title='Refrescar Teletrabajo'></i></th>
@@ -1387,7 +1370,7 @@ function loadTeletrabajo() {
                 
                 tableBody.innerHTML = '';
                 block.data.forEach(row => {
-                    if (selectedTeleGestor && normalizeName(row.gestor) !== normalizeName(selectedTeleGestor)) {
+                    if (selectedList.length > 0 && !selectedList.some(sel => normalizeName(row.gestor) === normalizeName(sel))) {
                         return;
                     }
 
@@ -2277,7 +2260,7 @@ async function initApp() {
     if (filterFechaInput) filterFechaInput.addEventListener('change', applyShiftReportsFilters);
     if (clearFiltersBtn) {
         clearFiltersBtn.addEventListener('click', () => {
-            if (filterGestorInput) filterGestorInput.value = '';
+            resetCustomMultiSelect('turnosGestorMultiSelect');
             if (filterFechaInput) filterFechaInput.value = '';
             applyShiftReportsFilters();
         });
@@ -3465,6 +3448,15 @@ async function renderShiftReports() {
         } else {
             allShiftReports = [];
         }
+
+        const gestoresTurnosSet = new Set();
+        allShiftReports.forEach(r => {
+            if (r.gestor) gestoresTurnosSet.add(String(r.gestor).trim());
+        });
+        const sortedTurnosGestores = Array.from(gestoresTurnosSet).sort((a,b) => a.localeCompare(b));
+        setupCustomMultiSelect('turnosGestorMultiSelect', sortedTurnosGestores, () => {
+            applyShiftReportsFilters();
+        });
     } catch(e) {
         console.error("Error cargando historial de turnos:", e);
     }
@@ -3476,17 +3468,16 @@ function applyShiftReportsFilters() {
     const tbody = document.getElementById('shiftReportsTableBody');
     if (!tbody) return;
 
-    const gestorQueryInput = document.getElementById('filterGestorInput');
-    const gestorQuery = gestorQueryInput ? normalizeName(gestorQueryInput.value) : '';
+    const selectedGestores = getSelectedMultiSelectValues('turnosGestorMultiSelect');
     const fechaQuery = document.getElementById('filterFechaInput') ? document.getElementById('filterFechaInput').value : '';
 
     let filtered = [...allShiftReports];
 
-    const hasExplicitFilter = gestorQuery || fechaQuery;
+    const hasExplicitFilter = selectedGestores.length > 0 || fechaQuery;
 
-    // Filter by Gestor name (accent-insensitive)
-    if (gestorQuery) {
-        filtered = filtered.filter(r => normalizeName(r.gestor).includes(gestorQuery));
+    // Filter by Gestor name
+    if (selectedGestores.length > 0) {
+        filtered = filtered.filter(r => selectedGestores.some(g => normalizeName(r.gestor) === normalizeName(g)));
     }
 
     // Filter by Date (comparing local YYYY-MM-DD format)
@@ -5714,9 +5705,8 @@ function generarAnalisisTextual() {
 // Función para Generar Informe Ejecutivo en PDF
 // ==========================================
 function generarReporteEjecutivoPDF() {
-    // 1. Obtener metadatos (gestor y periodo)
-    const gestorSelect = document.getElementById('filtroGestorOperativo');
-    const gestorText = gestorSelect.options[gestorSelect.selectedIndex].text;
+    const selectedGestoresPDF = getSelectedMultiSelectValues('operativoGestorMultiSelect');
+    const gestorText = selectedGestoresPDF.length > 0 ? selectedGestoresPDF.join(', ') : 'Todos los gestores';
     
     const periodoSelect = document.getElementById('filtroFechaOperativo');
     let periodoText = periodoSelect.options[periodoSelect.selectedIndex].text;
@@ -5943,13 +5933,8 @@ async function loadControlOperativoData() {
         
         // Populate dropdowns
         const gestores = Object.keys(window.controlOperativoRawData).sort();
-        const selectGestor = document.getElementById('filtroGestorOperativo');
-        selectGestor.innerHTML = '<option value="Todos">Todos los gestores</option>';
-        gestores.forEach(g => {
-            const opt = document.createElement('option');
-            opt.value = g;
-            opt.textContent = g;
-            selectGestor.appendChild(opt);
+        setupCustomMultiSelect('operativoGestorMultiSelect', gestores, () => {
+            renderControlOperativoFiltered();
         });
         
         renderControlOperativoFiltered();
@@ -5962,7 +5947,7 @@ async function loadControlOperativoData() {
 function renderControlOperativoFiltered() {
     if (!window.controlOperativoRawData) return;
     
-    const selectedGestor = document.getElementById('filtroGestorOperativo').value;
+    const selectedGestores = getSelectedMultiSelectValues('operativoGestorMultiSelect');
     const selectedFecha = document.getElementById('filtroFechaOperativo').value;
     
     const getLocalYYYYMMDD = (d) => {
@@ -6010,7 +5995,7 @@ function renderControlOperativoFiltered() {
             Dias_Laborados: 0
         };
 
-        if (selectedGestor === 'Todos' || gestor === selectedGestor) {
+        if (selectedGestores.length === 0 || selectedGestores.includes(gestor)) {
             aggregatedData[gestor] = {
                 Retiros_Aprobados: 0,
                 Retiros_Rechazados: 0,
@@ -6057,7 +6042,7 @@ function renderControlOperativoFiltered() {
                 aggregatedDataGlobal[gestor].Dias_Laborados += d.Dias_Laborados || 0;
 
                 // Add to Filtered Data (only if this gestor is selected)
-                if (selectedGestor === 'Todos' || gestor === selectedGestor) {
+                if (selectedGestores.length === 0 || selectedGestores.includes(gestor)) {
                     if (!dailyData[fecha]) {
                         dailyData[fecha] = { Aprobados: 0, Rechazados: 0 };
                     }
