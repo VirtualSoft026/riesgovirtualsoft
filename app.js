@@ -2293,6 +2293,8 @@ async function initApp() {
                 document.getElementById('view-workspace').style.display = 'block';
             } else if (item.id === 'navHorario') {
                 document.getElementById('view-horario').style.display = 'block';
+                loadSchedule();
+                loadTeletrabajo();
             } else if (item.id === 'navTeletrabajo') {
                 document.getElementById('view-teletrabajo').style.display = 'block';
             } else if (item.id === 'navDocs') {
