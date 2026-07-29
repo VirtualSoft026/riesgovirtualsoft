@@ -8,6 +8,141 @@ let currentUser = null;
 let currentTaskRef = null;
 let activeSessionRef = null;
 
+// Helper Functions for Custom Multi-Select Dropdowns
+function setupCustomMultiSelect(containerId, optionsList, onChangeCallback) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const selectedValues = new Set();
+
+    container.innerHTML = `
+        <div class="custom-multiselect-trigger" tabindex="0">
+            <span class="multiselect-label">Todos los gestores</span>
+            <i class='bx bx-chevron-down'></i>
+        </div>
+        <div class="custom-multiselect-menu" style="display: none;">
+            <div class="multiselect-actions">
+                <button type="button" class="btn-select-all">Seleccionar Todos</button>
+                <button type="button" class="btn-clear-all">Desmarcar Todos</button>
+            </div>
+            <div class="multiselect-search-box">
+                <input type="text" placeholder="Buscar gestor..." class="multiselect-search-input">
+            </div>
+            <div class="multiselect-options-list"></div>
+        </div>
+    `;
+
+    const trigger = container.querySelector('.custom-multiselect-trigger');
+    const menu = container.querySelector('.custom-multiselect-menu');
+    const labelSpan = container.querySelector('.multiselect-label');
+    const optionsListEl = container.querySelector('.multiselect-options-list');
+    const searchInput = container.querySelector('.multiselect-search-input');
+    const btnSelectAll = container.querySelector('.btn-select-all');
+    const btnClearAll = container.querySelector('.btn-clear-all');
+
+    function updateLabel() {
+        if (selectedValues.size === 0 || selectedValues.size === optionsList.length) {
+            labelSpan.textContent = "Todos los gestores";
+        } else if (selectedValues.size === 1) {
+            labelSpan.textContent = Array.from(selectedValues)[0];
+        } else {
+            labelSpan.textContent = `${selectedValues.size} gestores seleccionados`;
+        }
+    }
+
+    function renderOptions(filter = "") {
+        optionsListEl.innerHTML = "";
+        const cleanFilter = filter.toLowerCase().trim();
+        optionsList.forEach(opt => {
+            if (cleanFilter && !opt.toLowerCase().includes(cleanFilter)) return;
+
+            const item = document.createElement('label');
+            item.className = 'multiselect-option-item';
+            item.style.cssText = "display: flex; align-items: center; gap: 8px; padding: 6px 10px; cursor: pointer; user-select: none; font-size: 13px;";
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = opt;
+            checkbox.checked = selectedValues.has(opt);
+
+            checkbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    selectedValues.add(opt);
+                } else {
+                    selectedValues.delete(opt);
+                }
+                updateLabel();
+                if (onChangeCallback) onChangeCallback(Array.from(selectedValues));
+            });
+
+            const span = document.createElement('span');
+            span.textContent = opt;
+
+            item.appendChild(checkbox);
+            item.appendChild(span);
+            optionsListEl.appendChild(item);
+        });
+    }
+
+    renderOptions();
+    updateLabel();
+
+    // Toggle menu
+    trigger.onclick = (e) => {
+        e.stopPropagation();
+        const isVisible = menu.style.display === 'block';
+        // Close other custom multiselects
+        document.querySelectorAll('.custom-multiselect-menu').forEach(m => m.style.display = 'none');
+        menu.style.display = isVisible ? 'none' : 'block';
+        if (!isVisible && searchInput) searchInput.focus();
+    };
+
+    searchInput.oninput = (e) => {
+        renderOptions(e.target.value);
+    };
+
+    btnSelectAll.onclick = (e) => {
+        e.stopPropagation();
+        optionsList.forEach(opt => selectedValues.add(opt));
+        renderOptions(searchInput.value);
+        updateLabel();
+        if (onChangeCallback) onChangeCallback(Array.from(selectedValues));
+    };
+
+    btnClearAll.onclick = (e) => {
+        e.stopPropagation();
+        selectedValues.clear();
+        renderOptions(searchInput.value);
+        updateLabel();
+        if (onChangeCallback) onChangeCallback(Array.from(selectedValues));
+    };
+
+    // Close on outside click
+    if (!container._outsideClickListenerAdded) {
+        document.addEventListener('click', (e) => {
+            if (!container.contains(e.target)) {
+                menu.style.display = 'none';
+            }
+        });
+        container._outsideClickListenerAdded = true;
+    }
+
+    container._selectedValuesRef = selectedValues;
+}
+
+function getSelectedMultiSelectValues(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container || !container._selectedValuesRef) return [];
+    return Array.from(container._selectedValuesRef);
+}
+
+function resetCustomMultiSelect(containerId) {
+    const container = document.getElementById(containerId);
+    if (container && container._selectedValuesRef) {
+        container._selectedValuesRef.clear();
+    }
+}
+
 // --- INACTIVITY & LUNCH TRACKING GLOBALS ---
 let lastLocalActivityTimestamp = Date.now();
 let lastSyncLoopTimestamp = Date.now();
@@ -389,139 +524,9 @@ try {
     window.location.href = 'login.html';
 }
 
-// Helper Functions for Custom Multi-Select Dropdowns
-function setupCustomMultiSelect(containerId, optionsList, onChangeCallback) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-
-    const selectedValues = new Set();
-
-    container.innerHTML = `
-        <div class="custom-multiselect-trigger" tabindex="0">
-            <span class="multiselect-label">Todos los gestores</span>
-            <i class='bx bx-chevron-down'></i>
-        </div>
-        <div class="custom-multiselect-menu" style="display: none;">
-            <div class="multiselect-actions">
-                <button type="button" class="btn-select-all">Seleccionar Todos</button>
-                <button type="button" class="btn-clear-all">Desmarcar Todos</button>
-            </div>
-            <div class="multiselect-search-box">
-                <input type="text" placeholder="Buscar gestor..." class="multiselect-search-input">
-            </div>
-            <div class="multiselect-options-list"></div>
-        </div>
-    `;
-
-    const trigger = container.querySelector('.custom-multiselect-trigger');
-    const menu = container.querySelector('.custom-multiselect-menu');
-    const labelSpan = container.querySelector('.multiselect-label');
-    const optionsListEl = container.querySelector('.multiselect-options-list');
-    const searchInput = container.querySelector('.multiselect-search-input');
-    const btnSelectAll = container.querySelector('.btn-select-all');
-    const btnClearAll = container.querySelector('.btn-clear-all');
-
-    function updateLabel() {
-        if (selectedValues.size === 0 || selectedValues.size === optionsList.length) {
-            labelSpan.textContent = "Todos los gestores";
-        } else if (selectedValues.size === 1) {
-            labelSpan.textContent = Array.from(selectedValues)[0];
-        } else {
-            labelSpan.textContent = `${selectedValues.size} gestores seleccionados`;
-        }
-    }
-
-    function renderOptions(filter = "") {
-        optionsListEl.innerHTML = "";
-        const cleanFilter = filter.toLowerCase().trim();
-        optionsList.forEach(opt => {
-            if (cleanFilter && !opt.toLowerCase().includes(cleanFilter)) return;
-
-            const item = document.createElement('label');
-            item.className = 'multiselect-option-item';
-            item.style.cssText = "display: flex; align-items: center; gap: 8px; padding: 6px 10px; cursor: pointer; user-select: none; font-size: 13px;";
-
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.value = opt;
-            checkbox.checked = selectedValues.has(opt);
-
-            checkbox.addEventListener('change', (e) => {
-                if (e.target.checked) {
-                    selectedValues.add(opt);
-                } else {
-                    selectedValues.delete(opt);
-                }
-                updateLabel();
-                if (onChangeCallback) onChangeCallback(Array.from(selectedValues));
-            });
-
-            const span = document.createElement('span');
-            span.textContent = opt;
-
-            item.appendChild(checkbox);
-            item.appendChild(span);
-            optionsListEl.appendChild(item);
-        });
-    }
-
-    renderOptions();
-    updateLabel();
-
-    // Toggle menu
-    trigger.onclick = (e) => {
-        e.stopPropagation();
-        const isVisible = menu.style.display === 'block';
-        // Close other custom multiselects
-        document.querySelectorAll('.custom-multiselect-menu').forEach(m => m.style.display = 'none');
-        menu.style.display = isVisible ? 'none' : 'block';
-        if (!isVisible && searchInput) searchInput.focus();
-    };
-
-    searchInput.oninput = (e) => {
-        renderOptions(e.target.value);
-    };
-
-    btnSelectAll.onclick = (e) => {
-        e.stopPropagation();
-        optionsList.forEach(opt => selectedValues.add(opt));
-        renderOptions(searchInput.value);
-        updateLabel();
-        if (onChangeCallback) onChangeCallback(Array.from(selectedValues));
-    };
-
-    btnClearAll.onclick = (e) => {
-        e.stopPropagation();
-        selectedValues.clear();
-        renderOptions(searchInput.value);
-        updateLabel();
-        if (onChangeCallback) onChangeCallback(Array.from(selectedValues));
-    };
-
-    // Close on outside click
-    if (!container._outsideClickListenerAdded) {
-        document.addEventListener('click', (e) => {
-            if (!container.contains(e.target)) {
-                menu.style.display = 'none';
-            }
-        });
-        container._outsideClickListenerAdded = true;
-    }
-
-    container._selectedValuesRef = selectedValues;
-}
-
-function getSelectedMultiSelectValues(containerId) {
-    const container = document.getElementById(containerId);
-    if (!container || !container._selectedValuesRef) return [];
-    return Array.from(container._selectedValuesRef);
-}
-
-function resetCustomMultiSelect(containerId) {
-    const container = document.getElementById(containerId);
-    if (container && container._selectedValuesRef) {
-        container._selectedValuesRef.clear();
-    }
+} catch(e) {
+    localStorage.removeItem('riskOps_currentUser');
+    window.location.href = 'login.html';
 }
 let globalScheduleRows = null;
 let globalScheduleBlocks = null;
