@@ -523,11 +523,6 @@ try {
     localStorage.removeItem('riskOps_currentUser');
     window.location.href = 'login.html';
 }
-
-} catch(e) {
-    localStorage.removeItem('riskOps_currentUser');
-    window.location.href = 'login.html';
-}
 let globalScheduleRows = null;
 let globalScheduleBlocks = null;
 // Helper to remove accents and normalize names for comparison and file paths
