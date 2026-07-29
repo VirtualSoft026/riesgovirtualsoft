@@ -96,7 +96,7 @@
                     <i class='bx bx-log-out-circle'></i> Finalizar Turno
                 </button>
                 <div style="font-size: 13px; font-weight: 500; color: var(--text-secondary); text-align: center; margin-top: 15px; opacity: 0.8; letter-spacing: 0.5px;">
-                    Build: 27/07 18:56 (v162)
+                    Build: 28/07 21:48 (v163)
                 </div>
             </div>
         </aside>
@@ -1204,6 +1204,25 @@
                         <tr><td colspan="3" style="text-align: center;">Cargando...</td></tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Detalle Completo de Turno -->
+    <div id="shiftDetailModal" class="modal-overlay">
+        <div class="modal glass-panel" style="max-width: 800px; width: 95%;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 12px;">
+                <h2 style="margin: 0; font-size: 18px; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                    <i class='bx bx-file' style="color: var(--accent-primary);"></i> Detalle de Turno
+                </h2>
+                <span class="close-modal" onclick="closeModal('shiftDetailModal')" style="cursor: pointer; font-size: 24px; color: var(--text-secondary);">&times;</span>
+            </div>
+            <div id="shiftDetailModalBody" class="modal-body" style="max-height: 550px; overflow-y: auto; padding-right: 5px;">
+                <!-- Llenado dinámicamente -->
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; border-top: 1px solid var(--glass-border); padding-top: 12px;">
+                <button class="btn btn-outline" onclick="closeModal('shiftDetailModal')">Cerrar</button>
+                <button class="btn btn-primary" id="exportPdfModalBtn"><i class='bx bx-file-blank'></i> Exportar PDF</button>
             </div>
         </div>
     </div>

@@ -3452,14 +3452,116 @@ function applyShiftReportsFilters() {
                         ${safeReport}
                     </div>
                 </td>
-                <td style="padding: 12px; text-align: center;">
-                    <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px;" onclick="exportShiftReport('${r.fb_id}')">
-                        <i class='bx bx-file-blank'></i> Exportar PDF
-                    </button>
+                <td style="padding: 12px; text-align: center; white-space: nowrap;">
+                    <div style="display: flex; gap: 6px; justify-content: center;">
+                        <button class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;" onclick="openShiftDetailModal('${r.fb_id}')" title="Ver todo el informe igual al correo">
+                            <i class='bx bx-show'></i> Ver Todo
+                        </button>
+                        <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px;" onclick="exportShiftReport('${r.fb_id}')" title="Exportar PDF">
+                            <i class='bx bx-file-blank'></i> PDF
+                        </button>
+                    </div>
                 </td>
             </tr>
         `;
     });
+
+window.openShiftDetailModal = function(fb_id) {
+    const reportObj = allShiftReports.find(r => r.fb_id === fb_id);
+    if (!reportObj) return alert("No se encontró la información del turno.");
+    
+    const body = document.getElementById('shiftDetailModalBody');
+    const exportBtn = document.getElementById('exportPdfModalBtn');
+    if (exportBtn) {
+        exportBtn.onclick = function() { exportShiftReport(fb_id); };
+    }
+
+    let reportText = reportObj.reporte || 'Sin reporte detallado';
+    let bitacoraLines = [];
+    if (reportText.includes('=== BITÁCORA DE TIEMPOS ===')) {
+        const parts = reportText.split('=== BITÁCORA DE TIEMPOS ===');
+        reportText = parts[0].trim();
+        const rawBitacora = parts[1].trim();
+        if (rawBitacora) {
+            const lines = rawBitacora.split('\n').map(l => l.trim()).filter(Boolean);
+            lines.forEach(l => {
+                if (!bitacoraLines.includes(l)) bitacoraLines.push(l);
+            });
+        }
+    }
+
+    const formattedReportText = reportText.replace(/\n/g, '<br>').replace(/\[(.*?)\]/g, '<span style="background: rgba(139, 92, 246, 0.15); color: var(--accent-primary); padding: 2px 6px; border-radius: 4px; font-weight: 600;">$1</span>');
+
+    let bitacoraHtml = '';
+    if (bitacoraLines.length > 0) {
+        bitacoraHtml = bitacoraLines.map(l => `<div style="padding: 4px 8px; background: rgba(0,0,0,0.2); border-radius: 4px; font-family: monospace; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;"><i class='bx bx-time-five' style="color: var(--accent-primary);"></i> ${l}</div>`).join('');
+    } else {
+        bitacoraHtml = '<div style="color: var(--text-secondary); font-size: 12px; font-style: italic;">No se registraron pausas o inactividades en este turno.</div>';
+    }
+
+    body.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 15px;">
+            <!-- Encabezado Gestor y Rol -->
+            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 14px 18px; border-radius: 12px; border: 1px solid var(--glass-border);">
+                <div>
+                    <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-secondary); display: block;">Gestor</span>
+                    <strong style="font-size: 18px; color: var(--text-primary); margin-top: 2px; display: block;">${reportObj.gestor}</strong>
+                    <span style="font-size: 12px; color: var(--accent-primary); font-weight: 500;">Rol: ${reportObj.rol || 'Gestor'}</span>
+                </div>
+                <div style="text-align: right;">
+                    <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-secondary); display: block;">SET Principal Trabajado</span>
+                    <strong style="font-size: 15px; color: var(--success); margin-top: 2px; display: block;"><i class='bx bx-layer'></i> ${reportObj.setTrabajado || 'N/A'}</strong>
+                </div>
+            </div>
+
+            <!-- Tiempos de Turno e Indicadores (Igual al correo) -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+                <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border);">
+                    <small style="color: var(--text-secondary); display: block; font-size: 11px;">Hora Inicio Turno</small>
+                    <strong style="font-size: 13px; color: var(--text-primary); margin-top: 4px; display: block;"><i class='bx bx-log-in-circle' style="color: var(--accent-primary);"></i> ${reportObj.horaInicio || 'N/A'}</strong>
+                </div>
+                <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border);">
+                    <small style="color: var(--text-secondary); display: block; font-size: 11px;">Hora Fin Turno</small>
+                    <strong style="font-size: 13px; color: var(--text-primary); margin-top: 4px; display: block;"><i class='bx bx-log-out-circle' style="color: var(--warning);"></i> ${reportObj.horaFin || 'N/A'}</strong>
+                </div>
+                <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border);">
+                    <small style="color: var(--text-secondary); display: block; font-size: 11px;">Tiempo Almuerzo Descontado</small>
+                    <strong style="font-size: 13px; color: var(--success); margin-top: 4px; display: block;"><i class='bx bx-restaurant'></i> ${reportObj.tiempoAlmuerzoMins != null ? reportObj.tiempoAlmuerzoMins + ' minutos' : 'N/A'}</strong>
+                </div>
+                <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border);">
+                    <small style="color: var(--text-secondary); display: block; font-size: 11px;">Tiempo Desayuno Descontado</small>
+                    <strong style="font-size: 13px; color: var(--warning); margin-top: 4px; display: block;"><i class='bx bx-coffee'></i> ${reportObj.tiempoDesayunoMins != null ? reportObj.tiempoDesayunoMins + ' minutos' : 'N/A'}</strong>
+                </div>
+                <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border);">
+                    <small style="color: var(--text-secondary); display: block; font-size: 11px;">Inactividad / Exceso Pausas</small>
+                    <strong style="font-size: 13px; color: var(--danger); margin-top: 4px; display: block;"><i class='bx bx-stopwatch'></i> ${reportObj.inactividadTotalMins != null ? reportObj.inactividadTotalMins + ' minutos' : 'N/A'}</strong>
+                </div>
+            </div>
+
+            <!-- Bitácora de Tiempos -->
+            <div style="background: rgba(0,0,0,0.15); padding: 14px; border-radius: 10px; border: 1px solid var(--glass-border);">
+                <h4 style="font-size: 13px; color: var(--accent-primary); margin: 0 0 10px 0; display: flex; align-items: center; gap: 6px;">
+                    <i class='bx bx-list-ul'></i> Bitácora de Tiempos
+                </h4>
+                <div style="max-height: 180px; overflow-y: auto; padding-right: 5px;">
+                    ${bitacoraHtml}
+                </div>
+            </div>
+
+            <!-- Resumen de Tareas y Observaciones -->
+            <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 10px; border: 1px solid var(--glass-border);">
+                <h4 style="font-size: 13px; color: var(--accent-primary); margin: 0 0 10px 0; display: flex; align-items: center; gap: 6px;">
+                    <i class='bx bx-task'></i> Resumen de Tareas y Observaciones
+                </h4>
+                <div style="font-size: 13px; color: var(--text-primary); line-height: 1.6; white-space: pre-wrap; word-break: break-word; font-family: inherit;">
+                    ${formattedReportText}
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('shiftDetailModal').classList.add('active');
+};
 
     if (!hasExplicitFilter) {
         setTimeout(() => {
