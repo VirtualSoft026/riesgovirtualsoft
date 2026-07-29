@@ -6315,6 +6315,7 @@ function renderControlOperativoFiltered() {
     
     // We pass globalForCharts to the charts so rankings always compare the whole team.
     // However, we pass dailyData which is specific to the selected gestor so the line chart is filtered.
+    const selectedGestor = selectedGestores.length === 1 ? selectedGestores[0] : (selectedGestores.length === 0 ? 'Todos' : `${selectedGestores.length} Gestores`);
     renderControlOperativoCharts(globalForCharts, dailyData, selectedGestor);
     
     // Auto-refresh KPI rings every time filters change
