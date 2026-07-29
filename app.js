@@ -4654,12 +4654,14 @@ function loadGestoresForKPIs() {
 }
 
 async function calcularIndicadores() {
-    const gestorEl = document.getElementById('filtroGestorOperativo');
+    const selectedGestores = getSelectedMultiSelectValues('operativoGestorMultiSelect');
     const fechaEl = document.getElementById('filtroFechaOperativo');
-    if (!gestorEl || !fechaEl) return;
+    if (!fechaEl) return;
 
-    let gestorName = gestorEl.value;
-    if (gestorName === 'Todos') {
+    let gestorName = 'todos';
+    if (selectedGestores.length === 1) {
+        gestorName = selectedGestores[0];
+    } else if (selectedGestores.length > 1) {
         gestorName = 'todos';
     }
 
@@ -4762,6 +4764,10 @@ async function calcularIndicadores() {
         } else {
             return;
         }
+    }
+    
+    if (selectedGestores.length > 0) {
+        shiftReports = shiftReports.filter(r => selectedGestores.some(g => normalizeName(r.gestor || r.name) === normalizeName(g)));
     }
     
     if (shiftReports.length === 0) {
