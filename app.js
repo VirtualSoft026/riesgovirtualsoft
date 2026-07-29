@@ -1163,6 +1163,32 @@ async function loadSchedule() {
                 defaultBlockRow = allScheduleBlocks[allScheduleBlocks.length - 1].startRow;
             }
             
+            const scheduleGestorFilter = document.getElementById('scheduleGestorFilter');
+            let selectedGestor = '';
+
+            // Extraer lista única de gestores de la hoja de cálculo
+            const allGestores = new Set();
+            allScheduleBlocks.forEach(block => {
+                for (let rIdx = block.startRow + 2; rIdx < rows.length; rIdx++) {
+                    const row = rows[rIdx];
+                    if (!row || !row[0] || String(row[0]).trim() === '' || String(row[0]).trim().toUpperCase() === 'GESTOR') break;
+                    allGestores.add(String(row[0]).trim());
+                }
+            });
+
+            if (scheduleGestorFilter) {
+                const sortedGestores = Array.from(allGestores).sort((a, b) => a.localeCompare(b));
+                scheduleGestorFilter.innerHTML = '<option value="">Todos los gestores</option>';
+                sortedGestores.forEach(g => {
+                    scheduleGestorFilter.innerHTML += `<option value="${g}">${g}</option>`;
+                });
+
+                scheduleGestorFilter.addEventListener('change', (e) => {
+                    selectedGestor = e.target.value;
+                    renderScheduleBlock(parseInt(weekSelector ? weekSelector.value : defaultBlockRow));
+                });
+            }
+
             if (weekSelector) {
                 weekSelector.innerHTML = '';
                 allScheduleBlocks.forEach(block => {
@@ -1205,17 +1231,22 @@ async function loadSchedule() {
                     const r = rows[rowIndex];
                     if (!r || !r[0] || String(r[0]).trim() === '' || String(r[0]).trim().toUpperCase() === 'GESTOR') break;
                     
-                    let isCurrentUser = (currentUser && namesMatch(r[0], currentUser.name));
+                    const gestorName = String(r[0]).trim();
+                    if (selectedGestor && normalizeName(gestorName) !== normalizeName(selectedGestor)) {
+                        continue;
+                    }
+
+                    let isCurrentUser = (currentUser && namesMatch(gestorName, currentUser.name));
                     
                     if (currentUser && currentUser.role === 'Gestor' && !isCurrentUser) continue;
 
                     let bgClass = isCurrentUser ? 'rgba(59,130,246,0.1)' : 'transparent';
                     
                     let trHTML = `<tr class="hover-highlight" style="border-bottom: 1px solid var(--glass-border); background: ${bgClass};">`;
-                    trHTML += `<td style="padding: 12px; font-weight: 600; text-align: left; color: ${isCurrentUser ? 'var(--accent-primary)' : 'var(--text-primary)'}; position: sticky; left: 0; background: ${isCurrentUser ? 'var(--bg-dark)' : 'var(--bg-panel)'}; z-index: 1;">${r[0]}</td>`;
+                    trHTML += `<td style="padding: 12px; font-weight: 600; text-align: left; color: ${isCurrentUser ? 'var(--accent-primary)' : 'var(--text-primary)'}; position: sticky; left: 0; background: ${isCurrentUser ? 'var(--bg-dark)' : 'var(--bg-panel)'}; z-index: 1;">${gestorName}</td>`;
                     
                     // Encontrar el turno para mostrar en el badge principal (corresponde a hoy)
-                    let badgeShift = getShiftForDate(rows, allScheduleBlocks, r[0], new Date());
+                    let badgeShift = getShiftForDate(rows, allScheduleBlocks, gestorName, new Date());
                     
                     for(let i = 1; i <= numCols; i++) {
                         const shift = r[i] || 'Descansa';
@@ -1305,6 +1336,28 @@ function loadTeletrabajo() {
             const tableHead = document.getElementById('teletrabajoTableHead');
             const tableBody = document.getElementById('teletrabajoTableBody');
             
+            const teletrabajoGestorFilter = document.getElementById('teletrabajoGestorFilter');
+            let selectedTeleGestor = '';
+
+            const allTeleGestores = new Set();
+            allBlocks.forEach(b => {
+                b.data.forEach(r => {
+                    if (r.gestor) allTeleGestores.add(String(r.gestor).trim());
+                });
+            });
+
+            if (teletrabajoGestorFilter) {
+                const sorted = Array.from(allTeleGestores).sort((a,b) => a.localeCompare(b));
+                teletrabajoGestorFilter.innerHTML = '<option value="">Todos los gestores</option>';
+                sorted.forEach(g => {
+                    teletrabajoGestorFilter.innerHTML += `<option value="${g}">${g}</option>`;
+                });
+                teletrabajoGestorFilter.addEventListener('change', (e) => {
+                    selectedTeleGestor = e.target.value;
+                    renderTeletrabajoBlock(allBlocks[weekSelector ? weekSelector.value : defaultBlockIdx]);
+                });
+            }
+
             if(weekSelector) {
                 weekSelector.innerHTML = '';
                 allBlocks.forEach((block, idx) => {
@@ -1334,6 +1387,10 @@ function loadTeletrabajo() {
                 
                 tableBody.innerHTML = '';
                 block.data.forEach(row => {
+                    if (selectedTeleGestor && normalizeName(row.gestor) !== normalizeName(selectedTeleGestor)) {
+                        return;
+                    }
+
                     let isCurrentUser = (currentUser && namesMatch(row.gestor, currentUser.name));
                     
                     if (currentUser && currentUser.role === 'Gestor' && !isCurrentUser) return;

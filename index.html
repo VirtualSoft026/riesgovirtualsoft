@@ -97,7 +97,7 @@
                     <i class='bx bx-log-out-circle'></i> Finalizar Turno
                 </button>
                 <div style="font-size: 13px; font-weight: 500; color: var(--text-secondary); text-align: center; margin-top: 15px; opacity: 0.8; letter-spacing: 0.5px;">
-                    Build: 28/07 22:02 (v165)
+                    Build: 29/07 16:48 (v166)
                 </div>
             </div>
         </aside>
@@ -221,11 +221,19 @@
             <div id="view-horario" class="view-panel" style="display: none; padding: 20px;">
                 <h2 class="panel-title" style="margin-bottom: 20px;"><i class='bx bx-calendar'></i> Horario Semanal</h2>
                 <div class="glass-panel" style="padding: 20px; overflow-x: auto; position: relative;">
-                    <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 15px;">
-                        <label style="color: var(--text-secondary); font-size: 14px;">Seleccionar Semana:</label>
-                        <select id="weekSelector" class="modern-input" style="padding: 8px; width: auto; min-width: 250px; background: var(--bg-dark);">
-                            <option value="">Cargando semanas...</option>
-                        </select>
+                    <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label style="color: var(--text-secondary); font-size: 14px;">Seleccionar Semana:</label>
+                            <select id="weekSelector" class="modern-input" style="padding: 8px; width: auto; min-width: 250px; background: var(--bg-dark);">
+                                <option value="">Cargando semanas...</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label style="color: var(--text-secondary); font-size: 14px;">Filtrar Gestor:</label>
+                            <select id="scheduleGestorFilter" class="modern-input" style="padding: 8px; width: auto; min-width: 200px; background: var(--bg-dark);">
+                                <option value="">Todos los gestores</option>
+                            </select>
+                        </div>
                     </div>
 
                     <table class="modern-table" style="width: 100%; border-collapse: collapse; text-align: center; min-width: 800px;">
@@ -239,11 +247,19 @@
             <div id="view-teletrabajo" class="view-panel" style="display: none; padding: 20px;">
                 <h2 class="panel-title" style="margin-bottom: 20px;"><i class='bx bx-home-alt'></i> Cronograma de Teletrabajo</h2>
                 <div class="glass-panel" style="padding: 20px; overflow-x: auto;">
-                    <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 15px;">
-                        <label style="color: var(--text-secondary); font-size: 14px;">Seleccionar Semana:</label>
-                        <select id="teletrabajoWeekSelector" class="modern-input" style="padding: 8px; width: auto; min-width: 250px; background: var(--bg-dark);">
-                            <option value="">Cargando semanas...</option>
-                        </select>
+                    <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label style="color: var(--text-secondary); font-size: 14px;">Seleccionar Semana:</label>
+                            <select id="teletrabajoWeekSelector" class="modern-input" style="padding: 8px; width: auto; min-width: 250px; background: var(--bg-dark);">
+                                <option value="">Cargando semanas...</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label style="color: var(--text-secondary); font-size: 14px;">Filtrar Gestor:</label>
+                            <select id="teletrabajoGestorFilter" class="modern-input" style="padding: 8px; width: auto; min-width: 200px; background: var(--bg-dark);">
+                                <option value="">Todos los gestores</option>
+                            </select>
+                        </div>
                     </div>
 
                     <table class="modern-table" style="width: 100%; border-collapse: collapse; text-align: center; min-width: 800px;">
