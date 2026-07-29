@@ -16,24 +16,24 @@ function setupCustomMultiSelect(containerId, optionsList, onChangeCallback) {
     const selectedValues = new Set();
 
     container.innerHTML = `
-        <div class="custom-multiselect-trigger" tabindex="0">
+        <div class="custom-multiselect-btn" tabindex="0">
             <span class="multiselect-label">Todos los gestores</span>
             <i class='bx bx-chevron-down'></i>
         </div>
-        <div class="custom-multiselect-menu" style="display: none;">
-            <div class="multiselect-actions">
+        <div class="custom-multiselect-dropdown">
+            <div class="custom-multiselect-actions">
                 <button type="button" class="btn-select-all">Seleccionar Todos</button>
                 <button type="button" class="btn-clear-all">Desmarcar Todos</button>
             </div>
-            <div class="multiselect-search-box">
-                <input type="text" placeholder="Buscar gestor..." class="multiselect-search-input">
+            <div style="padding: 4px 6px; margin-bottom: 6px;">
+                <input type="text" placeholder="Buscar gestor..." class="multiselect-search-input modern-input" style="width: 100%; height: 32px; font-size: 12px; padding: 4px 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
             </div>
             <div class="multiselect-options-list"></div>
         </div>
     `;
 
-    const trigger = container.querySelector('.custom-multiselect-trigger');
-    const menu = container.querySelector('.custom-multiselect-menu');
+    const trigger = container.querySelector('.custom-multiselect-btn');
+    const menu = container.querySelector('.custom-multiselect-dropdown');
     const labelSpan = container.querySelector('.multiselect-label');
     const optionsListEl = container.querySelector('.multiselect-options-list');
     const searchInput = container.querySelector('.multiselect-search-input');
@@ -57,8 +57,7 @@ function setupCustomMultiSelect(containerId, optionsList, onChangeCallback) {
             if (cleanFilter && !opt.toLowerCase().includes(cleanFilter)) return;
 
             const item = document.createElement('label');
-            item.className = 'multiselect-option-item';
-            item.style.cssText = "display: flex; align-items: center; gap: 8px; padding: 6px 10px; cursor: pointer; user-select: none; font-size: 13px;";
+            item.className = 'custom-multiselect-option';
 
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
@@ -90,21 +89,25 @@ function setupCustomMultiSelect(containerId, optionsList, onChangeCallback) {
     // Toggle menu
     trigger.onclick = (e) => {
         e.stopPropagation();
-        const isVisible = menu.style.display === 'block';
-        // Close other custom multiselects
-        document.querySelectorAll('.custom-multiselect-menu').forEach(m => m.style.display = 'none');
-        menu.style.display = isVisible ? 'none' : 'block';
-        if (!isVisible && searchInput) searchInput.focus();
+        const isOpen = container.classList.contains('open');
+        document.querySelectorAll('.custom-multiselect').forEach(m => m.classList.remove('open'));
+        if (!isOpen) {
+            container.classList.add('open');
+            if (searchInput) searchInput.focus();
+        }
     };
 
-    searchInput.oninput = (e) => {
-        renderOptions(e.target.value);
-    };
+    if (searchInput) {
+        searchInput.oninput = (e) => {
+            renderOptions(e.target.value);
+        };
+        searchInput.onclick = (e) => e.stopPropagation();
+    }
 
     btnSelectAll.onclick = (e) => {
         e.stopPropagation();
         optionsList.forEach(opt => selectedValues.add(opt));
-        renderOptions(searchInput.value);
+        renderOptions(searchInput ? searchInput.value : "");
         updateLabel();
         if (onChangeCallback) onChangeCallback(Array.from(selectedValues));
     };
@@ -112,7 +115,7 @@ function setupCustomMultiSelect(containerId, optionsList, onChangeCallback) {
     btnClearAll.onclick = (e) => {
         e.stopPropagation();
         selectedValues.clear();
-        renderOptions(searchInput.value);
+        renderOptions(searchInput ? searchInput.value : "");
         updateLabel();
         if (onChangeCallback) onChangeCallback(Array.from(selectedValues));
     };
@@ -121,7 +124,7 @@ function setupCustomMultiSelect(containerId, optionsList, onChangeCallback) {
     if (!container._outsideClickListenerAdded) {
         document.addEventListener('click', (e) => {
             if (!container.contains(e.target)) {
-                menu.style.display = 'none';
+                container.classList.remove('open');
             }
         });
         container._outsideClickListenerAdded = true;
