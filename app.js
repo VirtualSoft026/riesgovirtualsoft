@@ -3268,57 +3268,177 @@ window.exportShiftReport = async function(fb_id) {
         if(!snapshot.exists()) return alert("No se encontró el reporte en la base de datos.");
         
         const r = snapshot.val();
-        
-        // Inicializar jsPDF
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.width;
+        const pageHeight = doc.internal.pageSize.height;
+        const margin = 14;
+        const contentWidth = pageWidth - (margin * 2);
+
+        // Header Background
+        doc.setFillColor(15, 23, 42); // Dark background
+        doc.rect(0, 0, pageWidth, 28, 'F');
         
-        // Título
-        doc.setFontSize(16);
-        doc.setTextColor(13, 138, 188); // Accent color
-        doc.text("REPORTE DE TURNO - RISK MANAGER", 15, 20);
-        
-        // Metadatos
-        doc.setFontSize(11);
-        doc.setTextColor(50, 50, 50);
-        doc.text("Gestor: " + (r.gestor || 'N/A'), 15, 35);
-        doc.text("Rol: " + (r.rol || 'N/A'), 15, 42);
-        doc.text("SET Trabajado: " + (r.setTrabajado || 'N/A'), 15, 49);
-        doc.text("Hora de Inicio: " + (r.horaInicio || 'N/A'), 15, 56);
-        doc.text("Hora de Fin: " + (r.horaFin || 'N/A'), 15, 63);
-        
-        // Línea separadora
-        doc.setLineWidth(0.5);
-        doc.line(15, 70, 195, 70);
-        
-        // Resumen
-        doc.setFontSize(12);
-        doc.setTextColor(0, 0, 0);
-        doc.text("Resumen de Tareas:", 15, 80);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(59, 130, 246); // Accent blue
+        doc.text("RISK MANAGER", margin, 12);
         
         doc.setFontSize(10);
-        doc.setTextColor(50, 50, 50);
-        
-        const reportText = r.reporte || 'Sin reporte detallado.';
-        const splitText = doc.splitTextToSize(reportText, 180);
-        
-        let y = 90;
-        const pageHeight = doc.internal.pageSize.height;
-        
-        splitText.forEach(line => {
-            if (y > pageHeight - 20) {
-                doc.addPage();
-                y = 20;
-            }
-            doc.text(line, 15, y);
-            y += 5;
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(148, 163, 184);
+        doc.text("Detalle de Turno y Control Operativo", margin, 18);
+
+        const fechaDoc = r.timestamp ? new Date(r.timestamp).toLocaleDateString('es-CO') : (r.horaInicio ? r.horaInicio.split(',')[0] : '');
+        doc.setFontSize(9);
+        doc.text(`Fecha: ${fechaDoc}`, pageWidth - margin - 35, 12);
+
+        let y = 35;
+
+        // Card 1: Gestor Info Box
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(226, 232, 240);
+        doc.roundedRect(margin, y, contentWidth, 22, 3, 3, 'FD');
+
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(100, 116, 139);
+        doc.text("GESTOR", margin + 6, y + 6);
+        doc.text("SET PRINCIPAL TRABAJADO", margin + contentWidth - 55, y + 6);
+
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 23, 42);
+        doc.text(r.gestor || 'N/A', margin + 6, y + 13);
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(16, 185, 129); // Green
+        doc.text(r.setTrabajado || 'N/A', margin + contentWidth - 55, y + 13);
+
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(59, 130, 246);
+        doc.text(`Rol: ${r.rol || 'Gestor'}`, margin + 6, y + 18);
+
+        y += 28;
+
+        // Cards 2: Metrics Grid (5 boxes)
+        const metrics = [
+            { label: 'Hora Inicio Turno', value: r.horaInicio || 'N/A', color: [15, 23, 42] },
+            { label: 'Hora Fin Turno', value: r.horaFin || 'N/A', color: [15, 23, 42] },
+            { label: 'Almuerzo Descontado', value: r.tiempoAlmuerzoMins != null ? `${r.tiempoAlmuerzoMins} mins` : 'N/A', color: [16, 185, 129] },
+            { label: 'Desayuno Descontado', value: r.tiempoDesayunoMins != null ? `${r.tiempoDesayunoMins} mins` : 'N/A', color: [245, 158, 11] },
+            { label: 'Inactividad / Exceso', value: r.inactividadTotalMins != null ? `${r.inactividadTotalMins} mins` : 'N/A', color: [239, 68, 68] }
+        ];
+
+        const cardW = (contentWidth - 8) / 3;
+        const cardH = 14;
+
+        metrics.forEach((m, idx) => {
+            let cx = margin + (idx % 3) * (cardW + 4);
+            let cy = y + Math.floor(idx / 3) * (cardH + 4);
+
+            doc.setFillColor(248, 250, 252);
+            doc.setDrawColor(226, 232, 240);
+            doc.roundedRect(cx, cy, cardW, cardH, 2, 2, 'FD');
+
+            doc.setFontSize(7);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(100, 116, 139);
+            doc.text(m.label, cx + 4, cy + 5);
+
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(m.color[0], m.color[1], m.color[2]);
+            doc.text(String(m.value), cx + 4, cy + 10.5);
         });
-        
-        // Guardar
+
+        y += (cardH * 2) + 12;
+
+        // Extract bitacora & report text
+        let reportText = r.reporte || 'Sin reporte detallado';
+        let bitacoraLines = [];
+        if (reportText.includes('=== BITÁCORA DE TIEMPOS ===')) {
+            const parts = reportText.split('=== BITÁCORA DE TIEMPOS ===');
+            reportText = parts[0].trim();
+            const rawBitacora = parts[1].trim();
+            if (rawBitacora) {
+                const lines = rawBitacora.split('\n').map(l => l.trim()).filter(Boolean);
+                lines.forEach(l => {
+                    if (!bitacoraLines.includes(l)) bitacoraLines.push(l);
+                });
+            }
+        }
+
+        // Section: Bitácora de Tiempos
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(59, 130, 246);
+        doc.text("Bitácora de Tiempos", margin, y);
+        y += 4;
+
+        if (bitacoraLines.length > 0) {
+            doc.setFontSize(8);
+            doc.setFont('courier', 'normal');
+            doc.setTextColor(51, 65, 85);
+            bitacoraLines.forEach(line => {
+                if (y > pageHeight - 15) {
+                    doc.addPage();
+                    y = 15;
+                }
+                doc.setFillColor(241, 245, 249);
+                doc.roundedRect(margin, y - 3, contentWidth, 5.5, 1, 1, 'F');
+                doc.text(line, margin + 3, y + 0.8);
+                y += 6.5;
+            });
+        } else {
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'italic');
+            doc.setTextColor(148, 163, 184);
+            doc.text("No se registraron pausas o inactividades en este turno.", margin, y + 2);
+            y += 6;
+        }
+
+        y += 6;
+
+        // Section: Resumen de Tareas y Observaciones
+        if (y > pageHeight - 25) {
+            doc.addPage();
+            y = 15;
+        }
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(59, 130, 246);
+        doc.text("Resumen de Tareas y Observaciones", margin, y);
+        y += 6;
+
+        doc.setFontSize(8.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(30, 41, 59);
+
+        const cleanReportLines = reportText.split('\n');
+        cleanReportLines.forEach(line => {
+            if (y > pageHeight - 15) {
+                doc.addPage();
+                y = 15;
+            }
+            const wrapped = doc.splitTextToSize(line, contentWidth);
+            wrapped.forEach(wLine => {
+                if (y > pageHeight - 15) {
+                    doc.addPage();
+                    y = 15;
+                }
+                doc.text(wLine, margin, y);
+                y += 4.5;
+            });
+        });
+
+        // Save file
         const safeName = (r.gestor || 'Gestor').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        const d = new Date(r.timestamp || Date.now());
-        const dateStr = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, '0') + "-" + String(d.getDate()).padStart(2, '0');
-        doc.save(`Reporte_${safeName}_${dateStr}.pdf`);
+        const dateStr = fechaDoc.replace(/[^a-z0-9]/gi, '_');
+        doc.save(`Reporte_Turno_${safeName}_${dateStr}.pdf`);
         
     } catch(e) {
         alert("Hubo un error al intentar exportar el reporte.");
