@@ -9,7 +9,12 @@
       "**/.*",
       "**/node_modules/**",
       "*.bat",
-      "*.exe"
+      "*.exe",
+      "*.xlsx",
+      "*.pdf",
+      "Cronograma de Tareas/**",
+      "Horario/**",
+      "Teletrabajo/**"
     ],
     "headers": [
       {
