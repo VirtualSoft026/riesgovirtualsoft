@@ -8986,3 +8986,5 @@ Dado que Risk Manager utiliza una arquitectura híbrida, se deben respaldar dos 
 
 ---
 *Fin del Documento de Especificación Técnica.*
+
+
