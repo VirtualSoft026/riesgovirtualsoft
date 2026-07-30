@@ -10,15 +10,11 @@
       "**/node_modules/**",
       "*.bat",
       "*.exe",
-      "*.xlsx",
-      "*.pdf",
-      "Cronograma de Tareas/**",
-      "Horario/**",
-      "Teletrabajo/**"
+      "*.pdf"
     ],
     "headers": [
       {
-        "source": "**/*.@(html|json)",
+        "source": "**/*.@(html|json|js|css)",
         "headers": [
           {
             "key": "Cache-Control",
