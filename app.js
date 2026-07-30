@@ -7190,3 +7190,210 @@ function filterLoginHistoryTable() {
 window.openLoginHistoryModal = openLoginHistoryModal;
 window.filterLoginHistoryTable = filterLoginHistoryTable;
 
+// =========================================================================
+// --- PARCHES DE DIAGNÓSTICO E2E & REGLAS DE NEGOCIO SLA DE RETIROS ---
+// =========================================================================
+
+/**
+ * 1. Fórmula Justa de Tiempo de Aprobación de Retiros (SLA Ajustado por Turno)
+ * HoraInicioCálculo = MAX(FechaHoraCreaciónRetiro, FechaHoraInicioTurnoGestor)
+ * Tiempo de Aprobación = FechaHoraAprobación - HoraInicioCálculo
+ */
+function calculateEffectiveApprovalTime(creacionTime, aprobacionTime, inicioTurnoTime) {
+    if (!aprobacionTime) return 0;
+    const creacionMs = new Date(creacionTime).getTime();
+    const aprobacionMs = new Date(aprobacionTime).getTime();
+    let inicioTurnoMs = inicioTurnoTime ? new Date(inicioTurnoTime).getTime() : 0;
+    
+    if (isNaN(creacionMs) || isNaN(aprobacionMs)) return 0;
+    if (isNaN(inicioTurnoMs)) inicioTurnoMs = 0;
+
+    const horaInicioCalculoMs = Math.max(creacionMs, inicioTurnoMs);
+    const diffMins = (aprobacionMs - horaInicioCalculoMs) / 60000;
+    return Math.max(0, Math.round(diffMins * 100) / 100);
+}
+
+/**
+ * 2. Monitoreo y Presencia en Tiempo Real con Firebase Realtime Database
+ */
+function setupUserPresence(uid) {
+    if (!uid || typeof database === 'undefined') return;
+    const connectedRef = database.ref('.info/connected');
+    const userSessionRef = database.ref(`active_sessions/${uid}`);
+
+    connectedRef.on('value', (snap) => {
+        if (snap.val() === true) {
+            userSessionRef.onDisconnect().update({
+                status: 'offline',
+                lastHeartbeat: firebase.database.ServerValue.TIMESTAMP
+            }).then(() => {
+                userSessionRef.update({
+                    status: 'online',
+                    lastHeartbeat: firebase.database.ServerValue.TIMESTAMP
+                });
+            });
+        }
+    });
+}
+
+function startMonitoringPresence() {
+    if (typeof database === 'undefined') return;
+    database.ref('active_sessions').on('value', (snapshot) => {
+        if (typeof renderActiveSessionsDashboard === 'function') {
+            renderActiveSessionsDashboard();
+        }
+    });
+}
+
+/**
+ * 3. Contador Operacional Atómico (ServerValue.increment)
+ */
+function incrementApprovedWithdrawal(uid, amount = 1) {
+    if (typeof database === 'undefined') return;
+    const counterRef = database.ref('metrics/approvedCount');
+    counterRef.transaction((currentValue) => {
+        return (currentValue || 0) + amount;
+    }, (error, committed, snapshot) => {
+        if (!error && committed) {
+            updateApprovedCountUI(snapshot.val());
+        }
+    });
+}
+
+function initAtomicApprovedCounterListener() {
+    if (typeof database === 'undefined') return;
+    database.ref('metrics/approvedCount').on('value', (snapshot) => {
+        if (snapshot.exists()) {
+            updateApprovedCountUI(snapshot.val());
+        }
+    });
+}
+
+function updateApprovedCountUI(count) {
+    const countEl = document.getElementById('metric-approved-count');
+    if (countEl) {
+        countEl.textContent = count || 0;
+        countEl.style.transform = 'scale(1.25)';
+        setTimeout(() => countEl.style.transform = 'scale(1)', 300);
+    }
+}
+
+/**
+ * 4. Módulo de Novedades, Comentarios e Incidentes (/logs)
+ */
+async function handleNewIncidentSubmit(event) {
+    event.preventDefault();
+    if (!currentUser) {
+        alert("Debes iniciar sesión para registrar una novedad.");
+        return;
+    }
+    
+    const type = document.getElementById('incidentType')?.value || 'Novedad Operativa';
+    const title = document.getElementById('incidentTitle')?.value?.trim();
+    const assignee = document.getElementById('incidentAssignee')?.value?.trim() || currentUser.name;
+    const detail = document.getElementById('incidentDetail')?.value?.trim();
+
+    if (!title || !detail) {
+        alert("Por favor completa el título y el detalle de la novedad.");
+        return;
+    }
+
+    try {
+        const newLogRef = database.ref('logs').push();
+        await newLogRef.set({
+            type: type,
+            title: title,
+            assignedTo: assignee,
+            detail: detail,
+            reportedBy: currentUser.name,
+            reportedByEmail: currentUser.email || '',
+            timestamp: Date.now(),
+            status: 'Abierto'
+        });
+
+        const form = document.getElementById('incidentForm');
+        if (form) form.reset();
+        alert("¡Novedad/Incidente registrada exitosamente!");
+    } catch(err) {
+        console.error("Error registrando novedad en /logs:", err);
+        alert("Ocurrió un error al registrar la novedad.");
+    }
+}
+
+function startIncidentsRealtimeListener() {
+    if (typeof database === 'undefined') return;
+    database.ref('logs').orderByChild('timestamp').limitToLast(50).on('value', (snapshot) => {
+        const incidents = [];
+        if (snapshot.exists()) {
+            snapshot.forEach((childSnap) => {
+                incidents.unshift({ id: childSnap.key, ...childSnap.val() });
+            });
+        }
+        renderIncidentsTable(incidents);
+    });
+}
+
+function renderIncidentsTable(incidents) {
+    const tbody = document.getElementById('incidentsTableBody');
+    if (!tbody) return;
+
+    if (!incidents || incidents.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--text-secondary);">No hay novedades ni incidentes registrados.</td></tr>`;
+        return;
+    }
+
+    let html = '';
+    incidents.forEach(inc => {
+        const dateStr = inc.timestamp ? new Date(inc.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'N/A';
+        const typeBadge = `<span class="badge pending" style="font-size: 10px;">${inc.type || 'Soporte'}</span>`;
+        const statusBadge = inc.status === 'Cerrado' 
+            ? `<span class="badge status-completed" style="font-size: 10px; background: var(--success); color: white;">Cerrado</span>`
+            : `<span class="badge in-progress" style="font-size: 10px; background: var(--warning); color: white;">Abierto</span>`;
+
+        html += `
+            <tr style="border-bottom: 1px solid var(--glass-border);">
+                <td style="padding: 10px; font-size: 12px; color: var(--text-secondary);">${dateStr}</td>
+                <td style="padding: 10px;">${typeBadge}</td>
+                <td style="padding: 10px;">
+                    <div style="font-weight: 600; color: var(--text-primary); font-size: 13px;">${inc.title || ''}</div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${inc.detail || ''}</div>
+                    ${inc.assignedTo ? `<div style="font-size: 10px; color: var(--accent-primary); margin-top: 2px;">Resp: ${inc.assignedTo}</div>` : ''}
+                </td>
+                <td style="padding: 10px; font-size: 12px; color: var(--text-primary);">${inc.reportedBy || 'Anónimo'}</td>
+                <td style="padding: 10px; text-align: center;">${statusBadge}</td>
+            </tr>
+        `;
+    });
+    tbody.innerHTML = html;
+}
+
+/**
+ * 5. Filtro por Responsable Asignado (#filter-assignee)
+ */
+function renderAssignedTasksFilter() {
+    const assigneeSelect = document.getElementById('filter-assignee');
+    if (!assigneeSelect) return;
+    const selectedAssignee = assigneeSelect.value;
+    
+    document.querySelectorAll('.task-item').forEach(taskItem => {
+        const assigneeAttr = taskItem.getAttribute('data-assignee') || '';
+        if (selectedAssignee === 'Todos' || (typeof normalizeName === 'function' && normalizeName(assigneeAttr).includes(normalizeName(selectedAssignee)))) {
+            taskItem.style.display = '';
+        } else {
+            taskItem.style.display = 'none';
+        }
+    });
+}
+
+// Exponer funciones globalmente
+window.calculateEffectiveApprovalTime = calculateEffectiveApprovalTime;
+window.setupUserPresence = setupUserPresence;
+window.startMonitoringPresence = startMonitoringPresence;
+window.incrementApprovedWithdrawal = incrementApprovedWithdrawal;
+window.initAtomicApprovedCounterListener = initAtomicApprovedCounterListener;
+window.handleNewIncidentSubmit = handleNewIncidentSubmit;
+window.startIncidentsRealtimeListener = startIncidentsRealtimeListener;
+window.renderIncidentsTable = renderIncidentsTable;
+window.renderAssignedTasksFilter = renderAssignedTasksFilter;
+
+

@@ -13,6 +13,122 @@ function switchPanel(panelId) {
     });
 }
 
+// Helper: Validar si el turno asignado ya finalizó para el día de hoy
+async function checkShiftExpirationOnLogin(dbUser) {
+    if (!dbUser || dbUser.role === 'Admin' || dbUser.role === 'Supervisor') {
+        return { expired: false };
+    }
+
+    try {
+        if (typeof XLSX === 'undefined') return { expired: false };
+        const url = encodeURI('Horario/Horario 2026.xlsx') + '?t=' + Date.now();
+        const response = await fetch(url);
+        if (!response.ok) return { expired: false };
+        
+        const arrayBuffer = await response.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+
+        if (!rows || rows.length < 3) return { expired: false };
+
+        const now = new Date();
+
+        function parseExcelDate(serial) {
+            if (!serial) return null;
+            if (typeof serial === 'string' && (serial.includes('-') || serial.includes('/'))) {
+                const d = new Date(serial);
+                return isNaN(d.getTime()) ? null : d;
+            }
+            if (!isNaN(serial)) {
+                const epochUTC = Date.UTC(1899, 11, 30);
+                return new Date(epochUTC + parseFloat(serial) * 86400000);
+            }
+            return null;
+        }
+
+        let targetBlockStart = -1;
+        let targetCol = -1;
+
+        for (let rIdx = 0; rIdx < rows.length; rIdx++) {
+            const testRow = rows[rIdx];
+            if (!testRow || testRow.length < 2) continue;
+            
+            const firstDate = parseExcelDate(testRow[1]);
+            if (firstDate) {
+                const nextR = rows[rIdx + 1];
+                if (nextR && (nextR[1] === 'Lunes' || nextR[1] === 'Martes')) {
+                    for (let c = 1; c < testRow.length; c++) {
+                        const cellDate = parseExcelDate(testRow[c]);
+                        if (cellDate && cellDate.getUTCDate() === now.getDate() && cellDate.getUTCMonth() === now.getMonth() && cellDate.getUTCFullYear() === now.getFullYear()) {
+                            targetBlockStart = rIdx;
+                            targetCol = c;
+                            break;
+                        }
+                    }
+                    if (targetBlockStart !== -1) break;
+                }
+            }
+        }
+
+        if (targetBlockStart === -1 || targetCol === -1) return { expired: false };
+
+        let shiftStr = '';
+        const normalize = str => String(str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        const userNameNorm = normalize(dbUser.name);
+
+        for (let rIdx = targetBlockStart + 2; rIdx < rows.length; rIdx++) {
+            const r = rows[rIdx];
+            if (!r || !r[0] || String(r[0]).trim() === '' || String(r[0]).trim().toUpperCase() === 'GESTOR') break;
+            if (normalize(r[0]) === userNameNorm) {
+                shiftStr = String(r[targetCol] || '').trim();
+                break;
+            }
+        }
+
+        if (!shiftStr || shiftStr === 'Descansa' || shiftStr === 'Por Asignar') return { expired: false };
+
+        const parts = shiftStr.split('-');
+        let endStr = parts.length > 1 ? parts[1].trim() : '';
+        if (!endStr) return { expired: false };
+
+        const match = endStr.match(/(\d{1,2})(?::(\d{2}))?\s*([ap]\.?\s*m\.?)?/i);
+        if (!match) return { expired: false };
+
+        let endH = parseInt(match[1], 10);
+        let endM = match[2] ? parseInt(match[2], 10) : 0;
+        const ampm = match[3] ? match[3].toLowerCase().replace(/[^apm]/g, '') : null;
+
+        if (ampm === 'pm' && endH < 12) endH += 12;
+        if (ampm === 'am' && endH === 12) endH = 0;
+
+        const shiftEndTime = new Date(now);
+        shiftEndTime.setHours(endH, endM, 0, 0);
+
+        const startStr = parts[0].trim();
+        const startMatch = startStr.match(/(\d{1,2})(?::(\d{2}))?\s*([ap]\.?\s*m\.?)?/i);
+        if (startMatch) {
+            let startH = parseInt(startMatch[1], 10);
+            const startAmpm = startMatch[3] ? startMatch[3].toLowerCase().replace(/[^apm]/g, '') : null;
+            if (startAmpm === 'pm' && startH < 12) startH += 12;
+            if (startAmpm === 'am' && startH === 12) startH = 0;
+
+            if (endH < startH) {
+                shiftEndTime.setDate(shiftEndTime.getDate() + 1);
+            }
+        }
+
+        if (now > shiftEndTime) {
+            return { expired: true, shiftStr, shiftEndTime };
+        }
+
+        return { expired: false };
+    } catch (e) {
+        console.error("Error validando horario de turno en login:", e);
+        return { expired: false };
+    }
+}
+
 // Alert if opened as file
 if (window.location.protocol === 'file:') {
     alert("¡ATENCIÓN! Estás abriendo la plataforma directamente como un archivo local (file:///).\n\nPor seguridad, el sistema de envío de correos (FormSubmit) bloquea estos envíos.\nDebes abrir la plataforma usando un servidor web local (ej. http://localhost:8080).");
@@ -191,6 +307,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     loginError.textContent = "Tu cuenta está pendiente de aprobación por un supervisor.";
                     loginError.style.display = 'block';
                     await firebase.auth().signOut();
+                    return;
+                }
+
+                // Validar si el turno asignado ya finalizó hoy (Regla de negocio para Gestores)
+                const shiftCheck = await checkShiftExpirationOnLogin(dbUser);
+                if (shiftCheck && shiftCheck.expired) {
+                    loginError.textContent = "Su turno ha finalizado";
+                    loginError.style.display = 'block';
+                    await firebase.auth().signOut();
+                    localStorage.removeItem('riskOps_currentUser');
                     return;
                 }
 

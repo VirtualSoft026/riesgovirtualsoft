@@ -73,6 +73,7 @@
                 <a href="#" class="nav-item" id="navTeletrabajo" style="display: none;"><i class='bx bx-home-alt'></i> Teletrabajo</a>
                 <a href="#" class="nav-item" id="navDocs"><i class='bx bx-folder-open'></i> Documentación</a>
                 <a href="#" class="nav-item" id="navPermisos"><i class='bx bx-check-shield'></i> Historial de permisos</a>
+                <a href="#" class="nav-item" id="navNovedades"><i class='bx bx-comment-detail'></i> Novedades y Soportes</a>
                 <div id="adminNavGroup" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
                     <div style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; padding-left: 15px;">Supervisión</div>
                     <a href="#" class="nav-item" id="navAdminComunicados" style="display: none;"><i class='bx bx-broadcast'></i> Gestión Comunicados</a>
@@ -152,10 +153,14 @@
                         <i class='bx bx-list-ul'></i> Procesos (SETs)
                     </div>
                     
-                    <div style="margin-bottom: 15px;">
-                        <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; display: block;">Selecciona tu SET a trabajar:</label>
+                    <div style="margin-bottom: 15px; display: flex; flex-direction: column; gap: 8px;">
+                        <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 2px; display: block;">Selecciona tu SET a trabajar:</label>
                         <select id="activeSetSelect" class="modern-input" style="padding: 8px;">
                             <option value="Todos">Mostrar Todos</option>
+                        </select>
+                        <label style="font-size: 12px; color: var(--text-secondary); margin-top: 5px; margin-bottom: 2px; display: block;">Filtrar por Responsable:</label>
+                        <select id="filter-assignee" class="modern-input" style="padding: 8px;" onchange="renderAssignedTasksFilter()">
+                            <option value="Todos">Todos los Responsables</option>
                         </select>
                     </div>
 
@@ -205,6 +210,12 @@
                     
                     <div class="kpi-card">
                         <!-- KPI se inyecta dinámicamente -->
+                    </div>
+
+                    <!-- Contador Operacional Atómico -->
+                    <div class="metric-approved-widget glass-panel" style="margin-top: 15px; padding: 15px; text-align: center; border-radius: 12px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2);">
+                        <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--success); font-weight: 700; display: block;">Retiros Aprobados (Global)</span>
+                        <span id="metric-approved-count" style="font-size: 28px; font-weight: 800; color: var(--success); display: inline-block; transition: transform 0.3s ease;">0</span>
                     </div>
 
                     <div class="documentation-shortcut">
@@ -911,6 +922,67 @@
                     <h2 class="panel-title" style="margin-bottom: 20px; color: var(--accent-primary);"><i class='bx bx-news'></i> Comunicados e Información Importante</h2>
                     <div id="gestorComunicadosList" style="display: flex; flex-direction: column; gap: 15px;">
                         <!-- Comunicados dinámicos irán aquí -->
+                    </div>
+                </div>
+
+                <!-- Vista: Novedades y Comentarios (Soportes) -->
+                <div id="view-novedades" class="view-panel" style="display: none; padding: 20px; overflow-y: auto; width: 100%; box-sizing: border-box; flex: 1;">
+                    <h2 class="panel-title" style="margin-bottom: 20px; color: var(--accent-primary);"><i class='bx bx-comment-detail'></i> Novedades, Incidentes y Soportes</h2>
+                    
+                    <div class="grid-2-cols" style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px;">
+                        <!-- Formulario de Novedad -->
+                        <div class="glass-panel" style="padding: 20px;">
+                            <h3 style="margin-top: 0; font-size: 16px; color: var(--text-primary); margin-bottom: 15px;"><i class='bx bx-plus-circle'></i> Registrar Novedad / Incidente</h3>
+                            <form id="incidentForm" onsubmit="handleNewIncidentSubmit(event)">
+                                <div style="margin-bottom: 12px;">
+                                    <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Tipo de Incidente</label>
+                                    <select id="incidentType" class="modern-input" style="width: 100%; padding: 10px;" required>
+                                        <option value="Soporte Técnico">Soporte Técnico</option>
+                                        <option value="Falla de Sistema">Falla de Sistema</option>
+                                        <option value="Bloqueo de Plataforma">Bloqueo de Plataforma</option>
+                                        <option value="Inconveniente de Retiro">Inconveniente de Retiro</option>
+                                        <option value="Novedad Operativa">Novedad Operativa</option>
+                                        <option value="Otro">Otro</option>
+                                    </select>
+                                </div>
+                                <div style="margin-bottom: 12px;">
+                                    <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Título de la Novedad</label>
+                                    <input type="text" id="incidentTitle" class="modern-input" placeholder="Ej: Error en pasarela de pago..." style="width: 100%; padding: 10px;" required>
+                                </div>
+                                <div style="margin-bottom: 12px;">
+                                    <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Responsable / Afiliado</label>
+                                    <input type="text" id="incidentAssignee" class="modern-input" placeholder="Gestor o Responsable..." style="width: 100%; padding: 10px;">
+                                </div>
+                                <div style="margin-bottom: 15px;">
+                                    <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Detalle / Observaciones</label>
+                                    <textarea id="incidentDetail" class="modern-input" placeholder="Describe los detalles del incidente..." style="width: 100%; height: 100px; padding: 10px;" required></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary" style="width: 100%; height: 42px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                    <i class='bx bx-send'></i> Registrar Novedad
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Tabla de Novedades -->
+                        <div class="glass-panel" style="padding: 20px;">
+                            <h3 style="margin-top: 0; font-size: 16px; color: var(--text-primary); margin-bottom: 15px;"><i class='bx bx-list-check'></i> Historial de Novedades Registradas</h3>
+                            <div class="table-container" style="max-height: 500px; overflow-y: auto;">
+                                <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                                    <thead>
+                                        <tr style="border-bottom: 1px solid var(--glass-border);">
+                                            <th style="padding: 10px; text-align: left;">Fecha/Hora</th>
+                                            <th style="padding: 10px; text-align: left;">Tipo</th>
+                                            <th style="padding: 10px; text-align: left;">Título / Detalle</th>
+                                            <th style="padding: 10px; text-align: left;">Reportado Por</th>
+                                            <th style="padding: 10px; text-align: center;">Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="incidentsTableBody">
+                                        <tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--text-secondary);">Cargando novedades...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
