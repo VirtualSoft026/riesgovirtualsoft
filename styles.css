@@ -1112,7 +1112,7 @@ select.modern-input option { background-color: #ffffff; color: #000000; }
     #printReportContainer {
         display: block !important;
         /* Márgenes para no pisar el encabezado y pie de página del membrete */
-        padding-top: 150px; 
+        padding-top: 0px; 
         padding-bottom: 120px;
         padding-left: 40px;
         padding-right: 40px;

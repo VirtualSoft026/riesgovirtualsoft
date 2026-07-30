@@ -1291,11 +1291,7 @@
                             <p id="printReportMeta" style="color: #333; font-size: 12pt; margin: 0;"></p>
                         </div>
                         
-                        <!-- IA Analysis Text -->
-                        <div id="printAnalysisText" class="rich-text" style="font-size: 12pt; line-height: 2; margin-bottom: 30px; text-align: justify;">
-                        </div>
-
-                        <!-- Charts Container -->
+                        <!-- Charts Container (FIRST) -->
                         <div class="print-charts">
                             <div style="page-break-inside: avoid; margin-bottom: 30px;">
                                 <h3 style="color: #000; text-align: center; margin-bottom: 10px; font-size: 14pt; font-weight: bold;">Top Alerta Tardanzas</h3>
@@ -1314,11 +1310,15 @@
                                 <img id="printChart4" src="" style="width: 100%; max-width: 600px; display: block; margin: 0 auto;">
                             </div>
                             <div style="page-break-inside: avoid; margin-bottom: 30px;">
-                                <h3 style="color: #000; text-align: center; margin-bottom: 10px; font-size: 14pt; font-weight: bold;">Aprobaciones por Día</h3>
+                                <h3 style="color: #000; text-align: center; margin-bottom: 10px; font-size: 14pt; font-weight: bold;">Evolución Diaria de Retiros</h3>
                                 <img id="printChart2" src="" style="width: 100%; max-width: 600px; display: block; margin: 0 auto;">
                             </div>
                             <div id="printTableContainer" style="page-break-inside: auto; margin-bottom: 30px; display: block;">
                             </div>
+                        </div>
+
+                        <!-- IA Analysis Text (AFTER charts and table) -->
+                        <div id="printAnalysisText" class="rich-text" style="font-size: 12pt; line-height: 2; margin-bottom: 30px; text-align: justify;">
                         </div>
                         
                     </td>
