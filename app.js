@@ -6009,11 +6009,12 @@ async function loadControlOperativoData() {
                             }
                             
                             // Calculate tardanza
+                            // Calculate tardanza
                             let tardMins = 0;
+                            let loginDate = report.loginTime ? new Date(report.loginTime) : null;
                             if (report.tardanzaMins !== undefined) {
                                 tardMins = report.tardanzaMins;
                             } else {
-                                let loginDate = report.loginTime ? new Date(report.loginTime) : null;
                                 if (!loginDate && report.horaInicio) {
                                     try {
                                         let parts = report.horaInicio.split(',');
@@ -6067,9 +6068,13 @@ async function loadControlOperativoData() {
                             // Add to raw data
                             window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Inactividad_Total = (window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Inactividad_Total || 0) + inactMins;
                             
-                            // Guardar solo la llegada tardía del PRIMER turno/inicio de sesión del día
-                            if (window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Tarde_Total === undefined || 
-                                (window.controlOperativoRawData[realGestor][reportDateStr]._earliestLogin && loginDate && loginDate < window.controlOperativoRawData[realGestor][reportDateStr]._earliestLogin)) {
+                            // Guardar la tardanza considerando el primer ingreso del día (o si reporta tardanza mayor a 0)
+                            const currentStoredTard = window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Tarde_Total;
+                            if (currentStoredTard === undefined || (tardMins > 0 && currentStoredTard === 0)) {
+                                window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Tarde_Total = tardMins;
+                                window.controlOperativoRawData[realGestor][reportDateStr].Dias_Tarde = tardMins > 0 ? 1 : 0;
+                                if (loginDate) window.controlOperativoRawData[realGestor][reportDateStr]._earliestLogin = loginDate;
+                            } else if (loginDate && window.controlOperativoRawData[realGestor][reportDateStr]._earliestLogin && loginDate < window.controlOperativoRawData[realGestor][reportDateStr]._earliestLogin) {
                                 window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Tarde_Total = tardMins;
                                 window.controlOperativoRawData[realGestor][reportDateStr].Dias_Tarde = tardMins > 0 ? 1 : 0;
                                 window.controlOperativoRawData[realGestor][reportDateStr]._earliestLogin = loginDate;
