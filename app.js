@@ -5667,7 +5667,8 @@ function generarAnalisisTextual() {
     }
     
     const excludedGestores = ['Sara Santamaría Foronda', 'Maria Sanchez', 'Sara', 'Maria', 'Camilo Espinosa', 'Camilo'];
-    const filtroGestor = document.getElementById('filtroGestorOperativo').value;
+    const selectedGestoresPDF = getSelectedMultiSelectValues('operativoGestorMultiSelect');
+    const filtroGestor = selectedGestoresPDF.length === 1 ? selectedGestoresPDF[0] : (selectedGestoresPDF.length === 0 ? 'Todos' : 'Varios');
     
     // Calcular fechas del filtro actual (reutilizando la lógica existente o leyendo las fechas)
     const filtroFecha = document.getElementById('filtroFechaOperativo').value;
@@ -5683,10 +5684,10 @@ function generarAnalisisTextual() {
 
     // First pass: aggregate data
     for (const gestor in window.controlOperativoRawData) {
-        if (filtroGestor !== 'Todos' && gestor !== filtroGestor) continue;
+        if (selectedGestoresPDF.length > 0 && !selectedGestoresPDF.includes(gestor)) continue;
         
         // Exclude specific users if we are looking at "Todos"
-        if (filtroGestor === 'Todos' && excludedGestores.some(ex => gestor.includes(ex))) {
+        if (selectedGestoresPDF.length === 0 && excludedGestores.some(ex => gestor.includes(ex))) {
             excludedCount++;
             continue;
         }
@@ -6341,7 +6342,7 @@ function renderControlOperativoFiltered() {
 }
 
 function renderControlOperativoCharts(data, dailyData, selectedGestor) {
-    const isGlobal = (selectedGestor === 'Todos');
+    const isGlobal = (selectedGestor === 'Todos' || selectedGestor.includes('Gestores'));
     
     // UI titles update
     const elTitlePeores = document.getElementById('titleTardanzasPeores');
@@ -6365,12 +6366,13 @@ function renderControlOperativoCharts(data, dailyData, selectedGestor) {
     }
 
     let activeData = {};
-    if (isGlobal) {
+    const selectedGestoresList = getSelectedMultiSelectValues('operativoGestorMultiSelect');
+    if (isGlobal || selectedGestoresList.length === 0) {
         activeData = data;
     } else {
-        if (data[selectedGestor]) {
-            activeData[selectedGestor] = data[selectedGestor];
-        }
+        selectedGestoresList.forEach(g => {
+            if (data[g]) activeData[g] = data[g];
+        });
     }
     
     const gestores = Object.keys(activeData);
