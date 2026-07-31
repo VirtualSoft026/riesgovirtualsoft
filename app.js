@@ -6097,16 +6097,16 @@ async function loadControlOperativoData() {
                             
                             // Calculate inactivity for this report using timeline directly to enforce 10-hour max shift
                             let inactMins = 0;
-                            let loginDate = report.loginTime ? new Date(report.loginTime) : (report.timestamp ? new Date(report.timestamp) : null);
-                            const maxEndTime = loginDate ? loginDate.getTime() + (10 * 60 * 60 * 1000) : Date.now() + 99999999;
+                            let shiftLoginDate = report.loginTime ? new Date(report.loginTime) : (report.timestamp ? new Date(report.timestamp) : null);
+                            const maxEndTime = shiftLoginDate ? shiftLoginDate.getTime() + (10 * 60 * 60 * 1000) : Date.now() + 99999999;
                             
                             if (report.timeline && report.timeline.length > 0) {
                                 const now = Date.now();
                                 report.timeline.forEach(ev => {
                                     if (ev.type === 'Inactividad') {
-                                        if (loginDate && ev.start > maxEndTime) return; // Skip if after 10h
+                                        if (shiftLoginDate && ev.start > maxEndTime) return; // Skip if after 10h
                                         let eTime = ev.end ? ev.end : now;
-                                        if (loginDate && eTime > maxEndTime) eTime = maxEndTime; // Cap if overlaps 10h limit
+                                        if (shiftLoginDate && eTime > maxEndTime) eTime = maxEndTime; // Cap if overlaps 10h limit
                                         let mins = (eTime - ev.start) / (1000 * 60);
                                         if (mins > 0) inactMins += mins;
                                     }

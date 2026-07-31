@@ -12,8 +12,8 @@ MSTR_BASE_URL = "https://env-i921eu432wwh4k73.cloud.strategy.com/MicroStrategyLi
 MSTR_PROJECT_NAME = "Virtualsoft" # Nombre del proyecto si no se conoce el ID
 MSTR_PROJECT_ID = "" # Se autocompletará si se deja en blanco y el nombre coincide
 MSTR_REPORT_ID = "B8B21D45184E89DD2A5A0898940B66A1"
-MSTR_USERNAME = "maria.sanchez"
-MSTR_PASSWORD = "Marzo0393*"
+MSTR_USERNAME = ""
+MSTR_PASSWORD = ""
 
 def get_firebase_gestores():
     try:
