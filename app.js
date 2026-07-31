@@ -4791,10 +4791,7 @@ async function calcularIndicadores() {
         }
     }
     
-    if (selectedGestores.length > 0) {
-        shiftReports = shiftReports.filter(r => selectedGestores.some(g => normalizeName(r.gestor || r.name) === normalizeName(g)));
-    }
-    
+    // The shiftReports are already filtered by gestor using checkGestorMatch above.
     if (shiftReports.length === 0) {
         console.warn(`No hay reportes de turno para ${gestorName} en esta fecha/periodo.`);
         // No hacer return, permitir que el código continúe para cargar los datos de Retiros
@@ -6095,6 +6092,7 @@ async function loadControlOperativoData() {
                             // Calculate tardanza
                             // Calculate tardanza
                             let tardMins = 0;
+                            let isFueraDeHorario = false;
                             let loginDate = report.loginTime ? new Date(report.loginTime) : null;
                             if (report.tardanzaMins !== undefined) {
                                 tardMins = report.tardanzaMins;
@@ -6142,7 +6140,11 @@ async function loadControlOperativoData() {
                                             diffMinutes = (loginDate - expected) / 60000;
                                         }
                                         
-                                        if (diffMinutes > 5 && diffMinutes <= 240) {
+                                        if (diffMinutes > 240) {
+                                            isFueraDeHorario = true;
+                                        }
+                                        
+                                        if (diffMinutes > 5 && !isFueraDeHorario) {
                                             tardMins = Math.round(diffMinutes);
                                         }
                                     }
@@ -6150,7 +6152,9 @@ async function loadControlOperativoData() {
                             }
                             
                             // Add to raw data
-                            window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Inactividad_Total = (window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Inactividad_Total || 0) + inactMins;
+                            if (!isFueraDeHorario) {
+                                window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Inactividad_Total = (window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Inactividad_Total || 0) + inactMins;
+                            }
                             
                             // Guardar la tardanza considerando el primer ingreso del día (o si reporta tardanza mayor a 0)
                             const currentStoredTard = window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Tarde_Total;
@@ -6270,9 +6274,9 @@ function renderControlOperativoFiltered() {
                 inRange = true;
             } else if (selectedFecha === '30' && fecha >= thirtyDaysAgoStr && fecha <= todayStr) {
                 inRange = true;
-            } else if (selectedFecha === 'mes' && fecha.substring(0, 7) === thisMonth) {
+            } else if (selectedFecha === 'thisMonth' && fecha.substring(0, 7) === thisMonth) {
                 inRange = true;
-            } else if (selectedFecha === 'mes_anterior' && fecha.substring(0, 7) === lastMonth) {
+            } else if (selectedFecha === 'lastMonth' && fecha.substring(0, 7) === lastMonth) {
                 inRange = true;
             } else if (selectedFecha === 'custom' && customStart && customEnd && fecha >= customStart && fecha <= customEnd) {
                 inRange = true;
