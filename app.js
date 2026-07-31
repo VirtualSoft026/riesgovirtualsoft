@@ -4128,15 +4128,18 @@ function calculateShiftDelay(session) {
     let diffMinutes = (loginDate - expected) / 60000;
     
     if (diffMinutes < -12 * 60) {
-        expected.setDate(expected.getDate() + 1);
+        expected.setDate(expected.getDate() - 1);
         diffMinutes = (loginDate - expected) / 60000;
     } else if (diffMinutes > 12 * 60) {
-        expected.setDate(expected.getDate() - 1);
+        expected.setDate(expected.getDate() + 1);
         diffMinutes = (loginDate - expected) / 60000;
     }
     
     if (diffMinutes <= 5) {
         return `<span style="background: var(--success); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 5px;" title="Límite: ${expected.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}">A tiempo</span>`;
+    } else if (diffMinutes > 240) {
+        // Fuera del horario: > 4 horas tarde no se considera "tardanza" de este turno
+        return `<span style="background: rgba(139,92,246,0.15); color: #8b5cf6; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 5px;" title="Límite: ${expected.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}">Fuera de Horario</span>`;
     } else {
         const tardanza = Math.round(diffMinutes);
         return `<span style="background: var(--danger); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 5px;" title="Límite: ${expected.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}">+${tardanza}m Tarde</span>`;
@@ -4708,12 +4711,9 @@ async function calcularIndicadores() {
     try {
         let snapshotReports, snapshotActive;
         
-        if (gestorName === 'todos') {
+        if (gestorName === 'todos' || selectedGestores.length > 0) {
             snapshotReports = await database.ref('shift_reports').once('value');
             snapshotActive = await database.ref('active_sessions').once('value');
-        } else {
-            snapshotReports = await database.ref('shift_reports').orderByChild('gestor').equalTo(gestorName).once('value');
-            snapshotActive = await database.ref('active_sessions').orderByChild('name').equalTo(gestorName).once('value');
         }
         
         if (snapshotReports.exists()) {
@@ -4730,6 +4730,19 @@ async function calcularIndicadores() {
                 timestamp: typeof session.loginTime === 'string' ? new Date(session.loginTime).getTime() : session.loginTime
             }));
             shiftReports = shiftReports.concat(activeArr);
+        }
+        
+        if (selectedGestores.length > 0 && gestorName !== 'todos') {
+            const checkGestorMatch = (fbGestor, mstrGestoresList) => {
+                if (!fbGestor) return false;
+                const normFb = fbGestor.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                return mstrGestoresList.some(mstrGestor => {
+                    const normMstr = mstrGestor.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    const partsFb = normFb.split(' ');
+                    return partsFb.every(p => normMstr.includes(p));
+                });
+            };
+            shiftReports = shiftReports.filter(report => checkGestorMatch(report.gestor, selectedGestores));
         }
     } catch(e) {
         console.error("Error cargando shift reports para KPIs", e);
@@ -6083,14 +6096,14 @@ async function loadControlOperativoData() {
                                         let diffMinutes = (loginDate - expected) / 60000;
                                         
                                         if (diffMinutes < -12 * 60) {
-                                            expected.setDate(expected.getDate() + 1);
+                                            expected.setDate(expected.getDate() - 1);
                                             diffMinutes = (loginDate - expected) / 60000;
                                         } else if (diffMinutes > 12 * 60) {
-                                            expected.setDate(expected.getDate() - 1);
+                                            expected.setDate(expected.getDate() + 1);
                                             diffMinutes = (loginDate - expected) / 60000;
                                         }
                                         
-                                        if (diffMinutes > 5) {
+                                        if (diffMinutes > 5 && diffMinutes <= 240) {
                                             tardMins = Math.round(diffMinutes);
                                         }
                                     }
@@ -7180,10 +7193,20 @@ function renderLoginHistoryTable(records) {
                 
                 const expected = new Date(loginDateObj);
                 expected.setHours(hour, minute, 0, 0);
-                const diffMin = (loginDateObj - expected) / (1000 * 60);
+                let diffMin = (loginDateObj - expected) / (1000 * 60);
+
+                if (diffMin < -12 * 60) {
+                    expected.setDate(expected.getDate() - 1);
+                    diffMin = (loginDateObj - expected) / (1000 * 60);
+                } else if (diffMin > 12 * 60) {
+                    expected.setDate(expected.getDate() + 1);
+                    diffMin = (loginDateObj - expected) / (1000 * 60);
+                }
 
                 if (diffMin <= 5) {
                     delayBadge = `<span style="background: rgba(16,185,129,0.15); color: var(--success); padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; margin-left: 6px;">A tiempo</span>`;
+                } else if (diffMin > 240) {
+                    delayBadge = `<span style="background: rgba(139,92,246,0.15); color: #8b5cf6; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; margin-left: 6px;">Fuera de Horario</span>`;
                 } else {
                     const tardanza = Math.round(diffMin);
                     delayBadge = `<span style="background: rgba(239,68,68,0.15); color: var(--danger); padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; margin-left: 6px;">+${tardanza}m Tarde</span>`;
