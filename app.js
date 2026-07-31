@@ -4736,8 +4736,8 @@ async function calcularIndicadores() {
                 const normFb = fbGestor.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                 return mstrGestoresList.some(sel => {
                     const normMstr = sel.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                    const fbParts = normFb.split(' ');
-                    return fbParts.every(p => normMstr.includes(p));
+                    const mstrParts = normMstr.split(' ');
+                    return mstrParts.every(p => normFb.includes(p));
                 });
             };
             shiftReports = shiftReports.filter(report => checkGestorMatch(report.gestor, selectedGestores));
@@ -5039,9 +5039,16 @@ async function calcularIndicadores() {
             });
 
             let fallbackMins = 0;
+            const loginDate = report.loginTime ? new Date(report.loginTime) : (report.timestamp ? new Date(report.timestamp) : null);
+            const maxEndTime = loginDate ? loginDate.getTime() + (10 * 60 * 60 * 1000) : Date.now() + 99999999;
+
             cleanTimeline.forEach(ev => {
                 if (ev.type === 'Inactividad') {
-                    fallbackMins += (ev.end - ev.start) / (1000 * 60);
+                    if (loginDate && ev.start > maxEndTime) return;
+                    let eTime = ev.end ? ev.end : Date.now();
+                    if (loginDate && eTime > maxEndTime) eTime = maxEndTime;
+                    let mins = (eTime - ev.start) / (1000 * 60);
+                    if (mins > 0) fallbackMins += mins;
                 }
             });
             totalInactividadMins += Math.min(fallbackMins, 480);
@@ -5164,10 +5171,23 @@ async function calcularIndicadores() {
             if (penalidadRetiros > 30) penalidadRetiros = 30; // Cap
         }
         
-        if (cardRetiros) cardRetiros.style.display = 'flex';
+        if (cardRetiros) {
+            if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
+                cardRetiros.style.display = 'none';
+            } else {
+                cardRetiros.style.display = 'flex';
+            }
+        }
         if (textPenalidad) textPenalidad.textContent = `-${penalidadRetiros}%`;
         if (textDemora) textDemora.textContent = `Promedio: ${Math.round(avgDemoraMins)} min / ${finalStats.retirosConTiempo} retiros`;
     } else {
+        if (cardRetiros) cardRetiros.style.display = 'none';
+    }
+    
+    // Hide Rendimiento Retiros for Gestor
+    const kpiRendimientoRetirosCard = document.getElementById('kpiRendimientoRetirosCard'); // we need to make sure this is the right ID
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
+        document.querySelectorAll('.retiros-card').forEach(el => el.style.display = 'none');
         if (cardRetiros) cardRetiros.style.display = 'none';
     }
     
@@ -6075,18 +6095,24 @@ async function loadControlOperativoData() {
                                 };
                             }
                             
-                            // Calculate inactivity for this report
+                            // Calculate inactivity for this report using timeline directly to enforce 10-hour max shift
                             let inactMins = 0;
-                            if (report.inactividadTotalMins !== undefined) {
-                                inactMins = report.inactividadTotalMins;
-                            } else if (report.timeline && report.timeline.length > 0) {
+                            let loginDate = report.loginTime ? new Date(report.loginTime) : (report.timestamp ? new Date(report.timestamp) : null);
+                            const maxEndTime = loginDate ? loginDate.getTime() + (10 * 60 * 60 * 1000) : Date.now() + 99999999;
+                            
+                            if (report.timeline && report.timeline.length > 0) {
                                 const now = Date.now();
                                 report.timeline.forEach(ev => {
                                     if (ev.type === 'Inactividad') {
+                                        if (loginDate && ev.start > maxEndTime) return; // Skip if after 10h
                                         let eTime = ev.end ? ev.end : now;
-                                        inactMins += (eTime - ev.start) / (1000 * 60);
+                                        if (loginDate && eTime > maxEndTime) eTime = maxEndTime; // Cap if overlaps 10h limit
+                                        let mins = (eTime - ev.start) / (1000 * 60);
+                                        if (mins > 0) inactMins += mins;
                                     }
                                 });
+                            } else if (report.inactividadTotalMins !== undefined) {
+                                inactMins = report.inactividadTotalMins; // Fallback only if no timeline
                             }
                             
                             // Calculate tardanza
@@ -6218,8 +6244,8 @@ function renderControlOperativoFiltered() {
     
     const thisMonth = todayStr.substring(0, 7);
     
-    const lastMonthDate = new Date();
-    lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
+    const nowD = new Date();
+    const lastMonthDate = new Date(nowD.getFullYear(), nowD.getMonth() - 1, 1);
     const lastMonth = getLocalYYYYMMDD(lastMonthDate).substring(0, 7);
 
     const customStart = document.getElementById('operativoDateStart')?.value;
