@@ -5058,7 +5058,21 @@ async function calcularIndicadores() {
             }
         }
         
-        const gestoresToCheck = gestorName === 'todos' ? Object.keys(window.controlOperativoRawData) : [gestorName];
+        let gestoresToCheck = [];
+        if (gestorName === 'todos') {
+            gestoresToCheck = Object.keys(window.controlOperativoRawData);
+        } else {
+            const rawKeys = Object.keys(window.controlOperativoRawData);
+            let realGestor = rawKeys.find(k => k === gestorName);
+            if (!realGestor) {
+                const parts = gestorName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(' ');
+                realGestor = rawKeys.find(k => {
+                    const normK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    return parts.every(p => normK.includes(p));
+                });
+            }
+            gestoresToCheck = realGestor ? [realGestor] : [gestorName];
+        }
         
         for (let g of gestoresToCheck) {
             if (!window.controlOperativoRawData[g]) continue; 
@@ -6147,7 +6161,6 @@ function renderControlOperativoFiltered() {
             Retiros_Aprobados: 0,
             Retiros_Rechazados: 0,
             Tiempo_Total_Desde_Creacion_Segundos: 0,
-            Retiros_Con_Fuga: 0,
             Dias_Tarde: 0,
             Minutos_Tarde_Total: 0,
             Minutos_Inactividad_Total: 0,
@@ -6159,7 +6172,6 @@ function renderControlOperativoFiltered() {
                 Retiros_Aprobados: 0,
                 Retiros_Rechazados: 0,
                 Tiempo_Total_Desde_Creacion_Segundos: 0,
-                Retiros_Con_Fuga: 0,
                 Dias_Tarde: 0,
                 Minutos_Tarde_Total: 0,
                 Minutos_Inactividad_Total: 0,
@@ -6194,7 +6206,6 @@ function renderControlOperativoFiltered() {
                 aggregatedDataGlobal[gestor].Retiros_Aprobados += d.Retiros_Aprobados || 0;
                 aggregatedDataGlobal[gestor].Retiros_Rechazados += d.Retiros_Rechazados || 0;
                 aggregatedDataGlobal[gestor].Tiempo_Total_Desde_Creacion_Segundos += d.Tiempo_Total_Desde_Creacion_Segundos || 0;
-                aggregatedDataGlobal[gestor].Retiros_Con_Fuga += d.Retiros_Con_Fuga || 0;
                 aggregatedDataGlobal[gestor].Dias_Tarde += d.Dias_Tarde || 0;
                 aggregatedDataGlobal[gestor].Minutos_Tarde_Total += d.Minutos_Tarde_Total || 0;
                 aggregatedDataGlobal[gestor].Minutos_Inactividad_Total += d.Minutos_Inactividad_Total || 0;
@@ -6211,7 +6222,6 @@ function renderControlOperativoFiltered() {
                     aggregatedData[gestor].Retiros_Aprobados += d.Retiros_Aprobados || 0;
                     aggregatedData[gestor].Retiros_Rechazados += d.Retiros_Rechazados || 0;
                     aggregatedData[gestor].Tiempo_Total_Desde_Creacion_Segundos += d.Tiempo_Total_Desde_Creacion_Segundos || 0;
-                    aggregatedData[gestor].Retiros_Con_Fuga += d.Retiros_Con_Fuga || 0;
                     aggregatedData[gestor].Dias_Tarde += d.Dias_Tarde || 0;
                     aggregatedData[gestor].Minutos_Tarde_Total += d.Minutos_Tarde_Total || 0;
                     aggregatedData[gestor].Minutos_Inactividad_Total += d.Minutos_Inactividad_Total || 0;
@@ -6230,8 +6240,7 @@ function renderControlOperativoFiltered() {
         d.Prom_Inactividad_Diaria = Math.round((d.Minutos_Inactividad_Total / dl) * 100) / 100;
         d.Retiros_Procesados = d.Retiros_Aprobados + d.Retiros_Rechazados;
         d.ART_Desde_Creacion_Minutos = d.Retiros_Procesados > 0 ? Math.round((d.Tiempo_Total_Desde_Creacion_Segundos / d.Retiros_Procesados) / 60 * 100) / 100 : 0;
-        d.Porcentaje_Fuga = d.Retiros_Aprobados > 0 ? Math.round((d.Retiros_Con_Fuga / d.Retiros_Aprobados) * 100 * 100) / 100 : 0;
-        d.Porcentaje_Rechazos = d.Retiros_Aprobados > 0 ? Math.round((d.Retiros_Rechazados / d.Retiros_Aprobados) * 100 * 100) / 100 : 0;
+        d.Porcentaje_Rechazos = d.Retiros_Procesados > 0 ? Math.round((d.Retiros_Rechazados / d.Retiros_Procesados) * 100 * 100) / 100 : 0;
         d.Tasa_Aprobacion_Dia = Math.round((d.Retiros_Aprobados / dl) * 100) / 100;
     }
 
@@ -6244,8 +6253,7 @@ function renderControlOperativoFiltered() {
         d.Prom_Inactividad_Diaria = Math.round((d.Minutos_Inactividad_Total / dl) * 100) / 100;
         d.Retiros_Procesados = d.Retiros_Aprobados + d.Retiros_Rechazados;
         d.ART_Desde_Creacion_Minutos = d.Retiros_Procesados > 0 ? Math.round((d.Tiempo_Total_Desde_Creacion_Segundos / d.Retiros_Procesados) / 60 * 100) / 100 : 0;
-        d.Porcentaje_Fuga = d.Retiros_Aprobados > 0 ? Math.round((d.Retiros_Con_Fuga / d.Retiros_Aprobados) * 100 * 100) / 100 : 0;
-        d.Porcentaje_Rechazos = d.Retiros_Aprobados > 0 ? Math.round((d.Retiros_Rechazados / d.Retiros_Aprobados) * 100 * 100) / 100 : 0;
+        d.Porcentaje_Rechazos = d.Retiros_Procesados > 0 ? Math.round((d.Retiros_Rechazados / d.Retiros_Procesados) * 100 * 100) / 100 : 0;
         d.Tasa_Aprobacion_Dia = Math.round((d.Retiros_Aprobados / dl) * 100) / 100;
     }
     
@@ -6370,8 +6378,21 @@ function renderControlOperativoCharts(data, dailyData, selectedGestor) {
     if (isGlobal || selectedGestoresList.length === 0) {
         activeData = data;
     } else {
+        const rawKeys = Object.keys(data);
         selectedGestoresList.forEach(g => {
-            if (data[g]) activeData[g] = data[g];
+            let realGestor = rawKeys.find(k => k === g);
+            if (!realGestor) {
+                const parts = g.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(' ');
+                realGestor = rawKeys.find(k => {
+                    const normK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    return parts.every(p => normK.includes(p));
+                });
+            }
+            if (realGestor && data[realGestor]) {
+                activeData[realGestor] = data[realGestor];
+            } else if (data[g]) {
+                activeData[g] = data[g];
+            }
         });
     }
     
@@ -6411,9 +6432,19 @@ function renderControlOperativoCharts(data, dailyData, selectedGestor) {
     
     } else {
         // SINGLE GESTOR:
+        let realSelectedGestor = Object.keys(window.controlOperativoRawData).find(k => k === selectedGestor);
+        if (!realSelectedGestor) {
+            const parts = selectedGestor.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(' ');
+            realSelectedGestor = Object.keys(window.controlOperativoRawData).find(k => {
+                const normK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                return parts.every(p => normK.includes(p));
+            });
+        }
+        if (!realSelectedGestor) realSelectedGestor = selectedGestor;
+
         // 1. Fechas con Llegadas Tarde (Show all dates in sortedDates with red bars for late minutes)
         const dailyLateMins = sortedDates.map(date => {
-            const raw = window.controlOperativoRawData[selectedGestor]?.[date];
+            const raw = window.controlOperativoRawData[realSelectedGestor]?.[date];
             return (raw && (raw.Minutos_Tarde_Total || 0) > 0) ? raw.Minutos_Tarde_Total : 0;
         });
 
@@ -6449,7 +6480,7 @@ function renderControlOperativoCharts(data, dailyData, selectedGestor) {
         // 2. Fechas de Conexión a Tiempo (Dates where Dias_Laborados > 0 AND Minutos_Tarde_Total === 0)
         const punctualDates = [];
         sortedDates.forEach(date => {
-            const raw = window.controlOperativoRawData[selectedGestor]?.[date];
+            const raw = window.controlOperativoRawData[realSelectedGestor]?.[date];
             if (raw && raw.Dias_Laborados > 0 && (raw.Minutos_Tarde_Total || 0) === 0) {
                 punctualDates.push(date);
             }
@@ -6465,7 +6496,7 @@ function renderControlOperativoCharts(data, dailyData, selectedGestor) {
 
         // 3. Inactividad Diaria por Fecha
         const dailyInactivityValues = sortedDates.map(date => {
-            return window.controlOperativoRawData[selectedGestor]?.[date]?.Minutos_Inactividad_Total || 0;
+            return window.controlOperativoRawData[realSelectedGestor]?.[date]?.Minutos_Inactividad_Total || 0;
         });
         const dailyBgColors = dailyInactivityValues.map(v => {
             return v > 45 ? 'rgba(245, 108, 108, 0.7)' : (v > 20 ? 'rgba(230, 162, 60, 0.7)' : 'rgba(103, 194, 58, 0.7)');
@@ -6540,10 +6571,10 @@ function renderControlOperativoCharts(data, dailyData, selectedGestor) {
         const volTop = sortBy('Retiros_Procesados');
         drawCombinedChart('chartEficiencia', volTop, activeData);
     } else {
-        drawCombinedChartDaily('chartEficiencia', sortedDates, selectedGestor);
+        drawCombinedChartDaily('chartEficiencia', sortedDates, realSelectedGestor);
     }
     
-    // 6. Matriz de Riesgo: Fugas vs Velocidad / Rechazos
+    // 6. Matriz de Riesgo: % Rechazos vs Tasa Aprobación
     drawScatterMatriz('chartMatrizFuga', gestores, activeData, isGlobal);
 }
 

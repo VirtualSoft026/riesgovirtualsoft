@@ -22,7 +22,7 @@ def get_firebase_gestores():
         mapping = {}
         if users:
             for uid, u in users.items():
-                if u.get('approved') == True:
+                if isinstance(u, dict) and u.get('approved') == True:
                     name = u.get('name', '').strip()
                     email = u.get('email', '').strip().lower()
                     
@@ -56,7 +56,7 @@ print(f"Gestores permitidos cargados dinámicamente desde Firebase: {len(set(GES
 # CONFIGURACIÓN DE CONTRACARGOS
 # ==========================================
 CONTRACARGOS_DIR = r"C:\Users\Maria Alejandra\OneDrive - VIRTUALSOFT SERVICIOS & SOFTWARE S.A.S\General - Gestión de Riesgo\Cambio Estado Dep. y Contracargos\Contracargos 2026"
-OUTPUT_JSON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "kpi_operativos_v2.json")
+OUTPUT_JSON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "kpi_operativos_v2.json")
 
 class MicroStrategyConnector:
     def __init__(self):
@@ -109,7 +109,10 @@ class MicroStrategyConnector:
 
     def extract_flat_data(self, node, current_row, all_rows):
         if 'element' in node:
-            current_row.append(node['element']['formValues'].popitem()[1])
+            form_values = node['element'].get('formValues', {})
+            if form_values:
+                val = list(form_values.values())[0]
+                current_row.append(val)
         if 'children' in node:
             for child in node['children']:
                 self.extract_flat_data(child, current_row.copy(), all_rows)
@@ -120,9 +123,9 @@ class MicroStrategyConnector:
         print(f"Obteniendo datos del reporte {MSTR_REPORT_ID} desde MicroStrategy...")
         all_rows = []
         if False and os.path.exists('temp_mstr_raw_full.json'):
-            print("USANDO ARCHIVO LOCAL temp_mstr_raw_full.json")
+            """print("USANDO ARCHIVO LOCAL temp_mstr_raw_full.json")
             with open('temp_mstr_raw_full.json', 'r', encoding='utf-8') as f:
-                all_rows = json.load(f)
+                all_rows = json.load(f)"""
         elif self.auth_token and self.project_id and MSTR_REPORT_ID:
             headers = {
                 'X-MSTR-AuthToken': self.auth_token,
@@ -256,14 +259,13 @@ class MotorOperativo:
                 self.datos_gestores[agent] = {}
             if fecha not in self.datos_gestores[agent]:
                 self.datos_gestores[agent][fecha] = {
-                    "Dias_Laborados": 1,
-                    "Dias_Tarde": 0,
-                    "Minutos_Tarde_Total": 0,
-                    "Minutos_Inactividad_Total": 0,
                     "Retiros_Aprobados": 0,
                     "Retiros_Rechazados": 0,
                     "Tiempo_Total_Desde_Creacion_Segundos": 0,
-                    "Retiros_Con_Fuga": 0
+                    "Minutos_Inactividad_Total": 0,
+                    "Minutos_Tarde_Total": 0,
+                    "Dias_Tarde": 0,
+                    "Dias_Laborados": 0,
                 }
                 
             estado = row["Estado"].lower()
@@ -274,32 +276,7 @@ class MotorOperativo:
                 
             self.datos_gestores[agent][fecha]["Tiempo_Total_Desde_Creacion_Segundos"] += row["Tiempo_Ciclo_Segundos"]
 
-    def procesar_contracargos(self, retiros_data):
-        print(f"Buscando archivos de contracargos en: {CONTRACARGOS_DIR}")
-        fraudes_user_ids = set()
-        
-        if os.path.exists(CONTRACARGOS_DIR):
-            for file in os.listdir(CONTRACARGOS_DIR):
-                if file.endswith(('.xlsx', '.xls')):
-                    filepath = os.path.join(CONTRACARGOS_DIR, file)
-                    try:
-                        df = pd.read_excel(filepath)
-                        col_user = next((c for c in df.columns if 'user' in str(c).lower() or 'id' in str(c).lower()), None)
-                        if col_user:
-                            for user_id in df[col_user].dropna():
-                                fraudes_user_ids.add(str(user_id).strip())
-                    except Exception as e:
-                        print(f"Error leyendo excel {file}: {e}")
-        else:
-            print("Directorio de contracargos no encontrado o vacío.")
 
-        # Cruce Lógico (Atribución de Fugas)
-        for row in retiros_data:
-            if str(row["User_ID"]).strip() in fraudes_user_ids and row["Estado"].lower() == "aprobado":
-                agent = row["Agent_ID"]
-                fecha = row.get("Fecha_Date", "")
-                if agent in self.datos_gestores and fecha in self.datos_gestores[agent]:
-                    self.datos_gestores[agent][fecha]["Retiros_Con_Fuga"] += 1
 
     def integrar_datos_firebase(self):
         # Todo: Integrate real firebase data for inactividad. Using 0s for now to keep the frontend clean.
@@ -321,21 +298,23 @@ class MotorOperativo:
                     d["ART_Desde_Creacion_Minutos"] = 0
                     
                 if d["Retiros_Aprobados"] > 0:
-                    d["Porcentaje_Fuga"] = round((d["Retiros_Con_Fuga"] / d["Retiros_Aprobados"]) * 100, 2)
+                    d["Porcentaje_Rechazos"] = round((d["Retiros_Rechazados"] / d["Retiros_Procesados"]) * 100, 2)
                 else:
-                    d["Porcentaje_Fuga"] = 0
+                    d["Porcentaje_Rechazos"] = 0
 
     def guardar_json(self):
+        # Guardar en archivo JSON local
         with open(OUTPUT_JSON_PATH, 'w', encoding='utf-8') as f:
             json.dump(self.datos_gestores, f, ensure_ascii=False, indent=2)
         print(f"Resultados unificados guardados en {OUTPUT_JSON_PATH}")
+
+
 
     def run(self):
         self.mstr.authenticate()
         retiros_data = self.mstr.fetch_retiros_data()
             
         self.procesar_retiros_mstr(retiros_data)
-        self.procesar_contracargos(retiros_data)
         self.integrar_datos_firebase()
         self.calcular_metricas_y_scores()
         self.guardar_json()
