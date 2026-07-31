@@ -6158,6 +6158,16 @@ function renderControlOperativoFiltered() {
     let aggregatedDataGlobal = {};
     let dailyData = {};
     
+    const checkGestorMatch = (mstrGestor) => {
+        if (selectedGestores.length === 0) return true;
+        if (selectedGestores.includes(mstrGestor)) return true;
+        const normMstr = mstrGestor.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        return selectedGestores.some(sel => {
+            const parts = sel.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(' ');
+            return parts.every(p => normMstr.includes(p));
+        });
+    };
+    
     for (const gestor in window.controlOperativoRawData) {
         
         aggregatedDataGlobal[gestor] = {
@@ -6170,7 +6180,7 @@ function renderControlOperativoFiltered() {
             Dias_Laborados: 0
         };
 
-        if (selectedGestores.length === 0 || selectedGestores.includes(gestor)) {
+        if (checkGestorMatch(gestor)) {
             aggregatedData[gestor] = {
                 Retiros_Aprobados: 0,
                 Retiros_Rechazados: 0,
@@ -6215,7 +6225,7 @@ function renderControlOperativoFiltered() {
                 aggregatedDataGlobal[gestor].Dias_Laborados += d.Dias_Laborados || 0;
 
                 // Add to Filtered Data (only if this gestor is selected)
-                if (selectedGestores.length === 0 || selectedGestores.includes(gestor)) {
+                if (checkGestorMatch(gestor)) {
                     if (!dailyData[fecha]) {
                         dailyData[fecha] = { Aprobados: 0, Rechazados: 0 };
                     }
