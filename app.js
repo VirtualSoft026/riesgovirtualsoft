@@ -4676,10 +4676,8 @@ async function calcularIndicadores() {
     if (!fechaEl) return;
 
     let gestorName = 'todos';
-    if (selectedGestores.length === 1) {
-        gestorName = selectedGestores[0];
-    } else if (selectedGestores.length > 1) {
-        gestorName = 'todos';
+    if (selectedGestores.length > 0) {
+        gestorName = selectedGestores.length === 1 ? selectedGestores[0] : 'multiple';
     }
 
     const selectedFecha = fechaEl.value;
@@ -4951,9 +4949,48 @@ async function calcularIndicadores() {
     porcentajeActividades = Math.round(porcentajeActividades);
     
     // Calcular Penalidad de Conectividad e Inactividad
-    let totalPenalidadConectividad = 0;
     let totalInactividadMins = 0;
+    let totalPenalidadConectividad = 0;
+    let validInactivitySessions = 0;
     shiftReports.forEach(report => {
+        let isFueraDeHorario = false;
+        if (report.turnoProgramado) {
+            let loginDateObj = report.loginTime ? new Date(report.loginTime) : (report.timestamp ? new Date(report.timestamp) : null);
+            if (!loginDateObj || isNaN(loginDateObj) && report.horaInicio) {
+                try {
+                    let parts = report.horaInicio.split(',');
+                    if (parts.length > 0) {
+                        let dParts = parts[0].trim().split('/');
+                        if (dParts.length === 3) {
+                            let day = parseInt(dParts[0]), month = parseInt(dParts[1]), year = parseInt(dParts[2]);
+                            if (month > 12) { let t = day; day = month; month = t; }
+                            let tStr = parts.length > 1 ? parts[1].trim().replace(/\./g, '').replace(/a\s*m/i, 'AM').replace(/p\s*m/i, 'PM') : "00:00:00";
+                            loginDateObj = new Date(`${month}/${day}/${year} ${tStr}`);
+                        }
+                    }
+                } catch(e) {}
+            }
+            if (loginDateObj && !isNaN(loginDateObj)) {
+                let shiftStr = report.turnoProgramado.toLowerCase().trim();
+                let match = shiftStr.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+                if (match) {
+                    let h = parseInt(match[1]); let m = match[2] ? parseInt(match[2]) : 0;
+                    let ampm = match[3];
+                    if (ampm === 'pm' && h < 12) h += 12;
+                    if (ampm === 'am' && h === 12) h = 0;
+                    let exp = new Date(loginDateObj);
+                    exp.setHours(h, m, 0, 0);
+                    let diffMin = (loginDateObj - exp) / 60000;
+                    if (diffMin < -720) { exp.setDate(exp.getDate() - 1); diffMin = (loginDateObj - exp) / 60000; }
+                    else if (diffMin > 720) { exp.setDate(exp.getDate() + 1); diffMin = (loginDateObj - exp) / 60000; }
+                    if (diffMin > 240) isFueraDeHorario = true;
+                }
+            }
+        }
+        
+        if (isFueraDeHorario) return;
+        validInactivitySessions++;
+        
         if (report.penalidadConectividadMins) {
             // Regla confirmada: 1% menos por cada minuto sobrepasado
             totalPenalidadConectividad += report.penalidadConectividadMins;
@@ -5015,9 +5052,9 @@ async function calcularIndicadores() {
             totalInactividadMins += report.inactividadTotalMins;
         }
     });
-    let diasTrabajados = shiftReports.length || 1;
+    let diasTrabajados = validInactivitySessions || (shiftReports.length ? 1 : 0);
     let totalMinutosEsperados = diasTrabajados * 405; // 6:45 horas = 405 minutos por dia
-    let porcentajeInactividad = (totalInactividadMins / totalMinutosEsperados) * 100;
+    let porcentajeInactividad = totalMinutosEsperados > 0 ? (totalInactividadMins / totalMinutosEsperados) * 100 : 0;
     
     let porcentajeConectividad = 100 - porcentajeInactividad;
     porcentajeConectividad = Number(porcentajeConectividad.toFixed(2));
@@ -5086,19 +5123,21 @@ async function calcularIndicadores() {
         }
         
         let gestoresToCheck = [];
-        if (gestorName === 'todos') {
+        if (selectedGestores.length === 0) {
             gestoresToCheck = Object.keys(window.controlOperativoRawData);
         } else {
             const rawKeys = Object.keys(window.controlOperativoRawData);
-            let realGestor = rawKeys.find(k => k === gestorName);
-            if (!realGestor) {
-                const parts = gestorName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(' ');
-                realGestor = rawKeys.find(k => {
-                    const normK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                    return parts.every(p => normK.includes(p));
-                });
-            }
-            gestoresToCheck = realGestor ? [realGestor] : [gestorName];
+            gestoresToCheck = selectedGestores.map(g => {
+                let realGestor = rawKeys.find(k => k === g);
+                if (!realGestor) {
+                    const parts = g.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(' ');
+                    realGestor = rawKeys.find(k => {
+                        const normK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        return parts.every(p => normK.includes(p));
+                    });
+                }
+                return realGestor || g;
+            });
         }
         
         for (let g of gestoresToCheck) {
