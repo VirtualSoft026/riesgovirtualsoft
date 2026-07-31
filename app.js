@@ -5258,6 +5258,9 @@ document.addEventListener('DOMContentLoaded', () => {
     loadRetirosData();
     // Iniciar Módulo de Comunicados
     initComunicadosListener();
+    // Iniciar listeners en tiempo real adicionales
+    if (typeof initAtomicApprovedCounterListener === 'function') initAtomicApprovedCounterListener();
+    if (typeof startIncidentsRealtimeListener === 'function') startIncidentsRealtimeListener();
     
     // Restaurar botones de pausas
     const btnLunch = document.getElementById('toggleLunchBtn');
