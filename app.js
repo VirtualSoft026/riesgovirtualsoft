@@ -131,6 +131,12 @@ function setupCustomMultiSelect(containerId, optionsList, onChangeCallback) {
     }
 
     container._selectedValuesRef = selectedValues;
+    container._setValues = (newValuesArray) => {
+        selectedValues.clear();
+        newValuesArray.forEach(v => selectedValues.add(v));
+        renderOptions(searchInput ? searchInput.value : "");
+        updateLabel();
+    };
 }
 
 function getSelectedMultiSelectValues(containerId) {
@@ -143,6 +149,14 @@ function resetCustomMultiSelect(containerId) {
     const container = document.getElementById(containerId);
     if (container && container._selectedValuesRef) {
         container._selectedValuesRef.clear();
+        if (container._setValues) container._setValues([]);
+    }
+}
+
+function setCustomMultiSelectValues(containerId, newValuesArray) {
+    const container = document.getElementById(containerId);
+    if (container && container._setValues) {
+        container._setValues(newValuesArray);
     }
 }
 
@@ -6302,17 +6316,20 @@ function renderControlOperativoFiltered() {
         tr.onmouseout = () => tr.style.background = 'transparent';
         
         tr.onclick = () => {
-            const select = document.getElementById('filtroGestorOperativo');
-            if (select) {
-                if (select.value === gestor) {
-                    select.value = "Todos"; // Deseleccionar si ya estaba seleccionado
-                } else {
-                    select.value = gestor; // Seleccionar
-                }
-                if (typeof renderControlOperativoFiltered === 'function') {
-                    renderControlOperativoFiltered();
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                }
+            const selectId = 'operativoGestorMultiSelect';
+            const currentSelected = getSelectedMultiSelectValues(selectId);
+            
+            // Si el gestor ya está seleccionado de manera única, lo deseleccionamos (Filtro Todos)
+            if (currentSelected.length === 1 && currentSelected[0] === gestor) {
+                setCustomMultiSelectValues(selectId, []);
+            } else {
+                // De lo contrario, seleccionamos solo este gestor
+                setCustomMultiSelectValues(selectId, [gestor]);
+            }
+            
+            if (typeof renderControlOperativoFiltered === 'function') {
+                renderControlOperativoFiltered();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         };
         
