@@ -4734,10 +4734,10 @@ async function calcularIndicadores() {
             const checkGestorMatch = (fbGestor, mstrGestoresList) => {
                 if (!fbGestor) return false;
                 const normFb = fbGestor.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                return mstrGestoresList.some(mstrGestor => {
-                    const normMstr = mstrGestor.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                    const partsFb = normFb.split(' ');
-                    return partsFb.every(p => normMstr.includes(p));
+                return mstrGestoresList.some(sel => {
+                    const normMstr = sel.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    const fbParts = normFb.split(' ');
+                    return fbParts.every(p => normMstr.includes(p));
                 });
             };
             shiftReports = shiftReports.filter(report => checkGestorMatch(report.gestor, selectedGestores));
@@ -5044,9 +5044,9 @@ async function calcularIndicadores() {
                     fallbackMins += (ev.end - ev.start) / (1000 * 60);
                 }
             });
-            totalInactividadMins += fallbackMins;
+            totalInactividadMins += Math.min(fallbackMins, 480);
         } else if (report.inactividadTotalMins !== undefined) {
-            totalInactividadMins += report.inactividadTotalMins;
+            totalInactividadMins += Math.min(report.inactividadTotalMins, 480);
         }
     });
     let diasTrabajados = validInactivitySessions || (shiftReports.length ? 1 : 0);
@@ -6153,7 +6153,9 @@ async function loadControlOperativoData() {
                             
                             // Add to raw data
                             if (!isFueraDeHorario) {
-                                window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Inactividad_Total = (window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Inactividad_Total || 0) + inactMins;
+                                // Cap inactivity to max 8 hours (480 mins) per shift to prevent infinite sessions from exploding stats
+                                let cappedInactMins = Math.min(inactMins, 480);
+                                window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Inactividad_Total = (window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Inactividad_Total || 0) + cappedInactMins;
                             }
                             
                             // Guardar la tardanza considerando el primer ingreso del día (o si reporta tardanza mayor a 0)
