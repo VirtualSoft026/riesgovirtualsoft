@@ -8,9 +8,16 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**",
-      "*.bat",
-      "*.exe",
-      "*.pdf"
+      "**/.venv/**",
+      "**/__pycache__/**",
+      "**/*.bat",
+      "**/*.exe",
+      "**/*.dll",
+      "**/*.cmd",
+      "**/*.ps1",
+      "**/*.sh",
+      "**/*.py",
+      "**/*.pdf"
     ],
     "headers": [
       {
