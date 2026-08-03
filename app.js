@@ -788,8 +788,12 @@ let globalCronogramaData = null;
 async function preloadCronograma() {
     try {
         const todayForFile = new Date();
-        const isBeforeJuly6 = todayForFile.getFullYear() === 2026 && todayForFile.getMonth() === 6 && todayForFile.getDate() < 6;
-        const cronogramaFile = isBeforeJuly6 ? 'Cronograma Junio.xlsx' : 'Cronograma Julio.xlsx';
+        const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+        let monthName = monthNames[todayForFile.getMonth()];
+        if (todayForFile.getFullYear() === 2026 && todayForFile.getMonth() === 6 && todayForFile.getDate() < 6) {
+            monthName = "Junio";
+        }
+        const cronogramaFile = `Cronograma ${monthName}.xlsx`;
         const url = encodeURI('Cronograma de Tareas/' + cronogramaFile) + '?t=' + Date.now();
         const response = await fetch(url);
         if (!response.ok) return;
@@ -841,8 +845,12 @@ let gestorCronogramaAssignments = null;
 async function loadCronogramaAssignments(gestorName, gestorShift) {
     try {
         const todayForFile = new Date();
-        const isBeforeJuly6 = todayForFile.getFullYear() === 2026 && todayForFile.getMonth() === 6 && todayForFile.getDate() < 6;
-        const cronogramaFile = isBeforeJuly6 ? 'Cronograma Junio.xlsx' : 'Cronograma Julio.xlsx';
+        const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+        let monthName = monthNames[todayForFile.getMonth()];
+        if (todayForFile.getFullYear() === 2026 && todayForFile.getMonth() === 6 && todayForFile.getDate() < 6) {
+            monthName = "Junio";
+        }
+        const cronogramaFile = `Cronograma ${monthName}.xlsx`;
         const url = encodeURI('Cronograma de Tareas/' + cronogramaFile) + '?t=' + Date.now();
         const response = await fetch(url);
         if (!response.ok) throw new Error("Fallo al cargar cronograma");
