@@ -37,6 +37,11 @@
       ".read": "auth != null",
       ".write": "auth != null",
       ".indexOn": ["timestamp", "gestor", "assignedTo", "status", "type"]
+    },
+    "announcements": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      ".indexOn": ["date", "author"]
     }
   }
 }
