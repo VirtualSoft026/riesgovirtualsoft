@@ -4040,6 +4040,11 @@ function setupSidebar() {
 
     if (currentUser && (currentUser.role === 'Admin' || currentUser.role === 'Supervisor')) {
         // Admin/Supervisor Order
+        const hFilter = document.getElementById('horarioGestorFilterContainer');
+        if (hFilter) hFilter.style.display = 'flex';
+        const tFilter = document.getElementById('teletrabajoGestorFilterContainer');
+        if (tFilter) tFilter.style.display = 'flex';
+
         if (navWorkspace) { navWorkspace.style.display = 'none'; } // HIDE Mis Tareas for Admin and Supervisor
         if (navComunicados) { navComunicados.style.display = 'none'; }
 
@@ -4058,6 +4063,11 @@ function setupSidebar() {
         if (navSoporte) { navSoporte.style.display = 'flex'; sidebarNav.appendChild(navSoporte); }
     } else {
         // Gestor Order
+        const hFilter = document.getElementById('horarioGestorFilterContainer');
+        if (hFilter) hFilter.style.display = 'none';
+        const tFilter = document.getElementById('teletrabajoGestorFilterContainer');
+        if (tFilter) tFilter.style.display = 'none';
+
         if (navWorkspace) { navWorkspace.style.display = 'flex'; sidebarNav.appendChild(navWorkspace); }
         if (navComunicados) { navComunicados.style.display = 'flex'; sidebarNav.appendChild(navComunicados); }
         if (navHorario) { sidebarNav.appendChild(navHorario); }
