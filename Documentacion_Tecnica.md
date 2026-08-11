@@ -9,7 +9,7 @@
 **Risk Manager - Control Operativo** (RiskOps VS)
 
 ### Objetivo Principal
-Risk Manager es una plataforma web premium de control operativo diseñada para centralizar, optimizar y auditar en tiempo real las operaciones diarias del equipo de Riesgo en VirtualSoft. Su propósito fundamental es eliminar la dependencia de registros dispersos mediante una interfaz unificada que administra tareas asignadas por SETs operacionales, parsea horarios semanales y teletrabajo de archivos de Excel nativos en el servidor, gestiona solicitudes y aprobaciones de permisos, realiza backups de cierres de turnos en base de datos centralizada y genera reportes automáticos exportables en formato PDF.
+Risk Manager es una plataforma web premium de control operativo diseñada para centralizar, optimizar y auditar en tiempo real las operaciones diarias del equipo de Riesgo en VirtualSoft. Su propósito fundamental es eliminar la dependencia de registros dispersos mediante una interfaz unificada que administra tareas asignadas por SETs operacionales, parsea horarios semanales y teletrabajo de archivos de Excel nativos en el servidor, gestiona solicitudes y aprobaciones de permisos, realiza backups de cierres de turnos en base de datos centralizada y genera reportes automáticos exportables en formato PDF
 
 ### Funcionalidades Principales
 1. **Control de Acceso y Roles**: Gestión robusta de usuarios en dos niveles de privilegios (Gestores y Supervisores) implementada con Firebase Auth para el inicio de sesión y Firebase Realtime Database para la aprobación manual de accesos.
