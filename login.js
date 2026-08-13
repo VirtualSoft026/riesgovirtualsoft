@@ -192,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Registrando...";
             btn.disabled = true;
 
-            let finalRole = role;
+            let finalRole = (role === 'Supervisor') ? 'Supervisor' : 'Gestor';
 
             try {
                 // 1. Create user in Firebase Auth
@@ -205,7 +205,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     email: email,
                     shift: "Por Asignar", // El turno se asigna por Excel
                     role: finalRole,
-                    approved: finalRole === 'Admin', // Solo los Admin se auto-aprueban
+                    approved: false, // Ningún usuario puede auto-aprobarse en el registro
+                    status: "pending",
                     registrationDate: new Date().toISOString()
                 };
                 
@@ -297,7 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 if (dbUser.approved === 'Rechazado') {
-                    loginError.innerHTML = `Tu solicitud de cuenta ha sido rechazada.<br><small>Motivo: ${dbUser.rejectionReason || 'No especificado'}</small>`;
+                    loginError.innerHTML = `Tu solicitud de cuenta ha sido rechazada.<br><small>Motivo: ${escapeHTML(dbUser.rejectionReason || 'No especificado')}</small>`;
                     loginError.style.display = 'block';
                     await firebase.auth().signOut();
                     return;
@@ -362,6 +363,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const logRef = database.ref('login_logs').push();
                     await logRef.set({
+                        uid: user.uid,
                         name: dbUser.name,
                         role: dbUser.role || "Gestor",
                         email: dbUser.email,

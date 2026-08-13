@@ -1,14 +1,63 @@
-# Ignore large video files exceeding GitHub size limits 
-Procesos/*.mp4
-*.mp4
-n o d e _ m o d u l e s /  
- p a c k a g e . j s o n  
- p a c k a g e - l o c k . j s o n  
- node_modules/
-package.json
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Node / Dependencies & Build Artifacts
+node_modules/
 package-lock.json
-clean.js
-temp_mstr_raw_full.json
-temp_*.json
+!.github/qa-infra/package-lock.json
+_site/
+
+# Temporary files, dumps & logs
+temp_*
+dump_*
+backup_*
+*.bak
+*.backup
+*.tmp
 *.log
+.github/qa-infra/*-report.json
+.github/qa-infra/*-report.txt
+.github/qa-infra/network-summary.txt
+scratch_*
+debug_*
+
+# Data dumps and sensitive spreadsheets in root
+temp_mstr_raw.json
+temp_mstr_raw_full.json
+temp_reports.json
+temp_horario_working.xlsx
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Firebase local cache
 .firebase/
+
+# Excel files with PII/Confidential — never publish to GitHub Pages
+Cronograma de Tareas/*.xlsx
+Tareas Riesgo/*.xlsx
+Horario/*.xlsx
+Teletrabajo/*.xlsx
+# UID mapping with real employee data — only template in repo
+uid_mapping.json
+# Importer output directories
+task_import_output/
+dry_run_output/

@@ -5,15 +5,37 @@ import requests
 import pandas as pd
 from datetime import datetime
 
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv(BASE_DIR / ".env")
+except ImportError:
+    env_file = BASE_DIR / ".env"
+    if env_file.exists():
+        try:
+            with open(env_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        k, v = k.strip(), v.strip().strip("'\"")
+                        if k not in os.environ:
+                            os.environ[k] = v
+        except Exception:
+            pass
+
 # ==========================================
-# CONFIGURACIÓN DE MICROSTRATEGY (Por llenar)
+# CONFIGURACIÓN DE MICROSTRATEGY (Vía Variables de Entorno)
 # ==========================================
-MSTR_BASE_URL = "https://env-i921eu432wwh4k73.cloud.strategy.com/MicroStrategyLibrary/api"
-MSTR_PROJECT_NAME = "Virtualsoft" # Nombre del proyecto si no se conoce el ID
-MSTR_PROJECT_ID = "" # Se autocompletará si se deja en blanco y el nombre coincide
-MSTR_REPORT_ID = "B8B21D45184E89DD2A5A0898940B66A1"
-MSTR_USERNAME = ""
-MSTR_PASSWORD = ""
+MSTR_BASE_URL = os.environ.get("MSTR_BASE_URL", "https://env-i921eu432wwh4k73.cloud.strategy.com/MicroStrategyLibrary/api")
+MSTR_PROJECT_NAME = os.environ.get("MSTR_PROJECT_NAME", "Virtualsoft")
+MSTR_PROJECT_ID = os.environ.get("MSTR_PROJECT_ID", "")
+MSTR_REPORT_ID = os.environ.get("MSTR_REPORT_ID", "B8B21D45184E89DD2A5A0898940B66A1")
+MSTR_USERNAME = os.environ.get("MSTR_USERNAME", "")
+MSTR_PASSWORD = os.environ.get("MSTR_PASSWORD", "")
 
 def get_firebase_gestores():
     try:
@@ -55,7 +77,10 @@ print(f"Gestores permitidos cargados dinámicamente desde Firebase: {len(set(GES
 # ==========================================
 # CONFIGURACIÓN DE CONTRACARGOS
 # ==========================================
-CONTRACARGOS_DIR = r"C:\Users\Maria Alejandra\OneDrive - VIRTUALSOFT SERVICIOS & SOFTWARE S.A.S\General - Gestión de Riesgo\Cambio Estado Dep. y Contracargos\Contracargos 2026"
+CONTRACARGOS_DIR = os.environ.get(
+    "CONTRACARGOS_DIR",
+    r"C:\Users\Maria Alejandra\OneDrive - VIRTUALSOFT SERVICIOS & SOFTWARE S.A.S\General - Gestión de Riesgo\Cambio Estado Dep. y Contracargos\Contracargos 2026"
+)
 OUTPUT_JSON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "kpi_operativos_v2.json")
 
 class MicroStrategyConnector:
@@ -68,7 +93,11 @@ class MicroStrategyConnector:
         if not MSTR_BASE_URL:
             print("MicroStrategy URL no configurada. Saltando autenticación.")
             return False
-            
+
+        if not MSTR_USERNAME or not MSTR_PASSWORD:
+            print("AVISO DE SEGURIDAD: MSTR_USERNAME o MSTR_PASSWORD no configurados en variables de entorno. Saltando extracción de MicroStrategy.")
+            return False
+
         auth_url = f"{MSTR_BASE_URL}/auth/login"
         payload = {
             "username": MSTR_USERNAME,
@@ -122,11 +151,7 @@ class MicroStrategyConnector:
     def fetch_retiros_data(self):
         print(f"Obteniendo datos del reporte {MSTR_REPORT_ID} desde MicroStrategy...")
         all_rows = []
-        if False and os.path.exists('temp_mstr_raw_full.json'):
-            """print("USANDO ARCHIVO LOCAL temp_mstr_raw_full.json")
-            with open('temp_mstr_raw_full.json', 'r', encoding='utf-8') as f:
-                all_rows = json.load(f)"""
-        elif self.auth_token and self.project_id and MSTR_REPORT_ID:
+        if self.auth_token and self.project_id and MSTR_REPORT_ID:
             headers = {
                 'X-MSTR-AuthToken': self.auth_token,
                 'X-MSTR-ProjectID': self.project_id,
@@ -172,19 +197,8 @@ class MicroStrategyConnector:
                     print(f"Página extraída. Total actual: {current_offset} filas.")
                 
                 print(f"Extracción API finalizada: {len(all_rows)} filas totales.")
-                with open('temp_mstr_raw_full.json', 'w', encoding='utf-8') as f:
-                    json.dump(all_rows, f)
             except Exception as e:
                 print(f"Error descargando el reporte de MicroStrategy: {e}")
-
-        # Fallback a local file if MSTR failed but we have temp_mstr_raw.json
-        if len(all_rows) == 0 and os.path.exists('temp_mstr_raw.json'):
-            print("Usando archivo temporal temp_mstr_raw.json de MicroStrategy...")
-            with open('temp_mstr_raw.json', 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if 'data' in data.get('result', {}) and 'root' in data['result']['data']:
-                    self.extract_flat_data(data['result']['data']['root'], [], all_rows)
-                    print(f"Se extrajeron {len(all_rows)} filas del archivo temporal.")
 
         parsed_retiros = []
         # Mapping index from attributes

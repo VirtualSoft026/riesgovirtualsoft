@@ -6,7 +6,9 @@
     "public": ".",
     "ignore": [
       "firebase.json",
+      "database.rules.json",
       "**/.*",
+      "**/.env*",
       "**/node_modules/**",
       "**/.venv/**",
       "**/__pycache__/**",
@@ -17,7 +19,10 @@
       "**/*.ps1",
       "**/*.sh",
       "**/*.py",
-      "**/*.pdf"
+      "**/temp_*",
+      "**/dump_*",
+      "**/scratch/**",
+      "**/tests/**"
     ],
     "headers": [
       {
