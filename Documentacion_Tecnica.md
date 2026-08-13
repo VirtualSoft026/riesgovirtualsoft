@@ -86,16 +86,9 @@ Pagina Web de Riesgo VS/
 │   └── Horario 2026.xlsx        # Horarios del equipo de Riesgos
 ├── Teletrabajo/                 # Directorio de cronograma de trabajo presencial/virtual
 │   └── Teletrabajo.xlsx         # Asignación de días presenciales y de Home Office
-├── Procesos/                    # Biblioteca de Procedimientos (PDFs y Multimedia)
-│   ├── Instructivo de revisión de apuestas casino.pdf
-│   ├── Instructivo de validación de GGR Casino.pdf
-│   ├── Política Procedimiento De Aprobación De Retiros.pdf
-│   ├── Procedimiento Identificación de jineteo.pdf
-│   ├── Proceso de Eliminación de Cuentas - Implementaciones.pdf
-│   ├── VALIDACIÓN DE ABUSO DE BONOS EN CAMPAÑAS DE CRM.pdf
-│   ├── Revisión de Eventos Deportivos.mp4
-│   ├── Revisión de Eventos.mp4
-│   └── Validación SEON.mp4
+├── Procesos/                    # Sólo contiene el manual HTML permitido por Pages
+│   └── Manual_Usuario_Penka.html
+├── procesos_list.json           # Catálogo; los documentos privados se abren desde el repositorio interno
 └── assets/
     └── src/
         └── img/                 # Repositorio de recursos multimedia estáticos

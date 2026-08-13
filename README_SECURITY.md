@@ -43,6 +43,18 @@ Publicar esta rama por sí sola no modifica `main`, no cambia Firebase y no desp
 - artefacto Pages construido mediante allowlist;
 - soporte para la migración UID-only de permisos y logs históricos.
 
+## Limpieza del candidato
+
+La rama heredó 20.607 archivos del `main` productivo. La limpieza autorizada retiró 20.530 archivos del candidato y dejó 77 archivos versionados:
+
+- 20.427 archivos de `node_modules` sin manifiesto Node en la raíz;
+- cuatro cachés generados de Firebase y Python;
+- siete PDF operativos trasladados fuera del repositorio público;
+- 60 temporales, dumps y scripts de diagnóstico sin dependencia operativa;
+- 32 pruebas ad hoc, parches de una sola vez o scripts con acceso directo al Firebase real.
+
+Se conservaron los 19 archivos requeridos por la allowlist de Pages, los assets usados por la interfaz, los XLSX operativos aceptados para Fase 1, el backend local documentado, los generadores de documentación y la automatización existente. Eliminar archivos del HEAD no elimina copias de la historia Git; ese saneamiento y la rotación asociada continúan en Fase 1.5.
+
 ## Registro resumido de fallas
 
 | Falla observada | Riesgo o mecánica afectada | Corrección en el candidato |
@@ -55,6 +67,7 @@ Publicar esta rama por sí sola no modifica `main`, no cambia Firebase y no desp
 | Cierre de turno dividido en varias escrituras | sesión cerrada parcialmente o informe perdido | actualización raíz atómica antes de limpiar la sesión local |
 | Publicación de Pages copiaba el repositorio completo | exposición accidental de archivos internos | artefacto construido mediante allowlist y validado también en PR |
 | Históricos asociados únicamente por nombre | incompatibilidad con Rules UID-only | migración previa, repetible y con rollback preparado |
+| Dependencias, temporales y scripts directos a producción versionados | exposición del repositorio, revisión inmanejable y escrituras accidentales | poda controlada de 20.530 archivos sin alterar la allowlist operativa |
 
 ## Mecánicas visibles para usuarios no técnicos
 
@@ -72,7 +85,7 @@ El soporte responsive completo corresponde a Fase 1.1. La rotación coordinada y
 
 ## Condiciones antes del PR
 
-- diff mínimo respecto a `VirtualSoft026/riesgovirtualsoft/main`;
+- cambios separados por propósito: commit de remediación y commit de limpieza del repositorio;
 - ninguna carpeta `scratch/`, export, backup, PATCH privado o fixture real;
 - matriz UID/roles, XSS, cierre de turno y artefacto Pages aprobados;
 - SHA del candidato y hashes de `app.js` y Rules registrados;

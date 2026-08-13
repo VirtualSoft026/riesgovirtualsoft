@@ -48,6 +48,9 @@ PRODUCT_MAIN_SHA                  = 43537a043dc9548d4066aca670f26209b9e77430
 RELEASE_BRANCH                    = phase1-security-release
 RELEASE_BASE_SHA                  = 43537a043dc9548d4066aca670f26209b9e77430
 RELEASE_BRANCH_PUBLICATION        = AUTHORIZED; VERIFY_REMOTE_SHA_AFTER_PUSH
+TRACKED_FILES_BEFORE_CLEANUP      = 20607
+TRACKED_FILES_AFTER_CLEANUP       = 77
+FILES_REMOVED_IN_CLEANUP          = 20530
 STAGING_MAIN_MERGE_SHA            = fd95875176ee769519fe2059cb7e34dcfe3bd70e
 STAGING_QA_HEAD_SHA               = b53bf1169753fa2f6f2a9af8406e1320998ef248
 PRIVATE_UID_PATCH_BASE_COUNT      = 687
@@ -73,6 +76,8 @@ Se creó `phase1-security-release` desde el `main` productivo vigente y se porta
 - pruebas de seguridad sin exports, reglas privadas, credenciales ni PII.
 
 La lista final se decide por diff. No se autoriza `git add .`, `git add -A`, copia completa de staging ni incorporación de `scratch/`, exports, PATCH privados o fixtures con identidades reales.
+
+La limpieza posterior eliminó `node_modules`, cachés, temporales, PDF internos y scripts ad hoc/directos a Firebase. Los archivos operativos incluidos en la allowlist de Pages permanecen presentes y se validan antes de publicar cada nuevo commit de la rama.
 
 ## 4. Artefactos privados preparados
 

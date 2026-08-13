@@ -175,6 +175,8 @@ Entregable: manifiesto `archivo → RM-ID → prueba`.
 
 Estado al corte: `COMPLETADO`. Las correcciones mínimas y el QA requerido están listas para el commit autorizado de la rama candidata.
 
+Limpieza adicional autorizada: el candidato retiró 20.530 archivos heredados que no forman parte de la aplicación desplegable. La poda se registra en un commit separado del hardening para que la revisión distinga cambios funcionales de eliminación de dependencias, cachés, temporales y material privado.
+
 Criterio de terminado: diff mínimo, explicado y sin mecánicas nuevas.
 
 #### IMP-03 — construir el artefacto seguro
