@@ -8,7 +8,7 @@ Objetivo: completar la remediación de Fase 1 mediante una promoción controlada
 
 1. [Guía end-to-end y modelo de delegación](RISK_MANAGER_GUIA_END_TO_END_Y_DELEGACION_2026-08-13.md): puerta de entrada. Explica repositorios, ramas, entornos, estados, fases, dependencias, responsables y paquetes delegables.
 2. [Plan de implementación](RISK_MANAGER_PLAN_IMPLEMENTACION_2026-08-13.md): olas IMP-00 a IMP-12, trabajo paralelo, dependencias, esfuerzo orientativo y tablero inicial para delegación.
-3. [Historial de remediación y guía operativa](RISK_MANAGER_HISTORIAL_REMEDIACION_Y_GUIA_OPERATIVA_2026-08-13.md): inventario RM-01 a RM-36, correcciones y explicación de las mecánicas afectadas para usuarios no técnicos.
+3. [Historial de remediación y guía operativa](RISK_MANAGER_HISTORIAL_REMEDIACION_Y_GUIA_OPERATIVA_2026-08-13.md): inventario RM-01 a RM-37, correcciones y explicación de las mecánicas afectadas para usuarios no técnicos.
 4. [Runbook de promoción controlada](RISK_MANAGER_RUNBOOK_PROMOCION_CONTROLADA_PRODUCCION_2026-08-13.md): procedimiento técnico para preparar, migrar, desplegar, observar y revertir Fase 1.
 
 ## Interpretación rápida
@@ -20,6 +20,10 @@ Objetivo: completar la remediación de Fase 1 mediante una promoción controlada
 - La web de staging apunta al Firebase real; las pruebas mutantes automatizadas deben permanecer en Emulator.
 - “Corregido” no equivale a “desplegado”. La guía end-to-end define todos los estados oficiales.
 - Publicar `phase1-security-release` no modifica `main` ni despliega Pages: el workflow productivo sólo despliega en un `push` a `main` o por ejecución manual expresamente autorizada.
+
+## Documentación técnica retirada (2026-08-14)
+
+Se retiraron tres artefactos de documentación técnica obsoleta que contenían referencias internas y fragmentos desactualizados. El detalle de seguridad se conserva en el registro confidencial local.
 
 ## Límites
 

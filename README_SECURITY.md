@@ -53,7 +53,15 @@ La rama heredó 20.607 archivos del `main` productivo. La limpieza autorizada re
 - 60 temporales, dumps y scripts de diagnóstico sin dependencia operativa;
 - 32 pruebas ad hoc, parches de una sola vez o scripts con acceso directo al Firebase real.
 
-Se conservaron los 19 archivos requeridos por la allowlist de Pages, los assets usados por la interfaz, los XLSX operativos aceptados para Fase 1, el backend local documentado, los generadores de documentación y la automatización existente. Eliminar archivos del HEAD no elimina copias de la historia Git; ese saneamiento y la rotación asociada continúan en Fase 1.5.
+Se conservaron los 18 archivos obligatorios y el archivo opcional (`Retiros/retiros_data.json`) de la allowlist de Pages, los assets usados por la interfaz, los XLSX operativos aceptados para Fase 1, el backend local documentado, los generadores de documentación y la automatización existente. Eliminar archivos del HEAD no elimina copias de la historia Git; ese saneamiento y la rotación asociada continúan en Fase 1.5.
+
+## Retiro de documentación técnica obsoleta (2026-08-14)
+
+Se retiraron tres artefactos de documentación técnica obsoleta que contenían referencias internas y fragmentos desactualizados. El detalle de seguridad se conserva en el registro confidencial local.
+
+El retiro reduce la exposición en el HEAD del candidato, pero no la elimina por completo: el cierre definitivo depende de una fase posterior de saneamiento de historial, prevista junto con la rotación de Fase 1.5.
+
+El candidato queda con 74 archivos versionados (antes 77): 20.533 eliminaciones acumuladas sobre los 20.607 archivos heredados de `main` (20.530 de RM-35 más 3 de RM-37).
 
 ## Registro resumido de fallas
 
@@ -68,6 +76,7 @@ Se conservaron los 19 archivos requeridos por la allowlist de Pages, los assets 
 | Publicación de Pages copiaba el repositorio completo | exposición accidental de archivos internos | artefacto construido mediante allowlist y validado también en PR |
 | Históricos asociados únicamente por nombre | incompatibilidad con Rules UID-only | migración previa, repetible y con rollback preparado |
 | Dependencias, temporales y scripts directos a producción versionados | exposición del repositorio, revisión inmanejable y escrituras accidentales | poda controlada de 20.530 archivos sin alterar la allowlist operativa |
+| Documentación técnica obsoleta con referencias internas y fragmentos desactualizados | exposición de contenido interno no necesario para la operación del candidato | retiro de Documentacion_Tecnica.md/.docx y de su generador; saneamiento de historial pendiente de Fase 1.5 |
 
 ## Mecánicas visibles para usuarios no técnicos
 
