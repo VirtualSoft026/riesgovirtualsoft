@@ -169,12 +169,16 @@ let totalLunchTimeMs = 0;
 let isBreakfastBreak = false;
 let breakfastStartTime = null;
 let totalBreakfastTimeMs = 0;
+let isSplitShiftBreak = false;
+let splitShiftStartTime = null;
+let totalSplitShiftTimeMs = 0;
 let globalIdleState = false; // Tracks if the OS/PC is idle or locked via IdleDetector
 
 function saveBreakState() {
     localStorage.setItem('riskOps_breakState', JSON.stringify({
         isLunchBreak, lunchStartTime, totalLunchTimeMs,
-        isBreakfastBreak, breakfastStartTime, totalBreakfastTimeMs
+        isBreakfastBreak, breakfastStartTime, totalBreakfastTimeMs,
+        isSplitShiftBreak, splitShiftStartTime, totalSplitShiftTimeMs
     }));
 }
 
@@ -189,6 +193,9 @@ function loadBreakState() {
             isBreakfastBreak = parsed.isBreakfastBreak || false;
             breakfastStartTime = parsed.breakfastStartTime || null;
             totalBreakfastTimeMs = parsed.totalBreakfastTimeMs || 0;
+            isSplitShiftBreak = parsed.isSplitShiftBreak || false;
+            splitShiftStartTime = parsed.splitShiftStartTime || null;
+            totalSplitShiftTimeMs = parsed.totalSplitShiftTimeMs || 0;
         }
     } catch(e) {}
 }
@@ -211,7 +218,7 @@ try {
         let changed = false;
         
         // Limpiador automático: Eliminar eventos de Inactividad que se crucen con Almuerzo o Desayuno
-        const breaks = shiftTimeline.filter(e => e.type === 'Almuerzo' || e.type === 'Desayuno');
+        const breaks = shiftTimeline.filter(e => e.type === 'Almuerzo' || e.type === 'Desayuno' || e.type === 'Pausa Turno Partido');
         const originalLength = shiftTimeline.length;
         shiftTimeline = shiftTimeline.filter(e => {
             if (e.type !== 'Inactividad') return true;
@@ -335,7 +342,7 @@ async function startIdleDetectorLogic() {
 function applyIdleStateChange() {
     loadBreakState();
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
-        if (isLunchBreak || isBreakfastBreak) return;
+        if (isLunchBreak || isBreakfastBreak || isSplitShiftBreak) return;
 
         if (globalIdleState && currentUser.status === 'Activo') {
             currentUser.status = 'Inactivo';
@@ -418,6 +425,7 @@ setInterval(() => {
             if (typeof globalIdleState !== 'undefined' && globalIdleState) return;
             if (typeof isLunchBreak !== 'undefined' && isLunchBreak) return;
             if (typeof isBreakfastBreak !== 'undefined' && isBreakfastBreak) return;
+            if (typeof isSplitShiftBreak !== 'undefined' && isSplitShiftBreak) return;
 
             currentUser.status = 'Inactivo';
             if (typeof database !== 'undefined') {
@@ -877,6 +885,14 @@ async function loadCronogramaAssignments(gestorName, gestorShift) {
                 const row = rows[rIdx];
                 if (!row) continue;
                 
+                // Buscar el "Set " en cualquier columna de la fila (útil para celdas combinadas o cuando solo está en la col 1)
+                for (let c = 0; c < row.length; c++) {
+                    if (row[c] !== undefined && row[c] !== null && String(row[c]).trim().toLowerCase().startsWith("set ")) {
+                        currentSet = String(row[c]).trim();
+                        break; // Se encontró el set de esta fila
+                    }
+                }
+                
                 const taskVal = row[tCol];
                 const gestorVal = row[gCol];
                 
@@ -885,7 +901,7 @@ async function loadCronogramaAssignments(gestorName, gestorShift) {
                     const tStrLower = tStr.toLowerCase();
                     
                     if (tStrLower.startsWith("set ")) {
-                        currentSet = tStr;
+                        // Ya fue capturado arriba, no hacemos nada extra aquí
                     } else if (!tStrLower.includes("cronograma") && gestorVal !== "Gestor") {
                         if (gestorVal !== undefined && gestorVal !== null && namesMatch(String(gestorVal).trim(), gestorName)) {
                             gestorCronogramaAssignments.push({
@@ -1821,7 +1837,9 @@ function syncActiveSessionToFirebase() {
         }
     }
     
-    if (isLunchBreak) {
+    if (isSplitShiftBreak) {
+        currentStatus = 'En Pausa de Turno';
+    } else if (isLunchBreak) {
         currentStatus = 'En Almuerzo';
     } else if (isBreakfastBreak) {
         currentStatus = 'En Desayuno';
@@ -2715,7 +2733,7 @@ function toggleBreakfastBreak() {
     const btn = document.getElementById('toggleBreakfastBtn');
     
     if (!isBreakfastBreak) {
-        if (isLunchBreak) { alert("Debes volver del almuerzo primero."); return; }
+        if (isLunchBreak || isSplitShiftBreak) { alert("Debes volver del descanso actual primero."); return; }
         isBreakfastBreak = true;
         breakfastStartTime = Date.now();
         pushTimelineEvent('Desayuno', 'start');
@@ -2756,7 +2774,7 @@ function toggleLunchBreak() {
     const btn = document.getElementById('toggleLunchBtn');
     
     if (!isLunchBreak) {
-        if (isBreakfastBreak) { alert("Debes volver del desayuno primero."); return; }
+        if (isBreakfastBreak || isSplitShiftBreak) { alert("Debes volver del descanso actual primero."); return; }
         isLunchBreak = true;
         lunchStartTime = Date.now();
         pushTimelineEvent('Almuerzo', 'start');
@@ -2791,11 +2809,53 @@ function toggleLunchBreak() {
     }
 }
 
+// Lógica de Pausa Turno Partido
+function toggleSplitShiftBreak() {
+    if (!currentUser) return;
+    const btn = document.getElementById('toggleSplitShiftBtn');
+    
+    if (!isSplitShiftBreak) {
+        if (isBreakfastBreak || isLunchBreak) { alert("Debes volver del descanso actual primero."); return; }
+        isSplitShiftBreak = true;
+        splitShiftStartTime = Date.now();
+        pushTimelineEvent('Pausa Turno Partido', 'start');
+        saveBreakState();
+        if(btn) {
+            btn.innerHTML = "<i class='bx bx-check-circle'></i> Retomar Turno";
+            btn.classList.remove('btn-outline');
+            btn.style.backgroundColor = "rgba(139, 92, 246, 0.15)";
+            btn.style.color = "#8b5cf6";
+            btn.style.borderColor = "rgba(139, 92, 246, 0.5)";
+            btn.style.boxShadow = "0 0 15px rgba(139, 92, 246, 0.2)";
+        }
+        syncActiveSessionToFirebase();
+    } else {
+        isSplitShiftBreak = false;
+        if(splitShiftStartTime) {
+            totalSplitShiftTimeMs += (Date.now() - splitShiftStartTime);
+        }
+        splitShiftStartTime = null;
+        pushTimelineEvent('Pausa Turno Partido', 'end');
+        saveBreakState();
+        if(btn) {
+            btn.innerHTML = "<i class='bx bx-pause-circle'></i> Pausa Turno Partido";
+            btn.classList.add('btn-outline');
+            btn.style.backgroundColor = "";
+            btn.style.color = "var(--text-primary)";
+            btn.style.borderColor = "rgba(255,255,255,0.2)";
+            btn.style.boxShadow = "";
+        }
+        updateActivity();
+        syncActiveSessionToFirebase();
+    }
+}
+
 function handleEndShift() {
     if(confirm("¿Estás seguro que deseas finalizar tu turno actual? Se enviará un resumen al supervisor.")) {
-        // Cerrar almuerzo o desayuno si quedó abierto
+        // Cerrar almuerzo o desayuno o turno partido si quedó abierto
         if (isLunchBreak) toggleLunchBreak();
         if (isBreakfastBreak) toggleBreakfastBreak();
+        if (isSplitShiftBreak) toggleSplitShiftBreak();
 
         
         let localUser = null;
@@ -4089,6 +4149,11 @@ function setupSidebar() {
         if (toggleBreakfastBtn) {
             toggleBreakfastBtn.style.display = 'flex';
         }
+
+        const toggleSplitShiftBtn = document.getElementById('toggleSplitShiftBtn');
+        if (toggleSplitShiftBtn) {
+            toggleSplitShiftBtn.style.display = 'flex';
+        }
     }
 }
 
@@ -5381,6 +5446,15 @@ document.addEventListener('DOMContentLoaded', () => {
         btnBreak.style.color = "#ff9800";
         btnBreak.style.borderColor = "rgba(255, 152, 0, 0.5)";
         btnBreak.style.boxShadow = "0 0 15px rgba(255, 152, 0, 0.2)";
+    }
+    const btnSplitShift = document.getElementById('toggleSplitShiftBtn');
+    if (btnSplitShift && isSplitShiftBreak) {
+        btnSplitShift.innerHTML = "<i class='bx bx-check-circle'></i> Retomar Turno";
+        btnSplitShift.classList.remove('btn-outline');
+        btnSplitShift.style.backgroundColor = "rgba(139, 92, 246, 0.15)";
+        btnSplitShift.style.color = "#8b5cf6";
+        btnSplitShift.style.borderColor = "rgba(139, 92, 246, 0.5)";
+        btnSplitShift.style.boxShadow = "0 0 15px rgba(139, 92, 246, 0.2)";
     }
     
     const periodoSelect = document.getElementById('kpiPeriodoSelect');
