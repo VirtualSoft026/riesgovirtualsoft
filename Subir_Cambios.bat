@@ -1,57 +1,70 @@
 @echo off
-title Actualizador de Pagina Web de Riesgo
+setlocal enabledelayedexpansion
 
-:: Ruta de Git
-set "GIT_BIN=%USERPROFILE%\AppData\Local\Programs\Git\cmd\git.exe"
+title Actualizador de Datos Seguro (Riesgo VS)
 
-:: Si no existe en la ruta de AppData, usar el comando global
-if not exist "%GIT_BIN%" (
-    set "GIT_BIN=git"
+echo ============================================================
+echo        ACTUALIZADOR SEGURO DE DATOS (RIESGO VS)
+echo ============================================================
+echo.
+
+:: 1. Ejecutar scripts de Python
+echo [1/4] Procesando datos locales...
+python build_retiros.py || goto :error
+python build_docs.py || goto :error
+
+:: 2. Asegurar el estado y preparar rama de actualizacion
+echo.
+echo [2/4] Preparando la rama de actualizacion...
+git fetch origin || goto :error
+:: Se crea o sobreescribe una rama local llamada 'update-data' a partir de main
+git checkout -B update-data origin/main || goto :error
+
+:: 3. Agregar unica y exclusivamente los archivos permitidos (Allowlist)
+echo.
+echo [3/4] Agregando archivos autorizados...
+git add kpi_operativos_v2.json procesos_list.json || goto :error
+:: (Agregar en la allowlist cualquier otro JSON/MD o salida legitima requerida)
+
+:: Comprobar si realmente hubo modificaciones antes de crear el commit
+git status --porcelain | findstr . > nul
+if %errorlevel% neq 0 (
+    echo.
+    echo ============================================================
+    echo INFO: Los scripts se ejecutaron pero no hay datos nuevos.
+    echo ============================================================
+    pause
+    exit /b 0
 )
 
-echo ============================================================
-echo        ACTUALIZADOR AUTOMATICO DE DATOS (RIESGO VS)
-echo ============================================================
+:: 4. Crear commit y empujar a rama de PR
 echo.
-echo Buscando cambios locales en Horario, Teletrabajo o procesos...
-echo.
-
-"%GIT_BIN%" status -s
-
-echo.
-echo ============================================================
-echo Procesando datos de Retiros locales (Python)...
-python build_retiros.py
-python build_docs.py
-
-echo.
-echo ============================================================
-echo Guardando y preparando los archivos modificados...
-"%GIT_BIN%" add .
-
-:: Crear un mensaje de commit automatico con fecha y hora
+echo [4/4] Creando paquete y subiendo a GitHub (Rama update-data)...
 set "FECHA=%date%"
 set "HORA=%time%"
-set "COMMIT_MSG=Actualizacion automatica de datos - %FECHA% %HORA%"
-
-echo.
-echo Creando el paquete de actualizacion...
-"%GIT_BIN%" commit -m "%COMMIT_MSG%"
-
-echo.
-echo Subiendo los datos a GitHub (Internet)...
-"%GIT_BIN%" push origin main
+git commit -m "Actualizacion de datos - %FECHA% %HORA%" || goto :error
+git push origin update-data --force || goto :error
 
 echo.
 echo ============================================================
-echo Subiendo los datos a Firebase Hosting (Pagina Web)...
-call npx firebase-tools deploy --only hosting
-echo.
+echo               PROCESO COMPLETADO CON EXITO
 echo ============================================================
-echo            PROCESO COMPLETADO CON EXITO!
+echo Los cambios seguros fueron subidos a la rama 'update-data'.
+echo Ve a GitHub y abre un Pull Request (PR) hacia 'main'.
 echo.
-echo Los cambios ya estan publicados en tu pagina web.
-echo Por favor, espera 1 minuto y refresca la web (Ctrl + F5).
+echo No se ha desplegado en Firebase. (Requiere validacion previa).
 echo ============================================================
-echo.
 pause
+exit /b 0
+
+:error
+echo.
+echo ============================================================
+echo [!] ERROR DETECTADO
+echo ============================================================
+echo Un comando ha fallado. El script se detuvo inmediatamente por
+echo medidas de seguridad. No se han guardado ni subido cambios.
+echo Revisa el mensaje de error de arriba para mas detalles.
+echo ============================================================
+pause
+exit /b 1
