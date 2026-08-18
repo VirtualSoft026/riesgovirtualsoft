@@ -2527,11 +2527,6 @@ async function initApp() {
     navItems.forEach(item => {
         item.addEventListener('click', (e) => {
             e.preventDefault();
-            // Evitar redirigir erróneamente en el botón soporte real
-            if(item.id === 'navSoporte' || item.textContent.includes('Soporte')) {
-                alert("Redirigiendo al IT HelpDesk...");
-                return;
-            }
 
             // UI
             navItems.forEach(n => n.classList.remove('active'));
@@ -4205,8 +4200,6 @@ function setupSidebar() {
     const navAprobaciones = document.getElementById('navAprobaciones');
     const navMonitoreo = document.getElementById('navMonitoreo');
     const navTiempos = document.getElementById('navTiempos');
-    
-    const navSoporte = document.getElementById('navSoporte');
 
     // Unify Horario and Teletrabajo into one tab for all roles
     if (navHorario) {
@@ -4293,8 +4286,6 @@ function setupSidebar() {
         if (navHorario) { sidebarNav.appendChild(navHorario); }
         if (navDocs) { navDocs.style.display = 'flex'; sidebarNav.appendChild(navDocs); }
         if (navPermisos) { navPermisos.style.display = 'flex'; sidebarNav.appendChild(navPermisos); }
-        
-        if (navSoporte) { navSoporte.style.display = 'flex'; sidebarNav.appendChild(navSoporte); }
 
         const navConfigGestores = document.getElementById('navConfigGestores');
         if (navConfigGestores && currentUser.role === 'Admin') {
@@ -4316,8 +4307,6 @@ function setupSidebar() {
         
         // Hide Admin tabs for Gestor
         if (adminNavGroup) adminNavGroup.style.display = 'none';
-        
-        if (navSoporte) { navSoporte.style.display = 'flex'; sidebarNav.appendChild(navSoporte); }
         
         // --- LUNCH BUTTON VISIBILITY ---
         const toggleLunchBtn = document.getElementById('toggleLunchBtn');
