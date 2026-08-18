@@ -4261,8 +4261,13 @@ function setupSidebar() {
         if (adminNavGroup) { adminNavGroup.style.display = 'block'; sidebarNav.appendChild(adminNavGroup); }
         if (navMonitoreo) { navMonitoreo.style.display = 'flex'; adminNavGroup.appendChild(navMonitoreo); }
         
+        if (navTiempos) { navTiempos.style.display = 'none'; }
+        if (navAdminComunicados) { navAdminComunicados.style.display = 'flex'; adminNavGroup.appendChild(navAdminComunicados); }
+        if (navTurnos) { navTurnos.style.display = 'flex'; adminNavGroup.appendChild(navTurnos); }
+        if (navAprobaciones) { navAprobaciones.style.display = 'flex'; adminNavGroup.appendChild(navAprobaciones); }
+        
         const navConfigGestores = document.getElementById('navConfigGestores');
-        if (navConfigGestores && currentUser.email && currentUser.email.toLowerCase() === 'maria.sanchez@virtualsoft.tech') {
+        if (navConfigGestores && currentUser.role === 'Admin') {
             navConfigGestores.style.display = 'flex';
             adminNavGroup.appendChild(navConfigGestores);
         }
