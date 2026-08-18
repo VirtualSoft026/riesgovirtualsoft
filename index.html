@@ -79,6 +79,7 @@
                     <a href="#" class="nav-item" id="navTurnos" style="display: none;"><i class='bx bx-history'></i> Historial de turnos</a>
                     <a href="#" class="nav-item" id="navAprobaciones" style="display: none;"><i class='bx bx-user-check'></i> Aprobaciones</a>
                     <a href="#" class="nav-item" id="navMonitoreo" style="display: none;"><i class='bx bx-pulse'></i> Monitoreo</a>
+                    <a href="#" class="nav-item" id="navConfigGestores" style="display: none;"><i class='bx bx-cog'></i> Config. Gestores</a>
 
                     <a href="#" class="nav-item" id="navEficienciaOperativa" style="display: none;"><i class='bx bx-line-chart'></i> Eficiencia Operativa</a>
                     <a href="#" class="nav-item" id="navTiempos" style="display: none;"><i class='bx bx-timer'></i> Control de Tiempos</a>
@@ -94,7 +95,7 @@
                     <i class='bx bx-restaurant'></i> Tomar Almuerzo/Cena
                 </button>
                 <button id="toggleSplitShiftBtn" class="btn btn-outline" onclick="toggleSplitShiftBreak()" style="width: 100%; display: none; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px; color: var(--text-primary); border-color: rgba(255,255,255,0.2);">
-                    <i class='bx bx-pause-circle'></i> Pausa Turno Partido
+                    <i class='bx bx-pause-circle'></i> Pausa de Turno
                 </button>
                 <button id="endShiftBtn" class="btn btn-danger" onclick="handleEndShift()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
                     <i class='bx bx-log-out-circle'></i> Finalizar Turno
@@ -920,7 +921,27 @@
                     </div>
                 </div>
 
-                <!-- Vista: Comunicados (Gestores) -->
+                <!-- Vista: Configuración de Gestores -->
+            <div id="view-config-gestores" class="view-panel" style="display: none; padding: 20px; overflow-y: auto; width: 100%; box-sizing: border-box; flex: 1;">
+                <h2 class="panel-title" style="margin-bottom: 20px; color: var(--accent-primary);"><i class='bx bx-cog'></i> Configuración de Gestores</h2>
+                <div class="glass-panel" style="padding: 20px; border: 1px solid var(--accent-primary);">
+                    <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 14px;">Activa o desactiva la opción de "Pausa de Turno" para los gestores con turnos partidos.</p>
+                    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--glass-border);">
+                                <th style="padding: 10px; color: var(--text-secondary);">Gestor</th>
+                                <th style="padding: 10px; color: var(--text-secondary);">Correo</th>
+                                <th style="padding: 10px; color: var(--text-secondary); text-align: center;">Habilitar Pausa de Turno</th>
+                            </tr>
+                        </thead>
+                        <tbody id="configGestoresTableBody">
+                            <tr><td colspan="3" style="text-align: center; padding: 20px; color: var(--text-secondary);">Cargando gestores...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Vista: Comunicados (Gestores) -->
             <div id="view-comunicados" class="view-panel" style="display: none; padding: 20px; overflow-y: auto; width: 100%; box-sizing: border-box; flex: 1;">
                     <h2 class="panel-title" style="margin-bottom: 20px; color: var(--accent-primary);"><i class='bx bx-news'></i> Comunicados e Información Importante</h2>
                     <div id="gestorComunicadosList" style="display: flex; flex-direction: column; gap: 15px;">
