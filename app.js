@@ -295,8 +295,8 @@ try {
         shiftTimeline = JSON.parse(savedTimeline);
         let changed = false;
         
-        // Limpiador automático: Eliminar eventos de Inactividad que se crucen con Almuerzo o Desayuno
-        const breaks = shiftTimeline.filter(e => e.type === 'Almuerzo' || e.type === 'Desayuno' || e.type === 'Pausa Turno Partido');
+        // Limpiador automático: Eliminar eventos de Inactividad que se crucen con Almuerzo o Desayuno o Pausa de Turno
+        const breaks = shiftTimeline.filter(e => e.type === 'Almuerzo' || e.type === 'Desayuno' || e.type === 'Pausa de Turno');
         const originalLength = shiftTimeline.length;
         shiftTimeline = shiftTimeline.filter(e => {
             if (e.type !== 'Inactividad') return true;
@@ -2578,6 +2578,10 @@ async function initApp() {
                 const viewAdminComunicados = document.getElementById('view-gestion-comunicados');
                 if (viewAdminComunicados) viewAdminComunicados.style.display = 'block';
                 renderAdminComunicados();
+            } else if (item.id === 'navConfigGestores') {
+                const viewConfigGestores = document.getElementById('view-config-gestores');
+                if (viewConfigGestores) viewConfigGestores.style.display = 'block';
+                renderConfigGestores();
             }
         });
     });
@@ -2910,7 +2914,7 @@ function toggleSplitShiftBreak() {
         if (isBreakfastBreak || isLunchBreak) { alert("Debes volver del descanso actual primero."); return; }
         isSplitShiftBreak = true;
         splitShiftStartTime = Date.now();
-        pushTimelineEvent('Pausa Turno Partido', 'start');
+        pushTimelineEvent('Pausa de Turno', 'start');
         saveBreakState();
         if(btn) {
             btn.innerHTML = "<i class='bx bx-check-circle'></i> Retomar Turno";
@@ -2927,10 +2931,10 @@ function toggleSplitShiftBreak() {
             totalSplitShiftTimeMs += (Date.now() - splitShiftStartTime);
         }
         splitShiftStartTime = null;
-        pushTimelineEvent('Pausa Turno Partido', 'end');
+        pushTimelineEvent('Pausa de Turno', 'end');
         saveBreakState();
         if(btn) {
-            btn.innerHTML = "<i class='bx bx-pause-circle'></i> Pausa Turno Partido";
+            btn.innerHTML = "<i class='bx bx-pause-circle'></i> Pausa de Turno";
             btn.classList.add('btn-outline');
             btn.style.backgroundColor = "";
             btn.style.color = "var(--text-primary)";
@@ -4256,6 +4260,12 @@ function setupSidebar() {
 
         if (adminNavGroup) { adminNavGroup.style.display = 'block'; sidebarNav.appendChild(adminNavGroup); }
         if (navMonitoreo) { navMonitoreo.style.display = 'flex'; adminNavGroup.appendChild(navMonitoreo); }
+        
+        const navConfigGestores = document.getElementById('navConfigGestores');
+        if (navConfigGestores && currentUser.email && currentUser.email.toLowerCase() === 'maria.sanchez@virtualsoft.tech') {
+            navConfigGestores.style.display = 'flex';
+            adminNavGroup.appendChild(navConfigGestores);
+        }
 
         if (navTiempos) { navTiempos.style.display = 'none'; }
         if (navAdminComunicados) {
@@ -4304,7 +4314,7 @@ function setupSidebar() {
         }
 
         const toggleSplitShiftBtn = document.getElementById('toggleSplitShiftBtn');
-        if (toggleSplitShiftBtn) {
+        if (toggleSplitShiftBtn && currentUser.hasSplitShift === true) {
             toggleSplitShiftBtn.style.display = 'flex';
         }
     }
@@ -5845,6 +5855,80 @@ async function markUrgentComunicadoAsRead(id) {
     } catch(e) {
         btn.innerHTML = "<i class='bx bx-check-double'></i> He leído y entendido este comunicado";
         btn.disabled = false;
+    }
+}
+
+// === CONFIGURACIÓN DE GESTORES ===
+function renderConfigGestores() {
+    const tbody = document.getElementById('configGestoresTableBody');
+    if (!tbody) return;
+
+    database.ref('users').once('value').then(snap => {
+        tbody.innerHTML = '';
+        if (!snap.exists()) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-secondary); padding: 20px;">No hay gestores registrados.</td></tr>';
+            return;
+        }
+
+        const users = [];
+        snap.forEach(child => {
+            const u = child.val();
+            // Mostrar Gestores (y quizás Supervisores si también hacen turno)
+            if (u.role === 'Gestor' || u.role === 'Supervisor') {
+                u.uid = child.key;
+                users.push(u);
+            }
+        });
+
+        if (users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-secondary); padding: 20px;">No hay gestores registrados.</td></tr>';
+            return;
+        }
+
+        // Ordenar alfabéticamente
+        users.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+        users.forEach(u => {
+            const hasSplitShift = u.hasSplitShift === true;
+            const row = document.createElement('tr');
+            row.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+            row.innerHTML = `
+                <td style="padding: 15px; display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 30px; height: 30px; background: var(--glass-border); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--accent-primary);"><i class='bx bx-user'></i></div>
+                    <div>
+                        <div style="font-weight: 500; color: var(--text-primary);">${u.name || 'Desconocido'}</div>
+                        <div style="font-size: 11px; color: var(--text-secondary);">${u.role}</div>
+                    </div>
+                </td>
+                <td style="padding: 15px; color: var(--text-secondary); font-size: 13px;">${u.email}</td>
+                <td style="padding: 15px; text-align: center;">
+                    <label class="switch" style="position: relative; display: inline-block; width: 44px; height: 22px;">
+                        <input type="checkbox" onchange="toggleGestorSplitShift('${u.uid}', this.checked)" ${hasSplitShift ? 'checked' : ''} style="opacity: 0; width: 0; height: 0;">
+                        <span class="slider round" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: ${hasSplitShift ? 'var(--success)' : 'var(--glass-border)'}; transition: .4s; border-radius: 22px;">
+                            <span style="position: absolute; height: 16px; width: 16px; left: ${hasSplitShift ? '24px' : '3px'}; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
+                        </span>
+                    </label>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }).catch(err => {
+        console.error('Error cargando gestores:', err);
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--danger); padding: 20px;">Error al cargar datos.</td></tr>';
+    });
+}
+
+function toggleGestorSplitShift(uid, isChecked) {
+    if(confirm(`¿Estás segura de que quieres ${isChecked ? 'habilitar' : 'deshabilitar'} la Pausa de Turno para este usuario?`)) {
+        database.ref('users/' + uid + '/hasSplitShift').set(isChecked).then(() => {
+            renderConfigGestores(); // Refrescar vista
+        }).catch(err => {
+            console.error('Error actualizando permiso de turno partido:', err);
+            alert("Hubo un error al guardar. Intenta de nuevo.");
+            renderConfigGestores(); // Revertir toggle
+        });
+    } else {
+        renderConfigGestores(); // Revertir toggle si cancela
     }
 }
 
