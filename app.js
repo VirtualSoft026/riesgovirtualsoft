@@ -4276,11 +4276,7 @@ function setupSidebar() {
         if (navTurnos) { navTurnos.style.display = 'flex'; adminNavGroup.appendChild(navTurnos); }
         if (navAprobaciones) { navAprobaciones.style.display = 'flex'; adminNavGroup.appendChild(navAprobaciones); }
         
-        const navConfigGestores = document.getElementById('navConfigGestores');
-        if (navConfigGestores && currentUser.role === 'Admin') {
-            navConfigGestores.style.display = 'flex';
-            adminNavGroup.appendChild(navConfigGestores);
-        }
+
 
         if (navTiempos) { navTiempos.style.display = 'none'; }
         if (navAdminComunicados) {
@@ -4299,6 +4295,12 @@ function setupSidebar() {
         if (navPermisos) { navPermisos.style.display = 'flex'; sidebarNav.appendChild(navPermisos); }
         
         if (navSoporte) { navSoporte.style.display = 'flex'; sidebarNav.appendChild(navSoporte); }
+
+        const navConfigGestores = document.getElementById('navConfigGestores');
+        if (navConfigGestores && currentUser.role === 'Admin') {
+            navConfigGestores.style.display = 'flex';
+            sidebarNav.appendChild(navConfigGestores);
+        }
     } else {
         // Gestor Order
         const hFilter = document.getElementById('horarioGestorFilterContainer');
