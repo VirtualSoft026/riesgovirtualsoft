@@ -23,15 +23,15 @@ git checkout -B update-data origin/main || goto :error
 :: 3. Agregar unica y exclusivamente los archivos permitidos (Allowlist)
 echo.
 echo [3/4] Agregando archivos autorizados...
-git add kpi_operativos_v2.json procesos_list.json || goto :error
+git add kpi_operativos_v2.json procesos_list.json "Cronograma de Tareas/*.xlsx" "Tareas Riesgo/*.xlsx" || goto :error
 :: (Agregar en la allowlist cualquier otro JSON/MD o salida legitima requerida)
 
-:: Comprobar si realmente hubo modificaciones antes de crear el commit
-git status --porcelain | findstr . > nul
-if %errorlevel% neq 0 (
+:: Comprobar si realmente hubo modificaciones STAGED antes de crear el commit
+git diff --cached --quiet
+if %errorlevel% equ 0 (
     echo.
     echo ============================================================
-    echo INFO: Los scripts se ejecutaron pero no hay datos nuevos.
+    echo INFO: No hay datos nuevos o modificados para subir.
     echo ============================================================
     pause
     exit /b 0
