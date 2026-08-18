@@ -4130,17 +4130,17 @@ function setupSidebar() {
         if (navTurnos) { navTurnos.style.display = 'flex'; adminNavGroup.appendChild(navTurnos); }
         if (navAprobaciones) { navAprobaciones.style.display = 'flex'; adminNavGroup.appendChild(navAprobaciones); }
         
-        const navConfigGestores = document.getElementById('navConfigGestores');
-        if (navConfigGestores && currentUser.email && currentUser.email.toLowerCase() === 'maria.sanchez@virtualsoft.tech') {
-            navConfigGestores.style.display = 'flex';
-            adminNavGroup.appendChild(navConfigGestores);
-        }
-        
         if (navHorario) { sidebarNav.appendChild(navHorario); }
         if (navDocs) { navDocs.style.display = 'flex'; sidebarNav.appendChild(navDocs); }
         if (navPermisos) { navPermisos.style.display = 'flex'; sidebarNav.appendChild(navPermisos); }
         
         if (navSoporte) { navSoporte.style.display = 'flex'; sidebarNav.appendChild(navSoporte); }
+
+        const navConfigGestores = document.getElementById('navConfigGestores');
+        if (navConfigGestores && currentUser.email && currentUser.email.toLowerCase() === 'maria.sanchez@virtualsoft.tech') {
+            navConfigGestores.style.display = 'flex';
+            sidebarNav.appendChild(navConfigGestores);
+        }
     } else {
         // Gestor Order
         const hFilter = document.getElementById('horarioGestorFilterContainer');
