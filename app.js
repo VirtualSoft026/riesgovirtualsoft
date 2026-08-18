@@ -480,6 +480,16 @@ try {
             // We removed the aggressive onDisconnect hook because it was triggering falsely when Chrome paused the background tab
             // The admin dashboard's 2-minute lastActive timeout serves as a perfect fallback if the user actually closes the tab
             
+            // Listen for hasSplitShift changes in real-time
+            database.ref(`users/${currentUser.uid}/hasSplitShift`).on('value', snap => {
+                const newVal = snap.val() === true;
+                if (currentUser.hasSplitShift !== newVal) {
+                    currentUser.hasSplitShift = newVal;
+                    localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
+                    updateNavigation(); // Muestra/oculta el boton en vivo
+                }
+            });
+
             // --- PATCH MARILYN LOGIN TIME (JUNE 10) ---
             if (currentUser.uid === 'ATOXW8JKRNUdoy3wPlk1lI9zpTh2' && !localStorage.getItem('login_restored_v108')) {
                 let d = new Date();
@@ -5706,15 +5716,21 @@ function renderConfigGestores() {
             return;
         }
 
-        const users = [];
+        const usersMap = {};
         snap.forEach(child => {
             const u = child.val();
-            // Mostrar Gestores (y quizás Supervisores si también hacen turno)
-            if (u.role === 'Gestor' || u.role === 'Supervisor') {
-                u.uid = child.key;
-                users.push(u);
+            // Mostrar solo Gestores (excluir Supervisores como Sara y Camilo)
+            if (u.role === 'Gestor' && u.email && !u.email.toLowerCase().includes('pruebas')) {
+                const email = u.email.toLowerCase();
+                // Si hay duplicados, preferimos el que tenga loginTime mas reciente o simplemente guardamos uno
+                if (!usersMap[email] || (u.loginTime && (!usersMap[email].loginTime || new Date(u.loginTime) > new Date(usersMap[email].loginTime)))) {
+                    u.uid = child.key;
+                    usersMap[email] = u;
+                }
             }
         });
+        
+        const users = Object.values(usersMap);
 
         if (users.length === 0) {
             tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-secondary); padding: 20px;">No hay gestores registrados.</td></tr>';
