@@ -4262,6 +4262,11 @@ function renderActiveSessionsDashboard() {
         const email = (session.email || '');
         const shift = session.shift || 'Mañana';
         let isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
+        
+        // Exclude supervisors from Monitoreo
+        const excludedMonitoreo = ['Sara Santamaria', 'Sara Santamaría', 'Maria Sanchez', 'Camilo Espinosa', 'Oriana Borja'];
+        if (excludedMonitoreo.some(ex => fullName.toLowerCase().includes(ex.toLowerCase()))) return false;
+
         if (session.status === 'En Almuerzo' || session.status === 'En Desayuno' || session.status === 'Inactivo') {
             isOnline = false;
         }
