@@ -348,12 +348,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const finalLoginTime = recoveredLoginTime || new Date().toISOString();
 
+                let forcedRole = dbUser.role || "Gestor";
+                
+                // Forzar rol de supervisor para Oriana y Sara si aún no lo tienen en DB
+                const userEmail = (dbUser.email || '').toLowerCase();
+                if (user.uid === 'FcORj44ZBUfRPfP2UkGVKtDhcMJ2' || userEmail.includes('oriana') || userEmail.includes('sara.santamaria') || userEmail.includes('camilo.espinosa')) {
+                    forcedRole = "Supervisor";
+                }
+
                 // Configurar sesión local
                 const sessionData = {
                     name: dbUser.name,
                     email: dbUser.email,
                     shift: dbUser.shift || "Por Asignar",
-                    role: dbUser.role || "Gestor",
+                    role: forcedRole,
                     loginTime: finalLoginTime,
                     uid: user.uid
                 };
@@ -363,7 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const logRef = database.ref('login_logs').push();
                     await logRef.set({
                         name: dbUser.name,
-                        role: dbUser.role || "Gestor",
+                        role: forcedRole,
                         email: dbUser.email,
                         timestamp: Date.now(),
                         logoutTime: null
