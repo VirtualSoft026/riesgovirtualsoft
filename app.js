@@ -1433,6 +1433,8 @@ async function loadSchedule() {
                         else if(sLower.includes('vacacion')) badgeClass = 'vacaciones-badge';
                         else if(sLower.includes('descansa')) badgeClass = 'descanso-badge';
                         else if(sLower.includes('familia')) badgeClass = 'familia-badge';
+                        else if(sLower.includes('incapacidad')) badgeClass = 'incapacidad-badge';
+                        else if(sLower.includes('disponible') || sLower.includes('dosponible')) badgeClass = 'disponible-badge';
                         
                         trHTML += `<td style="padding: 12px; text-align: center; white-space: nowrap;"><span class="badge ${badgeClass}">${shift}</span></td>`;
                     }
