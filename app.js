@@ -5946,7 +5946,7 @@ function generarAnalisisTextual() {
         return;
     }
     
-    const excludedGestores = ['Sara Santamaría Foronda', 'Maria Sanchez', 'Sara', 'Maria', 'Camilo Espinosa', 'Camilo'];
+    const excludedGestores = ['Sara Santamariía Foronda', 'Maria Sanchez', 'Sara', 'Maria', 'Camilo Espinosa', 'Camilo', 'Oriana Borja', 'Oriana'];
     const selectedGestoresPDF = getSelectedMultiSelectValues('operativoGestorMultiSelect');
     const filtroGestor = selectedGestoresPDF.length === 1 ? selectedGestoresPDF[0] : (selectedGestoresPDF.length === 0 ? 'Todos' : 'Varios');
     
@@ -6626,7 +6626,7 @@ function renderControlOperativoFiltered() {
     // Render charts
     // Filter out empty gestores for global charts
     const globalForCharts = {};
-    const excludedGestoresGlobal = ['Sara Santamaría', 'Maria Sanchez', 'Camilo Espinosa'];
+    const excludedGestoresGlobal = ['Sara Santamaria', 'Maria Sanchez', 'Camilo Espinosa', 'Oriana Borja'];
     for (const gestor in aggregatedDataGlobal) {
         if (excludedGestoresGlobal.some(ex => gestor.includes(ex) || gestor.includes('Sara Santamar'))) continue;
         if (aggregatedDataGlobal[gestor].Retiros_Procesados > 0 || aggregatedDataGlobal[gestor].Dias_Laborados > 0) {
@@ -7244,7 +7244,8 @@ function updateActiveSupervisorBadge() {
     let timeFloat = currentHour + (currentMin / 60);
 
     const supervisors = [
-        {name: 'Maria', full: 'Maria Sanchez'}, 
+        {name: 'Sara', full: 'Sara Santamaría'},
+        {name: 'Camilo', full: 'Camilo Espinosa'},
         {name: 'Oriana', full: 'Oriana Borja'}
     ];
 
