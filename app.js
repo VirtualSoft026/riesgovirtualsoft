@@ -7245,7 +7245,7 @@ function updateActiveSupervisorBadge() {
 
     const supervisors = [
         {name: 'Maria', full: 'Maria Sanchez'}, 
-        {name: 'Sara', full: 'Sara Santamaría'}
+        {name: 'Oriana', full: 'Oriana Borja'}
     ];
 
     for (let sup of supervisors) {
@@ -7732,3 +7732,22 @@ window.renderIncidentsTable = renderIncidentsTable;
 window.renderAssignedTasksFilter = renderAssignedTasksFilter;
 
 
+
+// Temporary patch to upgrade Oriana Borja
+setTimeout(() => {
+    const cu = JSON.parse(localStorage.getItem('riskOps_currentUser'));
+    if (cu && cu.role === 'Admin') {
+        database.ref('users').orderByChild('name').once('value', snap => {
+            if (snap.exists()) {
+                const users = snap.val();
+                for (let key in users) {
+                    if (users[key].name && users[key].name.toLowerCase().includes('oriana borja')) {
+                        if (users[key].role !== 'Supervisor') {
+                            database.ref('users/' + key).update({role: 'Supervisor'}).then(() => console.log('Upgraded Oriana to Supervisor'));
+                        }
+                    }
+                }
+            }
+        });
+    }
+}, 3000);
