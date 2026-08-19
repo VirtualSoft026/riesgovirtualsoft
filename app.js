@@ -7447,16 +7447,20 @@ function updateActiveSupervisorBadge() {
                 }
                 
                 if (isActive) {
-                    if (!activeSups.includes(sup.full)) activeSups.push(sup.full);
+                    if (!activeSups.includes(sup.name)) activeSups.push(sup.name);
                 }
             } else if (shiftStr.toLowerCase().includes('turno')) {
-                if (!activeSups.includes(sup.full)) activeSups.push(sup.full);
+                if (!activeSups.includes(sup.name)) activeSups.push(sup.name);
             }
         }
     }
     
     if (activeSups.length > 0) {
-        badge.innerHTML = `<i class='bx bx-support'></i> Sup: ${escapeHTML(activeSups.join(' y '))}`;
+        let formattedSups = '';
+if (activeSups.length === 1) formattedSups = activeSups[0];
+else if (activeSups.length === 2) formattedSups = activeSups.join(' y ');
+else formattedSups = activeSups.slice(0, -1).join(', ') + ' y ' + activeSups[activeSups.length - 1];
+badge.innerHTML = `<i class='bx bx-support'></i> Sup: ${formattedSups}`;
     } else {
         badge.innerHTML = `<i class='bx bx-support'></i> Sup: Ninguna (Fuera de turno)`;
     }
