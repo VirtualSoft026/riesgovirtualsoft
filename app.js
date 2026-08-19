@@ -933,12 +933,9 @@ async function loadCronogramaAssignments(gestorName, gestorShift) {
                 const row = rows[rIdx];
                 if (!row) continue;
                 
-                // Buscar el "Set " para la columna de tareas actual (útil para celdas combinadas)
-                for (let c = tCol; c >= 0; c--) {
-                    if (row[c] !== undefined && row[c] !== null && String(row[c]).trim().toLowerCase().startsWith("set ")) {
-                        currentSet = String(row[c]).trim();
-                        break; // Se encontró el set para esta columna
-                    }
+                // Buscar el "Set " solo en la columna de tareas actual
+                if (row[tCol] !== undefined && row[tCol] !== null && String(row[tCol]).trim().toLowerCase().startsWith("set ")) {
+                    currentSet = String(row[tCol]).trim();
                 }
                 
                 const taskVal = row[tCol];
