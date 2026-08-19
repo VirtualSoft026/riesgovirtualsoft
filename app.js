@@ -7244,8 +7244,8 @@ function updateActiveSupervisorBadge() {
     let timeFloat = currentHour + (currentMin / 60);
 
     const supervisors = [
+        {name: 'Maria', full: 'Maria Sanchez'}, 
         {name: 'Sara', full: 'Sara Santamaría'},
-        {name: 'Camilo', full: 'Camilo Espinosa'},
         {name: 'Oriana', full: 'Oriana Borja'}
     ];
 
