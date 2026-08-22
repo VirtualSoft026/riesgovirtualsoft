@@ -17,6 +17,9 @@
         "approved": {
           ".validate": "root.child('users').child(auth.uid).child('role').val() === 'Admin' || newData.val() === false"
         },
+        "email": {
+          ".validate": "root.child('users').child(auth.uid).child('role').val() === 'Admin' || newData.val().matches(/^[A-Za-z0-9._%+-]+@virtualsoft\\.tech$/i)"
+        },
         "status": {
           ".validate": "root.child('users').child(auth.uid).child('role').val() === 'Admin' || newData.val() === 'pending' || newData.val() === 'Activo' || newData.val() === 'Inactivo'",
           ".write": "auth != null && auth.uid === $uid && root.child('users').child(auth.uid).child('approved').val() === true && data.exists() && (newData.val() === 'Activo' || newData.val() === 'Inactivo')"
