@@ -192,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Registrando...";
             btn.disabled = true;
 
-            let finalRole = role;
+            let finalRole = (role === 'Supervisor') ? 'Supervisor' : 'Gestor';
 
             try {
                 // 1. Create user in Firebase Auth
@@ -205,7 +205,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     email: email,
                     shift: "Por Asignar", // El turno se asigna por Excel
                     role: finalRole,
-                    approved: finalRole === 'Admin', // Solo los Admin se auto-aprueban
+                    approved: false, // Ningún usuario puede auto-aprobarse en el registro
+                    status: "pending",
                     registrationDate: new Date().toISOString()
                 };
                 
@@ -297,7 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 if (dbUser.approved === 'Rechazado') {
-                    loginError.innerHTML = `Tu solicitud de cuenta ha sido rechazada.<br><small>Motivo: ${dbUser.rejectionReason || 'No especificado'}</small>`;
+                    loginError.innerHTML = `Tu solicitud de cuenta ha sido rechazada.<br><small>Motivo: ${escapeHTML(dbUser.rejectionReason || 'No especificado')}</small>`;
                     loginError.style.display = 'block';
                     await firebase.auth().signOut();
                     return;
@@ -348,20 +349,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const finalLoginTime = recoveredLoginTime || new Date().toISOString();
 
-                let forcedRole = dbUser.role || "Gestor";
-                
-                // Forzar rol de supervisor para Oriana y Sara si aún no lo tienen en DB
-                const userEmail = (dbUser.email || '').toLowerCase();
-                if (user.uid === 'FcORj44ZBUfRPfP2UkGVKtDhcMJ2' || userEmail.includes('oriana') || userEmail.includes('sara.santamaria') || userEmail.includes('camilo.espinosa')) {
-                    forcedRole = "Supervisor";
-                }
-
                 // Configurar sesión local
                 const sessionData = {
                     name: dbUser.name,
                     email: dbUser.email,
                     shift: dbUser.shift || "Por Asignar",
-                    role: forcedRole,
+                    role: dbUser.role || "Gestor",
                     loginTime: finalLoginTime,
                     uid: user.uid
                 };
@@ -370,8 +363,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const logRef = database.ref('login_logs').push();
                     await logRef.set({
+                        uid: user.uid,
                         name: dbUser.name,
-                        role: forcedRole,
+                        role: dbUser.role || "Gestor",
                         email: dbUser.email,
                         timestamp: Date.now(),
                         logoutTime: null

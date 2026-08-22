@@ -1,3 +1,83 @@
+
+const SUPERVISORES_NOMBRES = ['Sara Santamaría', 'Sara Santamaria', 'Maria Sanchez', 'Camilo Espinosa', 'Oriana Borja', 'Sara', 'Maria', 'Camilo', 'Oriana'];
+// XSS Sanitizer Helper
+function escapeHTML(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+window.escapeHTML = escapeHTML;
+
+// Encode dynamic values before placing them inside single-quoted inline handlers.
+// encodeURIComponent intentionally leaves apostrophes untouched, so encode them too.
+function encodeInlineHandlerArg(value) {
+    return encodeURIComponent(String(value)).replace(/'/g, '%27');
+}
+
+const ANNOUNCEMENT_ALLOWED_TAGS = new Set(['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'a']);
+const ANNOUNCEMENT_DROP_CONTENT_TAGS = new Set([
+    'script', 'style', 'iframe', 'object', 'embed', 'template', 'noscript'
+]);
+
+function sanitizeAnnouncementHref(value) {
+    if (!value) return '';
+
+    const trimmed = String(value).trim();
+    const normalized = trimmed.replace(/[\u0000-\u0020\u007F]+/g, '');
+    if (!normalized || normalized.startsWith('//')) return '';
+
+    const schemeMatch = normalized.match(/^([a-z][a-z0-9+.-]*):/i);
+    if (schemeMatch && !['http', 'https', 'mailto'].includes(schemeMatch[1].toLowerCase())) {
+        return '';
+    }
+
+    return trimmed;
+}
+
+function sanitizeAnnouncementHTML(value) {
+    if (value === null || value === undefined) return '';
+
+    const template = document.createElement('template');
+    template.innerHTML = String(value);
+    const output = document.createElement('div');
+    const tagAliases = { b: 'strong', i: 'em', div: 'p' };
+
+    function appendSanitizedNode(sourceNode, targetParent) {
+        if (sourceNode.nodeType === Node.TEXT_NODE) {
+            targetParent.appendChild(document.createTextNode(sourceNode.textContent || ''));
+            return;
+        }
+
+        if (sourceNode.nodeType !== Node.ELEMENT_NODE) return;
+
+        const sourceTag = sourceNode.tagName.toLowerCase();
+        if (ANNOUNCEMENT_DROP_CONTENT_TAGS.has(sourceTag)) return;
+
+        const cleanTag = tagAliases[sourceTag] || sourceTag;
+        if (!ANNOUNCEMENT_ALLOWED_TAGS.has(cleanTag)) {
+            Array.from(sourceNode.childNodes).forEach(child => appendSanitizedNode(child, targetParent));
+            return;
+        }
+
+        const cleanNode = document.createElement(cleanTag);
+        if (cleanTag === 'a') {
+            const safeHref = sanitizeAnnouncementHref(sourceNode.getAttribute('href'));
+            if (safeHref) cleanNode.setAttribute('href', safeHref);
+        }
+
+        Array.from(sourceNode.childNodes).forEach(child => appendSanitizedNode(child, cleanNode));
+        targetParent.appendChild(cleanNode);
+    }
+
+    Array.from(template.content.childNodes).forEach(node => appendSanitizedNode(node, output));
+    return output.innerHTML;
+}
+window.sanitizeAnnouncementHTML = sanitizeAnnouncementHTML;
+
 // Auth Check
 const currentUserObj = localStorage.getItem('riskOps_currentUser');
 if (!currentUserObj && !window.location.href.includes('login.html')) {
@@ -490,52 +570,7 @@ try {
                 }
             });
 
-            // --- PATCH MARILYN LOGIN TIME (JUNE 10) ---
-            if (currentUser.uid === 'ATOXW8JKRNUdoy3wPlk1lI9zpTh2' && !localStorage.getItem('login_restored_v108')) {
-                let d = new Date();
-                if (d.getDate() === 10 && d.getMonth() === 5 && d.getFullYear() === 2026) {
-                    d.setHours(8, 10, 32, 0); // 8:10:32 AM
-                    currentUser.loginTime = d.toISOString();
-                    localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
-                    
-                    // Remove the fake 7:58 AM inactivity event that generated accidentally today
-                    let t = JSON.parse(localStorage.getItem('riskOps_timeline')) || [];
-                    t = t.filter(ev => !(ev.type === 'Inactividad' && new Date(ev.start).getHours() === 7 && new Date(ev.start).getMinutes() === 58));
-                    localStorage.setItem('riskOps_timeline', JSON.stringify(t));
-                    shiftTimeline = t;
-                    
-                    localStorage.setItem('login_restored_v108', 'true');
-                }
-            }
-            
-            // --- PATCH ORIANA LOGIN TIME (JUNE 16) ---
-            if (currentUser.uid === 'FcORj44ZBUfRPfP2UkGVKtDhcMJ2' && !localStorage.getItem('login_restored_oriana_june16_v2')) {
-                let d = new Date();
-                d.setHours(15, 0, 0, 0); // 3:00:00 PM
-                currentUser.loginTime = d.toISOString();
-                localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
-                localStorage.setItem('login_restored_oriana_june16_v2', 'true');
-            }
-            
-            // --- PATCH JOSUE LOGIN TIME (JUNE 17) ---
-            if (currentUser.uid === 'Fn6FKMB1SOVEVdvlpkoDSHrlO8n2' && !localStorage.getItem('login_restored_josue_june17')) {
-                let d = new Date();
-                d.setHours(8, 0, 0, 0); // 8:00:00 AM
-                currentUser.loginTime = d.toISOString();
-                localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
-                localStorage.setItem('login_restored_josue_june17', 'true');
-            }
-
-            // --- PATCH SEBASTIAN HINCAPIE LOGIN TIME (JUNE 24) ---
-            if (currentUser.uid === 'e3y3uNtszkTXoNtXyqAYbUc0nAn2' && !localStorage.getItem('login_restored_sebastian_june24')) {
-                let d = new Date();
-                d.setHours(8, 0, 0, 0); // 8:00:00 AM
-                currentUser.loginTime = d.toISOString();
-                localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
-                localStorage.setItem('login_restored_sebastian_june24', 'true');
-            }
-            
-            // --- PATCH CLEAR FALSE INACTIVITY (JUNE 17 3PM & 7PM SHIFTS) ---
+                        // --- PATCH CLEAR FALSE INACTIVITY (JUNE 17 3PM & 7PM SHIFTS) ---
             if (!localStorage.getItem('inactivity_cleared_june17_v1')) {
                 if (currentUser.shift === '3pm - 11pm' || currentUser.shift === '7pm - 2am') {
                     let tStr = localStorage.getItem('riskOps_timeline');
@@ -814,6 +849,7 @@ async function preloadCronograma() {
         const cronogramaFile = `Cronograma ${monthName}.xlsx`;
         const url = encodeURI('Cronograma de Tareas/' + cronogramaFile) + '?t=' + Date.now();
         const response = await fetch(url);
+        console.log(`XLSX_FETCH url=${url} status=${response.status}`);
         if (!response.ok) return;
         const arrayBuffer = await response.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, {type: 'array'});
@@ -822,8 +858,11 @@ async function preloadCronograma() {
         if (sheetName) {
             globalCronogramaData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "" });
             // Re-render dashboard just in case it loaded before this finished
-            if (document.getElementById('monitoreoView').style.display !== 'none') {
-                renderDashboardCards();
+            const viewMonitoreo = document.getElementById('view-monitoreo');
+            if (viewMonitoreo && viewMonitoreo.style.display !== 'none') {
+                if (typeof renderActiveSessionsDashboard === 'function') {
+                    renderActiveSessionsDashboard();
+                }
             }
         }
     } catch(e) {
@@ -871,6 +910,7 @@ async function loadCronogramaAssignments(gestorName, gestorShift) {
         const cronogramaFile = `Cronograma ${monthName}.xlsx`;
         const url = encodeURI('Cronograma de Tareas/' + cronogramaFile) + '?t=' + Date.now();
         const response = await fetch(url);
+        console.log(`XLSX_FETCH url=${url} status=${response.status}`);
         if (!response.ok) throw new Error("Fallo al cargar cronograma");
         const arrayBuffer = await response.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, {type: 'array'});
@@ -1054,6 +1094,16 @@ function getShiftForDate(rows, allScheduleBlocks, gestorName, date) {
 }
 
 // Mapeo de URLs para documentos (especialmente videos pesados alojados en Google Drive)
+const privateGitHubDocs = {
+  "Guia Jira EGT - Proveedor de Casino.pdf": "https://github.com/RiesgoVirtualsoft/riskmanager-internal-docs/blob/main/Procedimientos/Guia%20Jira%20EGT%20-%20Proveedor%20de%20Casino.pdf",
+  "Instructivo de revisión de apuestas casino.pdf": "https://github.com/RiesgoVirtualsoft/riskmanager-internal-docs/blob/main/Procedimientos/Instructivo%20de%20revisi%C3%B3n%20de%20apuestas%20casino.pdf",
+  "Instructivo de validación de GGR Casino.pdf": "https://github.com/RiesgoVirtualsoft/riskmanager-internal-docs/blob/main/Procedimientos/Instructivo%20de%20validaci%C3%B3n%20de%20GGR%20Casino.pdf",
+  "Política Procedimiento De Aprobación De Retiros.pdf": "https://github.com/RiesgoVirtualsoft/riskmanager-internal-docs/blob/main/Procedimientos/Pol%C3%ADtica%20Procedimiento%20De%20Aprobaci%C3%B3n%20De%20Retiros.pdf",
+  "Procedimiento Identificación de jineteo.pdf": "https://github.com/RiesgoVirtualsoft/riskmanager-internal-docs/blob/main/Procedimientos/Procedimiento%20Identificaci%C3%B3n%20de%20jineteo.pdf",
+  "Proceso de Eliminación de Cuentas - Implementaciones.pdf": "https://github.com/RiesgoVirtualsoft/riskmanager-internal-docs/blob/main/Procedimientos/Proceso%20de%20Eliminaci%C3%B3n%20de%20Cuentas%20-%20Implementaciones.pdf",
+  "VALIDACIÓN DE ABUSO DE BONOS EN CAMPAÑAS DE CRM.pdf": "https://github.com/RiesgoVirtualsoft/riskmanager-internal-docs/blob/main/Procedimientos/VALIDACI%C3%93N%20DE%20ABUSO%20DE%20BONOS%20EN%20CAMPA%C3%91AS%20DE%20CRM.pdf"
+};
+
 const documentUrls = {
     "Revisión de Eventos Deportivos.mp4": "https://drive.google.com/file/d/1UqccsnUwTG6tgPcDYdUeLnf9XqvGzSoc/view?usp=sharing",
     "Revisión de Eventos.mp4": "https://drive.google.com/file/d/1SB9ePi1EOJU05hzOsxOyl7BeNvCN1hOh/view?usp=sharing",
@@ -1061,6 +1111,12 @@ const documentUrls = {
 };
 
 function getDocUrl(fileName) {
+    if (privateGitHubDocs[fileName]) {
+        return privateGitHubDocs[fileName];
+    }
+    if (fileName.endsWith('.mp4') && !documentUrls[fileName]) {
+        return "#PENDING_PRIVATE_DOCUMENT_MIGRATION";
+    }
     if (documentUrls[fileName]) {
         return documentUrls[fileName];
     }
@@ -1104,6 +1160,7 @@ async function loadExcelTasks() {
     try {
         const url = encodeURI('Tareas Riesgo/Tareas de Riesgo.xlsx') + '?t=' + new Date().getTime();
         const response = await fetch(url);
+        console.log(`XLSX_FETCH url=${url} status=${response.status}`);
         if(!response.ok) throw new Error("Error HTTP " + response.status);
         const arrayBuffer = await response.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, {type: 'array'});
@@ -1204,7 +1261,7 @@ async function loadExcelTasks() {
             select.innerHTML = '<option value="" disabled selected>Selecciona tu SET a trabajar...</option><option value="Todos">Mostrar Todos</option>';
             const setsKeys = Object.keys(tasksBySet).sort();
             setsKeys.forEach(set => {
-                select.innerHTML += `<option value="${set}">${set}</option>`;
+                select.innerHTML += `<option value="${escapeHTML(set)}">${escapeHTML(set)}</option>`;
             });
             
             // Clone select to remove old event listeners
@@ -1240,7 +1297,7 @@ async function loadExcelTasks() {
     } catch(err) {
         console.error("Error loading tasks:", err);
         const container = document.querySelector('.tree-container');
-        if(container) container.innerHTML = `<div style="padding: 20px; color: var(--danger);"><i class="bx bx-error-circle"></i> Error cargando tareas: ${err.message}</div>`;
+        if(container) container.innerHTML = `<div style="padding: 20px; color: var(--danger);"><i class="bx bx-error-circle"></i> Error cargando tareas: ${escapeHTML(err.message)}</div>`;
     }
 }
 
@@ -1249,6 +1306,7 @@ async function loadSchedule() {
     try {
         const url = encodeURI('Horario/Horario 2026.xlsx') + '?t=' + Date.now();
         const response = await fetch(url);
+        console.log(`XLSX_FETCH url=${url} status=${response.status}`);
         if(!response.ok) throw new Error("Fallo red");
         const arrayBuffer = await response.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, {type: 'array'});
@@ -1367,7 +1425,7 @@ async function loadSchedule() {
             if (weekSelector) {
                 weekSelector.innerHTML = '';
                 allScheduleBlocks.forEach(block => {
-                    weekSelector.innerHTML += `<option value="${block.startRow}">${block.label}</option>`;
+                    weekSelector.innerHTML += `<option value="${escapeHTML(String(block.startRow))}">${escapeHTML(block.label)}</option>`;
                 });
                 
                 weekSelector.value = defaultBlockRow;
@@ -1397,7 +1455,7 @@ async function loadSchedule() {
                     const dayName = dayRow[i] || `Día ${i}`;
                     const dateParsed = formatExcelDate(dateRow[i]);
                     const subText = dateParsed ? `<br><span style="font-size: 11px; font-weight: normal; color: var(--text-secondary);">${dateParsed}</span>` : '';
-                    headHTML += `<th style="padding: 12px; color: var(--accent-primary); text-align: center;">${dayName}${subText}</th>`;
+                    headHTML += `<th style="padding: 12px; color: var(--accent-primary); text-align: center;">${escapeHTML(String(dayName))}${subText}</th>`;
                 }
                 headHTML += '</tr>';
                 tableHead.innerHTML = headHTML;
@@ -1413,13 +1471,14 @@ async function loadSchedule() {
                     }
 
                     let isCurrentUser = (currentUser && namesMatch(gestorName, currentUser.name));
+                    if (isCurrentUser) console.log('current user matched = true');
                     
                     if (currentUser && currentUser.role === 'Gestor' && !isCurrentUser) continue;
 
                     let bgClass = isCurrentUser ? 'rgba(59,130,246,0.1)' : 'transparent';
                     
                     let trHTML = `<tr class="hover-highlight" style="border-bottom: 1px solid var(--glass-border); background: ${bgClass};">`;
-                    trHTML += `<td style="padding: 12px; font-weight: 600; text-align: left; color: ${isCurrentUser ? 'var(--accent-primary)' : 'var(--text-primary)'}; position: sticky; left: 0; background: ${isCurrentUser ? 'var(--bg-dark)' : 'var(--bg-panel)'}; z-index: 1;">${gestorName}</td>`;
+                    trHTML += `<td style="padding: 12px; font-weight: 600; text-align: left; color: ${isCurrentUser ? 'var(--accent-primary)' : 'var(--text-primary)'}; position: sticky; left: 0; background: ${isCurrentUser ? 'var(--bg-dark)' : 'var(--bg-panel)'}; z-index: 1;">${escapeHTML(gestorName)}</td>`;
                     
                     // Encontrar el turno para mostrar en el badge principal (corresponde a hoy)
                     let badgeShift = getShiftForDate(rows, allScheduleBlocks, gestorName, new Date());
@@ -1436,7 +1495,7 @@ async function loadSchedule() {
                         else if(sLower.includes('incapacidad')) badgeClass = 'incapacidad-badge';
                         else if(sLower.includes('disponible') || sLower.includes('dosponible')) badgeClass = 'disponible-badge';
                         
-                        trHTML += `<td style="padding: 12px; text-align: center; white-space: nowrap;"><span class="badge ${badgeClass}">${shift}</span></td>`;
+                        trHTML += `<td style="padding: 12px; text-align: center; white-space: nowrap;"><span class="badge ${badgeClass}">${escapeHTML(String(shift))}</span></td>`;
                     }
                     
                     if (isCurrentUser && badgeShift) {
@@ -1465,6 +1524,7 @@ async function loadSchedule() {
 
 function loadTeletrabajo() {
     fetch('Teletrabajo/Teletrabajo.xlsx?v=' + Date.now())
+        .then(res => { console.log(`XLSX_TELEWORK_FETCH status=${res.status}`); return res; })
         .then(res => {
             if(!res.ok) throw new Error("No se encontró el archivo de Teletrabajo");
             return res.arrayBuffer();
@@ -1531,7 +1591,7 @@ function loadTeletrabajo() {
             if(weekSelector) {
                 weekSelector.innerHTML = '';
                 allBlocks.forEach((block, idx) => {
-                    weekSelector.innerHTML += `<option value="${idx}">${block.label}</option>`;
+                    weekSelector.innerHTML += `<option value="${escapeHTML(String(idx))}">${escapeHTML(block.label)}</option>`;
                 });
                 
                 weekSelector.value = defaultBlockIdx;
@@ -1570,8 +1630,8 @@ function loadTeletrabajo() {
                     
                     tableBody.innerHTML += `
                         <tr class="hover-highlight" style="border-bottom: 1px solid var(--glass-border); background: ${bgClass};">
-                            <td style="padding: 12px; font-weight: 600; text-align: left; color: ${isCurrentUser ? 'var(--accent-primary)' : 'var(--text-primary)'}; position: sticky; left: 0; background: ${isCurrentUser ? 'var(--bg-dark)' : 'var(--bg-panel)'}; z-index: 1;">${row.gestor}</td>
-                            <td style="padding: 12px; text-align: center;">${isTeletrabajo ? row.dia : '-'}</td>
+                            <td style="padding: 12px; font-weight: 600; text-align: left; color: ${isCurrentUser ? 'var(--accent-primary)' : 'var(--text-primary)'}; position: sticky; left: 0; background: ${isCurrentUser ? 'var(--bg-dark)' : 'var(--bg-panel)'}; z-index: 1;">${escapeHTML(row.gestor)}</td>
+                            <td style="padding: 12px; text-align: center;">${isTeletrabajo ? escapeHTML(row.dia) : '-'}</td>
                             <td style="padding: 12px; text-align: center;">${estadoHtml}</td>
                         </tr>
                     `;
@@ -1590,7 +1650,13 @@ let allLoadedPermissions = [];
 // Cargar Histórico de Permisos desde Firebase
 async function loadPermisos() {
     try {
-        const snapshot = await database.ref('permissions').once('value');
+        let permissionsRef = database.ref('permissions');
+        if (currentUser && currentUser.role !== 'Admin' && currentUser.role !== 'Supervisor') {
+            const authUid = currentUser.uid || (firebase.auth().currentUser && firebase.auth().currentUser.uid);
+            if (!authUid) throw new Error('No se pudo determinar el UID del usuario autenticado');
+            permissionsRef = permissionsRef.orderByChild('uid').equalTo(authUid);
+        }
+        const snapshot = await permissionsRef.once('value');
         const historicoContainer = document.getElementById('historicoPermisosList');
         if(!historicoContainer) return;
         
@@ -1620,7 +1686,7 @@ async function loadPermisos() {
                 if(p.status === 'Aprobado') { badgeClass = 'in-progress'; icon = 'bx-check-double'; }
                 if(p.status === 'Rechazado') { badgeClass = 'not-done'; icon = 'bx-x'; }
                 
-                let rejectionHtml = p.rejectionReason ? `<br><small style="color:var(--danger)">Razón/Obs: ${p.rejectionReason}</small>` : '';
+                let rejectionHtml = p.rejectionReason ? `<br><small style="color:var(--danger)">Razón/Obs: ${escapeHTML(p.rejectionReason)}</small>` : '';
                 
                 let createdTimeText = p.horaSolicitud;
                 if (!createdTimeText && p.id) {
@@ -1631,19 +1697,19 @@ async function loadPermisos() {
                 }
 
                 historicoContainer.innerHTML += `
-                    <div class="tree-item" style="margin-top: 10px; cursor: pointer; transition: all 0.2s ease; border-radius: 8px;" onclick="openPermisoDetailModal('${p.fb_id}')" title="Haz clic para ver el detalle completo de este permiso">
+                    <div class="tree-item" style="margin-top: 10px; cursor: pointer; transition: all 0.2s ease; border-radius: 8px;" onclick="openPermisoDetailModal(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))" title="Haz clic para ver el detalle completo de este permiso">
                         <div class="tree-header" style="padding: 12px; display: flex; align-items: center; gap: 10px;">
                             <i class='bx ${icon}' style="font-size: 20px;"></i>
                             <div style="display:flex; flex-direction:column; flex: 1;">
-                                <strong style="font-size: 14px; color: var(--text-primary);">${p.tipo}</strong>
+                                <strong style="font-size: 14px; color: var(--text-primary);">${escapeHTML(p.tipo)}</strong>
                                 <small style="font-size:11px; opacity:0.8; color: var(--text-secondary); margin-top: 2px;">
-                                    ${p.gestor} | ${p.fecha} (${p.horaInicio} a ${p.horaFin})${rejectionHtml}
+                                    ${escapeHTML(p.gestor)} | ${escapeHTML(p.fecha)} (${escapeHTML(p.horaInicio)} a ${escapeHTML(p.horaFin)})${rejectionHtml}
                                 </small>
                                 <small style="font-size:10px; color: var(--accent-primary); margin-top: 2px; font-weight: 500;">
-                                    <i class='bx bx-calendar-event'></i> Solicitado el: ${createdTimeText || 'N/A'}
+                                    <i class='bx bx-calendar-event'></i> Solicitado el: ${escapeHTML(createdTimeText || 'N/A')}
                                 </small>
                             </div>
-                            <span class="badge ${badgeClass}" style="margin-left: auto; padding: 4px 10px; font-size: 11px;">${p.status}</span>
+                            <span class="badge ${badgeClass}" style="margin-left: auto; padding: 4px 10px; font-size: 11px;">${escapeHTML(p.status)}</span>
                             <i class='bx bx-chevron-right' style="font-size: 18px; color: var(--text-secondary); opacity: 0.6;"></i>
                         </div>
                     </div>
@@ -1685,52 +1751,52 @@ window.openPermisoDetailModal = async function(fb_id) {
         fechaRange = `Desde ${perm.fechaDesde} hasta ${perm.fechaHasta}`;
     }
     
-            let createdTimeText = perm.horaSolicitud;
-            if (!createdTimeText && perm.id) {
-                try {
-                    const d = new Date(perm.id);
-                    createdTimeText = `${d.toLocaleDateString('es-CO')} ${d.toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', hour12:true})}`;
-                } catch(err) { createdTimeText = 'N/A'; }
-            }
+    let createdTimeText = perm.horaSolicitud;
+    if (!createdTimeText && perm.id) {
+        try {
+            const d = new Date(perm.id);
+            createdTimeText = `${d.toLocaleDateString('es-CO')} ${d.toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', hour12:true})}`;
+        } catch(err) { createdTimeText = 'N/A'; }
+    }
 
-            body.innerHTML = `
+    body.innerHTML = `
         <div style="display: flex; flex-direction: column; gap: 15px;">
             <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 12px 15px; border-radius: 10px; border: 1px solid var(--glass-border);">
                 <div>
                     <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-secondary); display: block;">Estado de Solicitud</span>
                     <strong style="font-size: 16px; color: ${statusColor}; display: flex; align-items: center; gap: 6px; margin-top: 2px;">
-                        <i class='bx ${statusIcon}'></i> ${perm.status}
+                        <i class='bx ${statusIcon}'></i> ${escapeHTML(perm.status)}
                     </strong>
                 </div>
                 <div style="text-align: right;">
                     <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-secondary); display: block;">Tipo de Permiso</span>
-                    <strong style="font-size: 14px; color: var(--accent-primary); margin-top: 2px; display: block;">${perm.tipo}</strong>
+                    <strong style="font-size: 14px; color: var(--accent-primary); margin-top: 2px; display: block;">${escapeHTML(perm.tipo)}</strong>
                 </div>
             </div>
 
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
                 <div style="background: rgba(255,255,255,0.02); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
                     <small style="color: var(--text-secondary); display: block; font-size: 11px;">Gestor Solicitante</small>
-                    <strong style="font-size: 13px; color: var(--text-primary); margin-top: 3px; display: block;">${perm.gestor}</strong>
+                    <strong style="font-size: 13px; color: var(--text-primary); margin-top: 3px; display: block;">${escapeHTML(perm.gestor)}</strong>
                 </div>
                 <div style="background: rgba(255,255,255,0.02); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
                     <small style="color: var(--text-secondary); display: block; font-size: 11px;">Fecha de Solicitud (Creación)</small>
-                    <strong style="font-size: 13px; color: var(--accent-primary); margin-top: 3px; display: block;">${createdTimeText || 'N/A'}</strong>
+                    <strong style="font-size: 13px; color: var(--accent-primary); margin-top: 3px; display: block;">${escapeHTML(createdTimeText || 'N/A')}</strong>
                 </div>
                 <div style="background: rgba(255,255,255,0.02); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
                     <small style="color: var(--text-secondary); display: block; font-size: 11px;">Fecha del Permiso</small>
-                    <strong style="font-size: 13px; color: var(--text-primary); margin-top: 3px; display: block;">${fechaRange}</strong>
+                    <strong style="font-size: 13px; color: var(--text-primary); margin-top: 3px; display: block;">${escapeHTML(fechaRange)}</strong>
                 </div>
                 <div style="background: rgba(255,255,255,0.02); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
                     <small style="color: var(--text-secondary); display: block; font-size: 11px;">Horario Solicitado</small>
-                    <strong style="font-size: 13px; color: var(--text-primary); margin-top: 3px; display: block;">${perm.horaInicio || 'N/A'} a ${perm.horaFin || 'N/A'}</strong>
+                    <strong style="font-size: 13px; color: var(--text-primary); margin-top: 3px; display: block;">${escapeHTML(perm.horaInicio || 'N/A')} a ${escapeHTML(perm.horaFin || 'N/A')}</strong>
                 </div>
             </div>
 
             <div style="background: rgba(255,255,255,0.03); padding: 12px 15px; border-radius: 10px; border: 1px solid var(--glass-border);">
                 <small style="color: var(--accent-primary); display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Motivo / Justificación del Gestor:</small>
                 <div style="font-size: 13px; color: var(--text-primary); line-height: 1.5; white-space: pre-wrap; word-break: break-word;">
-                    ${perm.motivo || 'Sin justificación detallada.'}
+                    ${escapeHTML(perm.motivo || 'Sin justificación detallada.')}
                 </div>
             </div>
 
@@ -1738,7 +1804,7 @@ window.openPermisoDetailModal = async function(fb_id) {
                 <div style="background: rgba(239, 68, 68, 0.08); padding: 12px 15px; border-radius: 10px; border: 1px solid rgba(239, 68, 68, 0.3);">
                     <small style="color: var(--danger); display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Observación / Razón de Respuesta:</small>
                     <div style="font-size: 13px; color: var(--text-primary); line-height: 1.5; white-space: pre-wrap; word-break: break-word;">
-                        ${perm.rejectionReason}
+                        ${escapeHTML(perm.rejectionReason)}
                     </div>
                 </div>
             ` : ''}
@@ -1772,7 +1838,7 @@ function renderTree(tasksBySet) {
         setDiv.innerHTML = `
             <div class="${headerClass}" onclick="toggleTree(this)">
                 <i class='bx bx-chevron-right'></i>
-                <span>${set}</span>
+                <span>${escapeHTML(set)}</span>
                 <span class="badge pending">${total} Tareas</span>
             </div>
             <div class="${childrenClass}">
@@ -1785,8 +1851,8 @@ function renderTree(tasksBySet) {
                         else if (statusText === 'No Realizada') statusClass = 'status-not-done';
                     }
                     return `
-                    <div class="task-item" onclick="selectTask(${task.id})">
-                        <i class='bx bx-file-blank'></i> ${task.name}
+                    <div class="task-item" onclick="selectTask(decodeURIComponent('${encodeInlineHandlerArg(task.id)}'))">
+                        <i class='bx bx-file-blank'></i> ${escapeHTML(task.name)}
                         <div class="task-status ${statusClass}"></div>
                     </div>
                     `;
@@ -1989,7 +2055,7 @@ function renderQuickDocs(selectedTaskName) {
                 <span style="font-size: 10px; color: var(--accent-primary); font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px; margin-bottom: 6px;">
                     <i class='bx bxs-star'></i> Sugerido para esta tarea
                 </span>
-                <a href="${getDocUrl(matchedDoc)}" target="_blank" class="doc-link" style="background: transparent; padding: 0; display: flex; align-items: center; gap: 10px;">
+                <a href="${getDocUrl(matchedDoc)}" target="_blank" rel="noopener noreferrer" class="doc-link" style="background: transparent; padding: 0; display: flex; align-items: center; gap: 10px;">
                     <i class='bx ${icon}' style="font-size: 20px; color: ${color};"></i>
                     <span style="color: var(--text-primary); font-weight: 500; font-size: 13px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${matchedDoc.replace(/\.[^/.]+$/, "")}</span>
                 </a>
@@ -2014,7 +2080,7 @@ function renderQuickDocs(selectedTaskName) {
         else if (isExcel) { icon = 'bx-table'; color = '#10B981'; } // Excel green
 
         container.innerHTML += `
-            <a href="${getDocUrl(file)}" target="_blank" class="doc-link" style="margin-bottom: 8px;">
+            <a href="${getDocUrl(file)}" target="_blank" rel="noopener noreferrer" class="doc-link" style="margin-bottom: 8px;">
                 <i class='bx ${icon}' style="font-size: 18px; color: ${color};"></i>
                 <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;">${file.replace(/\.[^/.]+$/, "")}</span>
             </a>
@@ -2290,7 +2356,9 @@ async function initApp() {
             const headerShiftBadgeAdmin = document.querySelector('.shift-badge');
             if (headerShiftBadgeAdmin) headerShiftBadgeAdmin.style.display = 'none';
 
-            renderPendingUsers();
+            if (currentUser.role === 'Admin') {
+                renderPendingUsers();
+            }
             
             const notifList = document.getElementById('notificationList');
             const notifCount = document.getElementById('notificationCount');
@@ -2314,7 +2382,7 @@ async function initApp() {
                                 <i class='bx bx-time' style="color: var(--warning); font-size: 18px; margin-top: 2px;"></i>
                                 <div style="flex-grow: 1;">
                                     <div style="font-size: 12px; font-weight: 500; color: var(--text-primary);">Nuevo Permiso Solicitado</div>
-                                    <div style="font-size: 11px; color: var(--text-secondary);">${p.gestor} - ${p.tipo}</div>
+                                    <div style="font-size: 11px; color: var(--text-secondary);">${escapeHTML(p.gestor)} - ${escapeHTML(p.tipo)}</div>
                                 </div>
                             </div>
                         `;
@@ -2340,7 +2408,9 @@ async function initApp() {
             const notifList = document.getElementById('notificationList');
             const notifCount = document.getElementById('notificationCount');
 
-            database.ref('permissions').orderByChild('gestor').equalTo(currentUser.name).on('value', (snapshot) => {
+            const authUid = currentUser.uid || (firebase.auth().currentUser && firebase.auth().currentUser.uid);
+            if (!authUid) return;
+            database.ref('permissions').orderByChild('uid').equalTo(authUid).on('value', (snapshot) => {
                 let unreadCount = 0;
                 let notifsHtml = '';
                 
@@ -2356,14 +2426,14 @@ async function initApp() {
                         let bg = p.notified === false ? 'rgba(59,130,246,0.1)' : 'transparent';
                         let iconColor = p.status === 'Aprobado' ? 'var(--success)' : 'var(--danger)';
                         let icon = p.status === 'Aprobado' ? 'bx-check-double' : 'bx-x';
-                        let reasonHtml = p.rejectionReason ? `<div style="font-size:11px; color:var(--danger); margin-top:2px;">Razón: ${p.rejectionReason}</div>` : '';
+                        let reasonHtml = p.rejectionReason ? `<div style="font-size:11px; color:var(--danger); margin-top:2px;">Razón: ${escapeHTML(p.rejectionReason)}</div>` : '';
                         
                         notifsHtml += `
                             <div style="background: ${bg}; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border); display: flex; gap: 10px; align-items: start; cursor: pointer; transition: background 0.2s;" onclick="document.getElementById('navPermisos').click(); document.getElementById('notificationDropdown').style.display = 'none';">
                                 <i class='bx ${icon}' style="color: ${iconColor}; font-size: 18px; margin-top: 2px;"></i>
                                 <div style="flex-grow: 1;">
-                                    <div style="font-size: 12px; font-weight: 500; color: var(--text-primary);">Permiso ${p.status}</div>
-                                    <div style="font-size: 11px; color: var(--text-secondary);">${p.fecha} (${p.horaInicio} a ${p.horaFin})</div>
+                                    <div style="font-size: 12px; font-weight: 500; color: var(--text-primary);">Permiso ${escapeHTML(p.status)}</div>
+                                    <div style="font-size: 11px; color: var(--text-secondary);">${escapeHTML(p.fecha)} (${escapeHTML(p.horaInicio)} a ${escapeHTML(p.horaFin)})</div>
                                     ${reasonHtml}
                                 </div>
                             </div>
@@ -2488,7 +2558,9 @@ async function initApp() {
                 renderShiftReports();
             } else if (item.id === 'navAprobaciones') {
                 document.getElementById('view-aprobaciones').style.display = 'block';
-                renderPendingUsers();
+                if (currentUser && currentUser.role === 'Admin') {
+                    renderPendingUsers();
+                }
                 renderPendingPermissions();
             } else if (item.id === 'navMonitoreo') {
                 const viewMonitoreo = document.getElementById('view-monitoreo');
@@ -2541,9 +2613,9 @@ async function initApp() {
                 else if(isHtml) { icon = 'bx-globe'; color = '#F59E0B'; } // HTML orange
 
                 docsGrid.innerHTML += `
-                    <a href="${getDocUrl(file)}" target="_blank" class="glass-panel" style="padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; transition: transform 0.2s;">
+                    <a href="${escapeHTML(getDocUrl(file))}" target="_blank" rel="noopener noreferrer" class="glass-panel" style="padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; transition: transform 0.2s;">
                         <i class='bx ${icon}' style="font-size: 40px; color: ${color};"></i>
-                        <span style="font-size: 14px; color: var(--text-primary); font-weight: 500;">${file.replace(/\.[^/.]+$/, "")}</span>
+                        <span style="font-size: 14px; color: var(--text-primary); font-weight: 500;">${escapeHTML(file.replace(/\.[^/.]+$/, ""))}</span>
                     </a>
                 `;
             });
@@ -2687,8 +2759,13 @@ async function initApp() {
             const horaSolicitudStr = now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
             const timestampSolicitud = `${fechaSolicitudStr} ${horaSolicitudStr}`;
 
+            const userUid = (currentUser && currentUser.uid) || (firebase.auth().currentUser ? firebase.auth().currentUser.uid : null);
+            const userEmail = (currentUser && currentUser.email) || (firebase.auth().currentUser ? firebase.auth().currentUser.email : '');
+
             const newPermiso = {
                 id: now.getTime(),
+                uid: userUid,
+                email: userEmail,
                 gestor: formData.get("Gestor"),
                 tipo: finalTipo,
                 fecha: finalFecha,
@@ -2697,6 +2774,7 @@ async function initApp() {
                 horaSolicitud: timestampSolicitud,
                 motivo: formData.get("Justificacion"),
                 status: 'Pendiente',
+                approved: false,
                 notified: false,
                 notified_admin: false
             };
@@ -2817,6 +2895,22 @@ function toggleLunchBreak() {
     }
 }
 
+async function persistShiftClosureCore(reportUid, loginLogId, shiftReportObject) {
+    if (!reportUid) throw new Error('Missing authenticated UID for shift closure');
+    if (!loginLogId) throw new Error('Missing login log ID for shift closure');
+
+    const reportRef = database.ref('shift_reports').push();
+    if (!reportRef.key) throw new Error('Unable to allocate shift report ID');
+
+    const updates = {};
+    updates[`shift_reports/${reportRef.key}`] = shiftReportObject;
+    updates[`active_sessions/${reportUid}`] = null;
+    updates[`login_logs/${loginLogId}/logoutTime`] = firebase.database.ServerValue.TIMESTAMP;
+
+    await database.ref().update(updates);
+    return reportRef.key;
+}
+
 // Lógica de Pausa Turno Partido
 function toggleSplitShiftBreak() {
     if (!currentUser) return;
@@ -2858,7 +2952,7 @@ function toggleSplitShiftBreak() {
     }
 }
 
-function handleEndShift() {
+async function handleEndShift() {
     if(confirm("¿Estás seguro que deseas finalizar tu turno actual? Se enviará un resumen al supervisor.")) {
         // Cerrar almuerzo o desayuno o turno partido si quedó abierto
         if (isLunchBreak) toggleLunchBreak();
@@ -3028,7 +3122,9 @@ function handleEndShift() {
             inactividadMinsLimpia = parseFloat(inactividadMinsLimpia.toFixed(1));
 
             // --- RESPALDO SEGURO EN FIREBASE ---
+            const reportUid = localUser.uid || (currentUser && currentUser.uid) || (firebase.auth().currentUser ? firebase.auth().currentUser.uid : null);
             const shiftReportObject = {
+                uid: reportUid,
                 gestor: localUser.name,
                 rol: localUser.role,
                 horaInicio: loginDate.toLocaleString(),
@@ -3045,20 +3141,24 @@ function handleEndShift() {
                 timestamp: Date.now()
             };
 
-            // Intentamos guardar en firebase pero no bloqueamos el flujo si hay error
-            database.ref('shift_reports').push(shiftReportObject).catch(e => console.error("Firebase backup failed", e));
-
-            // Eliminar sesión activa de Firebase
-            if (localUser.uid) {
-                database.ref('active_sessions/' + localUser.uid).remove().catch(e => console.error("Error removing active session on shift end:", e));
-            }
-            if (localUser.loginLogId) {
-                database.ref('login_logs/' + localUser.loginLogId).update({
-                    logoutTime: firebase.database.ServerValue.TIMESTAMP
+            // Persistencia central atómica: reporte, cierre de sesión activa y logoutTime.
+            // Si cualquiera falla, no se limpia la sesión local ni se intenta enviar correo.
+            try {
+                await persistShiftClosureCore(reportUid, localUser.loginLogId, shiftReportObject);
+            } catch (coreError) {
+                console.error('CORE_SHIFT_CLOSE_FAILED', {
+                    code: coreError && coreError.code ? coreError.code : 'unknown',
+                    message: coreError && coreError.message ? coreError.message : 'unknown'
                 });
+                if (btn) {
+                    btn.innerHTML = prevHtml;
+                    btn.disabled = false;
+                }
+                alert('No fue posible finalizar el turno porque el reporte o el cierre de sesión no quedó guardado. Intenta nuevamente.');
+                return;
             }
 
-            // Antes de enviar, limpiamos la sesión y el caché
+            // El cierre central ya quedó persistido; ahora se limpia la sesión local.
             localStorage.removeItem('riskOps_currentUser');
             localStorage.removeItem('riskOps_cache');
             localStorage.removeItem('riskOps_breakState');
@@ -3066,25 +3166,45 @@ function handleEndShift() {
             
             // Set the global currentUser to null so syncActiveSessionToFirebase stops firing
             currentUser = null;
-            
-            firebase.auth().signOut().catch(err => console.error(err));
-            
-            // Enviar de forma silenciosa para que un error 522 de Cloudflare no bloquee la pantalla
-            fetch('https://formsubmit.co/ajax/maria.sanchez@virtualsoft.tech', {
-                method: 'POST',
-                body: formData,
-                headers: { 'Accept': 'application/json' }
-            }).then(response => {
-                if(response.ok) {
-                    alert('Turno finalizado y reporte enviado al supervisor.');
-                } else {
-                    alert('Turno finalizado localmente. Nota: El servidor de correos está inactivo temporalmente.');
-                }
-            }).catch(err => {
-                alert('Turno finalizado. (Error de red al intentar enviar el correo).');
-            }).finally(() => {
+
+            try {
+                await firebase.auth().signOut();
+            } catch (signOutError) {
+                console.error('SHIFT_SIGNOUT_FAILED', {
+                    code: signOutError && signOutError.code ? signOutError.code : 'unknown',
+                    message: signOutError && signOutError.message ? signOutError.message : 'unknown'
+                });
+                alert('El turno quedó guardado, pero no fue posible cerrar la autenticación. Recarga la página antes de volver a ingresar.');
                 window.location.href = 'login.html';
-            });
+                return;
+            }
+
+            // El correo es una notificación best-effort y nunca revierte el cierre persistido.
+            let emailSent = false;
+            let emailStatus = null;
+            let emailErrorMessage = null;
+            try {
+                const emailResponse = await fetch('https://formsubmit.co/ajax/maria.sanchez@virtualsoft.tech', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'Accept': 'application/json' }
+                });
+                emailStatus = emailResponse.status;
+                emailSent = emailResponse.ok;
+            } catch (emailError) {
+                emailErrorMessage = emailError && emailError.message ? emailError.message : 'network error';
+            }
+
+            if (emailSent) {
+                alert('Turno finalizado correctamente y reporte enviado al supervisor.');
+            } else {
+                console.warn('EMAIL_NOTIFICATION_FAILED', {
+                    status: emailStatus,
+                    message: emailErrorMessage
+                });
+                alert('Turno finalizado correctamente. No fue posible enviar la notificación por correo.');
+            }
+            window.location.href = 'login.html';
         } else {
             alert("Turno finalizado.");
             if (localUser && localUser.loginLogId) {
@@ -3268,15 +3388,15 @@ async function renderPendingUsers() {
             actionHtml = `<span style="color: var(--danger); font-weight: bold;"><i class='bx bx-x'></i> Rechazado</span>`;
         } else {
             actionHtml = `
-                <div id="user-action-btns-${user.id}" style="display:flex; justify-content:center; gap:5px;">
-                    <button class="btn btn-success" style="padding: 5px 10px; font-size: 12px;" onclick="approveUser('${user.id}')">Aprobar</button>
-                    <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="showUserRejectBox('${user.id}')">Rechazar</button>
+                <div id="user-action-btns-${escapeHTML(user.id)}" style="display:flex; justify-content:center; gap:5px;">
+                    <button class="btn btn-success" style="padding: 5px 10px; font-size: 12px;" onclick="approveUser(decodeURIComponent('${encodeInlineHandlerArg(user.id)}'))">Aprobar</button>
+                    <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="showUserRejectBox(decodeURIComponent('${encodeInlineHandlerArg(user.id)}'))">Rechazar</button>
                 </div>
-                <div id="user-reject-box-${user.id}" style="display:none; flex-direction:column; gap:5px; margin-top:5px;">
-                    <input type="text" id="user-reason-${user.id}" placeholder="Motivo de rechazo" class="modern-input" style="padding:4px; font-size:11px; width:100%;">
+                <div id="user-reject-box-${escapeHTML(user.id)}" style="display:none; flex-direction:column; gap:5px; margin-top:5px;">
+                    <input type="text" id="user-reason-${escapeHTML(user.id)}" placeholder="Motivo de rechazo" class="modern-input" style="padding:4px; font-size:11px; width:100%;">
                     <div style="display:flex; gap:5px; justify-content:center;">
-                        <button class="btn btn-danger" style="padding: 2px 5px; font-size: 10px;" onclick="confirmRejectUser('${user.id}')">Confirmar</button>
-                        <button class="btn btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="cancelRejectUser('${user.id}')">Cancelar</button>
+                        <button class="btn btn-danger" style="padding: 2px 5px; font-size: 10px;" onclick="confirmRejectUser(decodeURIComponent('${encodeInlineHandlerArg(user.id)}'))">Confirmar</button>
+                        <button class="btn btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="cancelRejectUser(decodeURIComponent('${encodeInlineHandlerArg(user.id)}'))">Cancelar</button>
                     </div>
                 </div>
             `;
@@ -3289,11 +3409,11 @@ async function renderPendingUsers() {
         
         tbody.innerHTML += `
             <tr style="border-bottom: 1px solid var(--glass-border);">
-                <td style="padding: 12px;">${user.name}</td>
-                <td style="padding: 12px; color: var(--text-secondary);">${user.email}</td>
+                <td style="padding: 12px;">${escapeHTML(user.name)}</td>
+                <td style="padding: 12px; color: var(--text-secondary);">${escapeHTML(user.email)}</td>
                 <td style="padding: 12px;">${statusBadge}</td>
-                <td style="padding: 12px; font-size: 12px;">${regDateStr}</td>
-                <td style="padding: 12px; font-size: 12px;">${appDateStr}</td>
+                <td style="padding: 12px; font-size: 12px;">${escapeHTML(regDateStr)}</td>
+                <td style="padding: 12px; font-size: 12px;">${escapeHTML(appDateStr)}</td>
                 <td style="padding: 12px; text-align: center;">
                     ${actionHtml}
                 </td>
@@ -3409,36 +3529,36 @@ async function renderPendingPermissions() {
 
         tbody.innerHTML += `
             <tr style="border-bottom: 1px solid var(--glass-border);">
-                <td style="padding: 12px; font-weight: 600; color: var(--text-primary);">${p.gestor}</td>
+                <td style="padding: 12px; font-weight: 600; color: var(--text-primary);">${escapeHTML(p.gestor)}</td>
                 <td style="padding: 12px;">
-                    <span class="badge pending">${p.tipo}</span>
-                    <br><small style="font-size:10px; color:var(--accent-primary); font-weight:500;"><i class='bx bx-time-five'></i> ${createdTimeText}</small>
+                    <span class="badge pending">${escapeHTML(p.tipo)}</span>
+                    <br><small style="font-size:10px; color:var(--accent-primary); font-weight:500;"><i class='bx bx-time-five'></i> ${escapeHTML(createdTimeText)}</small>
                 </td>
-                <td style="padding: 12px; color: var(--text-secondary); font-size: 12px; white-space: nowrap;"><strong>${p.fecha}</strong><br><span style="opacity: 0.85;">${p.horaInicio} a ${p.horaFin}</span></td>
+                <td style="padding: 12px; color: var(--text-secondary); font-size: 12px; white-space: nowrap;"><strong>${escapeHTML(p.fecha)}</strong><br><span style="opacity: 0.85;">${escapeHTML(p.horaInicio)} a ${escapeHTML(p.horaFin)}</span></td>
                 <td style="padding: 12px; font-size: 13px; min-width: 250px;">
                     <div style="background: rgba(255, 255, 255, 0.04); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--glass-border); color: var(--text-primary); line-height: 1.45; word-break: break-word; white-space: pre-wrap;">
-                        ${p.motivo || 'Sin observación'}
+                        ${escapeHTML(p.motivo || 'Sin observación')}
                     </div>
                 </td>
                 <td style="padding: 12px; text-align: center; min-width: 220px;">
-                    <div id="perm-action-btns-${p.fb_id}" style="display:flex; justify-content:center; gap:8px;">
-                        <button class="btn btn-success" style="padding: 6px 14px; font-size: 12px; display:inline-flex; align-items:center; gap:4px;" onclick="showPermApproveBox('${p.fb_id}')"><i class='bx bx-check' style="font-size:16px;"></i> Aprobar</button>
-                        <button class="btn btn-danger" style="padding: 6px 14px; font-size: 12px; display:inline-flex; align-items:center; gap:4px;" onclick="showPermRejectBox('${p.fb_id}')"><i class='bx bx-x' style="font-size:16px;"></i> Rechazar</button>
+                    <div id="perm-action-btns-${escapeHTML(p.fb_id)}" style="display:flex; justify-content:center; gap:8px;">
+                        <button class="btn btn-success" style="padding: 6px 14px; font-size: 12px; display:inline-flex; align-items:center; gap:4px;" onclick="showPermApproveBox(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))"><i class='bx bx-check' style="font-size:16px;"></i> Aprobar</button>
+                        <button class="btn btn-danger" style="padding: 6px 14px; font-size: 12px; display:inline-flex; align-items:center; gap:4px;" onclick="showPermRejectBox(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))"><i class='bx bx-x' style="font-size:16px;"></i> Rechazar</button>
                     </div>
-                    <div id="perm-approve-box-${p.fb_id}" style="display:none; flex-direction:column; gap:8px; margin-top:5px; background: rgba(16, 185, 129, 0.08); padding: 10px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                    <div id="perm-approve-box-${escapeHTML(p.fb_id)}" style="display:none; flex-direction:column; gap:8px; margin-top:5px; background: rgba(16, 185, 129, 0.08); padding: 10px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
                         <label style="font-size:11px; font-weight:600; color:var(--success); text-align:left;">Observación de aprobación:</label>
-                        <textarea id="perm-approve-reason-${p.fb_id}" placeholder="Escribe un comentario u observación para el gestor..." class="modern-input" style="padding:8px; font-size:12px; width:100%; min-height:60px; resize:vertical; box-sizing:border-box; border-radius:6px; font-family:inherit;"></textarea>
+                        <textarea id="perm-approve-reason-${escapeHTML(p.fb_id)}" placeholder="Escribe un comentario u observación para el gestor..." class="modern-input" style="padding:8px; font-size:12px; width:100%; min-height:60px; resize:vertical; box-sizing:border-box; border-radius:6px; font-family:inherit;"></textarea>
                         <div style="display:flex; gap:6px; justify-content:flex-end;">
-                            <button class="btn btn-success" style="padding: 5px 12px; font-size: 11px;" onclick="confirmApprovePerm('${p.fb_id}')">Confirmar Aprobar</button>
-                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;" onclick="cancelApprovePerm('${p.fb_id}')">Cancelar</button>
+                            <button class="btn btn-success" style="padding: 5px 12px; font-size: 11px;" onclick="confirmApprovePerm(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))">Confirmar Aprobar</button>
+                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;" onclick="cancelApprovePerm(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))">Cancelar</button>
                         </div>
                     </div>
-                    <div id="perm-reject-box-${p.fb_id}" style="display:none; flex-direction:column; gap:8px; margin-top:5px; background: rgba(239, 68, 68, 0.08); padding: 10px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                    <div id="perm-reject-box-${escapeHTML(p.fb_id)}" style="display:none; flex-direction:column; gap:8px; margin-top:5px; background: rgba(239, 68, 68, 0.08); padding: 10px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
                         <label style="font-size:11px; font-weight:600; color:var(--danger); text-align:left;">Motivo de rechazo:</label>
-                        <textarea id="perm-reason-${p.fb_id}" placeholder="Escribe la razón por la cual se rechaza..." class="modern-input" style="padding:8px; font-size:12px; width:100%; min-height:60px; resize:vertical; box-sizing:border-box; border-radius:6px; font-family:inherit;"></textarea>
+                        <textarea id="perm-reason-${escapeHTML(p.fb_id)}" placeholder="Escribe la razón por la cual se rechaza..." class="modern-input" style="padding:8px; font-size:12px; width:100%; min-height:60px; resize:vertical; box-sizing:border-box; border-radius:6px; font-family:inherit;"></textarea>
                         <div style="display:flex; gap:6px; justify-content:flex-end;">
-                            <button class="btn btn-danger" style="padding: 5px 12px; font-size: 11px;" onclick="confirmRejectPerm('${p.fb_id}')">Confirmar Rechazo</button>
-                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;" onclick="cancelRejectPerm('${p.fb_id}')">Cancelar</button>
+                            <button class="btn btn-danger" style="padding: 5px 12px; font-size: 11px;" onclick="confirmRejectPerm(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))">Confirmar Rechazo</button>
+                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;" onclick="cancelRejectPerm(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))">Cancelar</button>
                         </div>
                     </div>
                 </td>
@@ -3460,11 +3580,11 @@ async function renderPendingPermissions() {
                 let statusBadge = p.status === 'Aprobado' ? `<span class="badge" style="background: rgba(16, 185, 129, 0.2); color: var(--success);"><i class='bx bx-check'></i> Aprobado</span>` : `<span class="badge" style="background: rgba(239, 68, 68, 0.2); color: var(--danger);"><i class='bx bx-x'></i> Rechazado</span>`;
                 historyBody.innerHTML += `
                     <tr style="border-bottom: 1px solid var(--glass-border);">
-                        <td style="padding: 12px; font-weight: 500;">${p.gestor}</td>
-                        <td style="padding: 12px;">${p.tipo}</td>
+                        <td style="padding: 12px; font-weight: 500;">${escapeHTML(p.gestor)}</td>
+                        <td style="padding: 12px;">${escapeHTML(p.tipo)}</td>
                         <td style="padding: 12px;">${statusBadge}</td>
-                        <td style="padding: 12px; color: var(--text-secondary); font-size: 13px;">${p.fecha}</td>
-                        <td style="padding: 12px; font-size: 13px; color: var(--text-secondary);">${p.rejectionReason || '-'}</td>
+                        <td style="padding: 12px; color: var(--text-secondary); font-size: 13px;">${escapeHTML(p.fecha)}</td>
+                        <td style="padding: 12px; font-size: 13px; color: var(--text-secondary);">${escapeHTML(p.rejectionReason || '-')}</td>
                     </tr>
                 `;
             });
@@ -3738,7 +3858,8 @@ function applyShiftReportsFilters() {
     tbody.innerHTML = '';
     
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text-secondary);">${hasExplicitFilter ? 'No hay historial de turnos registrados con los filtros seleccionados.' : 'No hay turnos registrados en los últimos 2 días. Selecciona una fecha o escribe un gestor para consultar turnos anteriores.'}</td></tr>`;
+        const emptyMsg = hasExplicitFilter ? 'No hay historial de turnos registrados con los filtros seleccionados.' : 'No hay turnos registrados en los últimos 2 días. Selecciona una fecha o escribe un gestor para consultar turnos anteriores.';
+        tbody.innerHTML = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text-secondary);">${escapeHTML(emptyMsg)}</td></tr>`;
         return;
     }
     
@@ -3761,7 +3882,7 @@ function applyShiftReportsFilters() {
                         uniqueLines.push(line);
                     }
                 });
-                const bitacoraContent = uniqueLines.join('<br>');
+                const bitacoraContent = uniqueLines.map(l => escapeHTML(l)).join('<br>');
                 bitacoraHTML = `
                     <details style="margin-top: 8px; border-top: 1px dashed var(--glass-border); padding-top: 6px;">
                         <summary style="cursor: pointer; color: var(--accent-primary); font-weight: 600; font-size: 11px; outline: none; list-style: none; display: flex; align-items: center; gap: 4px;">
@@ -3774,17 +3895,17 @@ function applyShiftReportsFilters() {
                 `;
             }
         }
-        const safeReport = reportText.replace(/\n/g, '<br>').replace(/\[(.*?)\]/g, '<strong>[$1]</strong>') + bitacoraHTML;
+        const safeReport = escapeHTML(reportText).replace(/\n/g, '<br>').replace(/\[(.*?)\]/g, '<strong>[$1]</strong>') + bitacoraHTML;
         
         tbody.innerHTML += `
             <tr style="border-bottom: 1px solid var(--glass-border);">
                 <td style="padding: 12px; font-weight: 500;">
-                    ${r.gestor}
-                    <div style="font-size: 11px; color: var(--text-secondary);">${r.rol}</div>
+                    ${escapeHTML(r.gestor)}
+                    <div style="font-size: 11px; color: var(--text-secondary);">${escapeHTML(r.rol)}</div>
                 </td>
-                <td style="padding: 12px; color: var(--accent-primary);">${r.setTrabajado}</td>
-                <td style="padding: 12px; font-size: 13px;">${r.horaInicio}</td>
-                <td style="padding: 12px; font-size: 13px;">${r.horaFin}</td>
+                <td style="padding: 12px; color: var(--accent-primary);">${escapeHTML(r.setTrabajado)}</td>
+                <td style="padding: 12px; font-size: 13px;">${escapeHTML(r.horaInicio)}</td>
+                <td style="padding: 12px; font-size: 13px;">${escapeHTML(r.horaFin)}</td>
                 <td style="padding: 12px; font-size: 12px; color: var(--text-secondary); max-width: 350px; text-align: left;">
                     <div style="max-height: 120px; overflow-y: auto; background: var(--bg-dark); padding: 8px; border-radius: 6px;">
                         ${safeReport}
@@ -3792,10 +3913,10 @@ function applyShiftReportsFilters() {
                 </td>
                 <td style="padding: 12px; text-align: center; white-space: nowrap;">
                     <div style="display: flex; gap: 6px; justify-content: center;">
-                        <button class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;" onclick="openShiftDetailModal('${r.fb_id}')" title="Ver todo el informe igual al correo">
+                        <button class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;" onclick="openShiftDetailModal(decodeURIComponent('${encodeInlineHandlerArg(r.fb_id)}'))" title="Ver todo el informe igual al correo">
                             <i class='bx bx-show'></i> Ver Todo
                         </button>
-                        <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px;" onclick="exportShiftReport('${r.fb_id}')" title="Exportar PDF">
+                        <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px;" onclick="exportShiftReport(decodeURIComponent('${encodeInlineHandlerArg(r.fb_id)}'))" title="Exportar PDF">
                             <i class='bx bx-file-blank'></i> PDF
                         </button>
                     </div>
@@ -3949,7 +4070,9 @@ async function markAllAsRead() {
                 }
             }
         } else {
-            const snapshot = await database.ref('permissions').orderByChild('gestor').equalTo(currentUser.name).once('value');
+            const authUid = currentUser.uid || (firebase.auth().currentUser && firebase.auth().currentUser.uid);
+            if (!authUid) return;
+            const snapshot = await database.ref('permissions').orderByChild('uid').equalTo(authUid).once('value');
             if (snapshot.exists()) {
                 const data = snapshot.val();
                 const updates = {};
@@ -4043,6 +4166,24 @@ async function changePassword() {
 
 // --- PROGRAMMATIC SIDEBAR ORDER & MONITOREO REALTIME ---
 
+function alignAdministrativeControlsByRole() {
+    if (!currentUser) return;
+
+    const isAdmin = currentUser.role === 'Admin';
+    const pendingUsersBody = document.getElementById('pendingUsersTableBody');
+    const userTablePanel = pendingUsersBody ? pendingUsersBody.closest('.glass-panel') : null;
+    const userSearch = document.getElementById('filterAprobacionesSearch');
+    const userFilterPanel = userSearch ? userSearch.closest('.glass-panel') : null;
+    const userSectionTitle = userFilterPanel ? userFilterPanel.previousElementSibling : null;
+
+    [userSectionTitle, userFilterPanel, userTablePanel].forEach(element => {
+        if (element) element.style.display = isAdmin ? '' : 'none';
+    });
+
+    const adminAnnouncementsView = document.getElementById('view-gestion-comunicados');
+    if (adminAnnouncementsView && !isAdmin) adminAnnouncementsView.style.display = 'none';
+}
+
 function setupSidebar() {
     const sidebarNav = document.querySelector('.sidebar-nav');
     if (!sidebarNav) return;
@@ -4112,7 +4253,14 @@ function setupSidebar() {
         if (tFilter) tFilter.style.display = 'flex';
 
         if (navWorkspace) { navWorkspace.style.display = 'none'; } // HIDE Mis Tareas for Admin and Supervisor
-        if (navComunicados) { navComunicados.style.display = 'none'; }
+        if (navComunicados) {
+            if (currentUser.role === 'Supervisor') {
+                navComunicados.style.display = 'flex';
+                sidebarNav.appendChild(navComunicados);
+            } else {
+                navComunicados.style.display = 'none';
+            }
+        }
 
         if (adminNavGroup) { adminNavGroup.style.display = 'block'; sidebarNav.appendChild(adminNavGroup); }
         if (navMonitoreo) { navMonitoreo.style.display = 'flex'; adminNavGroup.appendChild(navMonitoreo); }
@@ -4122,12 +4270,26 @@ function setupSidebar() {
         if (navTurnos) { navTurnos.style.display = 'flex'; adminNavGroup.appendChild(navTurnos); }
         if (navAprobaciones) { navAprobaciones.style.display = 'flex'; adminNavGroup.appendChild(navAprobaciones); }
         
+
+
+        if (navTiempos) { navTiempos.style.display = 'none'; }
+        if (navAdminComunicados) {
+            if (currentUser.role === 'Admin') {
+                navAdminComunicados.style.display = 'flex';
+                adminNavGroup.appendChild(navAdminComunicados);
+            } else {
+                navAdminComunicados.style.display = 'none';
+            }
+        }
+        if (navTurnos) { navTurnos.style.display = 'flex'; adminNavGroup.appendChild(navTurnos); }
+        if (navAprobaciones) { navAprobaciones.style.display = 'flex'; adminNavGroup.appendChild(navAprobaciones); }
+        
         if (navHorario) { sidebarNav.appendChild(navHorario); }
         if (navDocs) { navDocs.style.display = 'flex'; sidebarNav.appendChild(navDocs); }
         if (navPermisos) { navPermisos.style.display = 'flex'; sidebarNav.appendChild(navPermisos); }
 
         const navConfigGestores = document.getElementById('navConfigGestores');
-        if (navConfigGestores && currentUser.email && currentUser.email.toLowerCase() === 'maria.sanchez@virtualsoft.tech') {
+        if (navConfigGestores && currentUser.role === 'Admin') {
             navConfigGestores.style.display = 'flex';
             sidebarNav.appendChild(navConfigGestores);
         }
@@ -4163,6 +4325,8 @@ function setupSidebar() {
             toggleSplitShiftBtn.style.display = 'flex';
         }
     }
+
+    alignAdministrativeControlsByRole();
 }
 
 let allActiveSessions = {};
@@ -4264,7 +4428,7 @@ function renderActiveSessionsDashboard() {
         let isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
         
         // Exclude supervisors from Monitoreo
-        const excludedMonitoreo = ['Sara Santamaria', 'Sara Santamaría', 'Maria Sanchez', 'Camilo Espinosa', 'Oriana Borja'];
+        const excludedMonitoreo = SUPERVISORES_NOMBRES;
         if (excludedMonitoreo.some(ex => fullName.toLowerCase().includes(ex.toLowerCase()))) return false;
 
         if (session.status === 'En Almuerzo' || session.status === 'En Desayuno' || session.status === 'Inactivo') {
@@ -4402,7 +4566,7 @@ function renderActiveSessionsDashboard() {
                     textStyle = "color: var(--danger); text-decoration: line-through;";
                 }
 
-                tasksHtml += `<div style="display: flex; align-items: center; gap: 5px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: ${t.status==='Pendiente'?0.7:1};">${icon} <span title="${t.name}" style="${textStyle}">${t.name}</span></div>`;
+                tasksHtml += `<div style="display: flex; align-items: center; gap: 5px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: ${t.status==='Pendiente'?0.7:1};">${icon} <span title="${escapeHTML(t.name)}" style="${textStyle}">${escapeHTML(t.name)}</span></div>`;
             });
             tasksHtml += '</div>';
         } else {
@@ -4415,10 +4579,10 @@ function renderActiveSessionsDashboard() {
         card.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: start; gap: 8px;">
                 <div class="monitoreo-user-info">
-                    <img src="${avatarSrc}" alt="${fullName}" class="monitoreo-avatar" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0D8ABC&color=fff';">
+                    <img class="monitoreo-avatar">
                     <div class="monitoreo-details">
-                        <span class="monitoreo-name">${fullName}</span>
-                        <span class="monitoreo-meta">${session.email || ''}</span>
+                        <span class="monitoreo-name">${escapeHTML(fullName)}</span>
+                        <span class="monitoreo-meta">${escapeHTML(session.email || '')}</span>
                     </div>
                 </div>
                 <div class="status-indicator-badge ${isOnline ? 'status-online' : 'status-offline'}">
@@ -4430,7 +4594,7 @@ function renderActiveSessionsDashboard() {
             <div style="margin-top: 10px; font-size: 13px;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                     <span style="color: var(--text-secondary);"><i class='bx bx-calendar-check'></i> Turno:</span>
-                    <strong style="color: var(--text-primary);">${session.shift || 'Mañana'}</strong>
+                    <strong style="color: var(--text-primary);">${escapeHTML(session.shift || 'Mañana')}</strong>
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                     <span style="color: var(--text-secondary);"><i class='bx bx-time'></i> Inicio de Turno:</span>
@@ -4459,14 +4623,23 @@ function renderActiveSessionsDashboard() {
             ${tasksHtml}
 
             <div style="margin-top: 15px; display: flex; gap: 5px; justify-content: flex-end;">
-                <button class="btn btn-outline" style="flex: 1; padding: 6px 10px; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="openMonitoreoDetails('${uid}')">
+                <button class="btn btn-outline" style="flex: 1; padding: 6px 10px; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="openMonitoreoDetails(decodeURIComponent('${encodeInlineHandlerArg(uid)}'))">
                     <i class='bx bx-search-alt-2'></i> Detalles
                 </button>
-                <button class="btn btn-outline" style="flex: 1; padding: 6px 10px; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px; border-color: var(--warning); color: var(--warning);" onclick="viewTimelineInMonitoreo('${uid}')">
+                <button class="btn btn-outline" style="flex: 1; padding: 6px 10px; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px; border-color: var(--warning); color: var(--warning);" onclick="viewTimelineInMonitoreo(decodeURIComponent('${encodeInlineHandlerArg(uid)}'))">
                     <i class='bx bx-time'></i> Bitácora
                 </button>
             </div>
         `;
+        const avatarElement = card.querySelector('.monitoreo-avatar');
+        if (avatarElement) {
+            const fallbackAvatarSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0D8ABC&color=fff`;
+            avatarElement.alt = fullName;
+            avatarElement.addEventListener('error', () => {
+                avatarElement.src = fallbackAvatarSrc;
+            }, { once: true });
+            avatarElement.src = avatarSrc;
+        }
         grid.appendChild(card);
     });
 }
@@ -4632,13 +4805,13 @@ window.openMonitoreoDetails = function(uid) {
                     badgeStyle = 'background: rgba(239,68,68,0.15); color: var(--danger);';
                 }
 
-                const observationText = t.observation ? t.observation.trim() : 'Sin observaciones cargadas.';
+                const observationText = t.observation ? escapeHTML(t.observation.trim()) : 'Sin observaciones cargadas.';
 
                 tasksList.innerHTML += `
                     <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--glass-border); padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px;">
                         <div style="display: flex; justify-content: space-between; align-items: start; gap: 10px;">
-                            <span style="font-weight: 600; font-size: 13.5px; color: var(--text-primary);">${t.name}</span>
-                            <span class="monitoreo-task-badge ${badgeClass}" style="padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; ${badgeStyle}">${t.status}</span>
+                            <span style="font-weight: 600; font-size: 13.5px; color: var(--text-primary);">${escapeHTML(t.name)}</span>
+                            <span class="monitoreo-task-badge ${badgeClass}" style="padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; ${badgeStyle}">${escapeHTML(t.status)}</span>
                         </div>
                         <div style="font-size: 12px; color: var(--text-secondary); background: rgba(0,0,0,0.03); padding: 8px 10px; border-radius: 6px; border-left: 3px solid var(--accent-primary);">
                             <strong>Notas u Observaciones:</strong> ${observationText}
@@ -4967,7 +5140,7 @@ async function calcularIndicadores() {
                 let bgLight = ev.type === 'Desayuno' ? "var(--warning-bg)" : (ev.type === 'Almuerzo' ? "var(--success-bg)" : "var(--danger-bg)");
                 
                 html += `<div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-primary); padding: 12px 16px; border-radius: 10px; border-left: 4px solid ${color}; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">`;
-                html += `<div style="display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 13px; color: var(--text-primary);"><div style="background: ${bgLight}; color: ${color}; width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 16px;">${icon}</div> ${ev.type}</div>`;
+                html += `<div style="display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 13px; color: var(--text-primary);"><div style="background: ${bgLight}; color: ${color}; width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 16px;">${icon}</div> ${escapeHTML(String(ev.type))}</div>`;
                 html += `<div style="font-family: monospace; font-size: 12px; color: var(--text-primary); background: var(--bg-secondary); border: 1px solid var(--glass-border); padding: 5px 12px; border-radius: 8px; font-weight: 500;"><i class='bx bx-time' style="color: var(--text-secondary);"></i> ${s} - ${eTime}</div>`;
                 html += `</div>`;
             });
@@ -4982,7 +5155,7 @@ async function calcularIndicadores() {
                         uniqueLines.push(line);
                     }
                 });
-                html += `<div style="font-family: monospace; font-size: 13px; color: var(--text-secondary); white-space: pre-wrap; background: var(--bg-primary); border: 1px solid var(--glass-border); padding: 15px; border-radius: 10px;">${uniqueLines.join('\n')}</div>`;
+                html += `<div style="font-family: monospace; font-size: 13px; color: var(--text-secondary); white-space: pre-wrap; background: var(--bg-primary); border: 1px solid var(--glass-border); padding: 15px; border-radius: 10px;">${escapeHTML(uniqueLines.join('\n'))}</div>`;
             }
         } else {
             html += `<div style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 13px; background: var(--bg-primary); border-radius: 10px; border: 1px dashed var(--glass-border);"><i class='bx bx-info-circle' style="font-size: 18px; display: block; margin-bottom: 5px; opacity: 0.5;"></i> No se registraron pausas en este turno</div>`;
@@ -5409,15 +5582,15 @@ function openKpiTaskDetails(tipo) {
                 <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); padding: 10px 15px; border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div style="font-size: 13px; color: var(--text-primary); font-weight: 500;">
-                            ${t.name}
+                            ${escapeHTML(t.name)}
                             ${tTypeBadge}
                         </div>
                         <div style="font-size: 11px; color: var(--text-secondary);">
-                            <i class='bx bx-calendar'></i> ${t.date}
+                            <i class='bx bx-calendar'></i> ${escapeHTML(t.date)}
                         </div>
                     </div>
                     <div style="font-size: 11px; color: var(--text-secondary); background: rgba(0,0,0,0.2); padding: 6px 10px; border-radius: 4px; border-left: 2px solid ${tTypeColor};">
-                        <strong>Nota:</strong> ${t.observation}
+                        <strong>Nota:</strong> ${escapeHTML(t.observation)}
                     </div>
                 </div>
             `;
@@ -5538,7 +5711,7 @@ function openNewComunicadoModal() {
 
 async function saveNewComunicado() {
     const title = document.getElementById('comunicadoTitle').value.trim();
-    const content = document.getElementById('comunicadoContent').innerHTML.trim();
+    const content = sanitizeAnnouncementHTML(document.getElementById('comunicadoContent').innerHTML).trim();
     
     if (!title || !content) {
         alert("Por favor llena todos los campos.");
@@ -5616,16 +5789,16 @@ function renderGestorComunicados() {
         if (isRead) {
             actionsHtml = `<div style="color: var(--success); font-size: 13px; margin-top: 15px; font-weight: 500;"><i class='bx bx-check-double'></i> Leído el ${new Date(c.readBy[uid].readAt).toLocaleString('es-CO')}</div>`;
         } else {
-            actionsHtml = `<button class="btn btn-primary" style="margin-top: 15px; width: 100%; max-width: 300px; background: var(--success); border-color: var(--success);" onclick="markComunicadoAsRead('${key}')"><i class='bx bx-check'></i> Marcar como Leído y Entendido</button>`;
+            actionsHtml = `<button class="btn btn-primary" style="margin-top: 15px; width: 100%; max-width: 300px; background: var(--success); border-color: var(--success);" onclick="markComunicadoAsRead(decodeURIComponent('${encodeInlineHandlerArg(key)}'))"><i class='bx bx-check'></i> Marcar como Leído y Entendido</button>`;
         }
         
         list.innerHTML += `
             <div class="glass-panel" style="padding: 20px; border-left: 4px solid ${isRead ? 'var(--glass-border)' : 'var(--danger)'};">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-                    <h3 style="color: ${isRead ? 'var(--text-primary)' : 'var(--danger)'}; margin: 0; font-size: 18px;">${c.title}</h3>
-                    <span style="font-size: 11px; color: var(--text-secondary); background: rgba(0,0,0,0.1); padding: 3px 8px; border-radius: 10px;">${formattedDate} por ${c.author}</span>
+                    <h3 style="color: ${isRead ? 'var(--text-primary)' : 'var(--danger)'}; margin: 0; font-size: 18px;">${escapeHTML(c.title)}</h3>
+                    <span style="font-size: 11px; color: var(--text-secondary); background: rgba(0,0,0,0.1); padding: 3px 8px; border-radius: 10px;">${formattedDate} por ${escapeHTML(c.author)}</span>
                 </div>
-                <div class="rich-text" style="font-size: 14px; color: var(--text-secondary); margin-top: 10px; line-height: 1.5; overflow-wrap: break-word;">${c.content}</div>
+                <div class="rich-text" style="font-size: 14px; color: var(--text-secondary); margin-top: 10px; line-height: 1.5; overflow-wrap: break-word; white-space: pre-wrap;">${sanitizeAnnouncementHTML(c.content)}</div>
                 ${actionsHtml}
             </div>
         `;
@@ -5661,10 +5834,10 @@ function checkUnreadUrgentAnnouncements() {
         const isRead = c.readBy && c.readBy[uid];
         
         if (!isRead) {
-            document.getElementById('urgentAnnouncementTitle').innerText = c.title;
-            document.getElementById('urgentAnnouncementAuthor').innerText = c.author;
+            document.getElementById('urgentAnnouncementTitle').innerText = c.title || '';
+            document.getElementById('urgentAnnouncementAuthor').innerText = c.author || '';
             document.getElementById('urgentAnnouncementDate').innerText = new Date(c.date).toLocaleString('es-CO');
-            document.getElementById('urgentAnnouncementBody').innerHTML = c.content;
+            document.getElementById('urgentAnnouncementBody').innerHTML = sanitizeAnnouncementHTML(c.content);
             
             const btn = document.getElementById('btnUrgentUnderstand');
             btn.onclick = () => markUrgentComunicadoAsRead(key);
@@ -5800,14 +5973,14 @@ function renderAdminComunicados() {
             <tr style="border-bottom: 1px solid var(--glass-border);">
                 <td style="padding: 12px; font-size: 13px;">${formattedDate}</td>
                 <td style="padding: 12px; font-weight: 500;">
-                    <a href="javascript:void(0)" onclick="viewComunicadoContent('${key}')" style="color: var(--accent-primary); text-decoration: none; cursor: pointer; transition: color 0.2s;" onmouseover="this.style.textDecoration='underline'; this.style.color='var(--text-primary)'" onmouseout="this.style.textDecoration='none'; this.style.color='var(--accent-primary)'">${c.title}</a>
+                    <a href="javascript:void(0)" onclick="viewComunicadoContent(decodeURIComponent('${encodeInlineHandlerArg(key)}'))" style="color: var(--accent-primary); text-decoration: none; cursor: pointer; transition: color 0.2s;" onmouseover="this.style.textDecoration='underline'; this.style.color='var(--text-primary)'" onmouseout="this.style.textDecoration='none'; this.style.color='var(--accent-primary)'">${escapeHTML(c.title)}</a>
                 </td>
-                <td style="padding: 12px; color: var(--text-secondary); font-size: 13px;">${c.author}</td>
+                <td style="padding: 12px; color: var(--text-secondary); font-size: 13px;">${escapeHTML(c.author)}</td>
                 <td style="padding: 12px; text-align: center;"><span class="badge" style="background: var(--success);">${readCount} lecturas</span></td>
                 <td style="padding: 12px; text-align: center;">
-                    <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px;" onclick="viewComunicadoContent('${key}')"><i class='bx bx-book-open'></i> Leer</button>
-                    <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px; margin-left: 5px;" onclick="viewComunicadoLecturas('${key}')"><i class='bx bx-user-check'></i> Lecturas</button>
-                    <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px; margin-left: 5px;" onclick="deleteComunicado('${key}')"><i class='bx bx-trash'></i></button>
+                    <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px;" onclick="viewComunicadoContent(decodeURIComponent('${encodeInlineHandlerArg(key)}'))"><i class='bx bx-book-open'></i> Leer</button>
+                    <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px; margin-left: 5px;" onclick="viewComunicadoLecturas(decodeURIComponent('${encodeInlineHandlerArg(key)}'))"><i class='bx bx-user-check'></i> Lecturas</button>
+                    <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px; margin-left: 5px;" onclick="deleteComunicado(decodeURIComponent('${encodeInlineHandlerArg(key)}'))"><i class='bx bx-trash'></i></button>
                 </td>
             </tr>
         `;
@@ -5818,10 +5991,10 @@ function viewComunicadoContent(id) {
     const c = globalComunicados[id];
     if (!c) return;
     
-    document.getElementById('viewComunicadoContentTitle').innerText = c.title;
-    document.getElementById('viewComunicadoContentAuthor').innerText = c.author;
+    document.getElementById('viewComunicadoContentTitle').innerText = c.title || '';
+    document.getElementById('viewComunicadoContentAuthor').innerText = c.author || '';
     document.getElementById('viewComunicadoContentDate').innerText = new Date(c.date).toLocaleString('es-CO');
-    document.getElementById('viewComunicadoContentBody').innerHTML = c.content;
+    document.getElementById('viewComunicadoContentBody').innerHTML = sanitizeAnnouncementHTML(c.content);
     
     document.getElementById('viewComunicadoContentModal').classList.add('active');
 }
@@ -5849,7 +6022,7 @@ async function viewComunicadoLecturas(id) {
             const r = readers[uid];
             if (r.name) readNames.add(r.name.trim().toLowerCase());
             readList.innerHTML += `<li style="margin-bottom: 8px; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
-                <div style="font-weight: 500; font-size: 13px;">${r.name}</div>
+                <div style="font-weight: 500; font-size: 13px;">${escapeHTML(r.name)}</div>
                 <div style="font-size: 11px; color: var(--text-secondary);">${new Date(r.readAt).toLocaleString('es-CO')}</div>
             </li>`;
         });
@@ -5872,7 +6045,7 @@ async function viewComunicadoLecturas(id) {
                     if (!readers[uKey] && !readNames.has(uName)) {
                         unreadCount++;
                         unreadList.innerHTML += `<li style="margin-bottom: 8px; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;">
-                            <div style="font-weight: 500; color: var(--danger); font-size: 13px;"><i class='bx bx-x'></i> ${u.name || 'Sin nombre'}</div>
+                            <div style="font-weight: 500; color: var(--danger); font-size: 13px;"><i class='bx bx-x'></i> ${escapeHTML(u.name || 'Sin nombre')}</div>
                         </li>`;
                         // Añadimos el nombre al set para evitar imprimir al mismo usuario varias veces si tiene múltiples cuentas viejas
                         if (uName) readNames.add(uName);
@@ -5951,7 +6124,7 @@ function generarAnalisisTextual() {
         return;
     }
     
-    const excludedGestores = ['Sara Santamariía Foronda', 'Maria Sanchez', 'Sara', 'Maria', 'Camilo Espinosa', 'Camilo', 'Oriana Borja', 'Oriana'];
+    const excludedGestores = SUPERVISORES_NOMBRES;
     const selectedGestoresPDF = getSelectedMultiSelectValues('operativoGestorMultiSelect');
     const filtroGestor = selectedGestoresPDF.length === 1 ? selectedGestoresPDF[0] : (selectedGestoresPDF.length === 0 ? 'Todos' : 'Varios');
     
@@ -6103,9 +6276,9 @@ function generarAnalisisTextual() {
         
         if (sortedByVol.length > 0) {
             html += `<h4>🏆 Liderazgo en Volumen</h4>`;
-            html += `<p>El gestor con mayor carga operativa es <strong>${sortedByVol[0][0]}</strong> con ${sortedByVol[0][1].procesados} procesados.`;
+            html += `<p>El gestor con mayor carga operativa es <strong>${escapeHTML(sortedByVol[0][0])}</strong> con ${sortedByVol[0][1].procesados} procesados.`;
             if (sortedByVol.length > 1) {
-                html += ` Le sigue <strong>${sortedByVol[1][0]}</strong> con ${sortedByVol[1][1].procesados}.</p>`;
+                html += ` Le sigue <strong>${escapeHTML(sortedByVol[1][0])}</strong> con ${sortedByVol[1][1].procesados}.</p>`;
             } else {
                 html += `</p>`;
             }
@@ -6113,9 +6286,9 @@ function generarAnalisisTextual() {
 
         if (sortedByART.length > 0) {
             html += `<h4>⚡ Rendimiento en Velocidad (ART)</h4>`;
-            html += `<p>El gestor más ágil en resolución es <strong>${sortedByART[0][0]}</strong> con un tiempo promedio de <strong>${sortedByART[0][1].artPromedio.toFixed(2)} minutos</strong>.`;
+            html += `<p>El gestor más ágil en resolución es <strong>${escapeHTML(sortedByART[0][0])}</strong> con un tiempo promedio de <strong>${sortedByART[0][1].artPromedio.toFixed(2)} minutos</strong>.`;
             if (sortedByART.length > 1) {
-                html += ` En segundo lugar destaca <strong>${sortedByART[1][0]}</strong> con ${sortedByART[1][1].artPromedio.toFixed(2)} mins.</p>`;
+                html += ` En segundo lugar destaca <strong>${escapeHTML(sortedByART[1][0])}</strong> con ${sortedByART[1][1].artPromedio.toFixed(2)} mins.</p>`;
             } else {
                 html += `</p>`;
             }
@@ -6123,7 +6296,7 @@ function generarAnalisisTextual() {
             const slowest = sortedByART[sortedByART.length - 1];
             if (slowest[1].artPromedio > 1200) {
                 html += `<div style="background: rgba(239, 68, 68, 0.1); border-left: 4px solid var(--danger); padding: 15px; margin-top: 15px;">
-                    <strong>⚠️ Cuello de Botella Detectado:</strong> <strong>${slowest[0]}</strong> registra un tiempo promedio elevado (${slowest[1].artPromedio.toFixed(2)} min). Se recomienda una intervención para revisar bloqueos operativos o desbalance de cargas.
+                    <strong>⚠️ Cuello de Botella Detectado:</strong> <strong>${escapeHTML(slowest[0])}</strong> registra un tiempo promedio elevado (${slowest[1].artPromedio.toFixed(2)} min). Se recomienda una intervención para revisar bloqueos operativos o desbalance de cargas.
                 </div>`;
             }
         }
@@ -6606,7 +6779,7 @@ function renderControlOperativoFiltered() {
         const badgeRechazados = `<span style="background: rgba(239, 68, 68, 0.15); color: var(--danger); padding: 4px 10px; border-radius: 20px; font-weight: 700;">${d.Retiros_Rechazados}</span>`;
         
         tr.innerHTML = `
-            <td style="padding: 16px 20px; font-weight: 600; color: var(--text-primary);">${gestor}</td>
+            <td style="padding: 16px 20px; font-weight: 600; color: var(--text-primary);">${escapeHTML(gestor)}</td>
             <td style="padding: 16px 20px;">${badgeAprobados}</td>
             <td style="padding: 16px 20px;">${badgeRechazados}</td>
             <td style="padding: 16px 20px; font-weight: 600; color: var(--text-secondary);">${d.Retiros_Procesados}</td>
@@ -6626,12 +6799,12 @@ function renderControlOperativoFiltered() {
     if(wTotal) wTotal.textContent = globalProcesados;
     if(wAprob) wAprob.textContent = globalAprobados;
     if(wRech) wRech.textContent = globalRechazados;
-    if(wArt) wArt.innerHTML = `${avgArt}<span style="font-size: 16px; font-weight: 600; margin-left: 4px;">min</span>`;
+    if(wArt) wArt.innerHTML = `${escapeHTML(String(avgArt))}<span style="font-size: 16px; font-weight: 600; margin-left: 4px;">min</span>`;
     
     // Render charts
     // Filter out empty gestores for global charts
     const globalForCharts = {};
-    const excludedGestoresGlobal = ['Sara Santamaria', 'Maria Sanchez', 'Camilo Espinosa', 'Oriana Borja'];
+    const excludedGestoresGlobal = SUPERVISORES_NOMBRES;
     for (const gestor in aggregatedDataGlobal) {
         if (excludedGestoresGlobal.some(ex => gestor.includes(ex) || gestor.includes('Sara Santamar'))) continue;
         if (aggregatedDataGlobal[gestor].Retiros_Procesados > 0 || aggregatedDataGlobal[gestor].Dias_Laborados > 0) {
@@ -6665,11 +6838,11 @@ function renderControlOperativoCharts(data, dailyData, selectedGestor) {
         if (elTitleEficiencia) elTitleEficiencia.innerHTML = `<i class='bx bx-layer'></i> Eficiencia y Volumen de Retiros`;
         if (elTitleMatriz) elTitleMatriz.innerHTML = `<i class='bx bx-bar-chart-alt-2'></i> Ranking de Porcentaje de Rechazos`;
     } else {
-        if (elTitlePeores) elTitlePeores.innerHTML = `<i class='bx bx-alarm-exclamation'></i> Fechas con Llegada Tarde - ${selectedGestor}`;
-        if (elTitleMejores) elTitleMejores.innerHTML = `<i class='bx bx-check-double'></i> Fechas de Conexión a Tiempo - ${selectedGestor}`;
-        if (elTitleInactividad) elTitleInactividad.innerHTML = `<i class='bx bx-coffee-togo'></i> Inactividad Diaria por Fecha - ${selectedGestor}`;
-        if (elTitleEficiencia) elTitleEficiencia.innerHTML = `<i class='bx bx-layer'></i> Evolución Diaria de Retiros - ${selectedGestor}`;
-        if (elTitleMatriz) elTitleMatriz.innerHTML = `<i class='bx bx-target-lock'></i> % Rechazos: ${selectedGestor}`;
+        if (elTitlePeores) elTitlePeores.innerHTML = `<i class='bx bx-alarm-exclamation'></i> Fechas con Llegada Tarde - ${escapeHTML(selectedGestor)}`;
+        if (elTitleMejores) elTitleMejores.innerHTML = `<i class='bx bx-check-double'></i> Fechas de Conexión a Tiempo - ${escapeHTML(selectedGestor)}`;
+        if (elTitleInactividad) elTitleInactividad.innerHTML = `<i class='bx bx-coffee-togo'></i> Inactividad Diaria por Fecha - ${escapeHTML(selectedGestor)}`;
+        if (elTitleEficiencia) elTitleEficiencia.innerHTML = `<i class='bx bx-layer'></i> Evolución Diaria de Retiros - ${escapeHTML(selectedGestor)}`;
+        if (elTitleMatriz) elTitleMatriz.innerHTML = `<i class='bx bx-target-lock'></i> % Rechazos: ${escapeHTML(selectedGestor)}`;
     }
 
     let activeData = {};
@@ -7475,7 +7648,7 @@ function renderLoginHistoryTable(records) {
             }
         }
 
-        let statusBadge = `<span style="background: rgba(59,130,246,0.15); color: var(--accent-primary); padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">${r.status}</span>`;
+        let statusBadge = `<span style="background: rgba(59,130,246,0.15); color: var(--accent-primary); padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">${escapeHTML(r.status)}</span>`;
         if (r.isOnline) {
             statusBadge = `<span style="background: rgba(16,185,129,0.15); color: var(--success); padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700;"><i class='bx bx-radio-circle-marked'></i> En Línea</span>`;
         } else if (r.status === 'Ingreso en Día de Descanso') {
@@ -7485,15 +7658,15 @@ function renderLoginHistoryTable(records) {
         html += `
             <tr style="border-bottom: 1px solid rgba(0,0,0,0.05);">
                 <td style="padding: 12px 16px; font-weight: 600; color: var(--text-primary);">
-                    ${r.name}
-                    ${r.email ? `<div style="font-size: 11px; color: var(--text-secondary); font-weight: 400;">${r.email}</div>` : ''}
+                    ${escapeHTML(r.name)}
+                    ${r.email ? `<div style="font-size: 11px; color: var(--text-secondary); font-weight: 400;">${escapeHTML(r.email)}</div>` : ''}
                 </td>
-                <td style="padding: 12px 16px; color: var(--text-secondary); font-size: 13px;">${r.shift}</td>
+                <td style="padding: 12px 16px; color: var(--text-secondary); font-size: 13px;">${escapeHTML(r.shift)}</td>
                 <td style="padding: 12px 16px; color: var(--text-primary); font-size: 13px; font-weight: 500;">
                     ${formattedLogin} ${delayBadge}
                 </td>
                 <td style="padding: 12px 16px;">${statusBadge}</td>
-                <td style="padding: 12px 16px; color: var(--text-secondary); font-size: 12px;">${r.lastActive}</td>
+                <td style="padding: 12px 16px; color: var(--text-secondary); font-size: 12px;">${escapeHTML(r.lastActive)}</td>
             </tr>
         `;
     });
@@ -7646,6 +7819,7 @@ async function handleNewIncidentSubmit(event) {
     try {
         const newLogRef = database.ref('logs').push();
         await newLogRef.set({
+            uid: currentUser.uid || firebase.auth().currentUser.uid,
             type: type,
             title: title,
             assignedTo: assignee,
@@ -7690,7 +7864,7 @@ function renderIncidentsTable(incidents) {
     let html = '';
     incidents.forEach(inc => {
         const dateStr = inc.timestamp ? new Date(inc.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'N/A';
-        const typeBadge = `<span class="badge pending" style="font-size: 10px;">${inc.type || 'Soporte'}</span>`;
+        const typeBadge = `<span class="badge pending" style="font-size: 10px;">${escapeHTML(inc.type || 'Soporte')}</span>`;
         const statusBadge = inc.status === 'Cerrado' 
             ? `<span class="badge status-completed" style="font-size: 10px; background: var(--success); color: white;">Cerrado</span>`
             : `<span class="badge in-progress" style="font-size: 10px; background: var(--warning); color: white;">Abierto</span>`;
@@ -7700,11 +7874,11 @@ function renderIncidentsTable(incidents) {
                 <td style="padding: 10px; font-size: 12px; color: var(--text-secondary);">${dateStr}</td>
                 <td style="padding: 10px;">${typeBadge}</td>
                 <td style="padding: 10px;">
-                    <div style="font-weight: 600; color: var(--text-primary); font-size: 13px;">${inc.title || ''}</div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${inc.detail || ''}</div>
-                    ${inc.assignedTo ? `<div style="font-size: 10px; color: var(--accent-primary); margin-top: 2px;">Resp: ${inc.assignedTo}</div>` : ''}
+                    <div style="font-weight: 600; color: var(--text-primary); font-size: 13px;">${escapeHTML(inc.title || '')}</div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${escapeHTML(inc.detail || '')}</div>
+                    ${inc.assignedTo ? `<div style="font-size: 10px; color: var(--accent-primary); margin-top: 2px;">Resp: ${escapeHTML(inc.assignedTo)}</div>` : ''}
                 </td>
-                <td style="padding: 10px; font-size: 12px; color: var(--text-primary);">${inc.reportedBy || 'Anónimo'}</td>
+                <td style="padding: 10px; font-size: 12px; color: var(--text-primary);">${escapeHTML(inc.reportedBy || 'Anónimo')}</td>
                 <td style="padding: 10px; text-align: center;">${statusBadge}</td>
             </tr>
         `;
@@ -7743,21 +7917,3 @@ window.renderAssignedTasksFilter = renderAssignedTasksFilter;
 
 
 
-// Temporary patch to upgrade Oriana Borja
-setTimeout(() => {
-    const cu = JSON.parse(localStorage.getItem('riskOps_currentUser'));
-    if (cu && cu.role === 'Admin') {
-        database.ref('users').orderByChild('name').once('value', snap => {
-            if (snap.exists()) {
-                const users = snap.val();
-                for (let key in users) {
-                    if (users[key].name && users[key].name.toLowerCase().includes('oriana borja')) {
-                        if (users[key].role !== 'Supervisor') {
-                            database.ref('users/' + key).update({role: 'Supervisor'}).then(() => console.log('Upgraded Oriana to Supervisor'));
-                        }
-                    }
-                }
-            }
-        });
-    }
-}, 3000);
