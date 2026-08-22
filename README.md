@@ -10,7 +10,7 @@ Fases posteriores en curso o planeadas:
 
 | Fase | Objetivo | Estado |
 |---|---|---|
-| 1.1 | Adaptación de la interfaz a pantallas pequeñas | En pausa — el acceso móvil está bloqueado a propósito por una decisión de seguridad/política, no por falta de diseño responsive; ver RM-20 en el historial |
+| 1.1 | Adaptación de la interfaz a distintas resoluciones de escritorio/laptop (el acceso móvil sigue bloqueado a propósito por seguridad/política, ver RM-20; esta fase no lo toca) | En inventario |
 | 1.5 | Higiene de secretos e historial de Git | Inventario cerrado; rotación de una credencial en curso |
 | 2 | Mover datos operativos (horarios, cronogramas) a una fuente autenticada y modularizar el frontend | Sin iniciar |
 
