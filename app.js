@@ -1,3 +1,5 @@
+
+const SUPERVISORES_NOMBRES = ['Sara Santamaría', 'Sara Santamaria', 'Maria Sanchez', 'Camilo Espinosa', 'Oriana Borja', 'Sara', 'Maria', 'Camilo', 'Oriana'];
 // XSS Sanitizer Helper
 function escapeHTML(str) {
     if (str === null || str === undefined) return '';
@@ -4426,7 +4428,7 @@ function renderActiveSessionsDashboard() {
         let isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
         
         // Exclude supervisors from Monitoreo
-        const excludedMonitoreo = ['Sara Santamaria', 'Sara Santamaría', 'Maria Sanchez', 'Camilo Espinosa', 'Oriana Borja'];
+        const excludedMonitoreo = SUPERVISORES_NOMBRES;
         if (excludedMonitoreo.some(ex => fullName.toLowerCase().includes(ex.toLowerCase()))) return false;
 
         if (session.status === 'En Almuerzo' || session.status === 'En Desayuno' || session.status === 'Inactivo') {
@@ -6122,7 +6124,7 @@ function generarAnalisisTextual() {
         return;
     }
     
-    const excludedGestores = ['Sara Santamariía Foronda', 'Maria Sanchez', 'Sara', 'Maria', 'Camilo Espinosa', 'Camilo', 'Oriana Borja', 'Oriana'];
+    const excludedGestores = SUPERVISORES_NOMBRES;
     const selectedGestoresPDF = getSelectedMultiSelectValues('operativoGestorMultiSelect');
     const filtroGestor = selectedGestoresPDF.length === 1 ? selectedGestoresPDF[0] : (selectedGestoresPDF.length === 0 ? 'Todos' : 'Varios');
     
@@ -6802,7 +6804,7 @@ function renderControlOperativoFiltered() {
     // Render charts
     // Filter out empty gestores for global charts
     const globalForCharts = {};
-    const excludedGestoresGlobal = ['Sara Santamaria', 'Maria Sanchez', 'Camilo Espinosa', 'Oriana Borja'];
+    const excludedGestoresGlobal = SUPERVISORES_NOMBRES;
     for (const gestor in aggregatedDataGlobal) {
         if (excludedGestoresGlobal.some(ex => gestor.includes(ex) || gestor.includes('Sara Santamar'))) continue;
         if (aggregatedDataGlobal[gestor].Retiros_Procesados > 0 || aggregatedDataGlobal[gestor].Dias_Laborados > 0) {
@@ -7915,21 +7917,3 @@ window.renderAssignedTasksFilter = renderAssignedTasksFilter;
 
 
 
-// Temporary patch to upgrade Oriana Borja
-setTimeout(() => {
-    const cu = JSON.parse(localStorage.getItem('riskOps_currentUser'));
-    if (cu && cu.role === 'Admin') {
-        database.ref('users').orderByChild('name').once('value', snap => {
-            if (snap.exists()) {
-                const users = snap.val();
-                for (let key in users) {
-                    if (users[key].name && users[key].name.toLowerCase().includes('oriana borja')) {
-                        if (users[key].role !== 'Supervisor') {
-                            database.ref('users/' + key).update({role: 'Supervisor'}).then(() => console.log('Upgraded Oriana to Supervisor'));
-                        }
-                    }
-                }
-            }
-        });
-    }
-}, 3000);
