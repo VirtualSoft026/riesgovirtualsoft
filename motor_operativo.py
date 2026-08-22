@@ -30,10 +30,10 @@ except ImportError:
 # ==========================================
 # CONFIGURACIÓN DE MICROSTRATEGY (Vía Variables de Entorno)
 # ==========================================
-MSTR_BASE_URL = os.environ.get("MSTR_BASE_URL", "https://env-i921eu432wwh4k73.cloud.strategy.com/MicroStrategyLibrary/api")
-MSTR_PROJECT_NAME = os.environ.get("MSTR_PROJECT_NAME", "Virtualsoft")
+MSTR_BASE_URL = os.environ.get("MSTR_BASE_URL", "")
+MSTR_PROJECT_NAME = os.environ.get("MSTR_PROJECT_NAME", "")
 MSTR_PROJECT_ID = os.environ.get("MSTR_PROJECT_ID", "")
-MSTR_REPORT_ID = os.environ.get("MSTR_REPORT_ID", "B8B21D45184E89DD2A5A0898940B66A1")
+MSTR_REPORT_ID = os.environ.get("MSTR_REPORT_ID", "")
 MSTR_USERNAME = os.environ.get("MSTR_USERNAME", "")
 MSTR_PASSWORD = os.environ.get("MSTR_PASSWORD", "")
 
@@ -74,13 +74,7 @@ def get_firebase_gestores():
 GESTORES_PERMITIDOS = get_firebase_gestores()
 print(f"Gestores permitidos cargados dinámicamente desde Firebase: {len(set(GESTORES_PERMITIDOS.values()))} usuarios únicos.")
 
-# ==========================================
-# CONFIGURACIÓN DE CONTRACARGOS
-# ==========================================
-CONTRACARGOS_DIR = os.environ.get(
-    "CONTRACARGOS_DIR",
-    r"C:\Users\Maria Alejandra\OneDrive - VIRTUALSOFT SERVICIOS & SOFTWARE S.A.S\General - Gestión de Riesgo\Cambio Estado Dep. y Contracargos\Contracargos 2026"
-)
+
 OUTPUT_JSON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "kpi_operativos_v2.json")
 
 class MicroStrategyConnector:
