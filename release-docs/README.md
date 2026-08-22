@@ -2,7 +2,7 @@
 
 Fecha de corte original: 2026-08-13
 Actualización de cierre: 2026-08-22
-Estado productivo: **Fase 1 desplegada en `main` y verificada.** Los documentos de esta carpeta se conservan como registro de planeación y ejecución; cada uno tiene una nota de cierre al inicio con el resultado final. Fase 1.5 (higiene de secretos) tiene su inventario cerrado y una acción de rotación en curso; Fase 1.1 (responsive) está en inventario. Fase 2 sigue sin iniciar.
+Estado productivo: **Fase 1 desplegada en `main` y verificada.** Los documentos de esta carpeta se conservan como registro de planeación y ejecución; cada uno tiene una nota de cierre al inicio con el resultado final. Fase 1.5 (higiene de secretos) tiene su inventario cerrado y una acción de rotación en curso; Fase 1.1 (responsive) está en pausa — el acceso móvil está bloqueado a propósito por seguridad/política, no por falta de diseño responsive (ver RM-20). Fase 2 sigue sin iniciar.
 Objetivo original: completar la remediación de Fase 1 mediante una promoción controlada y dejar el trabajo preparado para delegarse sin depender de contexto oral.
 
 ## Orden de lectura
