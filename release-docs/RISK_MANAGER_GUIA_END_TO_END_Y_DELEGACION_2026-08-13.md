@@ -1,8 +1,11 @@
 # Risk Manager — guía end-to-end y modelo de delegación
 
-Fecha de corte: 2026-08-13  
-Audiencia: dirección, responsable de producto, equipo técnico, QA, operaciones y soporte  
-Estado general: `PUBLICACIÓN DE RAMA DE FASE 1 AUTORIZADA; PRODUCCIÓN NO MODIFICADA`
+Fecha de corte: 2026-08-13
+Actualización de cierre: 2026-08-22
+Audiencia: dirección, responsable de producto, equipo técnico, QA, operaciones y soporte
+Estado general: `FASE 1 DESPLEGADA EN PRODUCCIÓN Y VERIFICADA`
+
+> **Nota de cierre (2026-08-22):** el resto de este documento describe el modelo tal como se planeó el 2026-08-13, antes de ejecutar la promoción. Se conserva sin reescribir porque el modelo de fases, estados y delegación sigue vigente para el trabajo que falta (Fase 1.1, Fase 1.5 y Fase 2). El resultado final de Fase 1 fue: candidato reconstruido desde el `main` productivo vigente (incorporando cambios posteriores al corte original y descartando dos patrones inseguros que main había introducido mientras tanto), 85 pruebas de autorización en verde contra Emulator, una falla crítica adicional detectada y corregida en producción durante la validación (autoaprobación de cuentas Administrador desde el registro público), migración de 701 registros históricos a UID, fusión a `main` verificada byte a byte, y despliegue de Firebase Rules R1 verificado. Fase 1.5 tiene su inventario de secretos cerrado (una credencial real expuesta en el historial, rotación en curso) con la reescritura de historial pospuesta deliberadamente. Fase 1.1 está en etapa de inventario.
 
 Esta es la puerta de entrada a la remediación de seguridad de Risk Manager. Explica qué repositorio corresponde a cada entorno, qué significa cada estado, cómo se componen las fases y qué puede delegarse sin otorgar permisos productivos implícitos.
 
@@ -163,7 +166,7 @@ No incluye:
 
 Definición de terminado: cambios mínimos fusionados y publicados en producción, PATCH UID fresco aplicado, Rules R1 desplegado, smoke de roles exitoso, periodo de observación cerrado y evidencia sanitizada archivada.
 
-Estado actual: candidato productivo limpio construido y validado con alcance focalizado; PR de staging consolidado y producción sin actualizar. Falta autorizar su commit, publicar la rama, revisar CI/PR y ejecutar la ventana productiva.
+Estado actual (cierre 2026-08-22): **completada.** El candidato se fusionó a `main`, la migración de datos se aplicó, y Firebase Rules R1 está desplegado y verificado en producción. El detalle completo del resultado final está en el [paquete de PR de Fase 1](RISK_MANAGER_PR_PACKAGE_PHASE1_V2_2026-08-22.md).
 
 ### 4.2 Fase 1.1 — adaptación responsive incremental
 

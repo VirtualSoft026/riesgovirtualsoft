@@ -1,9 +1,28 @@
 # Risk Manager — Runbook de promoción controlada a producción
 
-Fecha de corte: 2026-08-13  
-Repositorio productivo: `VirtualSoft026/riesgovirtualsoft`  
-Rama productiva: `main`  
-Estado: `PREPARACIÓN; SIN AUTORIZACIÓN DE DEPLOY`
+Fecha de corte: 2026-08-13
+Actualización de cierre: 2026-08-22
+Repositorio productivo: `VirtualSoft026/riesgovirtualsoft`
+Rama productiva: `main`
+Estado: `EJECUTADO — ETAPAS A A D COMPLETADAS EN PRODUCCIÓN`
+
+> **Nota de cierre (2026-08-22):** este runbook se ejecutó de principio a fin. Se conserva el procedimiento completo sin reescribir porque describe el mismo tipo de ventana que se necesitará para futuras promociones (Fase 2). Estado verificado final:
+>
+> ```text
+> PRODUCT_MAIN_SHA_ANTES_DE_FUSIONAR   = db114260e99c541c77fae0318e0d01ace35aca01
+> RELEASE_BRANCH                       = phase1-security-release
+> MERGE_COMMIT_SHA_EN_MAIN             = eb92597
+> APP_JS_SHA256_PUBLICADO              = 8687d7e0ab7d1ca2b4b227a630e339c63248b7798d9c90a332fdc49dbddd4778
+> HASH_PUBLICADO_VS_CANDIDATO          = COINCIDE_EXACTO
+> PATCH_UID_SELECCIONADOS              = 701
+> PATCH_UID_EXCLUIDOS_POR_PRECAUCION   = 85
+> FIREBASE_REAL_WRITES_PERFORMED       = SÍ (PATCH UID + 2 hotfixes de Rules + Rules R1 completas)
+> FIREBASE_RULES_PRODUCTION_DEPLOY     = SÍ
+> PRODUCT_MAIN_MODIFIED                = SÍ
+> OBSERVACIÓN_POST_DEPLOY              = SIN HALLAZGOS CRÍTICOS
+> ```
+>
+> Hallazgo no previsto en la planeación original: durante la validación se confirmó una falla de autoaprobación de cuentas Administrador activa en producción (registro público sin aprobación). Se corrigió con un cambio quirúrgico de Rules aplicado de inmediato, verificado por separado, antes de continuar con las etapas A–D de este runbook.
 
 ## 0. Alcance, repositorios y relación con las fases
 

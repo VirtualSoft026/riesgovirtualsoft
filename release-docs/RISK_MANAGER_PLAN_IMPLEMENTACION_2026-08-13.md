@@ -1,8 +1,11 @@
 # Risk Manager — plan de implementación
 
-Fecha de corte: 2026-08-13  
-Objetivo inmediato: llevar la remediación de Fase 1 a producción con el menor cambio posible y sin interrumpir las mecánicas principales  
-Estado actual: `PRODUCCIÓN NO MODIFICADA; PUBLICACIÓN AISLADA DE RAMA AUTORIZADA`
+Fecha de corte: 2026-08-13
+Actualización de cierre: 2026-08-22
+Objetivo inmediato: llevar la remediación de Fase 1 a producción con el menor cambio posible y sin interrumpir las mecánicas principales
+Estado actual: `IMP-00 A IMP-12 COMPLETADOS. FASE 1 EN PRODUCCIÓN.`
+
+> **Nota de cierre (2026-08-22):** todas las olas de este plan (0 a 5) se ejecutaron. Se conserva el documento completo sin reescribir porque el desglose de tareas, responsables y criterios de aceptación sigue siendo la referencia operativa para Fase 1.1, Fase 1.5 y Fase 2 (sección 6). El tablero de la sección 7 quedó actualizado con el estado final de cada tarea.
 
 Este plan convierte la [guía end-to-end](RISK_MANAGER_GUIA_END_TO_END_Y_DELEGACION_2026-08-13.md) en una secuencia ejecutable. Está diseñado para delegar trabajo desde ahora sin conceder permisos implícitos sobre `main` o Firebase real.
 
@@ -419,23 +422,25 @@ Iniciar ahora:
 
 No integrar los importadores ni JSON prototipo actuales en el release de Fase 1.
 
-## 7. Tablero inicial para delegación
+## 7. Tablero — estado final (cierre 2026-08-22)
 
-| Orden | ID | Estado inicial | Puede asignarse ya | Dependencia principal |
-|---:|---|---|---:|---|
-| 1 | IMP-00 | LISTO | sí | ninguna |
-| 2 | IMP-01 | LISTO AL CONGELAR BASE | sí | IMP-00 |
-| 3 | IMP-02 | PENDIENTE | sí | IMP-01 |
-| 4 | IMP-03 | PENDIENTE | sí | IMP-02 parcial |
-| 5 | IMP-04 | PREPARABLE | sí | ejecutar tras IMP-02/03 |
-| 6 | IMP-05 | PREPARABLE | sí | ejecutar tras IMP-02/03 |
-| 7 | IMP-06 | PREPARABLE | sí | finalizar tras IMP-04/05 |
-| 8 | IMP-07 | LISTO | sí | ninguna |
-| 9 | IMP-08 | PROCEDIMIENTO LISTO | preparar sí; ejecutar en ventana | PR aprobado y pausa |
-| 10 | IMP-09 | BLOQUEADO POR AUTORIZACIÓN | no ejecutar aún | IMP-08 |
-| 11 | IMP-10 | BLOQUEADO POR AUTORIZACIÓN | no ejecutar aún | IMP-06 e IMP-09 |
-| 12 | IMP-11 | BLOQUEADO POR AUTORIZACIÓN | no ejecutar aún | IMP-10 |
-| 13 | IMP-12 | PREPARABLE | sí | ejecutar después de IMP-11 |
+| Orden | ID | Estado final | Resultado |
+|---:|---|---|---|
+| 1 | IMP-00 | TERMINADA | Alcance y base re-congelados sobre el `main` vigente al momento de fusionar (avanzó respecto al SHA original del 2026-08-13; el delta se re-trió completo antes de portar) |
+| 2 | IMP-01 | TERMINADA | Rama candidata reconstruida desde `main` vigente |
+| 3 | IMP-02 | TERMINADA | Correcciones mínimas portadas; dos patrones inseguros nuevos de `main` identificados y excluidos explícitamente |
+| 4 | IMP-03 | TERMINADA | Artefacto Pages verificado por allowlist |
+| 5 | IMP-04 | TERMINADA | 85 operaciones de la matriz de seguridad en verde contra Emulator; guardia de red verificada |
+| 6 | IMP-05 | TERMINADA | Regresión funcional confirmada junto con la matriz de seguridad |
+| 7 | IMP-06 | TERMINADA | PR productivo abierto, documentado y luego fusionado |
+| 8 | IMP-07 | TERMINADA | Validación operativa realizada directamente en producción tras el despliegue |
+| 9 | IMP-08 | TERMINADA | PATCH recalculado con export fresco inmediatamente antes de aplicar (701 seleccionados, 85 excluidos por precaución) |
+| 10 | IMP-09 | TERMINADA | PATCH aplicado de forma atómica; muestra de verificación post-escritura 100% correcta |
+| 11 | IMP-10 | TERMINADA | Merge a `main` y publicación de Pages verificados con comparación de hash exacta |
+| 12 | IMP-11 | TERMINADA | Rules R1 desplegadas; validado que Gestor no accede a datos de otro UID |
+| 13 | IMP-12 | TERMINADA | Observación posterior al despliegue sin hallazgos críticos |
+
+Hallazgo adicional no previsto en el plan original: durante IMP-04/05 se confirmó que una falla de autoaprobación de cuentas Administrador (registro público sin aprobación) estaba activa en producción independientemente del release de Fase 1. Se corrigió mediante un cambio quirúrgico de Rules aplicado de inmediato, fuera de la secuencia IMP, y se verificó por separado antes de continuar.
 
 ## 8. Reglas de gestión del plan
 
