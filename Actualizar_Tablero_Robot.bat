@@ -3,7 +3,7 @@ setlocal enabledelayedexpansion
 
 echo Actualizando Tablero de Risk Manager (Modo Rebase Seguro)...
 echo ==============================================
-cd /d "c:\Users\Maria Alejandra\OneDrive - VIRTUALSOFT SERVICIOS & SOFTWARE S.A.S\Indicadores y Pagina WEB"
+cd /d "%~dp0"
 
 :: 1. Extrayendo datos
 echo [1/4] Extrayendo datos de MicroStrategy y Contracargos...
