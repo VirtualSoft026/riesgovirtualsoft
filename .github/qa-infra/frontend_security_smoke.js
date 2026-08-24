@@ -723,6 +723,136 @@ async function testSaveExtraTaskErrorIsVisibleAndAllowsRetryWithSameId() {
   assert.equal(env.getPendingExtraTaskId(), null);
 }
 
+// ---------------------------------------------------------------------------
+// One-time recovery migration (initApp): after combining local and remote
+// caches, any local task that mergeTaskCaches() resolved in favor of the
+// local cache (absent remotely, or a won conflict) must be individually
+// re-persisted via persistTaskToActiveSession() — never a bulk resend, never
+// overwriting a remote entry with a strictly newer updatedAt, and idempotent
+// across reloads once both sides agree.
+// ---------------------------------------------------------------------------
+function buildMigrateLocalTasksEnv(overrides = {}) {
+  const migrationSource = extractBetween('function persistTaskToActiveSession(', 'function syncActiveSessionToFirebase(');
+  const localStorageStore = {};
+  const databaseCalls = [];
+  const updateResult = overrides.updateResult || (() => Promise.resolve());
+  const databaseStub = {
+    ref(refPath) {
+      return {
+        update(data) {
+          databaseCalls.push({ path: refPath, data });
+          return updateResult(refPath, data);
+        },
+      };
+    },
+  };
+  const localStorageStub = {
+    setItem(key, value) { localStorageStore[key] = value; },
+    getItem(key) { return localStorageStore[key]; },
+  };
+
+  const loader = new Function(
+    'database', 'localStorage',
+    `${migrationSource}\nreturn { migrateLocalTasksToActiveSession, computeLocalTaskMigrations };`,
+  );
+  const { migrateLocalTasksToActiveSession, computeLocalTaskMigrations } = loader(databaseStub, localStorageStub);
+
+  return { migrateLocalTasksToActiveSession, computeLocalTaskMigrations, databaseCalls, localStorageStore };
+}
+
+function testComputeLocalTaskMigrationsLegacyLocalOnly() {
+  const { computeLocalTaskMigrations } = buildMigrateLocalTasksEnv();
+  const merged = { task_x: { name: 'Tarea X', status: 'Finalizada', observation: 'obs local legado' } };
+  const now = 123456;
+
+  const migrations = computeLocalTaskMigrations(merged, {}, now);
+
+  assert.equal(migrations.length, 1, 'A local-only task (absent remotely) must be scheduled for migration');
+  assert.equal(migrations[0].taskId, 'task_x');
+  assert.equal(migrations[0].record.updatedAt, now, 'A legacy local entry without updatedAt must be stamped before being persisted');
+}
+
+function testComputeLocalTaskMigrationsLocalWinsConflict() {
+  const { computeLocalTaskMigrations } = buildMigrateLocalTasksEnv();
+  const merged = { task_y: { name: 'Tarea Y', status: 'Finalizada', observation: 'local newer', updatedAt: 500 } };
+  const remote = { task_y: { name: 'Tarea Y', status: 'Pendiente', observation: 'remote stale', updatedAt: 100 } };
+
+  const migrations = computeLocalTaskMigrations(merged, remote, 999999);
+
+  assert.equal(migrations.length, 1, 'A task where the local cache won the merge conflict must be migrated');
+  assert.equal(migrations[0].record.updatedAt, 500, 'An already-timestamped local winner must be migrated as-is, not re-stamped');
+  assert.equal(migrations[0].record.observation, 'local newer');
+}
+
+function testComputeLocalTaskMigrationsSkipsWhenRemoteIsNewer() {
+  const { computeLocalTaskMigrations } = buildMigrateLocalTasksEnv();
+  // Mirrors exactly what mergeTaskCaches() produces when the remote entry is
+  // strictly newer: mergedCache[taskId] === remoteCache[taskId] (same content).
+  const remoteEntry = { name: 'Tarea Z', status: 'Finalizada', observation: 'remote newer', updatedAt: 900 };
+  const merged = { task_z: { ...remoteEntry } };
+  const remote = { task_z: { ...remoteEntry } };
+
+  const migrations = computeLocalTaskMigrations(merged, remote, 999999);
+
+  assert.equal(migrations.length, 0, 'Must never re-write a remote entry that mergeTaskCaches already preferred for being strictly newer');
+}
+
+function testComputeLocalTaskMigrationsIsIdempotentAfterSync() {
+  const { computeLocalTaskMigrations } = buildMigrateLocalTasksEnv();
+  const record = { name: 'Tarea W', status: 'Finalizada', observation: 'ya sincronizada', updatedAt: 700 };
+  const merged = { task_w: { ...record } };
+  const remote = { task_w: { ...record } }; // Ya migrada en un ciclo anterior
+
+  const migrations = computeLocalTaskMigrations(merged, remote, 999999);
+
+  assert.equal(migrations.length, 0, 'A reload must not re-migrate a task that is already identical on both sides');
+}
+
+async function testMigrateLocalTasksToActiveSessionKeepsLocalBackupOnFailure() {
+  const env = buildMigrateLocalTasksEnv({
+    updateResult: (refPath) => (refPath.includes('task_fail') ? Promise.reject(new Error('NETWORK_ERROR')) : Promise.resolve()),
+  });
+  const merged = {
+    task_ok: { name: 'OK', status: 'Finalizada', observation: 'obs ok' }, // legacy: no updatedAt
+    task_fail: { name: 'FAIL', status: 'Finalizada', observation: 'obs fail' }, // legacy: no updatedAt
+  };
+
+  const result = await env.migrateLocalTasksToActiveSession('QA_GESTOR', merged, {});
+
+  assert.deepEqual(result.migrated, ['task_ok'], 'A successful write must be reported as migrated');
+  assert.deepEqual(result.failed, ['task_fail'], 'A failed write must be reported as failed, never silently dropped');
+  assert.equal(env.databaseCalls.length, 2);
+
+  // Both tasks must keep their local backup (with updatedAt already stamped),
+  // including the one whose Firebase write failed — nothing here reports
+  // recovery as successful when a write actually failed.
+  assert.equal(typeof merged.task_ok.updatedAt, 'number');
+  assert.equal(typeof merged.task_fail.updatedAt, 'number');
+  const savedCache = JSON.parse(env.localStorageStore.riskOps_cache);
+  assert.equal(savedCache.task_ok.observation, 'obs ok');
+  assert.equal(savedCache.task_fail.observation, 'obs fail');
+}
+
+function testLocalTaskMigrationWiredIntoInitAppWithVisibleFailureWarning() {
+  const initAppSource = extractBetween('async function initApp() {', 'loadTeletrabajo();');
+  assert.match(
+    initAppSource,
+    /migrateLocalTasksToActiveSession\(\s*currentUser\.uid, taskStateCache, remoteTasks,?\s*\)/,
+  );
+  assert.match(initAppSource, /failedMigrations\.length > 0/);
+  assert.match(initAppSource, /alert\(/);
+  // Must run after combining the caches, and before the first tree render.
+  assert(
+    initAppSource.indexOf('migrateLocalTasksToActiveSession(')
+      > initAppSource.indexOf('mergeTaskCaches(taskStateCache, remoteTasks)'),
+  );
+  assert(
+    initAppSource.indexOf('migrateLocalTasksToActiveSession(') < initAppSource.indexOf('await loadExcelTasks();'),
+  );
+  // This recovery step must never report itself as a success.
+  assert.doesNotMatch(initAppSource, /recuperaci[oó]n exitosa/i);
+}
+
 async function main() {
   testStoredXssEscaping();
   testInlineHandlerAndAvatarSafety();
@@ -746,6 +876,12 @@ async function main() {
   testSyncActiveSessionOnlySyncsMetadataNotTasks();
   await testSaveExtraTaskConfirmsBeforeSuccess();
   await testSaveExtraTaskErrorIsVisibleAndAllowsRetryWithSameId();
+  testComputeLocalTaskMigrationsLegacyLocalOnly();
+  testComputeLocalTaskMigrationsLocalWinsConflict();
+  testComputeLocalTaskMigrationsSkipsWhenRemoteIsNewer();
+  testComputeLocalTaskMigrationsIsIdempotentAfterSync();
+  await testMigrateLocalTasksToActiveSessionKeepsLocalBackupOnFailure();
+  testLocalTaskMigrationWiredIntoInitAppWithVisibleFailureWarning();
   console.log('FRONTEND_SECURITY_SMOKE=PASS');
   console.log('STORED_XSS_LOG_RENDERING=PASS');
   console.log('INLINE_HANDLER_XSS_GUARD=PASS');
@@ -764,6 +900,7 @@ async function main() {
   console.log('SHIFT_CLOSE_INCLUDES_TASKS=PASS');
   console.log('SYNC_ACTIVE_SESSION_METADATA_ONLY=PASS');
   console.log('SAVE_EXTRA_TASK_CONFIRMED_PERSISTENCE=PASS');
+  console.log('LOCAL_TASK_MIGRATION_ONE_TIME_RECOVERY=PASS');
 }
 
 main().catch((error) => {

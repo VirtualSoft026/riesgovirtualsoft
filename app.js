@@ -1950,6 +1950,68 @@ function mergeTaskCaches(localCache, remoteCache) {
     return merged;
 }
 
+// Identifica, de forma pura, qué tareas de "mergedCache" (el resultado de
+// mergeTaskCaches) necesitan re-escribirse en Firebase: las que están
+// ausentes en remoteCache, o las que mergeTaskCaches ya resolvió a favor del
+// local (empate, updatedAt legado, o local estrictamente más reciente). Una
+// tarea cuyo contenido en mergedCache coincide exactamente con remoteCache
+// (incluido updatedAt) se considera ya sincronizada y se omite — así una
+// recarga posterior no vuelve a migrar lo que ya quedó igual en ambos lados
+// (idempotencia). Nunca incluye una tarea donde mergeTaskCaches ya prefirió
+// el remoto por tener un updatedAt estrictamente más reciente, porque en ese
+// caso mergedCache[taskId] es exactamente remoteCache[taskId].
+function computeLocalTaskMigrations(mergedCache, remoteCache, now) {
+    const remote = remoteCache || {};
+    const migrations = [];
+    Object.keys(mergedCache || {}).forEach((taskId) => {
+        const mergedEntry = mergedCache[taskId];
+        const remoteEntry = remote[taskId];
+        const alreadyInSync = !!remoteEntry
+            && mergedEntry.name === remoteEntry.name
+            && mergedEntry.status === remoteEntry.status
+            && mergedEntry.observation === remoteEntry.observation
+            && mergedEntry.updatedAt === remoteEntry.updatedAt;
+        if (alreadyInSync) return;
+
+        // Registro legado sin updatedAt: se estampa ANTES de guardarlo.
+        const record = typeof mergedEntry.updatedAt === 'number'
+            ? mergedEntry
+            : { ...mergedEntry, updatedAt: now };
+        migrations.push({ taskId, record });
+    });
+    return migrations;
+}
+
+// Migración de recuperación puntual (se ejecuta una vez durante initApp,
+// nunca de forma periódica): persiste individualmente, vía
+// persistTaskToActiveSession(), cada tarea que computeLocalTaskMigrations()
+// identificó como pendiente. El registro estampado se refleja de inmediato en
+// mergedCache/localStorage como respaldo local — ANTES de intentar la
+// escritura remota — para que sobreviva aunque esa escritura falle. Un fallo
+// individual no aborta el resto de la migración ni se reporta como éxito;
+// el llamador decide cómo advertir de los taskId en "failed".
+async function migrateLocalTasksToActiveSession(uid, mergedCache, remoteCache) {
+    if (!uid || !mergedCache) return { migrated: [], failed: [] };
+    const migrations = computeLocalTaskMigrations(mergedCache, remoteCache, Date.now());
+    const migrated = [];
+    const failed = [];
+    for (const { taskId, record } of migrations) {
+        mergedCache[taskId] = record;
+        try {
+            localStorage.setItem('riskOps_cache', JSON.stringify(mergedCache));
+        } catch (e) { /* localStorage no disponible: el respaldo local es best-effort */ }
+
+        try {
+            await persistTaskToActiveSession(uid, taskId, record);
+            migrated.push(taskId);
+        } catch (error) {
+            console.error('Error al migrar una tarea local a Firebase durante la recuperación de sesión:', taskId, error);
+            failed.push(taskId);
+        }
+    }
+    return { migrated, failed };
+}
+
 function syncActiveSessionToFirebase() {
     if (!currentUser || currentUser.role !== 'Gestor') return Promise.resolve();
     const uid = currentUser.uid;
@@ -2248,6 +2310,25 @@ async function initApp() {
             const remoteTasks = await fetchOwnActiveSessionTasks(currentUser.uid);
             taskStateCache = mergeTaskCaches(taskStateCache, remoteTasks);
             localStorage.setItem('riskOps_cache', JSON.stringify(taskStateCache));
+
+            // Migración de recuperación puntual (una sola vez, no periódica):
+            // re-escribe en Firebase, tarea por tarea, lo que ya está resuelto
+            // localmente pero que Firebase todavía no tiene o tiene desactualizado
+            // (ausente en remoto, o el local ganó el conflicto de mergeTaskCaches).
+            // Nunca sobrescribe una entrada remota con updatedAt más reciente, y es
+            // idempotente: una recarga posterior no vuelve a migrar lo ya igual.
+            const { failed: failedMigrations } = await migrateLocalTasksToActiveSession(
+                currentUser.uid, taskStateCache, remoteTasks,
+            );
+            if (failedMigrations.length > 0) {
+                // Advertencia visible; nunca se reporta esto como una recuperación
+                // exitosa. El respaldo local ya quedó conservado por
+                // migrateLocalTasksToActiveSession() antes de cada intento fallido.
+                alert(
+                    `No se pudo sincronizar con el servidor el progreso local de ${failedMigrations.length} tarea(s). `
+                    + 'Se conservó el respaldo local en este dispositivo; vuelve a guardar esas tareas cuando tengas conexión.',
+                );
+            }
         } catch (e) {
             console.error('No se pudo recuperar el progreso remoto de tareas al iniciar:', e);
         }
