@@ -24,7 +24,7 @@ jobs:
       FIREBASE_CLI_DISABLE_UPDATE_CHECK: 'true'
       PRODUCT_BASE_SHA: 43537a043dc9548d4066aca670f26209b9e77430
       EXPECTED_R0_SHA256: 944a56d498d362723f6c8eba903f5123c78120a08deb868b1a5487e3d0c891ab
-      EXPECTED_R1_SHA256: 84e0f328a836597b814de2f5f002ce1459f70748ba0491d304b47eb04fd14c77
+      EXPECTED_R1_SHA256: 778bc484601640e034fcedea44a13cda2e3f6ffb067d26ada7500f7dab0b722b
       RELEASE_CANDIDATE_SHA: ${{ github.sha }}
       PRODUCTION_NETWORK_REQUESTS: '1'
       QA_NETWORK_ISOLATION: NOT_TESTED
@@ -125,6 +125,22 @@ jobs:
           set -euo pipefail
           npx firebase --version
           npm run qa
+
+      - name: Run Supervisor comunicados rules cases
+        id: supervisor_comunicados_rules
+        if: success()
+        working-directory: .github/qa-infra
+        shell: bash
+        env:
+          NODE_OPTIONS: --require=${{ github.workspace }}/.github/qa-infra/network_guard.cjs
+        run: |
+          set -euo pipefail
+          # database.rules.json now matches the Rules deployed to riskops-75637: Admin
+          # keeps full write; Supervisor may create a brand-new announcement (title/
+          # content/date/author/authorUid as strings, authorUid === own uid, no readBy)
+          # but cannot update/delete an existing one. This step is blocking — see
+          # release-docs/RISK_MANAGER_QA_MATRIZ_COMUNICADOS_SUPERVISOR_2026-08-24.md
+          npm run test:supervisor-comunicados-rules
 
       - name: Validate sanitized artifacts
         if: success()

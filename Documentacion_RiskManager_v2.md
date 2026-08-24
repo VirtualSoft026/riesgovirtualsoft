@@ -221,9 +221,11 @@ appId: "1:874205588056:web:95eb04536fd4586e26b82d"
 
 | Rol | Acceso |
 |:---|:---|
-| **Gestor** | Mis Tareas, Comunicados, Horario, Teletrabajo, Biblioteca de Procesos, Permisos |
-| **Supervisor** | Todo lo del Gestor + Aprobaciones, Monitoreo, Eficiencia Operativa, Control de Tiempos, Historial de Turnos, Gestión Comunicados |
-| **Admin** | Acceso completo. Se aprueba automáticamente al registrarse. |
+| **Gestor** | Mis Tareas, Comunicados (solo lectura y confirmación de su propia lectura), Horario, Teletrabajo, Biblioteca de Procesos, Permisos |
+| **Supervisor** | Todo lo del Gestor + Aprobaciones, Monitoreo, Eficiencia Operativa, Control de Tiempos, Historial de Turnos, Gestión Comunicados (crear/publicar, leer contenido, consultar lecturas — **no** puede editar ni eliminar comunicados existentes; no adquiere administración de usuarios/roles) |
+| **Admin** | Acceso completo, incluida la administración de usuarios/roles y la única facultad de eliminar comunicados. Se aprueba automáticamente al registrarse. |
+
+> Nota (2026-08-24): Fase 1 había restringido la gestión de comunicados exclusivamente a Admin. Un requerimiento posterior habilitó a Supervisor para crear/publicar comunicados y consultar lecturas; eliminación y edición de comunicados existentes permanecen exclusivas de Admin. Detalle en `README_SECURITY.md` ("Actualización posterior — Comunicados").
 
 ### Detección de Inactividad
 - **Idle Detector API**: Detecta bloqueo de pantalla y cambio de pestaña > 5 minutos

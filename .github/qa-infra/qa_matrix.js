@@ -15,7 +15,12 @@ const DATABASE_NAMESPACE = PROJECT_ID;
 const EXPECTED_R0_SHA256 = process.env.EXPECTED_R0_SHA256
   || '944a56d498d362723f6c8eba903f5123c78120a08deb868b1a5487e3d0c891ab';
 const EXPECTED_R1_SHA256 = process.env.EXPECTED_R1_SHA256
-  || '84e0f328a836597b814de2f5f002ce1459f70748ba0491d304b47eb04fd14c77';
+  // Updated 2026-08-24: R1 now includes the Supervisor-can-create-only announcements
+  // rule deployed by the co-lead to riskops-75637 (see database.rules.json). All
+  // Supervisor-create validation lives inside the .write clause's Supervisor branch —
+  // there is no separate .validate on $announcement_id, matching the literal deployed
+  // rule the co-lead confirmed byte-for-byte.
+  || '778bc484601640e034fcedea44a13cda2e3f6ffb067d26ada7500f7dab0b722b';
 const F0_SHA = process.env.PRODUCT_BASE_SHA
   || '43537a043dc9548d4066aca670f26209b9e77430';
 const F1_SHA = process.env.RELEASE_CANDIDATE_SHA || 'WORKTREE_UNCOMMITTED';
@@ -392,8 +397,34 @@ function buildSpecs(matrix, contexts) {
     { id: 'gestor_own_read_receipt', role: 'QA_GESTOR', pathGroup: 'announcements', path: 'announcements/existing/readBy/QA_GESTOR', operation: 'set', payload: { readAt: '2026-08-13T18:00:00.000Z' }, expectedAllowed: true, context: gestor },
     { id: 'gestor_other_read_receipt', role: 'QA_GESTOR', pathGroup: 'announcements', path: 'announcements/existing/readBy/QA_OTHER_GESTOR', operation: 'set', payload: { readAt: '2026-08-13T18:00:00.000Z' }, expectedAllowed: r0, context: gestor },
     { id: 'gestor_announcement_content_tamper_denied', role: 'QA_GESTOR', pathGroup: 'announcements', path: 'announcements/existing', operation: 'update', payload: { text: 'Tampered', readBy: { QA_GESTOR: { readAt: '2026-08-13T18:00:00.000Z' } } }, expectedAllowed: r0, context: gestor },
+    // Legacy/malformed Supervisor create attempt: no authorUid and no title/content/date.
+    // R1 denies it because the required-field/string checks live directly inside the
+    // Supervisor branch of the .write clause itself (there is no separate .validate on
+    // $announcement_id) — that branch's newData.hasChildren([...]) condition fails, so
+    // the whole .write clause evaluates false, even though a *well-formed* Supervisor
+    // create is permitted (see supervisor_valid_announcement_create below). Still denied
+    // under R0 (pre-Fase-1 permissive baseline has no Supervisor restriction to begin
+    // with, so r0 = allowed).
     { id: 'supervisor_announcement_admin_write', role: 'QA_SUPERVISOR', pathGroup: 'announcements', path: 'announcements/supervisor_admin', operation: 'set', payload: { author: 'QA_SUPERVISOR', text: 'Synthetic' }, expectedAllowed: r0, context: supervisor },
-    { id: 'admin_announcement_write', role: 'QA_ADMIN', pathGroup: 'announcements', path: 'announcements/admin', operation: 'set', payload: { author: 'QA_ADMIN', text: 'Synthetic' }, expectedAllowed: true, context: admin },
+    { id: 'admin_announcement_write', role: 'QA_ADMIN', pathGroup: 'announcements', path: 'announcements/admin', operation: 'set', payload: { title: 'Admin announcement', content: 'Synthetic', date: new Date(300).toISOString(), author: 'QA_ADMIN', authorUid: 'QA_ADMIN' }, expectedAllowed: true, context: admin },
+
+    // Supervisor authorization extension (2026-08-24): Supervisor may create a brand-new
+    // announcement (title/content/date/author/authorUid as strings, authorUid === own uid,
+    // no readBy), matching the Rules deployed to riskops-75637. Must succeed under both R0
+    // (pre-Fase-1 permissive baseline) and R1 (hardened + Supervisor-create rule) — hence
+    // MUST_ALLOW rather than gated on r0.
+    { id: 'supervisor_valid_announcement_create', role: 'QA_SUPERVISOR', pathGroup: 'announcements', path: `announcements/${matrix}_supervisor_new`, operation: 'set', payload: { title: 'Supervisor announcement', content: 'Contenido de prueba', date: new Date(300).toISOString(), author: 'QA Supervisor', authorUid: 'QA_SUPERVISOR' }, expectedAllowed: true, compatibilityRequirement: 'MUST_ALLOW', context: supervisor },
+    // Well-formed except it carries a non-empty readBy at creation time: R1 must still deny it.
+    { id: 'supervisor_cannot_prefab_readby_on_create', role: 'QA_SUPERVISOR', pathGroup: 'announcements', path: `announcements/${matrix}_supervisor_prefab`, operation: 'set', payload: { title: 'Prefab', content: 'C', date: new Date(300).toISOString(), author: 'QA Supervisor', authorUid: 'QA_SUPERVISOR', readBy: { QA_OTHER_GESTOR: { readAt: '2026-08-13T18:00:00.000Z' } } }, expectedAllowed: r0, context: supervisor },
+    // Well-formed except authorUid names someone else: R1 must still deny it (authorUid
+    // must equal auth.uid). R0 (pre-Fase-1 permissive baseline) has no such restriction.
+    { id: 'supervisor_cannot_spoof_authorUid_on_create', role: 'QA_SUPERVISOR', pathGroup: 'announcements', path: `announcements/${matrix}_supervisor_spoofed`, operation: 'set', payload: { title: 'Spoofed', content: 'C', date: new Date(300).toISOString(), author: 'QA_ADMIN', authorUid: 'QA_ADMIN' }, expectedAllowed: r0, context: supervisor },
+    // Supervisor may not update a field on an announcement that already exists.
+    { id: 'supervisor_cannot_update_existing_announcement', role: 'QA_SUPERVISOR', pathGroup: 'announcements', path: 'announcements/existing/text', operation: 'set', payload: 'Tampered by Supervisor', expectedAllowed: r0, context: supervisor },
+    // Supervisor may not delete an existing announcement. Kept last among announcement
+    // cases: under R0 this removal actually succeeds, so nothing later in this matrix's
+    // operation list may depend on announcements/existing still being present.
+    { id: 'supervisor_cannot_delete_existing_announcement', role: 'QA_SUPERVISOR', pathGroup: 'announcements', path: 'announcements/existing', operation: 'remove', expectedAllowed: r0, context: supervisor },
 
     { id: 'atomic_shift_close', role: 'QA_GESTOR', pathGroup: 'shift_reports', path: '/', operation: 'root-update', payload: { [`shift_reports/${matrix}_atomic`]: { uid: 'QA_GESTOR', gestor: 'QA_GESTOR', timestamp: 400 }, 'active_sessions/QA_GESTOR': null, 'login_logs/modern_owned/logoutTime': 400 }, expectedAllowed: true, context: gestor },
     { id: 'atomic_shift_close_other_denied', role: 'QA_GESTOR', pathGroup: 'shift_reports', path: '/', operation: 'root-update', payload: { [`shift_reports/${matrix}_atomic_bad`]: { uid: 'QA_GESTOR', gestor: 'QA_GESTOR', timestamp: 401 }, 'active_sessions/QA_OTHER_GESTOR': null, 'login_logs/modern_other/logoutTime': 401 }, expectedAllowed: r0, context: gestor },

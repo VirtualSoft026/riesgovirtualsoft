@@ -75,7 +75,7 @@
         "author"
       ],
       "$announcement_id": {
-        ".write": "auth != null && root.child('users').child(auth.uid).child('approved').val() === true && root.child('users').child(auth.uid).child('role').val() === 'Admin'",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('approved').val() === true && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || (root.child('users').child(auth.uid).child('role').val() === 'Supervisor' && !data.exists() && newData.exists() && !newData.hasChild('readBy') && newData.hasChildren(['title', 'content', 'date', 'author', 'authorUid']) && newData.child('title').isString() && newData.child('content').isString() && newData.child('date').isString() && newData.child('author').isString() && newData.child('authorUid').isString() && newData.child('authorUid').val() === auth.uid))",
         "readBy": {
           "$reader_uid": {
             ".write": "auth != null && root.child('users').child(auth.uid).child('approved').val() === true && auth.uid === $reader_uid && !data.exists() && newData.exists()",

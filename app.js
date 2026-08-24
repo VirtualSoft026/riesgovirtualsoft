@@ -78,6 +78,37 @@ function sanitizeAnnouncementHTML(value) {
 }
 window.sanitizeAnnouncementHTML = sanitizeAnnouncementHTML;
 
+// --- Comunicados Authorization (centralized capability checks) ---
+// Single source of truth for who may publish/view-lecturas vs. delete
+// announcements, so role checks aren't duplicated (and don't drift) across
+// nav rendering, view rendering, and the action functions themselves.
+const COMUNICADOS_PUBLISH_ROLES = new Set(['Admin', 'Supervisor']);
+const COMUNICADOS_VIEW_LECTURAS_ROLES = new Set(['Admin', 'Supervisor']);
+const COMUNICADOS_DELETE_ROLES = new Set(['Admin']);
+
+function canPublishComunicados(role) {
+    return COMUNICADOS_PUBLISH_ROLES.has(role);
+}
+
+function canViewComunicadoLecturas(role) {
+    return COMUNICADOS_VIEW_LECTURAS_ROLES.has(role);
+}
+
+function canDeleteComunicados(role) {
+    return COMUNICADOS_DELETE_ROLES.has(role);
+}
+
+// Any of the three capabilities is enough to warrant seeing the "Gestión Comunicados"
+// nav entry / view; delete itself is gated separately (canDeleteComunicados).
+function canManageComunicados(role) {
+    return canPublishComunicados(role) || canViewComunicadoLecturas(role);
+}
+
+window.canPublishComunicados = canPublishComunicados;
+window.canViewComunicadoLecturas = canViewComunicadoLecturas;
+window.canDeleteComunicados = canDeleteComunicados;
+window.canManageComunicados = canManageComunicados;
+
 // Auth Check
 const currentUserObj = localStorage.getItem('riskOps_currentUser');
 if (!currentUserObj && !window.location.href.includes('login.html')) {
@@ -4181,7 +4212,7 @@ function alignAdministrativeControlsByRole() {
     });
 
     const adminAnnouncementsView = document.getElementById('view-gestion-comunicados');
-    if (adminAnnouncementsView && !isAdmin) adminAnnouncementsView.style.display = 'none';
+    if (adminAnnouncementsView && !canManageComunicados(currentUser.role)) adminAnnouncementsView.style.display = 'none';
 }
 
 function setupSidebar() {
@@ -4264,17 +4295,12 @@ function setupSidebar() {
 
         if (adminNavGroup) { adminNavGroup.style.display = 'block'; sidebarNav.appendChild(adminNavGroup); }
         if (navMonitoreo) { navMonitoreo.style.display = 'flex'; adminNavGroup.appendChild(navMonitoreo); }
-        
-        if (navTiempos) { navTiempos.style.display = 'none'; }
-        if (navAdminComunicados) { navAdminComunicados.style.display = 'flex'; adminNavGroup.appendChild(navAdminComunicados); }
-        if (navTurnos) { navTurnos.style.display = 'flex'; adminNavGroup.appendChild(navTurnos); }
-        if (navAprobaciones) { navAprobaciones.style.display = 'flex'; adminNavGroup.appendChild(navAprobaciones); }
-        
-
 
         if (navTiempos) { navTiempos.style.display = 'none'; }
         if (navAdminComunicados) {
-            if (currentUser.role === 'Admin') {
+            // Admin y Supervisor gestionan comunicados (crear/publicar, leer, ver lecturas);
+            // el botón de eliminar dentro de la vista sigue restringido a Admin (ver renderAdminComunicados).
+            if (canManageComunicados(currentUser.role)) {
                 navAdminComunicados.style.display = 'flex';
                 adminNavGroup.appendChild(navAdminComunicados);
             } else {
@@ -4283,7 +4309,7 @@ function setupSidebar() {
         }
         if (navTurnos) { navTurnos.style.display = 'flex'; adminNavGroup.appendChild(navTurnos); }
         if (navAprobaciones) { navAprobaciones.style.display = 'flex'; adminNavGroup.appendChild(navAprobaciones); }
-        
+
         if (navHorario) { sidebarNav.appendChild(navHorario); }
         if (navDocs) { navDocs.style.display = 'flex'; sidebarNav.appendChild(navDocs); }
         if (navPermisos) { navPermisos.style.display = 'flex'; sidebarNav.appendChild(navPermisos); }
@@ -5704,15 +5730,24 @@ function initComunicadosListener() {
 }
 
 function openNewComunicadoModal() {
+    if (!currentUser || !canPublishComunicados(currentUser.role)) {
+        console.warn('openNewComunicadoModal: rol no autorizado', currentUser && currentUser.role);
+        return;
+    }
     document.getElementById('comunicadoTitle').value = '';
     document.getElementById('comunicadoContent').innerHTML = '';
     document.getElementById('newComunicadoModal').classList.add('active');
 }
 
 async function saveNewComunicado() {
+    if (!currentUser || !canPublishComunicados(currentUser.role)) {
+        console.warn('saveNewComunicado: rol no autorizado', currentUser && currentUser.role);
+        alert("No tienes permiso para publicar comunicados.");
+        return;
+    }
     const title = document.getElementById('comunicadoTitle').value.trim();
     const content = sanitizeAnnouncementHTML(document.getElementById('comunicadoContent').innerHTML).trim();
-    
+
     if (!title || !content) {
         alert("Por favor llena todos los campos.");
         return;
@@ -5724,10 +5759,13 @@ async function saveNewComunicado() {
             title: title,
             content: content,
             date: new Date().toISOString(),
-            author: currentUser.name || 'Admin',
-            readBy: {}
+            // Never hardcode a role name here: falling back to 'Admin' would misattribute
+            // a Supervisor's own announcement. Fall back to email, then role, before a
+            // generic label — never to another role's name.
+            author: currentUser.name || currentUser.email || currentUser.role || 'Usuario',
+            authorUid: firebase.auth().currentUser.uid
         });
-        
+
         alert("Comunicado publicado exitosamente.");
         closeModal('newComunicadoModal');
     } catch(e) {
@@ -5964,11 +6002,16 @@ function renderAdminComunicados() {
         return;
     }
     
+    const showDelete = canDeleteComunicados(currentUser && currentUser.role);
+
     keys.forEach(key => {
         const c = globalComunicados[key];
         const formattedDate = new Date(c.date).toLocaleString('es-CO');
         const readCount = c.readBy ? Object.keys(c.readBy).length : 0;
-        
+        const deleteBtnHtml = showDelete
+            ? `<button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px; margin-left: 5px;" onclick="deleteComunicado(decodeURIComponent('${encodeInlineHandlerArg(key)}'))"><i class='bx bx-trash'></i></button>`
+            : '';
+
         tbody.innerHTML += `
             <tr style="border-bottom: 1px solid var(--glass-border);">
                 <td style="padding: 12px; font-size: 13px;">${formattedDate}</td>
@@ -5980,7 +6023,7 @@ function renderAdminComunicados() {
                 <td style="padding: 12px; text-align: center;">
                     <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px;" onclick="viewComunicadoContent(decodeURIComponent('${encodeInlineHandlerArg(key)}'))"><i class='bx bx-book-open'></i> Leer</button>
                     <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px; margin-left: 5px;" onclick="viewComunicadoLecturas(decodeURIComponent('${encodeInlineHandlerArg(key)}'))"><i class='bx bx-user-check'></i> Lecturas</button>
-                    <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px; margin-left: 5px;" onclick="deleteComunicado(decodeURIComponent('${encodeInlineHandlerArg(key)}'))"><i class='bx bx-trash'></i></button>
+                    ${deleteBtnHtml}
                 </td>
             </tr>
         `;
@@ -6000,9 +6043,13 @@ function viewComunicadoContent(id) {
 }
 
 async function viewComunicadoLecturas(id) {
+    if (!currentUser || !canViewComunicadoLecturas(currentUser.role)) {
+        console.warn('viewComunicadoLecturas: rol no autorizado', currentUser && currentUser.role);
+        return;
+    }
     const c = globalComunicados[id];
     if (!c) return;
-    
+
     document.getElementById('comunicadoLecturasModal').classList.add('active');
     const readList = document.getElementById('comunicadoReadList');
     const unreadList = document.getElementById('comunicadoUnreadList');
@@ -6066,13 +6113,24 @@ async function viewComunicadoLecturas(id) {
 let pendingDeleteComunicadoId = null;
 
 function deleteComunicado(id) {
+    if (!currentUser || !canDeleteComunicados(currentUser.role)) {
+        console.warn('deleteComunicado: rol no autorizado', currentUser && currentUser.role);
+        alert("No tienes permiso para eliminar comunicados.");
+        return;
+    }
     pendingDeleteComunicadoId = id;
     document.getElementById('confirmDeleteModal').classList.add('active');
 }
 
 document.getElementById('confirmDeleteBtn')?.addEventListener('click', async () => {
     if (!pendingDeleteComunicadoId) return;
-    
+    if (!currentUser || !canDeleteComunicados(currentUser.role)) {
+        console.warn('confirmDeleteBtn: rol no autorizado', currentUser && currentUser.role);
+        pendingDeleteComunicadoId = null;
+        closeModal('confirmDeleteModal');
+        return;
+    }
+
     const btn = document.getElementById('confirmDeleteBtn');
     const prevText = btn.innerHTML;
     btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Eliminando...";
