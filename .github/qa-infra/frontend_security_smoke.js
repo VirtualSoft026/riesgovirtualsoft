@@ -524,21 +524,159 @@ async function testFetchOwnActiveSessionTasksReadsOnlyOwnPath() {
 
   const result = await fetchOwnActiveSessionTasks('QA_GESTOR');
   assert.deepEqual(refCalls, ['active_sessions/QA_GESTOR/tasks'], 'Must only read the signed-in Gestor\'s own session tasks');
-  assert.equal(result.task_1.status, 'Finalizada');
+  assert.equal(result.ok, true);
+  assert.equal(result.tasks.task_1.status, 'Finalizada');
 }
 
-function testRemoteTaskProgressRestoredOnReloadWiring() {
+async function testFetchOwnActiveSessionTasksReturnsNotOkOnReadFailure() {
+  // A read failure must NEVER be silently coerced into "no remote tasks":
+  // that would make the caller think Firebase has nothing, and could cause
+  // it to (re)migrate/overwrite tasks that actually already exist there.
+  const fetchSource = extractBetween('async function fetchOwnActiveSessionTasks(', 'function mergeTaskCaches(');
+  const databaseStub = {
+    ref() {
+      return {
+        once: async () => { throw new Error('PERMISSION_DENIED'); },
+      };
+    },
+  };
+  const loadFetch = new Function('database', `${fetchSource}\nreturn fetchOwnActiveSessionTasks;`);
+  const fetchOwnActiveSessionTasks = loadFetch(databaseStub);
+
+  const result = await fetchOwnActiveSessionTasks('QA_GESTOR');
+  assert.deepEqual(result, { ok: false, tasks: {} }, 'A failed remote read must be reported explicitly, never as an empty-but-successful result');
+}
+
+// ---------------------------------------------------------------------------
+// recoverGestorTaskProgress() orchestrates the whole recovery + migration
+// flow "fail-safe": a failed remote read, or an authenticated identity that
+// doesn't match currentUser.uid right before writing, must both result in
+// zero Firebase writes and never be reported as a successful recovery.
+// ---------------------------------------------------------------------------
+function buildRecoverGestorTaskProgressEnv(overrides = {}) {
+  const recoverySource = extractBetween('async function fetchOwnActiveSessionTasks(', '// Task Status Buttons Interaction');
+
+  const localStorageStore = {};
+  const transactionCalls = [];
+  const onceCalls = [];
+
+  const remoteReadShouldFail = !!overrides.remoteReadShouldFail;
+  const remoteTasks = overrides.remoteTasks || {};
+  const currentValues = overrides.currentValues || {};
+  const failFor = overrides.failFor || [];
+
+  const databaseStub = {
+    ref(refPath) {
+      return {
+        once: async () => {
+          onceCalls.push(refPath);
+          if (remoteReadShouldFail) throw new Error('PERMISSION_DENIED');
+          return { exists: () => Object.keys(remoteTasks).length > 0, val: () => remoteTasks };
+        },
+        transaction(updateFn) {
+          transactionCalls.push(refPath);
+          const taskId = refPath.split('/').pop();
+          if (failFor.includes(taskId)) return Promise.reject(new Error('NETWORK_ERROR'));
+          const currentValue = Object.prototype.hasOwnProperty.call(currentValues, taskId) ? currentValues[taskId] : null;
+          const nextValue = updateFn(currentValue);
+          if (nextValue === undefined) return Promise.resolve({ committed: false, snapshot: { val: () => currentValue } });
+          return Promise.resolve({ committed: true, snapshot: { val: () => nextValue } });
+        },
+      };
+    },
+  };
+  const localStorageStub = {
+    setItem(key, value) { localStorageStore[key] = value; },
+    getItem(key) { return localStorageStore[key]; },
+  };
+  const firebaseStub = {
+    auth() {
+      return { currentUser: overrides.authUser !== undefined ? overrides.authUser : { uid: 'QA_GESTOR' } };
+    },
+  };
+  const initialTaskStateCache = overrides.taskStateCache || {};
+
+  const loader = new Function(
+    'window', 'database', 'localStorage', 'firebase', 'taskStateCache',
+    `${recoverySource}\nreturn { recoverGestorTaskProgress, getTaskStateCache: () => taskStateCache };`,
+  );
+  const { recoverGestorTaskProgress, getTaskStateCache } = loader(
+    {}, databaseStub, localStorageStub, firebaseStub, initialTaskStateCache,
+  );
+
+  return { recoverGestorTaskProgress, getTaskStateCache, transactionCalls, onceCalls, localStorageStore };
+}
+
+async function testRecoverGestorTaskProgressAbortsOnRemoteReadFailure() {
+  const env = buildRecoverGestorTaskProgressEnv({
+    remoteReadShouldFail: true,
+    taskStateCache: { task_local: { name: 'Local', status: 'Finalizada', observation: 'obs', updatedAt: 100 } },
+  });
+
+  const result = await env.recoverGestorTaskProgress('QA_GESTOR');
+
+  assert.equal(result.status, 'REMOTE_READ_FAILED');
+  assert.equal(result.failedMigrationsCount, 0);
+  assert.equal(env.transactionCalls.length, 0, 'A failed remote read must never trigger any Firebase write');
+  assert.equal(env.localStorageStore.riskOps_cache, undefined, 'The local cache must be left completely untouched on a failed remote read');
+}
+
+async function testRecoverGestorTaskProgressSkipsMigrationOnIdentityMismatch() {
+  const env = buildRecoverGestorTaskProgressEnv({
+    remoteTasks: {},
+    authUser: { uid: 'SOME_OTHER_UID' }, // No coincide con el uid pasado a recoverGestorTaskProgress
+    taskStateCache: { task_local: { name: 'Local', status: 'Finalizada', observation: 'obs local' } },
+  });
+
+  const result = await env.recoverGestorTaskProgress('QA_GESTOR');
+
+  assert.equal(result.status, 'IDENTITY_MISMATCH');
+  assert.equal(result.failedMigrationsCount, 0);
+  assert.equal(env.transactionCalls.length, 0, 'A mismatched authenticated identity must never produce a Firebase write, even if the read succeeded');
+}
+
+async function testRecoverGestorTaskProgressMigratesLocalOnlyTaskOnHappyPath() {
+  const env = buildRecoverGestorTaskProgressEnv({
+    remoteTasks: {},
+    taskStateCache: { task_local: { name: 'Local', status: 'Finalizada', observation: 'obs local' } }, // legacy: no updatedAt
+  });
+
+  const result = await env.recoverGestorTaskProgress('QA_GESTOR');
+
+  assert.equal(result.status, 'OK');
+  assert.equal(result.failedMigrationsCount, 0);
+  assert.deepEqual(env.transactionCalls, ['active_sessions/QA_GESTOR/tasks/task_local']);
+  assert.equal(typeof env.getTaskStateCache().task_local.updatedAt, 'number');
+}
+
+function testRecoverGestorTaskProgressOrdersSafetyChecksCorrectly() {
+  const source = extractBetween('async function recoverGestorTaskProgress(uid) {', '\n// Task Status Buttons Interaction');
+  assert.match(source, /if \(!remoteResult\.ok\) \{\s*return \{ status: 'REMOTE_READ_FAILED'/);
+  assert.match(source, /const authUser = firebase\.auth\(\)\.currentUser;/);
+  assert.match(source, /if \(!authUser \|\| authUser\.uid !== uid\) \{/);
+  // The identity check must happen strictly before the migration call.
+  assert(source.indexOf('authUser.uid !== uid') < source.indexOf('migrateLocalTasksToActiveSession('));
+  // The remote-read-failure short-circuit must happen strictly before merge/migration.
+  assert(source.indexOf('REMOTE_READ_FAILED') < source.indexOf('mergeTaskCaches('));
+  assert(source.indexOf('REMOTE_READ_FAILED') < source.indexOf('migrateLocalTasksToActiveSession('));
+}
+
+function testGestorTaskRecoveryWiredIntoInitApp() {
   const initAppSource = extractBetween('async function initApp() {', 'loadTeletrabajo();');
   assert.match(initAppSource, /currentUser\.role === 'Gestor' && currentUser\.uid/);
-  assert.match(initAppSource, /fetchOwnActiveSessionTasks\(currentUser\.uid\)/);
-  assert.match(initAppSource, /mergeTaskCaches\(taskStateCache, remoteTasks\)/);
+  assert.match(initAppSource, /recoverGestorTaskProgress\(currentUser\.uid\)/);
+  assert.match(initAppSource, /recovery\.status === 'REMOTE_READ_FAILED'/);
+  assert.match(initAppSource, /recovery\.failedMigrationsCount > 0/);
+  assert.match(initAppSource, /alert\(/);
   // Recovery must run before the initial tree render (loadExcelTasks -> renderTree
   // is called from within initApp), never read from a hardcoded/other UID, and
   // never touch other sessions.
   assert(
-    initAppSource.indexOf('fetchOwnActiveSessionTasks(currentUser.uid)') < initAppSource.indexOf('await loadExcelTasks();'),
+    initAppSource.indexOf('recoverGestorTaskProgress(') < initAppSource.indexOf('await loadExcelTasks();'),
   );
   assert.doesNotMatch(initAppSource, /active_sessions\/\$\{[^}]*other/i);
+  // This recovery step must never report itself as a success.
+  assert.doesNotMatch(initAppSource, /recuperaci[oó]n exitosa/i);
 }
 
 function testShiftCloseStillIncludesTasksInReport() {
@@ -571,11 +709,16 @@ function testSyncActiveSessionOnlySyncsMetadataNotTasks() {
   );
   assert.match(syncSource, /return syncPromise;/);
 
-  // Exactly one write path in the whole file should target a specific task:
-  // active_sessions/{uid}/tasks/{taskId}, and it must be persistTaskToActiveSession.
+  // Exactly two functions in the whole file may target a specific task path
+  // (active_sessions/{uid}/tasks/{taskId}) — persistTaskToActiveSession() for
+  // direct, Firebase-confirmed interactive saves (saveTaskBtn/saveExtraTask),
+  // and persistTaskIfNotNewerRemote() for the recovery migration's
+  // conditional transaction — and neither is a bulk resend of every task.
   const taskPathOccurrences = (appSource.match(/active_sessions\/\$\{uid\}\/tasks\/\$\{taskId\}/g) || []).length;
-  assert.equal(taskPathOccurrences, 1, 'Only persistTaskToActiveSession() may target active_sessions/{uid}/tasks/{taskId}');
+  assert.equal(taskPathOccurrences, 2, 'Only persistTaskToActiveSession() and persistTaskIfNotNewerRemote() may target active_sessions/{uid}/tasks/{taskId}');
   assert.match(appSource, /function persistTaskToActiveSession\(uid, taskId, taskData\) \{/);
+  assert.match(appSource, /function persistTaskIfNotNewerRemote\(uid, taskId, record\) \{/);
+  assert.match(appSource, /return database\.ref\(`active_sessions\/\$\{uid\}\/tasks\/\$\{taskId\}`\)\.transaction\(/);
 }
 
 // ---------------------------------------------------------------------------
@@ -734,14 +877,28 @@ async function testSaveExtraTaskErrorIsVisibleAndAllowsRetryWithSameId() {
 function buildMigrateLocalTasksEnv(overrides = {}) {
   const migrationSource = extractBetween('function persistTaskToActiveSession(', 'function syncActiveSessionToFirebase(');
   const localStorageStore = {};
-  const databaseCalls = [];
-  const updateResult = overrides.updateResult || (() => Promise.resolve());
+  const transactionCalls = [];
+  // currentValues: what the server already has for a given taskId at the
+  // exact moment the transaction's update function runs — lets tests
+  // simulate a concurrent write that landed during the migration.
+  const currentValues = overrides.currentValues || {};
+  // failFor: taskIds whose transaction Promise must reject outright (a real
+  // network/permission failure, as opposed to a clean conditional abort).
+  const failFor = overrides.failFor || [];
+
   const databaseStub = {
     ref(refPath) {
       return {
-        update(data) {
-          databaseCalls.push({ path: refPath, data });
-          return updateResult(refPath, data);
+        transaction(updateFn) {
+          transactionCalls.push(refPath);
+          const taskId = refPath.split('/').pop();
+          if (failFor.includes(taskId)) return Promise.reject(new Error('NETWORK_ERROR'));
+          const currentValue = Object.prototype.hasOwnProperty.call(currentValues, taskId) ? currentValues[taskId] : null;
+          const nextValue = updateFn(currentValue);
+          if (nextValue === undefined) {
+            return Promise.resolve({ committed: false, snapshot: { val: () => currentValue } });
+          }
+          return Promise.resolve({ committed: true, snapshot: { val: () => nextValue } });
         },
       };
     },
@@ -753,11 +910,11 @@ function buildMigrateLocalTasksEnv(overrides = {}) {
 
   const loader = new Function(
     'database', 'localStorage',
-    `${migrationSource}\nreturn { migrateLocalTasksToActiveSession, computeLocalTaskMigrations };`,
+    `${migrationSource}\nreturn { migrateLocalTasksToActiveSession, computeLocalTaskMigrations, persistTaskIfNotNewerRemote };`,
   );
-  const { migrateLocalTasksToActiveSession, computeLocalTaskMigrations } = loader(databaseStub, localStorageStub);
+  const bound = loader(databaseStub, localStorageStub);
 
-  return { migrateLocalTasksToActiveSession, computeLocalTaskMigrations, databaseCalls, localStorageStore };
+  return { ...bound, transactionCalls, localStorageStore };
 }
 
 function testComputeLocalTaskMigrationsLegacyLocalOnly() {
@@ -809,9 +966,7 @@ function testComputeLocalTaskMigrationsIsIdempotentAfterSync() {
 }
 
 async function testMigrateLocalTasksToActiveSessionKeepsLocalBackupOnFailure() {
-  const env = buildMigrateLocalTasksEnv({
-    updateResult: (refPath) => (refPath.includes('task_fail') ? Promise.reject(new Error('NETWORK_ERROR')) : Promise.resolve()),
-  });
+  const env = buildMigrateLocalTasksEnv({ failFor: ['task_fail'] });
   const merged = {
     task_ok: { name: 'OK', status: 'Finalizada', observation: 'obs ok' }, // legacy: no updatedAt
     task_fail: { name: 'FAIL', status: 'Finalizada', observation: 'obs fail' }, // legacy: no updatedAt
@@ -821,7 +976,8 @@ async function testMigrateLocalTasksToActiveSessionKeepsLocalBackupOnFailure() {
 
   assert.deepEqual(result.migrated, ['task_ok'], 'A successful write must be reported as migrated');
   assert.deepEqual(result.failed, ['task_fail'], 'A failed write must be reported as failed, never silently dropped');
-  assert.equal(env.databaseCalls.length, 2);
+  assert.deepEqual(result.skipped, []);
+  assert.equal(env.transactionCalls.length, 2);
 
   // Both tasks must keep their local backup (with updatedAt already stamped),
   // including the one whose Firebase write failed — nothing here reports
@@ -833,24 +989,33 @@ async function testMigrateLocalTasksToActiveSessionKeepsLocalBackupOnFailure() {
   assert.equal(savedCache.task_fail.observation, 'obs fail');
 }
 
-function testLocalTaskMigrationWiredIntoInitAppWithVisibleFailureWarning() {
-  const initAppSource = extractBetween('async function initApp() {', 'loadTeletrabajo();');
-  assert.match(
-    initAppSource,
-    /migrateLocalTasksToActiveSession\(\s*currentUser\.uid, taskStateCache, remoteTasks,?\s*\)/,
-  );
-  assert.match(initAppSource, /failedMigrations\.length > 0/);
-  assert.match(initAppSource, /alert\(/);
-  // Must run after combining the caches, and before the first tree render.
-  assert(
-    initAppSource.indexOf('migrateLocalTasksToActiveSession(')
-      > initAppSource.indexOf('mergeTaskCaches(taskStateCache, remoteTasks)'),
-  );
-  assert(
-    initAppSource.indexOf('migrateLocalTasksToActiveSession(') < initAppSource.indexOf('await loadExcelTasks();'),
-  );
-  // This recovery step must never report itself as a success.
-  assert.doesNotMatch(initAppSource, /recuperaci[oó]n exitosa/i);
+async function testMigrateLocalTasksToActiveSessionMigratesValidLocalEntry() {
+  const env = buildMigrateLocalTasksEnv();
+  const merged = { task_ok: { name: 'OK', status: 'Finalizada', observation: 'obs ok' } }; // legacy: no updatedAt
+
+  const result = await env.migrateLocalTasksToActiveSession('QA_GESTOR', merged, {});
+
+  assert.deepEqual(result.migrated, ['task_ok'], 'A valid local-only entry must still be migrated');
+  assert.deepEqual(result.failed, []);
+  assert.deepEqual(result.skipped, []);
+  assert.deepEqual(env.transactionCalls, ['active_sessions/QA_GESTOR/tasks/task_ok']);
+  assert.equal(typeof merged.task_ok.updatedAt, 'number');
+}
+
+async function testMigrateLocalTasksToActiveSessionAbortsWhenConcurrentRemoteIsNewer() {
+  const merged = { task_race: { name: 'Race', status: 'Finalizada', observation: 'local', updatedAt: 100 } };
+  const env = buildMigrateLocalTasksEnv({
+    // Simulates that, exactly when the transaction runs, the server already
+    // has a newer version (e.g. the same Gestor saved this task from another
+    // tab while this migration was in flight).
+    currentValues: { task_race: { name: 'Race', status: 'En Proceso', observation: 'remoto concurrente', updatedAt: 500 } },
+  });
+
+  const result = await env.migrateLocalTasksToActiveSession('QA_GESTOR', merged, {});
+
+  assert.deepEqual(result.skipped, ['task_race'], 'A concurrent remote update with a newer updatedAt must abort this write and keep the remote version');
+  assert.deepEqual(result.migrated, []);
+  assert.deepEqual(result.failed, []);
 }
 
 async function main() {
@@ -871,7 +1036,7 @@ async function main() {
   testMergeTaskCachesConflictResolution();
   testMergeTaskCachesPrefersLocalOnTieOrMissingUpdatedAt();
   await testFetchOwnActiveSessionTasksReadsOnlyOwnPath();
-  testRemoteTaskProgressRestoredOnReloadWiring();
+  await testFetchOwnActiveSessionTasksReturnsNotOkOnReadFailure();
   testShiftCloseStillIncludesTasksInReport();
   testSyncActiveSessionOnlySyncsMetadataNotTasks();
   await testSaveExtraTaskConfirmsBeforeSuccess();
@@ -881,7 +1046,13 @@ async function main() {
   testComputeLocalTaskMigrationsSkipsWhenRemoteIsNewer();
   testComputeLocalTaskMigrationsIsIdempotentAfterSync();
   await testMigrateLocalTasksToActiveSessionKeepsLocalBackupOnFailure();
-  testLocalTaskMigrationWiredIntoInitAppWithVisibleFailureWarning();
+  await testMigrateLocalTasksToActiveSessionMigratesValidLocalEntry();
+  await testMigrateLocalTasksToActiveSessionAbortsWhenConcurrentRemoteIsNewer();
+  await testRecoverGestorTaskProgressAbortsOnRemoteReadFailure();
+  await testRecoverGestorTaskProgressSkipsMigrationOnIdentityMismatch();
+  await testRecoverGestorTaskProgressMigratesLocalOnlyTaskOnHappyPath();
+  testRecoverGestorTaskProgressOrdersSafetyChecksCorrectly();
+  testGestorTaskRecoveryWiredIntoInitApp();
   console.log('FRONTEND_SECURITY_SMOKE=PASS');
   console.log('STORED_XSS_LOG_RENDERING=PASS');
   console.log('INLINE_HANDLER_XSS_GUARD=PASS');
@@ -901,6 +1072,10 @@ async function main() {
   console.log('SYNC_ACTIVE_SESSION_METADATA_ONLY=PASS');
   console.log('SAVE_EXTRA_TASK_CONFIRMED_PERSISTENCE=PASS');
   console.log('LOCAL_TASK_MIGRATION_ONE_TIME_RECOVERY=PASS');
+  console.log('REMOTE_READ_FAILURE_PRODUCES_ZERO_WRITES=PASS');
+  console.log('IDENTITY_MISMATCH_PRODUCES_ZERO_WRITES=PASS');
+  console.log('CONCURRENT_NEWER_REMOTE_NOT_OVERWRITTEN=PASS');
+  console.log('VALID_LOCAL_ENTRY_STILL_MIGRATES=PASS');
 }
 
 main().catch((error) => {

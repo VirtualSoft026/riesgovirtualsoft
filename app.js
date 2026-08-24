@@ -1915,14 +1915,21 @@ function persistTaskToActiveSession(uid, taskId, taskData) {
 
 // Lee el progreso remoto de tareas del propio Gestor (nunca de otros usuarios)
 // para poder recuperarlo al recargar la aplicación durante el mismo turno.
+// IMPORTANTE: un error de lectura NUNCA se convierte silenciosamente en "no
+// hay tareas remotas" — eso podría hacer que la migración trate tareas que sí
+// existen en Firebase como ausentes y las re-escriba innecesariamente (o
+// peor, con datos obsoletos). Por eso el resultado siempre indica
+// explícitamente si la lectura fue confiable ({ ok: true, tasks }) o no
+// ({ ok: false, tasks: {} }), para que el llamador pueda abortar con
+// seguridad en vez de fusionar/migrar contra un estado remoto desconocido.
 async function fetchOwnActiveSessionTasks(uid) {
-    if (!uid) return {};
+    if (!uid) return { ok: false, tasks: {} };
     try {
         const snapshot = await database.ref(`active_sessions/${uid}/tasks`).once('value');
-        return snapshot.exists() ? snapshot.val() : {};
+        return { ok: true, tasks: snapshot.exists() ? snapshot.val() : {} };
     } catch (e) {
         console.error('Error al recuperar el progreso remoto de tareas:', e);
-        return {};
+        return { ok: false, tasks: {} };
     }
 }
 
@@ -1982,19 +1989,48 @@ function computeLocalTaskMigrations(mergedCache, remoteCache, now) {
     return migrations;
 }
 
+// Escritura condicional usada EXCLUSIVAMENTE por la migración de
+// recuperación (nunca por el guardado interactivo de saveTaskBtn/
+// saveExtraTask, que siguen usando persistTaskToActiveSession()). Aplica el
+// registro local solo si no hay una versión remota más reciente en el
+// servidor en el instante exacto de escribir: si durante la transacción
+// aparece una versión remota con updatedAt superior al del registro que se
+// intenta migrar (por ejemplo, el propio Gestor guardó esa misma tarea desde
+// otra pestaña justo mientras corría la migración), la transacción se aborta
+// devolviendo undefined y Firebase conserva la remota sin modificarla.
+function persistTaskIfNotNewerRemote(uid, taskId, record) {
+    if (!uid) return Promise.reject(new Error('MISSING_UID'));
+    if (!taskId) return Promise.reject(new Error('MISSING_TASK_ID'));
+    return database.ref(`active_sessions/${uid}/tasks/${taskId}`).transaction((currentValue) => {
+        if (
+            currentValue
+            && typeof currentValue.updatedAt === 'number'
+            && typeof record.updatedAt === 'number'
+            && currentValue.updatedAt > record.updatedAt
+        ) {
+            return undefined; // Abortar: conservar la versión remota más reciente.
+        }
+        return record;
+    });
+}
+
 // Migración de recuperación puntual (se ejecuta una vez durante initApp,
-// nunca de forma periódica): persiste individualmente, vía
-// persistTaskToActiveSession(), cada tarea que computeLocalTaskMigrations()
-// identificó como pendiente. El registro estampado se refleja de inmediato en
-// mergedCache/localStorage como respaldo local — ANTES de intentar la
-// escritura remota — para que sobreviva aunque esa escritura falle. Un fallo
-// individual no aborta el resto de la migración ni se reporta como éxito;
-// el llamador decide cómo advertir de los taskId en "failed".
+// nunca de forma periódica): persiste individualmente, vía la transacción
+// condicional persistTaskIfNotNewerRemote(), cada tarea que
+// computeLocalTaskMigrations() identificó como pendiente. El registro
+// estampado se refleja de inmediato en mergedCache/localStorage como
+// respaldo local — ANTES de intentar la escritura remota — para que
+// sobreviva aunque esa escritura falle. Un fallo individual no aborta el
+// resto de la migración ni se reporta como éxito; el llamador decide cómo
+// advertir de los taskId en "failed". Un taskId en "skipped" no es un fallo:
+// significa que una versión remota más reciente ganó la transacción y se
+// conservó intacta, tal como exige persistTaskIfNotNewerRemote().
 async function migrateLocalTasksToActiveSession(uid, mergedCache, remoteCache) {
-    if (!uid || !mergedCache) return { migrated: [], failed: [] };
+    if (!uid || !mergedCache) return { migrated: [], failed: [], skipped: [] };
     const migrations = computeLocalTaskMigrations(mergedCache, remoteCache, Date.now());
     const migrated = [];
     const failed = [];
+    const skipped = [];
     for (const { taskId, record } of migrations) {
         mergedCache[taskId] = record;
         try {
@@ -2002,14 +2038,18 @@ async function migrateLocalTasksToActiveSession(uid, mergedCache, remoteCache) {
         } catch (e) { /* localStorage no disponible: el respaldo local es best-effort */ }
 
         try {
-            await persistTaskToActiveSession(uid, taskId, record);
-            migrated.push(taskId);
+            const result = await persistTaskIfNotNewerRemote(uid, taskId, record);
+            if (result && result.committed === false) {
+                skipped.push(taskId);
+            } else {
+                migrated.push(taskId);
+            }
         } catch (error) {
             console.error('Error al migrar una tarea local a Firebase durante la recuperación de sesión:', taskId, error);
             failed.push(taskId);
         }
     }
-    return { migrated, failed };
+    return { migrated, failed, skipped };
 }
 
 function syncActiveSessionToFirebase() {
@@ -2300,32 +2340,70 @@ window.selectTask = function(taskId, evt) {
     }
 }
 
+// Orquesta, de forma "fail-safe", la recuperación del progreso remoto de
+// tareas y la migración de recuperación puntual para el Gestor autenticado.
+// Reglas de seguridad ante fallos:
+//   1) Si la lectura remota falla (fetchOwnActiveSessionTasks devuelve
+//      { ok: false }), NO se fusiona ni se migra absolutamente nada: el
+//      caché local se conserva tal cual, sin ninguna escritura (ni en
+//      Firebase ni en localStorage), y se reporta REMOTE_READ_FAILED para
+//      que el llamador muestre una única advertencia visible.
+//   2) Justo antes de migrar (nunca antes, para no depender de un estado de
+//      autenticación potencialmente obsoleto), se revalida que
+//      firebase.auth().currentUser.uid === uid. Si no coincide, se omite la
+//      migración por completo (cero escrituras en Firebase) y se reporta
+//      IDENTITY_MISMATCH.
+// La combinación (merge) en memoria y su respaldo en localStorage sí pueden
+// ocurrir con el resultado ya leído de Firebase (es solo una vista local),
+// pero ninguna escritura remota ocurre salvo que ambas validaciones pasen.
+async function recoverGestorTaskProgress(uid) {
+    const remoteResult = await fetchOwnActiveSessionTasks(uid);
+    if (!remoteResult.ok) {
+        return { status: 'REMOTE_READ_FAILED', failedMigrationsCount: 0 };
+    }
+
+    taskStateCache = mergeTaskCaches(taskStateCache, remoteResult.tasks);
+    try {
+        localStorage.setItem('riskOps_cache', JSON.stringify(taskStateCache));
+    } catch (e) { /* localStorage no disponible: el respaldo local es best-effort */ }
+
+    const authUser = firebase.auth().currentUser;
+    if (!authUser || authUser.uid !== uid) {
+        console.error('No se pudo verificar la identidad autenticada antes de migrar el progreso local; se omite la migración.');
+        return { status: 'IDENTITY_MISMATCH', failedMigrationsCount: 0 };
+    }
+
+    // Migración de recuperación puntual (una sola vez, no periódica):
+    // re-escribe en Firebase, tarea por tarea y de forma transaccional
+    // condicional, lo que ya está resuelto localmente pero que Firebase
+    // todavía no tiene o tiene desactualizado (ausente en remoto, o el local
+    // ganó el conflicto de mergeTaskCaches). Es idempotente: una recarga
+    // posterior no vuelve a migrar lo ya igual.
+    const { failed } = await migrateLocalTasksToActiveSession(uid, taskStateCache, remoteResult.tasks);
+    return { status: 'OK', failedMigrationsCount: failed.length };
+}
+
 // Task Status Buttons Interaction
 async function initApp() {
     // Recuperar el progreso de tareas ya persistido en Firebase para este
-    // mismo Gestor (nunca de otros usuarios) y combinarlo con el caché local
-    // ANTES de renderizar, para que el primer render ya sea consistente.
+    // mismo Gestor (nunca de otros usuarios), combinarlo con el caché local
+    // ANTES de renderizar, y migrar de vuelta lo que Firebase todavía no
+    // tiene. Cualquier fallo se resuelve de forma segura dentro de
+    // recoverGestorTaskProgress(): nunca produce un falso éxito.
     if (currentUser && currentUser.role === 'Gestor' && currentUser.uid) {
         try {
-            const remoteTasks = await fetchOwnActiveSessionTasks(currentUser.uid);
-            taskStateCache = mergeTaskCaches(taskStateCache, remoteTasks);
-            localStorage.setItem('riskOps_cache', JSON.stringify(taskStateCache));
-
-            // Migración de recuperación puntual (una sola vez, no periódica):
-            // re-escribe en Firebase, tarea por tarea, lo que ya está resuelto
-            // localmente pero que Firebase todavía no tiene o tiene desactualizado
-            // (ausente en remoto, o el local ganó el conflicto de mergeTaskCaches).
-            // Nunca sobrescribe una entrada remota con updatedAt más reciente, y es
-            // idempotente: una recarga posterior no vuelve a migrar lo ya igual.
-            const { failed: failedMigrations } = await migrateLocalTasksToActiveSession(
-                currentUser.uid, taskStateCache, remoteTasks,
-            );
-            if (failedMigrations.length > 0) {
+            const recovery = await recoverGestorTaskProgress(currentUser.uid);
+            if (recovery.status === 'REMOTE_READ_FAILED') {
+                alert(
+                    'No se pudo verificar el progreso remoto de tareas en el servidor. '
+                    + 'Se conserva el respaldo local de este dispositivo; se reintentará más adelante.',
+                );
+            } else if (recovery.failedMigrationsCount > 0) {
                 // Advertencia visible; nunca se reporta esto como una recuperación
                 // exitosa. El respaldo local ya quedó conservado por
                 // migrateLocalTasksToActiveSession() antes de cada intento fallido.
                 alert(
-                    `No se pudo sincronizar con el servidor el progreso local de ${failedMigrations.length} tarea(s). `
+                    `No se pudo sincronizar con el servidor el progreso local de ${recovery.failedMigrationsCount} tarea(s). `
                     + 'Se conservó el respaldo local en este dispositivo; vuelve a guardar esas tareas cuando tengas conexión.',
                 );
             }
