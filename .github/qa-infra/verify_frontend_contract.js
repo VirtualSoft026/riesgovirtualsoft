@@ -18,7 +18,10 @@ const inputs = [
   {
     label: 'F1',
     env: 'F1_APP_PATH',
-    sha: '2ebee328f9e22120d2ffe9092afe43e48d76d364df943e25b5ec7ad67d807340',
+    // Updated 2026-08-24: app.js now includes the Supervisor comunicados capability
+    // helpers (canPublishComunicados/canViewComunicadoLecturas/canDeleteComunicados),
+    // authorUid, and the non-'Admin' author fallback.
+    sha: '876049dfce42455256c3eae59f37a5d087fbbab24ca29f1ad09d4eba38a8b683',
     mustContain: [
       "uid: userUid",
       "uid: currentUser.uid || firebase.auth().currentUser.uid",
