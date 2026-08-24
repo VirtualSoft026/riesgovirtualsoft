@@ -1162,6 +1162,12 @@ try {
 
 let currentActiveTaskId = null;
 
+// ID pendiente de confirmación para la tarea adicional en curso en el modal
+// "Añadir Tarea Adicional". Se conserva entre reintentos fallidos (para no
+// duplicar la entrada) y se reinicia cada vez que el modal se abre de nuevo.
+let pendingExtraTaskId = null;
+let isSavingExtraTask = false;
+
 // Live Clock Logic
 function updateClock() {
     const clockElement = document.getElementById('liveClock');
@@ -1882,7 +1888,7 @@ function renderTree(tasksBySet) {
                         else if (statusText === 'No Realizada') statusClass = 'status-not-done';
                     }
                     return `
-                    <div class="task-item" onclick="selectTask(decodeURIComponent('${encodeInlineHandlerArg(task.id)}'))">
+                    <div class="task-item" onclick="selectTask(decodeURIComponent('${encodeInlineHandlerArg(task.id)}'), event)">
                         <i class='bx bx-file-blank'></i> ${escapeHTML(task.name)}
                         <div class="task-status ${statusClass}"></div>
                     </div>
@@ -1897,16 +1903,165 @@ function renderTree(tasksBySet) {
     updateKPI();
 }
 
+// Persistencia central y testeable del progreso de una tarea individual.
+// Escribe únicamente en active_sessions/{uid}/tasks/{taskId}, nunca reemplaza
+// el nodo "tasks" completo, y siempre devuelve/rechaza la Promise real de
+// Firebase (no la atrapa ni la convierte en éxito).
+function persistTaskToActiveSession(uid, taskId, taskData) {
+    if (!uid) return Promise.reject(new Error('MISSING_UID'));
+    if (!taskId) return Promise.reject(new Error('MISSING_TASK_ID'));
+    return database.ref(`active_sessions/${uid}/tasks/${taskId}`).update(taskData);
+}
+
+// Lee el progreso remoto de tareas del propio Gestor (nunca de otros usuarios)
+// para poder recuperarlo al recargar la aplicación durante el mismo turno.
+// IMPORTANTE: un error de lectura NUNCA se convierte silenciosamente en "no
+// hay tareas remotas" — eso podría hacer que la migración trate tareas que sí
+// existen en Firebase como ausentes y las re-escriba innecesariamente (o
+// peor, con datos obsoletos). Por eso el resultado siempre indica
+// explícitamente si la lectura fue confiable ({ ok: true, tasks }) o no
+// ({ ok: false, tasks: {} }), para que el llamador pueda abortar con
+// seguridad en vez de fusionar/migrar contra un estado remoto desconocido.
+async function fetchOwnActiveSessionTasks(uid) {
+    if (!uid) return { ok: false, tasks: {} };
+    try {
+        const snapshot = await database.ref(`active_sessions/${uid}/tasks`).once('value');
+        return { ok: true, tasks: snapshot.exists() ? snapshot.val() : {} };
+    } catch (e) {
+        console.error('Error al recuperar el progreso remoto de tareas:', e);
+        return { ok: false, tasks: {} };
+    }
+}
+
+// Combina el caché local (localStorage) con el progreso remoto recuperado,
+// resolviendo conflictos por tarea mediante updatedAt: el remoto solo
+// reemplaza al local si es ESTRICTAMENTE más reciente. Ante empate, o si a
+// cualquiera de los dos lados le falta updatedAt (entradas legadas), prevalece
+// el caché local: es la fuente de verdad para lo que el propio Gestor ya
+// tiene en pantalla en este dispositivo durante el turno en curso.
+function mergeTaskCaches(localCache, remoteCache) {
+    const merged = { ...(localCache || {}) };
+    Object.keys(remoteCache || {}).forEach((taskId) => {
+        const remoteEntry = remoteCache[taskId];
+        const localEntry = merged[taskId];
+        if (!localEntry) {
+            merged[taskId] = remoteEntry;
+            return;
+        }
+        const remoteUpdatedAt = typeof remoteEntry.updatedAt === 'number' ? remoteEntry.updatedAt : null;
+        const localUpdatedAt = typeof localEntry.updatedAt === 'number' ? localEntry.updatedAt : null;
+        if (remoteUpdatedAt !== null && localUpdatedAt !== null && remoteUpdatedAt > localUpdatedAt) {
+            merged[taskId] = remoteEntry;
+        }
+    });
+    return merged;
+}
+
+// Identifica, de forma pura, qué tareas de "mergedCache" (el resultado de
+// mergeTaskCaches) necesitan re-escribirse en Firebase: las que están
+// ausentes en remoteCache, o las que mergeTaskCaches ya resolvió a favor del
+// local (empate, updatedAt legado, o local estrictamente más reciente). Una
+// tarea cuyo contenido en mergedCache coincide exactamente con remoteCache
+// (incluido updatedAt) se considera ya sincronizada y se omite — así una
+// recarga posterior no vuelve a migrar lo que ya quedó igual en ambos lados
+// (idempotencia). Nunca incluye una tarea donde mergeTaskCaches ya prefirió
+// el remoto por tener un updatedAt estrictamente más reciente, porque en ese
+// caso mergedCache[taskId] es exactamente remoteCache[taskId].
+function computeLocalTaskMigrations(mergedCache, remoteCache, now) {
+    const remote = remoteCache || {};
+    const migrations = [];
+    Object.keys(mergedCache || {}).forEach((taskId) => {
+        const mergedEntry = mergedCache[taskId];
+        const remoteEntry = remote[taskId];
+        const alreadyInSync = !!remoteEntry
+            && mergedEntry.name === remoteEntry.name
+            && mergedEntry.status === remoteEntry.status
+            && mergedEntry.observation === remoteEntry.observation
+            && mergedEntry.updatedAt === remoteEntry.updatedAt;
+        if (alreadyInSync) return;
+
+        // Registro legado sin updatedAt: se estampa ANTES de guardarlo.
+        const record = typeof mergedEntry.updatedAt === 'number'
+            ? mergedEntry
+            : { ...mergedEntry, updatedAt: now };
+        migrations.push({ taskId, record });
+    });
+    return migrations;
+}
+
+// Escritura condicional usada EXCLUSIVAMENTE por la migración de
+// recuperación (nunca por el guardado interactivo de saveTaskBtn/
+// saveExtraTask, que siguen usando persistTaskToActiveSession()). Aplica el
+// registro local solo si no hay una versión remota más reciente en el
+// servidor en el instante exacto de escribir: si durante la transacción
+// aparece una versión remota con updatedAt superior al del registro que se
+// intenta migrar (por ejemplo, el propio Gestor guardó esa misma tarea desde
+// otra pestaña justo mientras corría la migración), la transacción se aborta
+// devolviendo undefined y Firebase conserva la remota sin modificarla.
+function persistTaskIfNotNewerRemote(uid, taskId, record) {
+    if (!uid) return Promise.reject(new Error('MISSING_UID'));
+    if (!taskId) return Promise.reject(new Error('MISSING_TASK_ID'));
+    return database.ref(`active_sessions/${uid}/tasks/${taskId}`).transaction((currentValue) => {
+        if (
+            currentValue
+            && typeof currentValue.updatedAt === 'number'
+            && typeof record.updatedAt === 'number'
+            && currentValue.updatedAt > record.updatedAt
+        ) {
+            return undefined; // Abortar: conservar la versión remota más reciente.
+        }
+        return record;
+    });
+}
+
+// Migración de recuperación puntual (se ejecuta una vez durante initApp,
+// nunca de forma periódica): persiste individualmente, vía la transacción
+// condicional persistTaskIfNotNewerRemote(), cada tarea que
+// computeLocalTaskMigrations() identificó como pendiente. El registro
+// estampado se refleja de inmediato en mergedCache/localStorage como
+// respaldo local — ANTES de intentar la escritura remota — para que
+// sobreviva aunque esa escritura falle. Un fallo individual no aborta el
+// resto de la migración ni se reporta como éxito; el llamador decide cómo
+// advertir de los taskId en "failed". Un taskId en "skipped" no es un fallo:
+// significa que una versión remota más reciente ganó la transacción y se
+// conservó intacta, tal como exige persistTaskIfNotNewerRemote().
+async function migrateLocalTasksToActiveSession(uid, mergedCache, remoteCache) {
+    if (!uid || !mergedCache) return { migrated: [], failed: [], skipped: [] };
+    const migrations = computeLocalTaskMigrations(mergedCache, remoteCache, Date.now());
+    const migrated = [];
+    const failed = [];
+    const skipped = [];
+    for (const { taskId, record } of migrations) {
+        mergedCache[taskId] = record;
+        try {
+            localStorage.setItem('riskOps_cache', JSON.stringify(mergedCache));
+        } catch (e) { /* localStorage no disponible: el respaldo local es best-effort */ }
+
+        try {
+            const result = await persistTaskIfNotNewerRemote(uid, taskId, record);
+            if (result && result.committed === false) {
+                skipped.push(taskId);
+            } else {
+                migrated.push(taskId);
+            }
+        } catch (error) {
+            console.error('Error al migrar una tarea local a Firebase durante la recuperación de sesión:', taskId, error);
+            failed.push(taskId);
+        }
+    }
+    return { migrated, failed, skipped };
+}
+
 function syncActiveSessionToFirebase() {
-    if (!currentUser || currentUser.role !== 'Gestor') return;
+    if (!currentUser || currentUser.role !== 'Gestor') return Promise.resolve();
     const uid = currentUser.uid;
-    if (!uid) return;
-    
+    if (!uid) return Promise.resolve();
+
     // Si la sesin fue cerrada en otra pestaa, localStorage estar vaco
     if (!localStorage.getItem('riskOps_currentUser')) {
         currentUser = null;
         window.location.href = 'login.html';
-        return;
+        return Promise.resolve();
     }
 
     const totalTasks = document.querySelectorAll('.task-item').length;
@@ -1962,7 +2117,13 @@ function syncActiveSessionToFirebase() {
     }
     localStatus = currentStatus;
     
-    const payload = {
+    // Esta sincronización SOLO transporta metadatos de la sesión (nombre,
+    // estado, contadores derivados del DOM, línea de tiempo, etc.). Nunca
+    // incluye ni reenvía "tasks": la persistencia de cada tarea es
+    // responsabilidad exclusiva de persistTaskToActiveSession(), que escribe
+    // por taskId de forma explícita. Así un ping periódico con un snapshot
+    // desactualizado nunca puede pisar una tarea recién guardada.
+    const sessionMetadata = {
         name: currentUser.name,
         email: currentUser.email,
         shift: currentUser.shift || 'Por Asignar',
@@ -1974,12 +2135,15 @@ function syncActiveSessionToFirebase() {
         completedTasks: completedTasks,
         notDoneTasks: notDoneTasks,
         percentage: percentage,
-        tasks: taskStateCache || {},
         timeline: shiftTimeline || [],
         appVersion: 'v104'
     };
-    
-    database.ref(`active_sessions/${uid}`).update(payload).catch(e => console.error("Error syncing active session via SDK:", e));
+
+    // No se atrapa el error de forma que oculte el fallo: se devuelve la
+    // Promise real (rechazada si falla) y, aparte, se registra en consola.
+    const syncPromise = database.ref(`active_sessions/${uid}`).update(sessionMetadata);
+    syncPromise.catch(e => console.error("Error syncing active session via SDK:", e));
+    return syncPromise;
 }
 
 function updateKPI() {
@@ -2120,12 +2284,12 @@ function renderQuickDocs(selectedTaskName) {
 }
 
 // Global scope logic for onclick elements
-window.selectTask = function(taskId) {
+window.selectTask = function(taskId, evt) {
     currentActiveTaskId = taskId;
     // Remove active
     document.querySelectorAll('.task-item').forEach(el => el.classList.remove('active'));
-    // Add active
-    const eventTarget = window.event && window.event.currentTarget;
+    // Add active (evt is passed explicitly from the inline onclick; never rely on the global event object)
+    const eventTarget = evt && evt.currentTarget;
     if(eventTarget) eventTarget.classList.add('active');
     
     const task = allTasks.find(t => t.id === taskId);
@@ -2176,8 +2340,78 @@ window.selectTask = function(taskId) {
     }
 }
 
+// Orquesta, de forma "fail-safe", la recuperación del progreso remoto de
+// tareas y la migración de recuperación puntual para el Gestor autenticado.
+// Reglas de seguridad ante fallos:
+//   1) Si la lectura remota falla (fetchOwnActiveSessionTasks devuelve
+//      { ok: false }), NO se fusiona ni se migra absolutamente nada: el
+//      caché local se conserva tal cual, sin ninguna escritura (ni en
+//      Firebase ni en localStorage), y se reporta REMOTE_READ_FAILED para
+//      que el llamador muestre una única advertencia visible.
+//   2) Justo antes de migrar (nunca antes, para no depender de un estado de
+//      autenticación potencialmente obsoleto), se revalida que
+//      firebase.auth().currentUser.uid === uid. Si no coincide, se omite la
+//      migración por completo (cero escrituras en Firebase) y se reporta
+//      IDENTITY_MISMATCH.
+// La combinación (merge) en memoria y su respaldo en localStorage sí pueden
+// ocurrir con el resultado ya leído de Firebase (es solo una vista local),
+// pero ninguna escritura remota ocurre salvo que ambas validaciones pasen.
+async function recoverGestorTaskProgress(uid) {
+    const remoteResult = await fetchOwnActiveSessionTasks(uid);
+    if (!remoteResult.ok) {
+        return { status: 'REMOTE_READ_FAILED', failedMigrationsCount: 0 };
+    }
+
+    taskStateCache = mergeTaskCaches(taskStateCache, remoteResult.tasks);
+    try {
+        localStorage.setItem('riskOps_cache', JSON.stringify(taskStateCache));
+    } catch (e) { /* localStorage no disponible: el respaldo local es best-effort */ }
+
+    const authUser = firebase.auth().currentUser;
+    if (!authUser || authUser.uid !== uid) {
+        console.error('No se pudo verificar la identidad autenticada antes de migrar el progreso local; se omite la migración.');
+        return { status: 'IDENTITY_MISMATCH', failedMigrationsCount: 0 };
+    }
+
+    // Migración de recuperación puntual (una sola vez, no periódica):
+    // re-escribe en Firebase, tarea por tarea y de forma transaccional
+    // condicional, lo que ya está resuelto localmente pero que Firebase
+    // todavía no tiene o tiene desactualizado (ausente en remoto, o el local
+    // ganó el conflicto de mergeTaskCaches). Es idempotente: una recarga
+    // posterior no vuelve a migrar lo ya igual.
+    const { failed } = await migrateLocalTasksToActiveSession(uid, taskStateCache, remoteResult.tasks);
+    return { status: 'OK', failedMigrationsCount: failed.length };
+}
+
 // Task Status Buttons Interaction
 async function initApp() {
+    // Recuperar el progreso de tareas ya persistido en Firebase para este
+    // mismo Gestor (nunca de otros usuarios), combinarlo con el caché local
+    // ANTES de renderizar, y migrar de vuelta lo que Firebase todavía no
+    // tiene. Cualquier fallo se resuelve de forma segura dentro de
+    // recoverGestorTaskProgress(): nunca produce un falso éxito.
+    if (currentUser && currentUser.role === 'Gestor' && currentUser.uid) {
+        try {
+            const recovery = await recoverGestorTaskProgress(currentUser.uid);
+            if (recovery.status === 'REMOTE_READ_FAILED') {
+                alert(
+                    'No se pudo verificar el progreso remoto de tareas en el servidor. '
+                    + 'Se conserva el respaldo local de este dispositivo; se reintentará más adelante.',
+                );
+            } else if (recovery.failedMigrationsCount > 0) {
+                // Advertencia visible; nunca se reporta esto como una recuperación
+                // exitosa. El respaldo local ya quedó conservado por
+                // migrateLocalTasksToActiveSession() antes de cada intento fallido.
+                alert(
+                    `No se pudo sincronizar con el servidor el progreso local de ${recovery.failedMigrationsCount} tarea(s). `
+                    + 'Se conservó el respaldo local en este dispositivo; vuelve a guardar esas tareas cuando tengas conexión.',
+                );
+            }
+        } catch (e) {
+            console.error('No se pudo recuperar el progreso remoto de tareas al iniciar:', e);
+        }
+    }
+
     // Carga de Excel Inicial
     try {
         await loadSchedule();
@@ -2663,63 +2897,109 @@ async function initApp() {
     // Botón de guardar progreso en tarea
     const saveTaskBtn = document.getElementById('saveTaskBtn');
     if(saveTaskBtn) {
-        saveTaskBtn.addEventListener('click', () => {
+        let isSavingTask = false;
+        saveTaskBtn.addEventListener('click', async () => {
+            // Evitar dobles clics / escrituras simultáneas mientras una ya está en curso
+            if (isSavingTask) return;
+
+            // --- Validaciones obligatorias antes de escribir ---
+            if (currentActiveTaskId === null || currentActiveTaskId === undefined) {
+                alert("Selecciona una tarea antes de guardar el progreso.");
+                return;
+            }
             const selectedStatusBtn = document.querySelector('.btn-status.active');
-            
-            // Validación obligatoria para todas las tareas
+            if (!selectedStatusBtn) {
+                alert("Selecciona un estado antes de guardar el progreso.");
+                return;
+            }
             const obsField = document.getElementById('taskObservation');
-            if(!obsField || !obsField.value.trim()) {
+            const obsValue = obsField ? obsField.value.trim() : '';
+            if (!obsValue) {
                 alert("OBLIGATORIO: Debes detallar la gestión realizada en las Notas Técnicas antes de guardar.");
+                return;
+            }
+            const authUser = firebase.auth().currentUser;
+            if (!authUser) {
+                alert("Tu sesión expiró. Vuelve a iniciar sesión para guardar el progreso.");
+                return;
+            }
+            if (!currentUser || currentUser.uid !== authUser.uid) {
+                alert("No se pudo verificar tu identidad. Vuelve a iniciar sesión para guardar el progreso.");
+                return;
+            }
+            const taskIdStr = String(currentActiveTaskId);
+            if (!taskIdStr || /[.#$\[\]/]/.test(taskIdStr)) {
+                alert("La tarea seleccionada tiene un identificador inválido y no puede guardarse.");
                 return;
             }
 
             const btn = saveTaskBtn;
             const prevText = btn.innerHTML;
+            isSavingTask = true;
             btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Guardando...";
             btn.disabled = true;
+            btn.classList.remove('btn-success', 'btn-error');
 
-            setTimeout(() => {
+            const taskRecord = {
+                name: currentSelectedTask ? currentSelectedTask['Tarea'] : 'Tarea ' + taskIdStr,
+                status: selectedStatusBtn.textContent.trim(),
+                observation: obsValue,
+                updatedAt: Date.now()
+            };
+
+            // Respaldo local inmediato para permitir reintento visual, pero esto
+            // NO cuenta como confirmación de persistencia (eso solo lo da Firebase).
+            taskStateCache[taskIdStr] = taskRecord;
+            try {
+                localStorage.setItem('riskOps_cache', JSON.stringify(taskStateCache));
+            } catch (e) { /* localStorage no disponible: el respaldo local es best-effort */ }
+
+            try {
+                // Único punto de verdad para la persistencia: espera la Promise
+                // real de Firebase antes de mostrar cualquier éxito.
+                await persistTaskToActiveSession(authUser.uid, taskIdStr, taskRecord);
+
                 btn.innerHTML = "<i class='bx bx-check'></i> Guardado Exitosamente";
                 btn.classList.add('btn-success');
-                
+
                 // Actualizar estado visual de la tarea activa en el árbol
                 const activeTask = document.querySelector('.task-item.active .task-status');
-                const selectedStatusBtn = document.querySelector('.btn-status.active');
-                
-                if(activeTask && selectedStatusBtn) {
-                    // Limpiar clases anteriores
+                if (activeTask) {
                     activeTask.classList.remove('status-pending', 'status-completed', 'status-not-done', 'status-in-progress');
-                    
-                    if(selectedStatusBtn.classList.contains('completed')) {
+                    if (selectedStatusBtn.classList.contains('completed')) {
                         activeTask.classList.add('status-completed');
-                    } else if(selectedStatusBtn.classList.contains('in-progress')) {
+                    } else if (selectedStatusBtn.classList.contains('in-progress')) {
                         activeTask.classList.add('status-in-progress');
-                    } else if(selectedStatusBtn.classList.contains('not-done')) {
+                    } else if (selectedStatusBtn.classList.contains('not-done')) {
                         activeTask.classList.add('status-not-done');
                     } else {
                         activeTask.classList.add('status-pending');
                     }
-                    
-                    // Save to cache
-                    const obsValue = document.getElementById('taskObservation') ? document.getElementById('taskObservation').value : '';
-                    if(currentActiveTaskId !== null) {
-                        taskStateCache[currentActiveTaskId] = {
-                            name: currentSelectedTask ? currentSelectedTask['Tarea'] : 'Tarea ' + currentActiveTaskId,
-                            status: selectedStatusBtn.textContent.trim(),
-                            observation: obsValue
-                        };
-                        localStorage.setItem('riskOps_cache', JSON.stringify(taskStateCache));
-                    }
-                    
-                    updateKPI();
                 }
+
+                updateKPI();
 
                 setTimeout(() => {
                     btn.innerHTML = prevText;
-                    btn.disabled = false;
                     btn.classList.remove('btn-success');
                 }, 2000);
-            }, 800);
+            } catch (error) {
+                console.error("Error al guardar el progreso de la tarea:", error);
+                const errorCode = error && error.code ? error.code : '';
+                const isPermissionDenied = errorCode === 'PERMISSION_DENIED' || /permission[_ ]denied/i.test((error && error.message) || '');
+                btn.innerHTML = "<i class='bx bx-error'></i> Error al guardar";
+                btn.classList.add('btn-error');
+                alert(isPermissionDenied
+                    ? "No tienes permiso para guardar esta tarea. Contacta a tu supervisor."
+                    : "No se pudo guardar el progreso en el servidor. El cambio quedó respaldado localmente; intenta guardar de nuevo.");
+                setTimeout(() => {
+                    btn.innerHTML = prevText;
+                    btn.classList.remove('btn-error');
+                }, 2500);
+            } finally {
+                btn.disabled = false;
+                isSavingTask = false;
+            }
         });
     }
 
@@ -3306,40 +3586,87 @@ function openExtraTaskModal() {
         document.getElementById('extraTaskName').value = '';
         document.getElementById('extraTaskStatus').value = 'Finalizada';
         document.getElementById('extraTaskObs').value = '';
+        // Un modal recién abierto empieza una tarea extra lógicamente nueva.
+        pendingExtraTaskId = null;
         modal.classList.add('active');
     }
 }
 
-function saveExtraTask() {
+async function saveExtraTask() {
+    if (isSavingExtraTask) return; // Evitar dobles clics / escrituras simultáneas
+
     const name = document.getElementById('extraTaskName').value.trim();
     const status = document.getElementById('extraTaskStatus').value;
     const obs = document.getElementById('extraTaskObs').value.trim();
-    
+
     if (!name) {
         alert("OBLIGATORIO: Debes ingresar el nombre de la tarea extra.");
         return;
     }
-    
     if (!obs) {
         alert("OBLIGATORIO: Debes detallar la gestión realizada en las Notas Técnicas.");
         return;
     }
-    
-    // Generar un ID único para esta tarea extra
-    const extraId = 'extra_' + Date.now();
-    
-    // Guardar en la caché local
-    taskStateCache[extraId] = {
+    const authUser = firebase.auth().currentUser;
+    if (!authUser) {
+        alert("Tu sesión expiró. Vuelve a iniciar sesión para guardar la tarea extra.");
+        return;
+    }
+    if (!currentUser || currentUser.uid !== authUser.uid) {
+        alert("No se pudo verificar tu identidad. Vuelve a iniciar sesión para guardar la tarea extra.");
+        return;
+    }
+
+    const btn = document.getElementById('saveExtraTaskBtn');
+    const prevText = btn ? btn.innerHTML : '';
+    isSavingExtraTask = true;
+    if (btn) {
+        btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Guardando...";
+        btn.disabled = true;
+    }
+
+    // Reutilizar el mismo ID en un reintento tras un fallo previo, para no
+    // duplicar la tarea extra con un nuevo Date.now() en cada intento.
+    const extraId = pendingExtraTaskId || ('extra_' + Date.now());
+    pendingExtraTaskId = extraId;
+
+    const taskRecord = {
         name: "[EXTRA] " + name,
         status: status,
-        observation: obs
+        observation: obs,
+        updatedAt: Date.now()
     };
-    localStorage.setItem('riskOps_cache', JSON.stringify(taskStateCache));
-    
-    updateKPI(); // Actualizar el anillo de progreso
-    closeModal('extraTaskModal');
-    
-    alert(`Tarea Adicional "${name}" agregada exitosamente y se incluirá en tu reporte de turno.`);
+
+    // Respaldo local inmediato para permitir reintento visual; esto NO cuenta
+    // como confirmación de persistencia (eso solo lo da Firebase).
+    taskStateCache[extraId] = taskRecord;
+    try {
+        localStorage.setItem('riskOps_cache', JSON.stringify(taskStateCache));
+    } catch (e) { /* localStorage no disponible: el respaldo local es best-effort */ }
+
+    try {
+        // Único punto de verdad para la persistencia: espera la Promise real
+        // de Firebase antes de mostrar cualquier éxito.
+        await persistTaskToActiveSession(authUser.uid, extraId, taskRecord);
+
+        pendingExtraTaskId = null;
+        updateKPI(); // Actualizar el anillo de progreso
+        closeModal('extraTaskModal');
+        alert(`Tarea Adicional "${name}" agregada exitosamente y se incluirá en tu reporte de turno.`);
+    } catch (error) {
+        console.error("Error al guardar la tarea extra:", error);
+        const errorCode = error && error.code ? error.code : '';
+        const isPermissionDenied = errorCode === 'PERMISSION_DENIED' || /permission[_ ]denied/i.test((error && error.message) || '');
+        alert(isPermissionDenied
+            ? "No tienes permiso para guardar esta tarea extra. Contacta a tu supervisor."
+            : "No se pudo guardar la tarea extra en el servidor. El cambio quedó respaldado localmente; intenta guardar de nuevo.");
+    } finally {
+        if (btn) {
+            btn.innerHTML = prevText;
+            btn.disabled = false;
+        }
+        isSavingExtraTask = false;
+    }
 }
 
 // Logic for Approving Users

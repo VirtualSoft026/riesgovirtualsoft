@@ -391,6 +391,17 @@ function buildSpecs(matrix, contexts) {
     { id: 'supervisor_active_sessions_read', role: 'QA_SUPERVISOR', pathGroup: 'active_sessions', path: 'active_sessions', operation: 'read', expectedAllowed: true, context: supervisor },
     { id: 'admin_active_sessions_read', role: 'QA_ADMIN', pathGroup: 'active_sessions', path: 'active_sessions', operation: 'read', expectedAllowed: true, context: admin },
 
+    // Task-persistence hotfix (2026-08-24): saveTaskBtn now writes a single task
+    // record directly to active_sessions/{uid}/tasks/{taskId}. This is a nested
+    // write under the already-covered active_sessions/$session_id subtree, and
+    // database.rules.json is NOT changed for this hotfix, so behavior must match
+    // the existing own/other/admin coverage above byte-for-byte on both R0 and R1.
+    { id: 'gestor_own_active_session_task_write', role: 'QA_GESTOR', pathGroup: 'active_sessions', path: `active_sessions/QA_GESTOR/tasks/${matrix}_task_1`, operation: 'update', payload: { name: 'Tarea QA', status: 'Finalizada', observation: 'Gestión QA', updatedAt: 300 }, expectedAllowed: true, compatibilityRequirement: 'MUST_ALLOW', context: gestor },
+    { id: 'gestor_other_active_session_task_write_denied', role: 'QA_GESTOR', pathGroup: 'active_sessions', path: `active_sessions/QA_OTHER_GESTOR/tasks/${matrix}_task_1`, operation: 'update', payload: { name: 'Tarea QA', status: 'Finalizada', observation: 'Gestión QA', updatedAt: 300 }, expectedAllowed: r0, context: gestor },
+    { id: 'pending_active_session_task_write_denied', role: 'QA_PENDING', pathGroup: 'active_sessions', path: `active_sessions/QA_PENDING/tasks/${matrix}_task_1`, operation: 'update', payload: { name: 'Tarea QA', status: 'Pendiente', observation: 'Gestión QA', updatedAt: 300 }, expectedAllowed: r0, context: pending },
+    { id: 'admin_active_session_task_write', role: 'QA_ADMIN', pathGroup: 'active_sessions', path: `active_sessions/QA_GESTOR/tasks/${matrix}_task_admin`, operation: 'update', payload: { name: 'Tarea QA', status: 'Finalizada', observation: 'Gestión Admin', updatedAt: 300 }, expectedAllowed: true, compatibilityRequirement: 'MUST_ALLOW', context: admin },
+    { id: 'gestor_own_active_session_task_read', role: 'QA_GESTOR', pathGroup: 'active_sessions', path: 'active_sessions/QA_GESTOR/tasks', operation: 'read', expectedAllowed: true, compatibilityRequirement: 'MUST_ALLOW', context: gestor },
+
     { id: 'gestor_announcements_read', role: 'QA_GESTOR', pathGroup: 'announcements', path: 'announcements', operation: 'read', expectedAllowed: true, context: gestor },
     { id: 'pending_announcements_read_denied', role: 'QA_PENDING', pathGroup: 'announcements', path: 'announcements', operation: 'read', expectedAllowed: r0, context: pending },
     { id: 'gestor_announcement_admin_write', role: 'QA_GESTOR', pathGroup: 'announcements', path: 'announcements/new_admin', operation: 'set', payload: { author: 'QA_GESTOR', text: 'Synthetic' }, expectedAllowed: r0, context: gestor },
