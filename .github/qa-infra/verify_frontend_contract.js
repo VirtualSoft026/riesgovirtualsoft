@@ -18,10 +18,13 @@ const inputs = [
   {
     label: 'F1',
     env: 'F1_APP_PATH',
-    // Updated 2026-08-24: app.js now includes the Supervisor comunicados capability
-    // helpers (canPublishComunicados/canViewComunicadoLecturas/canDeleteComunicados),
-    // authorUid, and the non-'Admin' author fallback.
-    sha: '876049dfce42455256c3eae59f37a5d087fbbab24ca29f1ad09d4eba38a8b683',
+    // Updated 2026-08-24 (task-persistence hotfix): saveTaskBtn now persists via
+    // persistTaskToActiveSession()/fetchOwnActiveSessionTasks()/mergeTaskCaches(),
+    // selectTask() takes an explicit evt parameter instead of window.event, and
+    // syncActiveSessionToFirebase() returns its real Promise via flattened
+    // multi-path updates. Previous hash (Supervisor comunicados capability):
+    // 876049dfce42455256c3eae59f37a5d087fbbab24ca29f1ad09d4eba38a8b683
+    sha: '29f9cdb7f0298fbf4e53755dba01231c76de8bfdf94cdb6ab4808c8b21914204',
     mustContain: [
       "uid: userUid",
       "uid: currentUser.uid || firebase.auth().currentUser.uid",

@@ -1882,7 +1882,7 @@ function renderTree(tasksBySet) {
                         else if (statusText === 'No Realizada') statusClass = 'status-not-done';
                     }
                     return `
-                    <div class="task-item" onclick="selectTask(decodeURIComponent('${encodeInlineHandlerArg(task.id)}'))">
+                    <div class="task-item" onclick="selectTask(decodeURIComponent('${encodeInlineHandlerArg(task.id)}'), event)">
                         <i class='bx bx-file-blank'></i> ${escapeHTML(task.name)}
                         <div class="task-status ${statusClass}"></div>
                     </div>
@@ -1897,16 +1897,59 @@ function renderTree(tasksBySet) {
     updateKPI();
 }
 
+// Persistencia central y testeable del progreso de una tarea individual.
+// Escribe únicamente en active_sessions/{uid}/tasks/{taskId}, nunca reemplaza
+// el nodo "tasks" completo, y siempre devuelve/rechaza la Promise real de
+// Firebase (no la atrapa ni la convierte en éxito).
+function persistTaskToActiveSession(uid, taskId, taskData) {
+    if (!uid) return Promise.reject(new Error('MISSING_UID'));
+    if (!taskId) return Promise.reject(new Error('MISSING_TASK_ID'));
+    return database.ref(`active_sessions/${uid}/tasks/${taskId}`).update(taskData);
+}
+
+// Lee el progreso remoto de tareas del propio Gestor (nunca de otros usuarios)
+// para poder recuperarlo al recargar la aplicación durante el mismo turno.
+async function fetchOwnActiveSessionTasks(uid) {
+    if (!uid) return {};
+    try {
+        const snapshot = await database.ref(`active_sessions/${uid}/tasks`).once('value');
+        return snapshot.exists() ? snapshot.val() : {};
+    } catch (e) {
+        console.error('Error al recuperar el progreso remoto de tareas:', e);
+        return {};
+    }
+}
+
+// Combina el caché local (localStorage) con el progreso remoto recuperado,
+// resolviendo conflictos por tarea mediante updatedAt (el más reciente gana).
+function mergeTaskCaches(localCache, remoteCache) {
+    const merged = { ...(localCache || {}) };
+    Object.keys(remoteCache || {}).forEach((taskId) => {
+        const remoteEntry = remoteCache[taskId];
+        const localEntry = merged[taskId];
+        if (!localEntry) {
+            merged[taskId] = remoteEntry;
+            return;
+        }
+        const remoteUpdatedAt = typeof remoteEntry.updatedAt === 'number' ? remoteEntry.updatedAt : 0;
+        const localUpdatedAt = typeof localEntry.updatedAt === 'number' ? localEntry.updatedAt : 0;
+        if (remoteUpdatedAt >= localUpdatedAt) {
+            merged[taskId] = remoteEntry;
+        }
+    });
+    return merged;
+}
+
 function syncActiveSessionToFirebase() {
-    if (!currentUser || currentUser.role !== 'Gestor') return;
+    if (!currentUser || currentUser.role !== 'Gestor') return Promise.resolve();
     const uid = currentUser.uid;
-    if (!uid) return;
-    
+    if (!uid) return Promise.resolve();
+
     // Si la sesin fue cerrada en otra pestaa, localStorage estar vaco
     if (!localStorage.getItem('riskOps_currentUser')) {
         currentUser = null;
         window.location.href = 'login.html';
-        return;
+        return Promise.resolve();
     }
 
     const totalTasks = document.querySelectorAll('.task-item').length;
@@ -1962,24 +2005,35 @@ function syncActiveSessionToFirebase() {
     }
     localStatus = currentStatus;
     
-    const payload = {
-        name: currentUser.name,
-        email: currentUser.email,
-        shift: currentUser.shift || 'Por Asignar',
-        loginTime: loginTime,
-        lastActive: newLastActive,
-        status: currentStatus,
-        totalTasks: totalTasks,
-        finalizedTasks: finalized,
-        completedTasks: completedTasks,
-        notDoneTasks: notDoneTasks,
-        percentage: percentage,
-        tasks: taskStateCache || {},
-        timeline: shiftTimeline || [],
-        appVersion: 'v104'
+    // Construir un update multi-ruta plano: cada campo de la sesión y cada
+    // tarea del caché se escribe en su propia ruta bajo active_sessions/{uid}.
+    // Esto evita que un snapshot desactualizado de taskStateCache reemplace
+    // por completo el nodo "tasks" y borre una tarea recién guardada por
+    // persistTaskToActiveSession() cuyo write llegó primero al servidor.
+    const updates = {
+        [`active_sessions/${uid}/name`]: currentUser.name,
+        [`active_sessions/${uid}/email`]: currentUser.email,
+        [`active_sessions/${uid}/shift`]: currentUser.shift || 'Por Asignar',
+        [`active_sessions/${uid}/loginTime`]: loginTime,
+        [`active_sessions/${uid}/lastActive`]: newLastActive,
+        [`active_sessions/${uid}/status`]: currentStatus,
+        [`active_sessions/${uid}/totalTasks`]: totalTasks,
+        [`active_sessions/${uid}/finalizedTasks`]: finalized,
+        [`active_sessions/${uid}/completedTasks`]: completedTasks,
+        [`active_sessions/${uid}/notDoneTasks`]: notDoneTasks,
+        [`active_sessions/${uid}/percentage`]: percentage,
+        [`active_sessions/${uid}/timeline`]: shiftTimeline || [],
+        [`active_sessions/${uid}/appVersion`]: 'v104'
     };
-    
-    database.ref(`active_sessions/${uid}`).update(payload).catch(e => console.error("Error syncing active session via SDK:", e));
+    Object.keys(taskStateCache || {}).forEach((taskId) => {
+        updates[`active_sessions/${uid}/tasks/${taskId}`] = taskStateCache[taskId];
+    });
+
+    // No se atrapa el error de forma que oculte el fallo: se devuelve la
+    // Promise real (rechazada si falla) y, aparte, se registra en consola.
+    const syncPromise = database.ref().update(updates);
+    syncPromise.catch(e => console.error("Error syncing active session via SDK:", e));
+    return syncPromise;
 }
 
 function updateKPI() {
@@ -2120,12 +2174,12 @@ function renderQuickDocs(selectedTaskName) {
 }
 
 // Global scope logic for onclick elements
-window.selectTask = function(taskId) {
+window.selectTask = function(taskId, evt) {
     currentActiveTaskId = taskId;
     // Remove active
     document.querySelectorAll('.task-item').forEach(el => el.classList.remove('active'));
-    // Add active
-    const eventTarget = window.event && window.event.currentTarget;
+    // Add active (evt is passed explicitly from the inline onclick; never rely on the global event object)
+    const eventTarget = evt && evt.currentTarget;
     if(eventTarget) eventTarget.classList.add('active');
     
     const task = allTasks.find(t => t.id === taskId);
@@ -2178,6 +2232,19 @@ window.selectTask = function(taskId) {
 
 // Task Status Buttons Interaction
 async function initApp() {
+    // Recuperar el progreso de tareas ya persistido en Firebase para este
+    // mismo Gestor (nunca de otros usuarios) y combinarlo con el caché local
+    // ANTES de renderizar, para que el primer render ya sea consistente.
+    if (currentUser && currentUser.role === 'Gestor' && currentUser.uid) {
+        try {
+            const remoteTasks = await fetchOwnActiveSessionTasks(currentUser.uid);
+            taskStateCache = mergeTaskCaches(taskStateCache, remoteTasks);
+            localStorage.setItem('riskOps_cache', JSON.stringify(taskStateCache));
+        } catch (e) {
+            console.error('No se pudo recuperar el progreso remoto de tareas al iniciar:', e);
+        }
+    }
+
     // Carga de Excel Inicial
     try {
         await loadSchedule();
@@ -2663,63 +2730,109 @@ async function initApp() {
     // Botón de guardar progreso en tarea
     const saveTaskBtn = document.getElementById('saveTaskBtn');
     if(saveTaskBtn) {
-        saveTaskBtn.addEventListener('click', () => {
+        let isSavingTask = false;
+        saveTaskBtn.addEventListener('click', async () => {
+            // Evitar dobles clics / escrituras simultáneas mientras una ya está en curso
+            if (isSavingTask) return;
+
+            // --- Validaciones obligatorias antes de escribir ---
+            if (currentActiveTaskId === null || currentActiveTaskId === undefined) {
+                alert("Selecciona una tarea antes de guardar el progreso.");
+                return;
+            }
             const selectedStatusBtn = document.querySelector('.btn-status.active');
-            
-            // Validación obligatoria para todas las tareas
+            if (!selectedStatusBtn) {
+                alert("Selecciona un estado antes de guardar el progreso.");
+                return;
+            }
             const obsField = document.getElementById('taskObservation');
-            if(!obsField || !obsField.value.trim()) {
+            const obsValue = obsField ? obsField.value.trim() : '';
+            if (!obsValue) {
                 alert("OBLIGATORIO: Debes detallar la gestión realizada en las Notas Técnicas antes de guardar.");
+                return;
+            }
+            const authUser = firebase.auth().currentUser;
+            if (!authUser) {
+                alert("Tu sesión expiró. Vuelve a iniciar sesión para guardar el progreso.");
+                return;
+            }
+            if (!currentUser || currentUser.uid !== authUser.uid) {
+                alert("No se pudo verificar tu identidad. Vuelve a iniciar sesión para guardar el progreso.");
+                return;
+            }
+            const taskIdStr = String(currentActiveTaskId);
+            if (!taskIdStr || /[.#$\[\]/]/.test(taskIdStr)) {
+                alert("La tarea seleccionada tiene un identificador inválido y no puede guardarse.");
                 return;
             }
 
             const btn = saveTaskBtn;
             const prevText = btn.innerHTML;
+            isSavingTask = true;
             btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Guardando...";
             btn.disabled = true;
+            btn.classList.remove('btn-success', 'btn-error');
 
-            setTimeout(() => {
+            const taskRecord = {
+                name: currentSelectedTask ? currentSelectedTask['Tarea'] : 'Tarea ' + taskIdStr,
+                status: selectedStatusBtn.textContent.trim(),
+                observation: obsValue,
+                updatedAt: Date.now()
+            };
+
+            // Respaldo local inmediato para permitir reintento visual, pero esto
+            // NO cuenta como confirmación de persistencia (eso solo lo da Firebase).
+            taskStateCache[taskIdStr] = taskRecord;
+            try {
+                localStorage.setItem('riskOps_cache', JSON.stringify(taskStateCache));
+            } catch (e) { /* localStorage no disponible: el respaldo local es best-effort */ }
+
+            try {
+                // Único punto de verdad para la persistencia: espera la Promise
+                // real de Firebase antes de mostrar cualquier éxito.
+                await persistTaskToActiveSession(authUser.uid, taskIdStr, taskRecord);
+
                 btn.innerHTML = "<i class='bx bx-check'></i> Guardado Exitosamente";
                 btn.classList.add('btn-success');
-                
+
                 // Actualizar estado visual de la tarea activa en el árbol
                 const activeTask = document.querySelector('.task-item.active .task-status');
-                const selectedStatusBtn = document.querySelector('.btn-status.active');
-                
-                if(activeTask && selectedStatusBtn) {
-                    // Limpiar clases anteriores
+                if (activeTask) {
                     activeTask.classList.remove('status-pending', 'status-completed', 'status-not-done', 'status-in-progress');
-                    
-                    if(selectedStatusBtn.classList.contains('completed')) {
+                    if (selectedStatusBtn.classList.contains('completed')) {
                         activeTask.classList.add('status-completed');
-                    } else if(selectedStatusBtn.classList.contains('in-progress')) {
+                    } else if (selectedStatusBtn.classList.contains('in-progress')) {
                         activeTask.classList.add('status-in-progress');
-                    } else if(selectedStatusBtn.classList.contains('not-done')) {
+                    } else if (selectedStatusBtn.classList.contains('not-done')) {
                         activeTask.classList.add('status-not-done');
                     } else {
                         activeTask.classList.add('status-pending');
                     }
-                    
-                    // Save to cache
-                    const obsValue = document.getElementById('taskObservation') ? document.getElementById('taskObservation').value : '';
-                    if(currentActiveTaskId !== null) {
-                        taskStateCache[currentActiveTaskId] = {
-                            name: currentSelectedTask ? currentSelectedTask['Tarea'] : 'Tarea ' + currentActiveTaskId,
-                            status: selectedStatusBtn.textContent.trim(),
-                            observation: obsValue
-                        };
-                        localStorage.setItem('riskOps_cache', JSON.stringify(taskStateCache));
-                    }
-                    
-                    updateKPI();
                 }
+
+                updateKPI();
 
                 setTimeout(() => {
                     btn.innerHTML = prevText;
-                    btn.disabled = false;
                     btn.classList.remove('btn-success');
                 }, 2000);
-            }, 800);
+            } catch (error) {
+                console.error("Error al guardar el progreso de la tarea:", error);
+                const errorCode = error && error.code ? error.code : '';
+                const isPermissionDenied = errorCode === 'PERMISSION_DENIED' || /permission[_ ]denied/i.test((error && error.message) || '');
+                btn.innerHTML = "<i class='bx bx-error'></i> Error al guardar";
+                btn.classList.add('btn-error');
+                alert(isPermissionDenied
+                    ? "No tienes permiso para guardar esta tarea. Contacta a tu supervisor."
+                    : "No se pudo guardar el progreso en el servidor. El cambio quedó respaldado localmente; intenta guardar de nuevo.");
+                setTimeout(() => {
+                    btn.innerHTML = prevText;
+                    btn.classList.remove('btn-error');
+                }, 2500);
+            } finally {
+                btn.disabled = false;
+                isSavingTask = false;
+            }
         });
     }
 
