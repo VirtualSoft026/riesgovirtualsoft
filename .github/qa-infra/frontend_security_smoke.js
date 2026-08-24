@@ -479,6 +479,35 @@ function testMergeTaskCachesConflictResolution() {
   assert.equal(merged.task_c.observation, 'remote only', 'Remote-only entries must be recovered on reload');
 }
 
+function testMergeTaskCachesPrefersLocalOnTieOrMissingUpdatedAt() {
+  const mergeSource = extractBetween('function mergeTaskCaches(', 'function syncActiveSessionToFirebase(');
+  const loadMerge = new Function(`${mergeSource}\nreturn mergeTaskCaches;`);
+  const mergeTaskCaches = loadMerge();
+
+  const local = {
+    // Exact tie: both sides have the same updatedAt.
+    task_tie: { status: 'En Proceso', observation: 'local tie', updatedAt: 200 },
+    // Legacy local entry: no updatedAt at all (pre-hotfix cache).
+    task_legacy_local: { status: 'Finalizada', observation: 'local legacy (no updatedAt)' },
+    // Local has updatedAt, remote is legacy (no updatedAt).
+    task_legacy_remote: { status: 'Finalizada', observation: 'local newer-format', updatedAt: 100 },
+    // Both sides legacy: neither has updatedAt.
+    task_both_legacy: { status: 'Pendiente', observation: 'local both-legacy' },
+  };
+  const remote = {
+    task_tie: { status: 'Finalizada', observation: 'remote tie', updatedAt: 200 },
+    task_legacy_local: { status: 'Pendiente', observation: 'remote for legacy-local', updatedAt: 999 },
+    task_legacy_remote: { status: 'Pendiente', observation: 'remote legacy (no updatedAt)' },
+    task_both_legacy: { status: 'Finalizada', observation: 'remote both-legacy' },
+  };
+
+  const merged = mergeTaskCaches(local, remote);
+  assert.equal(merged.task_tie.observation, 'local tie', 'On an exact updatedAt tie, the legacy local cache must prevail');
+  assert.equal(merged.task_legacy_local.observation, 'local legacy (no updatedAt)', 'A local entry without updatedAt must not be overwritten by a remote entry');
+  assert.equal(merged.task_legacy_remote.observation, 'local newer-format', 'A remote entry without updatedAt must never win, even if the local entry has one');
+  assert.equal(merged.task_both_legacy.observation, 'local both-legacy', 'When neither side has updatedAt, the local cache must prevail');
+}
+
 async function testFetchOwnActiveSessionTasksReadsOnlyOwnPath() {
   const fetchSource = extractBetween('async function fetchOwnActiveSessionTasks(', 'function mergeTaskCaches(');
   const refCalls = [];
@@ -518,6 +547,182 @@ function testShiftCloseStillIncludesTasksInReport() {
   assert.match(handleEndShiftSource, /await persistShiftClosureCore\(reportUid, localUser\.loginLogId, shiftReportObject\)/);
 }
 
+// ---------------------------------------------------------------------------
+// syncActiveSessionToFirebase() must only ever ferry session metadata. Task
+// persistence is exclusively the job of explicit, per-taskId operations
+// (persistTaskToActiveSession), never a periodic bulk resend of taskStateCache.
+// ---------------------------------------------------------------------------
+function testSyncActiveSessionOnlySyncsMetadataNotTasks() {
+  const syncSource = extractBetween('function syncActiveSessionToFirebase(', 'function updateKPI(');
+  assert.doesNotMatch(
+    syncSource,
+    /taskStateCache/,
+    'syncActiveSessionToFirebase must never read or resend taskStateCache',
+  );
+  assert.doesNotMatch(
+    syncSource,
+    /\/tasks/,
+    'syncActiveSessionToFirebase must never touch the active_sessions/{uid}/tasks subtree',
+  );
+  assert.match(
+    syncSource,
+    /const syncPromise = database\.ref\(`active_sessions\/\$\{uid\}`\)\.update\(sessionMetadata\);/,
+    'Must update only active_sessions/{uid} with a metadata-only payload',
+  );
+  assert.match(syncSource, /return syncPromise;/);
+
+  // Exactly one write path in the whole file should target a specific task:
+  // active_sessions/{uid}/tasks/{taskId}, and it must be persistTaskToActiveSession.
+  const taskPathOccurrences = (appSource.match(/active_sessions\/\$\{uid\}\/tasks\/\$\{taskId\}/g) || []).length;
+  assert.equal(taskPathOccurrences, 1, 'Only persistTaskToActiveSession() may target active_sessions/{uid}/tasks/{taskId}');
+  assert.match(appSource, /function persistTaskToActiveSession\(uid, taskId, taskData\) \{/);
+}
+
+// ---------------------------------------------------------------------------
+// saveExtraTask() (the "Añadir Tarea Adicional" modal) must follow the same
+// confirmed-persistence contract as saveTaskBtn: async, stamps updatedAt,
+// keeps a local backup, awaits persistTaskToActiveSession(), only reports
+// success after Firebase confirms, and surfaces a visible, retryable error.
+// ---------------------------------------------------------------------------
+function buildSaveExtraTaskEnv(overrides = {}) {
+  const persistSource = extractBetween('function persistTaskToActiveSession(', 'async function fetchOwnActiveSessionTasks(');
+  const saveExtraSource = extractBetween('async function saveExtraTask() {', '// Logic for Approving Users');
+
+  const alerts = [];
+  const closeModalCalls = [];
+  const updateKPICalls = [];
+  const localStorageStore = {};
+  const databaseCalls = [];
+
+  const btnEl = {
+    innerHTML: "<i class='bx bx-save'></i> Guardar Tarea",
+    disabled: false,
+  };
+  const nameField = overrides.nameField !== undefined ? overrides.nameField : { value: 'Revisión especial QA' };
+  const statusField = overrides.statusField !== undefined ? overrides.statusField : { value: 'Finalizada' };
+  const obsField = overrides.obsField !== undefined ? overrides.obsField : { value: 'Detalle QA de la tarea extra' };
+
+  const documentStub = {
+    getElementById(id) {
+      if (id === 'saveExtraTaskBtn') return btnEl;
+      if (id === 'extraTaskName') return nameField;
+      if (id === 'extraTaskStatus') return statusField;
+      if (id === 'extraTaskObs') return obsField;
+      return null;
+    },
+  };
+
+  const updateResult = overrides.updateResult || (() => Promise.resolve());
+  const databaseStub = {
+    ref(path) {
+      return {
+        update(data) {
+          databaseCalls.push({ path, data });
+          return updateResult(path, data);
+        },
+      };
+    },
+  };
+  const firebaseStub = {
+    auth() {
+      return { currentUser: overrides.authUser !== undefined ? overrides.authUser : { uid: 'QA_GESTOR' } };
+    },
+  };
+  const localStorageStub = {
+    setItem(key, value) { localStorageStore[key] = value; },
+    getItem(key) { return localStorageStore[key]; },
+  };
+  const alertFn = (msg) => alerts.push(msg);
+  const updateKPI = () => updateKPICalls.push(true);
+  const closeModal = (id) => closeModalCalls.push(id);
+
+  const currentUser = overrides.currentUser !== undefined
+    ? overrides.currentUser
+    : { uid: 'QA_GESTOR', name: 'QA Gestor', role: 'Gestor' };
+  const taskStateCache = overrides.taskStateCache || {};
+
+  const loader = new Function(
+    'document', 'firebase', 'database', 'localStorage', 'currentUser', 'taskStateCache', 'updateKPI', 'alert', 'closeModal',
+    `
+    let pendingExtraTaskId = null;
+    let isSavingExtraTask = false;
+    ${persistSource}
+    ${saveExtraSource}
+    return { saveExtraTask, getPendingExtraTaskId: () => pendingExtraTaskId };
+    `,
+  );
+  const { saveExtraTask, getPendingExtraTaskId } = loader(
+    documentStub, firebaseStub, databaseStub, localStorageStub, currentUser, taskStateCache, updateKPI, alertFn, closeModal,
+  );
+
+  return {
+    saveExtraTask,
+    getPendingExtraTaskId,
+    btnEl,
+    alerts,
+    databaseCalls,
+    taskStateCache,
+    localStorageStore,
+    updateKPICalls,
+    closeModalCalls,
+  };
+}
+
+async function testSaveExtraTaskConfirmsBeforeSuccess() {
+  let resolveUpdate;
+  const pending = new Promise((resolve) => { resolveUpdate = resolve; });
+  const env = buildSaveExtraTaskEnv({ updateResult: () => pending });
+
+  const clickPromise = env.saveExtraTask();
+  await Promise.resolve(); // let the synchronous prefix of the async function run
+  assert.match(env.btnEl.innerHTML, /Guardando/);
+  assert.equal(env.btnEl.disabled, true);
+  assert.equal(env.closeModalCalls.length, 0, 'Must not close the modal before Firebase confirms the write');
+  assert.equal(env.alerts.length, 0, 'Must not show a success alert before Firebase confirms the write');
+
+  resolveUpdate();
+  await clickPromise;
+
+  assert.equal(env.databaseCalls.length, 1);
+  assert.match(env.databaseCalls[0].path, /^active_sessions\/QA_GESTOR\/tasks\/extra_\d+$/);
+  assert.equal(env.databaseCalls[0].data.name, '[EXTRA] Revisión especial QA');
+  assert.equal(env.databaseCalls[0].data.status, 'Finalizada');
+  assert.equal(typeof env.databaseCalls[0].data.updatedAt, 'number');
+  assert(env.localStorageStore.riskOps_cache, 'Expected local cache backup to be written');
+  assert.deepEqual(env.closeModalCalls, ['extraTaskModal']);
+  assert.equal(env.alerts.length, 1);
+  assert.match(env.alerts[0], /agregada exitosamente/);
+  assert.equal(env.updateKPICalls.length, 1);
+  assert.equal(env.btnEl.disabled, false);
+  assert.equal(env.getPendingExtraTaskId(), null, 'A confirmed save must clear the pending retry ID');
+}
+
+async function testSaveExtraTaskErrorIsVisibleAndAllowsRetryWithSameId() {
+  let attempt = 0;
+  const env = buildSaveExtraTaskEnv({
+    updateResult: () => {
+      attempt += 1;
+      return attempt === 1 ? Promise.reject(new Error('NETWORK_ERROR')) : Promise.resolve();
+    },
+  });
+
+  await env.saveExtraTask();
+  assert.equal(env.closeModalCalls.length, 0, 'Must not close the modal on failure');
+  assert.equal(env.alerts.length, 1);
+  assert.doesNotMatch(env.alerts[0], /agregada exitosamente/);
+  assert.equal(env.btnEl.disabled, false, 'Button must be re-enabled after a failure so the user can retry');
+  assert.notEqual(env.getPendingExtraTaskId(), null, 'The pending ID must survive a failure so a retry reuses it');
+  const firstAttemptId = env.databaseCalls[0].path;
+
+  await env.saveExtraTask();
+  assert.equal(env.databaseCalls.length, 2, 'Retry must issue a new Firebase write');
+  assert.equal(env.databaseCalls[1].path, firstAttemptId, 'Retry must reuse the same extraId instead of creating a duplicate');
+  assert.equal(env.closeModalCalls.length, 1);
+  assert.equal(env.alerts.length, 2);
+  assert.match(env.alerts[1], /agregada exitosamente/);
+  assert.equal(env.getPendingExtraTaskId(), null);
+}
+
 async function main() {
   testStoredXssEscaping();
   testInlineHandlerAndAvatarSafety();
@@ -534,9 +739,13 @@ async function main() {
   await testSaveTaskNetworkErrorAllowsRetry();
   testSelectTaskDoesNotDependOnWindowEvent();
   testMergeTaskCachesConflictResolution();
+  testMergeTaskCachesPrefersLocalOnTieOrMissingUpdatedAt();
   await testFetchOwnActiveSessionTasksReadsOnlyOwnPath();
   testRemoteTaskProgressRestoredOnReloadWiring();
   testShiftCloseStillIncludesTasksInReport();
+  testSyncActiveSessionOnlySyncsMetadataNotTasks();
+  await testSaveExtraTaskConfirmsBeforeSuccess();
+  await testSaveExtraTaskErrorIsVisibleAndAllowsRetryWithSameId();
   console.log('FRONTEND_SECURITY_SMOKE=PASS');
   console.log('STORED_XSS_LOG_RENDERING=PASS');
   console.log('INLINE_HANDLER_XSS_GUARD=PASS');
@@ -551,7 +760,10 @@ async function main() {
   console.log('TASK_PERSISTENCE_RETRY_AFTER_NETWORK_ERROR=PASS');
   console.log('SELECT_TASK_NO_WINDOW_EVENT=PASS');
   console.log('TASK_PROGRESS_MERGE_AND_RESTORE_ON_RELOAD=PASS');
+  console.log('TASK_PROGRESS_MERGE_PREFERS_LOCAL_ON_TIE_OR_MISSING_UPDATEDAT=PASS');
   console.log('SHIFT_CLOSE_INCLUDES_TASKS=PASS');
+  console.log('SYNC_ACTIVE_SESSION_METADATA_ONLY=PASS');
+  console.log('SAVE_EXTRA_TASK_CONFIRMED_PERSISTENCE=PASS');
 }
 
 main().catch((error) => {

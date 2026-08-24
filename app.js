@@ -1162,6 +1162,12 @@ try {
 
 let currentActiveTaskId = null;
 
+// ID pendiente de confirmación para la tarea adicional en curso en el modal
+// "Añadir Tarea Adicional". Se conserva entre reintentos fallidos (para no
+// duplicar la entrada) y se reinicia cada vez que el modal se abre de nuevo.
+let pendingExtraTaskId = null;
+let isSavingExtraTask = false;
+
 // Live Clock Logic
 function updateClock() {
     const clockElement = document.getElementById('liveClock');
@@ -1921,7 +1927,11 @@ async function fetchOwnActiveSessionTasks(uid) {
 }
 
 // Combina el caché local (localStorage) con el progreso remoto recuperado,
-// resolviendo conflictos por tarea mediante updatedAt (el más reciente gana).
+// resolviendo conflictos por tarea mediante updatedAt: el remoto solo
+// reemplaza al local si es ESTRICTAMENTE más reciente. Ante empate, o si a
+// cualquiera de los dos lados le falta updatedAt (entradas legadas), prevalece
+// el caché local: es la fuente de verdad para lo que el propio Gestor ya
+// tiene en pantalla en este dispositivo durante el turno en curso.
 function mergeTaskCaches(localCache, remoteCache) {
     const merged = { ...(localCache || {}) };
     Object.keys(remoteCache || {}).forEach((taskId) => {
@@ -1931,9 +1941,9 @@ function mergeTaskCaches(localCache, remoteCache) {
             merged[taskId] = remoteEntry;
             return;
         }
-        const remoteUpdatedAt = typeof remoteEntry.updatedAt === 'number' ? remoteEntry.updatedAt : 0;
-        const localUpdatedAt = typeof localEntry.updatedAt === 'number' ? localEntry.updatedAt : 0;
-        if (remoteUpdatedAt >= localUpdatedAt) {
+        const remoteUpdatedAt = typeof remoteEntry.updatedAt === 'number' ? remoteEntry.updatedAt : null;
+        const localUpdatedAt = typeof localEntry.updatedAt === 'number' ? localEntry.updatedAt : null;
+        if (remoteUpdatedAt !== null && localUpdatedAt !== null && remoteUpdatedAt > localUpdatedAt) {
             merged[taskId] = remoteEntry;
         }
     });
@@ -2005,33 +2015,31 @@ function syncActiveSessionToFirebase() {
     }
     localStatus = currentStatus;
     
-    // Construir un update multi-ruta plano: cada campo de la sesión y cada
-    // tarea del caché se escribe en su propia ruta bajo active_sessions/{uid}.
-    // Esto evita que un snapshot desactualizado de taskStateCache reemplace
-    // por completo el nodo "tasks" y borre una tarea recién guardada por
-    // persistTaskToActiveSession() cuyo write llegó primero al servidor.
-    const updates = {
-        [`active_sessions/${uid}/name`]: currentUser.name,
-        [`active_sessions/${uid}/email`]: currentUser.email,
-        [`active_sessions/${uid}/shift`]: currentUser.shift || 'Por Asignar',
-        [`active_sessions/${uid}/loginTime`]: loginTime,
-        [`active_sessions/${uid}/lastActive`]: newLastActive,
-        [`active_sessions/${uid}/status`]: currentStatus,
-        [`active_sessions/${uid}/totalTasks`]: totalTasks,
-        [`active_sessions/${uid}/finalizedTasks`]: finalized,
-        [`active_sessions/${uid}/completedTasks`]: completedTasks,
-        [`active_sessions/${uid}/notDoneTasks`]: notDoneTasks,
-        [`active_sessions/${uid}/percentage`]: percentage,
-        [`active_sessions/${uid}/timeline`]: shiftTimeline || [],
-        [`active_sessions/${uid}/appVersion`]: 'v104'
+    // Esta sincronización SOLO transporta metadatos de la sesión (nombre,
+    // estado, contadores derivados del DOM, línea de tiempo, etc.). Nunca
+    // incluye ni reenvía "tasks": la persistencia de cada tarea es
+    // responsabilidad exclusiva de persistTaskToActiveSession(), que escribe
+    // por taskId de forma explícita. Así un ping periódico con un snapshot
+    // desactualizado nunca puede pisar una tarea recién guardada.
+    const sessionMetadata = {
+        name: currentUser.name,
+        email: currentUser.email,
+        shift: currentUser.shift || 'Por Asignar',
+        loginTime: loginTime,
+        lastActive: newLastActive,
+        status: currentStatus,
+        totalTasks: totalTasks,
+        finalizedTasks: finalized,
+        completedTasks: completedTasks,
+        notDoneTasks: notDoneTasks,
+        percentage: percentage,
+        timeline: shiftTimeline || [],
+        appVersion: 'v104'
     };
-    Object.keys(taskStateCache || {}).forEach((taskId) => {
-        updates[`active_sessions/${uid}/tasks/${taskId}`] = taskStateCache[taskId];
-    });
 
     // No se atrapa el error de forma que oculte el fallo: se devuelve la
     // Promise real (rechazada si falla) y, aparte, se registra en consola.
-    const syncPromise = database.ref().update(updates);
+    const syncPromise = database.ref(`active_sessions/${uid}`).update(sessionMetadata);
     syncPromise.catch(e => console.error("Error syncing active session via SDK:", e));
     return syncPromise;
 }
@@ -3419,40 +3427,87 @@ function openExtraTaskModal() {
         document.getElementById('extraTaskName').value = '';
         document.getElementById('extraTaskStatus').value = 'Finalizada';
         document.getElementById('extraTaskObs').value = '';
+        // Un modal recién abierto empieza una tarea extra lógicamente nueva.
+        pendingExtraTaskId = null;
         modal.classList.add('active');
     }
 }
 
-function saveExtraTask() {
+async function saveExtraTask() {
+    if (isSavingExtraTask) return; // Evitar dobles clics / escrituras simultáneas
+
     const name = document.getElementById('extraTaskName').value.trim();
     const status = document.getElementById('extraTaskStatus').value;
     const obs = document.getElementById('extraTaskObs').value.trim();
-    
+
     if (!name) {
         alert("OBLIGATORIO: Debes ingresar el nombre de la tarea extra.");
         return;
     }
-    
     if (!obs) {
         alert("OBLIGATORIO: Debes detallar la gestión realizada en las Notas Técnicas.");
         return;
     }
-    
-    // Generar un ID único para esta tarea extra
-    const extraId = 'extra_' + Date.now();
-    
-    // Guardar en la caché local
-    taskStateCache[extraId] = {
+    const authUser = firebase.auth().currentUser;
+    if (!authUser) {
+        alert("Tu sesión expiró. Vuelve a iniciar sesión para guardar la tarea extra.");
+        return;
+    }
+    if (!currentUser || currentUser.uid !== authUser.uid) {
+        alert("No se pudo verificar tu identidad. Vuelve a iniciar sesión para guardar la tarea extra.");
+        return;
+    }
+
+    const btn = document.getElementById('saveExtraTaskBtn');
+    const prevText = btn ? btn.innerHTML : '';
+    isSavingExtraTask = true;
+    if (btn) {
+        btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Guardando...";
+        btn.disabled = true;
+    }
+
+    // Reutilizar el mismo ID en un reintento tras un fallo previo, para no
+    // duplicar la tarea extra con un nuevo Date.now() en cada intento.
+    const extraId = pendingExtraTaskId || ('extra_' + Date.now());
+    pendingExtraTaskId = extraId;
+
+    const taskRecord = {
         name: "[EXTRA] " + name,
         status: status,
-        observation: obs
+        observation: obs,
+        updatedAt: Date.now()
     };
-    localStorage.setItem('riskOps_cache', JSON.stringify(taskStateCache));
-    
-    updateKPI(); // Actualizar el anillo de progreso
-    closeModal('extraTaskModal');
-    
-    alert(`Tarea Adicional "${name}" agregada exitosamente y se incluirá en tu reporte de turno.`);
+
+    // Respaldo local inmediato para permitir reintento visual; esto NO cuenta
+    // como confirmación de persistencia (eso solo lo da Firebase).
+    taskStateCache[extraId] = taskRecord;
+    try {
+        localStorage.setItem('riskOps_cache', JSON.stringify(taskStateCache));
+    } catch (e) { /* localStorage no disponible: el respaldo local es best-effort */ }
+
+    try {
+        // Único punto de verdad para la persistencia: espera la Promise real
+        // de Firebase antes de mostrar cualquier éxito.
+        await persistTaskToActiveSession(authUser.uid, extraId, taskRecord);
+
+        pendingExtraTaskId = null;
+        updateKPI(); // Actualizar el anillo de progreso
+        closeModal('extraTaskModal');
+        alert(`Tarea Adicional "${name}" agregada exitosamente y se incluirá en tu reporte de turno.`);
+    } catch (error) {
+        console.error("Error al guardar la tarea extra:", error);
+        const errorCode = error && error.code ? error.code : '';
+        const isPermissionDenied = errorCode === 'PERMISSION_DENIED' || /permission[_ ]denied/i.test((error && error.message) || '');
+        alert(isPermissionDenied
+            ? "No tienes permiso para guardar esta tarea extra. Contacta a tu supervisor."
+            : "No se pudo guardar la tarea extra en el servidor. El cambio quedó respaldado localmente; intenta guardar de nuevo.");
+    } finally {
+        if (btn) {
+            btn.innerHTML = prevText;
+            btn.disabled = false;
+        }
+        isSavingExtraTask = false;
+    }
 }
 
 // Logic for Approving Users
