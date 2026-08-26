@@ -18,20 +18,26 @@ const inputs = [
   {
     label: 'F1',
     env: 'F1_APP_PATH',
-    // Updated 2026-08-24 (task-persistence hotfix, round 4 — fail-safe
-    // recovery): fetchOwnActiveSessionTasks() now returns { ok, tasks }
-    // explicitly instead of ever coercing a read failure into an empty (but
-    // "successful") remote cache. recoverGestorTaskProgress() orchestrates
-    // the whole flow: a failed read (ok: false) skips merge AND migration
-    // entirely (local cache untouched, single visible warning, zero writes);
-    // right before migrating it separately revalidates
-    // firebase.auth().currentUser.uid === uid (zero writes on mismatch,
-    // independent of whether the read itself succeeded). Each migration write
-    // now goes through persistTaskIfNotNewerRemote(), a conditional
-    // transaction() that aborts and keeps the remote value if a newer
-    // updatedAt appears on the server during the migration. Heartbeat
-    // (syncActiveSessionToFirebase) unchanged: metadata only.
-    // Previous hash (round 3: one-time recovery migration, plain .update()):
+    // Updated 2026-08-26 (task-monitoreo-sync hotfix): canonicalTaskId() fixes
+    // the number/string ID mismatch (loadExcelTasks(): row.id = idx is a
+    // number, but selectTask() always receives a string from the
+    // decodeURIComponent() onclick) that let allTasks.find() fail silently,
+    // leaving currentSelectedTask stale and a previous task's comment "stuck"
+    // when switching tasks. saveTaskBtn now refuses to persist an
+    // unresolved/mismatched selection instead of falling back to a generic
+    // "Tarea <id>" name. reconcileScheduledTaskWithSession() replaces the
+    // exact-equality task-name matching duplicated in
+    // renderActiveSessionsDashboard() and openMonitoreoDetails() with
+    // taskNamesMatch(), so Monitoreo reflects a confirmed Firebase save
+    // without waiting for shift close, and resolveTaskDisplayName() resolves
+    // legacy "Tarea <id>" names against allTasks everywhere a task name is
+    // shown (Monitoreo card/modal, Historial de Turnos, "Ver Todo" modal, PDF
+    // export via buildTaskReportSummaryText()), never exposing the raw
+    // technical ID to the end user.
+    // Previous hash (round 4: fail-safe recovery, fetchOwnActiveSessionTasks()
+    // { ok, tasks }, persistTaskIfNotNewerRemote()):
+    // 927206908e0cc23ac155331bf6810e5d9d9e980bdf75a863487375970f550a9f
+    // Hash before round 4 (round 3: one-time recovery migration, plain .update()):
     // fd0570df9f87901437567aff19dc11bb2e3c77bf897e02eac90b6b4de4d867b8
     // Hash before round 3 (round 2: local-wins tie-break in mergeTaskCaches(),
     // metadata-only syncActiveSessionToFirebase(), confirmed saveExtraTask()):
@@ -40,7 +46,7 @@ const inputs = [
     // 29f9cdb7f0298fbf4e53755dba01231c76de8bfdf94cdb6ab4808c8b21914204
     // Hash before this hotfix (Supervisor comunicados capability):
     // 876049dfce42455256c3eae59f37a5d087fbbab24ca29f1ad09d4eba38a8b683
-    sha: '927206908e0cc23ac155331bf6810e5d9d9e980bdf75a863487375970f550a9f',
+    sha: '4b008a29bb478fced9059ebb3e3792a79ec4a33722f2fc2e0387d5659f5fac56',
     mustContain: [
       "uid: userUid",
       "uid: currentUser.uid || firebase.auth().currentUser.uid",

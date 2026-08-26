@@ -1903,6 +1903,129 @@ function renderTree(tasksBySet) {
     updateKPI();
 }
 
+// --- Identidad canónica y nombre visible de tareas normales ---------------
+// Los IDs de tareas normales pueden llegar como number (loadExcelTasks():
+// row.id = idx) o como string (decodeURIComponent() del onclick serializado
+// por renderTree()). Comparar ambos con === sin normalizar produce falsos
+// negativos (0 !== "0") que dejan la selección de tarea sin resolver.
+// canonicalTaskId() es el único punto de conversión: se usa para
+// currentActiveTaskId, la llave de taskStateCache, y toda comparación de
+// identidad de tarea normal en selectTask()/guardado/Monitoreo. Nunca se
+// compara con == (igualdad débil).
+function canonicalTaskId(id) {
+    return String(id);
+}
+
+// Detecta el nombre de respaldo legado "Tarea <id>" que versiones anteriores
+// persistían cuando la selección de tarea no se resolvía. Solo dispara para
+// ese patrón exacto: un nombre real de catálogo que empiece con "Tarea" pero
+// no sea "Tarea <dígitos>" no se toca.
+function isLegacyGenericTaskName(name) {
+    return typeof name === 'string' && /^Tarea\s+\d+$/i.test(name.trim());
+}
+
+// Resolvedor central del nombre visible de una tarea NORMAL (nunca de una
+// tarea extra: su llave empieza con "extra_" y su nombre real ya incluye el
+// prefijo "[EXTRA] " desde saveExtraTask(), así que nunca debe pasar por
+// aquí). Usado por todas las superficies que muestran el progreso de un
+// Gestor: Monitoreo (tarjeta y modal), Bitácora/Historial de turnos y el
+// reporte de cierre de turno. Prioriza el nombre ya guardado si es válido;
+// si es el patrón legado "Tarea <id>" (o no tiene nombre), intenta
+// resolverlo contra el catálogo cargado en allTasks usando el ID canónico de
+// la entrada. Nunca expone el ID técnico en la superficie visible: ante
+// fallo de resolución, devuelve un texto neutro y deja una advertencia en
+// consola para diagnóstico interno.
+function resolveTaskDisplayName(key, entry, tasksCatalog) {
+    const rawName = entry && entry.name;
+    if (rawName && !isLegacyGenericTaskName(rawName)) return rawName;
+
+    const catalog = tasksCatalog || (typeof allTasks !== 'undefined' ? allTasks : null);
+    if (Array.isArray(catalog) && catalog.length > 0) {
+        const canonicalKey = canonicalTaskId(key);
+        const match = catalog.find((t) => canonicalTaskId(t.id) === canonicalKey);
+        if (match && match['Tarea']) return match['Tarea'];
+    }
+
+    console.warn('No se pudo resolver el nombre visible de una tarea normal; ID técnico:', key);
+    return 'Tarea programada (nombre no disponible)';
+}
+
+// Reconcilia UNA tarea programada del cronograma (taskName, tal como la
+// devuelve getAssignedTasksForGestor()) contra session.tasks, usando
+// taskNamesMatch() -nunca igualdad exacta- para tolerar las variantes de
+// nombre que ya existen entre el cronograma y el catálogo maestro. Excluye
+// explícitamente cualquier entrada extra_*: una tarea extra jamás debe
+// casarse con una tarea programada. Reutilizada tanto por la tarjeta de
+// Monitoreo (renderActiveSessionsDashboard) como por el modal de detalles
+// (openMonitoreoDetails), para que ambas superficies muestren siempre el
+// mismo estado.
+function reconcileScheduledTaskWithSession(taskName, sessionTasks, tasksCatalog) {
+    const tasks = sessionTasks || {};
+    for (const key in tasks) {
+        if (key.startsWith('extra_')) continue;
+        const entry = tasks[key];
+        if (!entry) continue;
+        const resolvedName = resolveTaskDisplayName(key, entry, tasksCatalog);
+        if (taskNamesMatch(taskName, resolvedName) || taskNamesMatch(taskName, entry.name)) {
+            return { status: entry.status || 'Pendiente', observation: entry.observation || '' };
+        }
+    }
+    return { status: 'Pendiente', observation: '' };
+}
+
+// Construye el texto de la sección "tareas" de un reporte de cierre de turno
+// (Historial de Turnos, modal "Ver Todo" y exportación a PDF). Prioriza
+// SIEMPRE el objeto estructurado report.tasks (con nombres resueltos vía
+// resolveTaskDisplayName) sobre el texto legado report.reporte, para que un
+// registro legado con "Tarea <id>" horneado en el texto no se muestre tal
+// cual. Solo cae al texto legado si el reporte no tiene report.tasks en
+// absoluto (reportes previos a esta migración).
+function buildTaskReportSummaryText(report) {
+    const tasks = report && report.tasks;
+    if (tasks && Object.keys(tasks).length > 0) {
+        let text = '';
+        Object.keys(tasks).forEach((key) => {
+            const entry = tasks[key];
+            if (!entry) return;
+            const isExtra = key.startsWith('extra_');
+            const displayName = isExtra ? (entry.name || 'Tarea adicional') : resolveTaskDisplayName(key, entry);
+            const status = (entry.status || 'Pendiente').toString().toUpperCase();
+            text += `\n[ ${status} ] - ${displayName}\nObservación: ${entry.observation || 'N/A'}\n`;
+        });
+        return text.trim() ? text : 'El gestor no marcó ninguna tarea explícitamente durante este turno.';
+    }
+    if (report && report.reporte) {
+        const marker = '=== BITÁCORA DE TIEMPOS ===';
+        let legacyText = report.reporte;
+        if (legacyText.includes(marker)) {
+            const parts = legacyText.split(marker);
+            legacyText = parts[0];
+        }
+        legacyText = legacyText.trim();
+        if (legacyText) {
+            let processedLines = [];
+            const lines = legacyText.split('\n');
+            for (let line of lines) {
+                const match = line.match(/^\[\s*([^\]]+?)\s*\]\s*-\s*(.+)$/);
+                if (match) {
+                    let status = match[1];
+                    let name = match[2];
+                    if (isLegacyGenericTaskName(name)) {
+                        const tid = name.replace(/Tarea\s*/i, '').trim();
+                        name = resolveTaskDisplayName(tid, { name: name });
+                    }
+                    processedLines.push(`[ ${status} ] - ${name}`);
+                } else {
+                    processedLines.push(line);
+                }
+            }
+            return processedLines.join('\n') || 'El gestor no marcó ninguna tarea explícitamente durante este turno.';
+        }
+        return 'El gestor no marcó ninguna tarea explícitamente durante este turno.';
+    }
+    return 'El gestor no marcó ninguna tarea explícitamente durante este turno.';
+}
+
 // Persistencia central y testeable del progreso de una tarea individual.
 // Escribe únicamente en active_sessions/{uid}/tasks/{taskId}, nunca reemplaza
 // el nodo "tasks" completo, y siempre devuelve/rechaza la Promise real de
@@ -2285,14 +2408,19 @@ function renderQuickDocs(selectedTaskName) {
 
 // Global scope logic for onclick elements
 window.selectTask = function(taskId, evt) {
-    currentActiveTaskId = taskId;
+    const canonicalId = canonicalTaskId(taskId);
+    currentActiveTaskId = canonicalId;
     // Remove active
     document.querySelectorAll('.task-item').forEach(el => el.classList.remove('active'));
     // Add active (evt is passed explicitly from the inline onclick; never rely on the global event object)
     const eventTarget = evt && evt.currentTarget;
     if(eventTarget) eventTarget.classList.add('active');
-    
-    const task = allTasks.find(t => t.id === taskId);
+
+    // Comparar por ID canónico (string): allTasks trae IDs number (loadExcelTasks:
+    // row.id = idx) mientras que taskId llega siempre como string (decodeURIComponent()
+    // del onclick serializado por renderTree()). Sin canonicalTaskId(), 0 !== "0"
+    // dejaba la selección sin resolver.
+    const task = allTasks.find(t => canonicalTaskId(t.id) === canonicalId);
     if(task) {
         const titleElement = document.getElementById('currentTaskTitle');
         if (titleElement) titleElement.textContent = task['Tarea'];
@@ -2320,10 +2448,10 @@ window.selectTask = function(taskId, evt) {
 
             // Restore from cache if exists
             document.querySelectorAll('.btn-status').forEach(el => el.classList.remove('active'));
-            if(taskStateCache[taskId]) {
-                if(textArea) textArea.value = taskStateCache[taskId].observation;
-                
-                const cachedStatus = taskStateCache[taskId].status;
+            if(taskStateCache[canonicalId]) {
+                if(textArea) textArea.value = taskStateCache[canonicalId].observation;
+
+                const cachedStatus = taskStateCache[canonicalId].status;
                 let found = false;
                 document.querySelectorAll('.btn-status').forEach(el => {
                     if(el.textContent.trim() === cachedStatus) {
@@ -2337,6 +2465,15 @@ window.selectTask = function(taskId, evt) {
                 document.querySelector('.btn-status.pending').classList.add('active');
             }
         }
+    } else {
+        currentSelectedTask = null;
+        currentActiveTaskId = null;
+        if(eventTarget) eventTarget.classList.remove('active');
+        const titleElement = document.getElementById('currentTaskTitle');
+        if (titleElement) titleElement.textContent = "Selecciona una tarea";
+        const textArea = document.getElementById('taskObservation');
+        if (textArea) textArea.value = "";
+        document.querySelectorAll('.btn-status').forEach(el => el.classList.remove('active'));
     }
 }
 
@@ -2927,9 +3064,17 @@ async function initApp() {
                 alert("No se pudo verificar tu identidad. Vuelve a iniciar sesión para guardar el progreso.");
                 return;
             }
-            const taskIdStr = String(currentActiveTaskId);
+            const taskIdStr = canonicalTaskId(currentActiveTaskId);
             if (!taskIdStr || /[.#$\[\]/]/.test(taskIdStr)) {
                 alert("La tarea seleccionada tiene un identificador inválido y no puede guardarse.");
+                return;
+            }
+            // La selección debe estar resuelta contra el catálogo (allTasks) antes de
+            // permitir guardar: si currentSelectedTask no existe o quedó apuntando a
+            // una tarea distinta de currentActiveTaskId (selección no resuelta, ver
+            // selectTask()), nunca se debe persistir un nombre genérico "Tarea <id>".
+            if (!currentSelectedTask || canonicalTaskId(currentSelectedTask.id) !== taskIdStr) {
+                alert("No se pudo confirmar la tarea seleccionada. Vuelve a seleccionarla antes de guardar.");
                 return;
             }
 
@@ -2941,7 +3086,10 @@ async function initApp() {
             btn.classList.remove('btn-success', 'btn-error');
 
             const taskRecord = {
-                name: currentSelectedTask ? currentSelectedTask['Tarea'] : 'Tarea ' + taskIdStr,
+                // currentSelectedTask ya quedó validado arriba: siempre existe y su ID
+                // coincide con taskIdStr, así que su nombre real de catálogo (nunca un
+                // "Tarea <id>" genérico) es lo único que se persiste aquí.
+                name: currentSelectedTask['Tarea'],
                 status: selectedStatusBtn.textContent.trim(),
                 observation: obsValue,
                 updatedAt: Date.now()
@@ -2955,6 +3103,13 @@ async function initApp() {
             } catch (e) { /* localStorage no disponible: el respaldo local es best-effort */ }
 
             try {
+                // Capturar el elemento visual actual y la clase de estado antes de la promesa,
+                // para evitar condiciones de carrera si el usuario cambia la selección mientras guarda.
+                const visualTaskElement = document.querySelector('.task-item.active .task-status');
+                const statusClassToAdd = selectedStatusBtn.classList.contains('completed') ? 'status-completed' :
+                                         selectedStatusBtn.classList.contains('in-progress') ? 'status-in-progress' :
+                                         selectedStatusBtn.classList.contains('not-done') ? 'status-not-done' : 'status-pending';
+
                 // Único punto de verdad para la persistencia: espera la Promise
                 // real de Firebase antes de mostrar cualquier éxito.
                 await persistTaskToActiveSession(authUser.uid, taskIdStr, taskRecord);
@@ -2962,19 +3117,10 @@ async function initApp() {
                 btn.innerHTML = "<i class='bx bx-check'></i> Guardado Exitosamente";
                 btn.classList.add('btn-success');
 
-                // Actualizar estado visual de la tarea activa en el árbol
-                const activeTask = document.querySelector('.task-item.active .task-status');
-                if (activeTask) {
-                    activeTask.classList.remove('status-pending', 'status-completed', 'status-not-done', 'status-in-progress');
-                    if (selectedStatusBtn.classList.contains('completed')) {
-                        activeTask.classList.add('status-completed');
-                    } else if (selectedStatusBtn.classList.contains('in-progress')) {
-                        activeTask.classList.add('status-in-progress');
-                    } else if (selectedStatusBtn.classList.contains('not-done')) {
-                        activeTask.classList.add('status-not-done');
-                    } else {
-                        activeTask.classList.add('status-pending');
-                    }
+                // Actualizar estado visual de la tarea guardada
+                if (visualTaskElement) {
+                    visualTaskElement.classList.remove('status-pending', 'status-completed', 'status-not-done', 'status-in-progress');
+                    visualTaskElement.classList.add(statusClassToAdd);
                 }
 
                 updateKPI();
@@ -3399,16 +3545,7 @@ async function handleEndShift() {
             formData.append("_cc", "sara.santamaria@virtualsoft.tech");
             
             // Build task report
-            let report = "";
-            let keys = Object.keys(taskStateCache);
-            if(keys.length === 0) {
-                report = "El gestor no marcó ninguna tarea explícitamente durante este turno.";
-            } else {
-                keys.forEach(id => {
-                    let t = taskStateCache[id];
-                    report += `\n[ ${t.status.toUpperCase()} ] - ${t.name}\nObservación: ${t.observation || 'N/A'}\n`;
-                });
-            }
+            let report = buildTaskReportSummaryText({ tasks: taskStateCache });
             report += "\n\n=== BITÁCORA DE TIEMPOS ===\n" + bitacoraTexto;
             formData.append("Resumen_de_Tareas", report);
             
@@ -4019,12 +4156,16 @@ window.exportShiftReport = async function(fb_id) {
         }
         if(!reportObj) return alert("No se encontró el reporte en la base de datos.");
         
-        let reportText = reportObj.reporte || 'Sin reporte detallado';
+        // El texto de tareas SIEMPRE se construye a partir de reportObj.tasks (nombres
+        // resueltos vía buildTaskReportSummaryText/resolveTaskDisplayName) cuando existe;
+        // el texto legado reportObj.reporte solo se usa si no hay objeto tasks. Así un
+        // registro legado con "Tarea <id>" horneado en el texto nunca se expone en el PDF.
+        let reportText = buildTaskReportSummaryText(reportObj);
         let bitacoraLines = [];
-        if (reportText.includes('=== BITÁCORA DE TIEMPOS ===')) {
-            const parts = reportText.split('=== BITÁCORA DE TIEMPOS ===');
-            reportText = parts[0].trim();
-            const rawBitacora = parts[1].trim();
+        const rawReporte = reportObj.reporte || '';
+        if (rawReporte.includes('=== BITÁCORA DE TIEMPOS ===')) {
+            const parts = rawReporte.split('=== BITÁCORA DE TIEMPOS ===');
+            const rawBitacora = (parts[1] || '').trim();
             if (rawBitacora) {
                 const lines = rawBitacora.split('\n').map(l => l.trim()).filter(Boolean);
                 lines.forEach(l => {
@@ -4033,11 +4174,11 @@ window.exportShiftReport = async function(fb_id) {
             }
         }
 
-        const formattedReportText = reportText.replace(/\n/g, '<br>').replace(/\[(.*?)\]/g, '<span style="background: #E0E7FF; color: #3730A3; padding: 2px 6px; border-radius: 4px; font-weight: 600;">$1</span>');
+        const formattedReportText = escapeHTML(reportText).replace(/\n/g, '<br>').replace(/\[(.*?)\]/g, '<span style="background: #E0E7FF; color: #3730A3; padding: 2px 6px; border-radius: 4px; font-weight: 600;">$1</span>');
 
         let bitacoraHtml = '';
         if (bitacoraLines.length > 0) {
-            bitacoraHtml = bitacoraLines.map(l => `<div style="padding: 6px 10px; background: #F1F5F9; border-radius: 4px; font-family: monospace; font-size: 11px; color: #334155; margin-bottom: 4px; border-left: 3px solid #3B82F6;">${l}</div>`).join('');
+            bitacoraHtml = bitacoraLines.map(l => `<div style="padding: 6px 10px; background: #F1F5F9; border-radius: 4px; font-family: monospace; font-size: 11px; color: #334155; margin-bottom: 4px; border-left: 3px solid #3B82F6;">${escapeHTML(l)}</div>`).join('');
         } else {
             bitacoraHtml = '<div style="color: #64748B; font-size: 12px; font-style: italic;">No se registraron pausas o inactividades en este turno.</div>';
         }
@@ -4061,12 +4202,12 @@ window.exportShiftReport = async function(fb_id) {
             <div style="display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; padding: 16px; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 15px;">
                 <div>
                     <span style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #64748B; display: block;">GESTOR</span>
-                    <strong style="font-size: 18px; color: #0F172A; margin-top: 2px; display: block;">${reportObj.gestor}</strong>
-                    <span style="font-size: 12px; color: #2563EB; font-weight: 600;">Rol: ${reportObj.rol || 'Gestor'}</span>
+                    <strong style="font-size: 18px; color: #0F172A; margin-top: 2px; display: block;">${escapeHTML(reportObj.gestor)}</strong>
+                    <span style="font-size: 12px; color: #2563EB; font-weight: 600;">Rol: ${escapeHTML(reportObj.rol || 'Gestor')}</span>
                 </div>
                 <div style="text-align: right;">
                     <span style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #64748B; display: block;">SET PRINCIPAL TRABAJADO</span>
-                    <strong style="font-size: 15px; color: #059669; margin-top: 2px; display: block;">${reportObj.setTrabajado || 'N/A'}</strong>
+                    <strong style="font-size: 15px; color: #059669; margin-top: 2px; display: block;">${escapeHTML(reportObj.setTrabajado || 'N/A')}</strong>
                 </div>
             </div>
 
@@ -4074,23 +4215,23 @@ window.exportShiftReport = async function(fb_id) {
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
                 <div style="background: #F8FAFC; padding: 10px 12px; border-radius: 6px; border: 1px solid #E2E8F0;">
                     <small style="color: #64748B; display: block; font-size: 10px;">Hora Inicio Turno</small>
-                    <strong style="font-size: 12px; color: #0F172A; margin-top: 2px; display: block;">${reportObj.horaInicio || 'N/A'}</strong>
+                    <strong style="font-size: 12px; color: #0F172A; margin-top: 2px; display: block;">${escapeHTML(reportObj.horaInicio || 'N/A')}</strong>
                 </div>
                 <div style="background: #F8FAFC; padding: 10px 12px; border-radius: 6px; border: 1px solid #E2E8F0;">
                     <small style="color: #64748B; display: block; font-size: 10px;">Hora Fin Turno</small>
-                    <strong style="font-size: 12px; color: #0F172A; margin-top: 2px; display: block;">${reportObj.horaFin || 'N/A'}</strong>
+                    <strong style="font-size: 12px; color: #0F172A; margin-top: 2px; display: block;">${escapeHTML(reportObj.horaFin || 'N/A')}</strong>
                 </div>
                 <div style="background: #F8FAFC; padding: 10px 12px; border-radius: 6px; border: 1px solid #E2E8F0;">
                     <small style="color: #64748B; display: block; font-size: 10px;">Almuerzo Descontado</small>
-                    <strong style="font-size: 12px; color: #059669; margin-top: 2px; display: block;">${reportObj.tiempoAlmuerzoMins != null ? reportObj.tiempoAlmuerzoMins + ' minutos' : 'N/A'}</strong>
+                    <strong style="font-size: 12px; color: #059669; margin-top: 2px; display: block;">${escapeHTML(reportObj.tiempoAlmuerzoMins != null ? reportObj.tiempoAlmuerzoMins + ' minutos' : 'N/A')}</strong>
                 </div>
                 <div style="background: #F8FAFC; padding: 10px 12px; border-radius: 6px; border: 1px solid #E2E8F0;">
                     <small style="color: #64748B; display: block; font-size: 10px;">Desayuno Descontado</small>
-                    <strong style="font-size: 12px; color: #D97706; margin-top: 2px; display: block;">${reportObj.tiempoDesayunoMins != null ? reportObj.tiempoDesayunoMins + ' minutos' : 'N/A'}</strong>
+                    <strong style="font-size: 12px; color: #D97706; margin-top: 2px; display: block;">${escapeHTML(reportObj.tiempoDesayunoMins != null ? reportObj.tiempoDesayunoMins + ' minutos' : 'N/A')}</strong>
                 </div>
                 <div style="background: #F8FAFC; padding: 10px 12px; border-radius: 6px; border: 1px solid #E2E8F0; grid-column: span 2;">
                     <small style="color: #64748B; display: block; font-size: 10px;">Inactividad / Exceso Pausas</small>
-                    <strong style="font-size: 12px; color: #DC2626; margin-top: 2px; display: block;">${reportObj.inactividadTotalMins != null ? reportObj.inactividadTotalMins + ' minutos' : 'N/A'}</strong>
+                    <strong style="font-size: 12px; color: #DC2626; margin-top: 2px; display: block;">${escapeHTML(reportObj.inactividadTotalMins != null ? reportObj.inactividadTotalMins + ' minutos' : 'N/A')}</strong>
                 </div>
             </div>
 
@@ -4225,12 +4366,14 @@ function applyShiftReportsFilters() {
     filtered.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     
     filtered.forEach(r => {
-        let reportText = r.reporte || 'Sin reporte';
+        // Prioriza r.tasks (estructurado, nombres resueltos) sobre el texto legado
+        // r.reporte, que puede traer "Tarea <id>" horneado en registros antiguos.
+        let reportText = buildTaskReportSummaryText(r);
         let bitacoraHTML = '';
-        if (reportText.includes('=== BITÁCORA DE TIEMPOS ===')) {
-            const parts = reportText.split('=== BITÁCORA DE TIEMPOS ===');
-            reportText = parts[0].trim();
-            const rawBitacora = parts[1].trim();
+        const rawReporte = r.reporte || '';
+        if (rawReporte.includes('=== BITÁCORA DE TIEMPOS ===')) {
+            const parts = rawReporte.split('=== BITÁCORA DE TIEMPOS ===');
+            const rawBitacora = (parts[1] || '').trim();
             if (rawBitacora) {
                 // Filtrar y desduplicar líneas de la bitácora textual
                 const lines = rawBitacora.split('\n').map(l => l.trim()).filter(Boolean);
@@ -4293,12 +4436,15 @@ window.openShiftDetailModal = function(fb_id) {
         exportBtn.onclick = function() { exportShiftReport(fb_id); };
     }
 
-    let reportText = reportObj.reporte || 'Sin reporte detallado';
+    // Prioriza reportObj.tasks (estructurado, nombres resueltos) sobre el texto
+    // legado reportObj.reporte, que puede traer "Tarea <id>" horneado en registros
+    // antiguos.
+    let reportText = buildTaskReportSummaryText(reportObj);
     let bitacoraLines = [];
-    if (reportText.includes('=== BITÁCORA DE TIEMPOS ===')) {
-        const parts = reportText.split('=== BITÁCORA DE TIEMPOS ===');
-        reportText = parts[0].trim();
-        const rawBitacora = parts[1].trim();
+    const rawReporte = reportObj.reporte || '';
+    if (rawReporte.includes('=== BITÁCORA DE TIEMPOS ===')) {
+        const parts = rawReporte.split('=== BITÁCORA DE TIEMPOS ===');
+        const rawBitacora = (parts[1] || '').trim();
         if (rawBitacora) {
             const lines = rawBitacora.split('\n').map(l => l.trim()).filter(Boolean);
             lines.forEach(l => {
@@ -4307,11 +4453,11 @@ window.openShiftDetailModal = function(fb_id) {
         }
     }
 
-    const formattedReportText = reportText.replace(/\n/g, '<br>').replace(/\[(.*?)\]/g, '<span style="background: rgba(139, 92, 246, 0.15); color: var(--accent-primary); padding: 2px 6px; border-radius: 4px; font-weight: 600;">$1</span>');
+    const formattedReportText = escapeHTML(reportText).replace(/\n/g, '<br>').replace(/\[(.*?)\]/g, '<span style="background: rgba(139, 92, 246, 0.15); color: var(--accent-primary); padding: 2px 6px; border-radius: 4px; font-weight: 600;">$1</span>');
 
     let bitacoraHtml = '';
     if (bitacoraLines.length > 0) {
-        bitacoraHtml = bitacoraLines.map(l => `<div style="padding: 4px 8px; background: rgba(0,0,0,0.2); border-radius: 4px; font-family: monospace; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;"><i class='bx bx-time-five' style="color: var(--accent-primary);"></i> ${l}</div>`).join('');
+        bitacoraHtml = bitacoraLines.map(l => `<div style="padding: 4px 8px; background: rgba(0,0,0,0.2); border-radius: 4px; font-family: monospace; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;"><i class='bx bx-time-five' style="color: var(--accent-primary);"></i> ${escapeHTML(l)}</div>`).join('');
     } else {
         bitacoraHtml = '<div style="color: var(--text-secondary); font-size: 12px; font-style: italic;">No se registraron pausas o inactividades en este turno.</div>';
     }
@@ -4322,12 +4468,12 @@ window.openShiftDetailModal = function(fb_id) {
             <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 14px 18px; border-radius: 12px; border: 1px solid var(--glass-border);">
                 <div>
                     <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-secondary); display: block;">Gestor</span>
-                    <strong style="font-size: 18px; color: var(--text-primary); margin-top: 2px; display: block;">${reportObj.gestor}</strong>
-                    <span style="font-size: 12px; color: var(--accent-primary); font-weight: 500;">Rol: ${reportObj.rol || 'Gestor'}</span>
+                    <strong style="font-size: 18px; color: var(--text-primary); margin-top: 2px; display: block;">${escapeHTML(reportObj.gestor)}</strong>
+                    <span style="font-size: 12px; color: var(--accent-primary); font-weight: 500;">Rol: ${escapeHTML(reportObj.rol || 'Gestor')}</span>
                 </div>
                 <div style="text-align: right;">
                     <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-secondary); display: block;">SET Principal Trabajado</span>
-                    <strong style="font-size: 15px; color: var(--success); margin-top: 2px; display: block;"><i class='bx bx-layer'></i> ${reportObj.setTrabajado || 'N/A'}</strong>
+                    <strong style="font-size: 15px; color: var(--success); margin-top: 2px; display: block;"><i class='bx bx-layer'></i> ${escapeHTML(reportObj.setTrabajado || 'N/A')}</strong>
                 </div>
             </div>
 
@@ -4335,23 +4481,23 @@ window.openShiftDetailModal = function(fb_id) {
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
                 <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border);">
                     <small style="color: var(--text-secondary); display: block; font-size: 11px;">Hora Inicio Turno</small>
-                    <strong style="font-size: 13px; color: var(--text-primary); margin-top: 4px; display: block;"><i class='bx bx-log-in-circle' style="color: var(--accent-primary);"></i> ${reportObj.horaInicio || 'N/A'}</strong>
+                    <strong style="font-size: 13px; color: var(--text-primary); margin-top: 4px; display: block;"><i class='bx bx-log-in-circle' style="color: var(--accent-primary);"></i> ${escapeHTML(reportObj.horaInicio || 'N/A')}</strong>
                 </div>
                 <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border);">
                     <small style="color: var(--text-secondary); display: block; font-size: 11px;">Hora Fin Turno</small>
-                    <strong style="font-size: 13px; color: var(--text-primary); margin-top: 4px; display: block;"><i class='bx bx-log-out-circle' style="color: var(--warning);"></i> ${reportObj.horaFin || 'N/A'}</strong>
+                    <strong style="font-size: 13px; color: var(--text-primary); margin-top: 4px; display: block;"><i class='bx bx-log-out-circle' style="color: var(--warning);"></i> ${escapeHTML(reportObj.horaFin || 'N/A')}</strong>
                 </div>
                 <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border);">
                     <small style="color: var(--text-secondary); display: block; font-size: 11px;">Tiempo Almuerzo Descontado</small>
-                    <strong style="font-size: 13px; color: var(--success); margin-top: 4px; display: block;"><i class='bx bx-restaurant'></i> ${reportObj.tiempoAlmuerzoMins != null ? reportObj.tiempoAlmuerzoMins + ' minutos' : 'N/A'}</strong>
+                    <strong style="font-size: 13px; color: var(--success); margin-top: 4px; display: block;"><i class='bx bx-restaurant'></i> ${escapeHTML(reportObj.tiempoAlmuerzoMins != null ? reportObj.tiempoAlmuerzoMins + ' minutos' : 'N/A')}</strong>
                 </div>
                 <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border);">
                     <small style="color: var(--text-secondary); display: block; font-size: 11px;">Tiempo Desayuno Descontado</small>
-                    <strong style="font-size: 13px; color: var(--warning); margin-top: 4px; display: block;"><i class='bx bx-coffee'></i> ${reportObj.tiempoDesayunoMins != null ? reportObj.tiempoDesayunoMins + ' minutos' : 'N/A'}</strong>
+                    <strong style="font-size: 13px; color: var(--warning); margin-top: 4px; display: block;"><i class='bx bx-coffee'></i> ${escapeHTML(reportObj.tiempoDesayunoMins != null ? reportObj.tiempoDesayunoMins + ' minutos' : 'N/A')}</strong>
                 </div>
                 <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border);">
                     <small style="color: var(--text-secondary); display: block; font-size: 11px;">Inactividad / Exceso Pausas</small>
-                    <strong style="font-size: 13px; color: var(--danger); margin-top: 4px; display: block;"><i class='bx bx-stopwatch'></i> ${reportObj.inactividadTotalMins != null ? reportObj.inactividadTotalMins + ' minutos' : 'N/A'}</strong>
+                    <strong style="font-size: 13px; color: var(--danger); margin-top: 4px; display: block;"><i class='bx bx-stopwatch'></i> ${escapeHTML(reportObj.inactividadTotalMins != null ? reportObj.inactividadTotalMins + ' minutos' : 'N/A')}</strong>
                 </div>
             </div>
 
@@ -4883,20 +5029,18 @@ function renderActiveSessionsDashboard() {
         let displayTasks = [];
         if (assignedTasks && assignedTasks.length > 0) {
             assignedTasks.forEach(taskName => {
-                let taskStatus = 'Pendiente';
-                for (let key in tasks) {
-                    if (tasks[key].name === taskName) {
-                        taskStatus = tasks[key].status;
-                        break;
-                    }
-                }
-                displayTasks.push({ name: taskName, status: taskStatus });
+                // Reconciliación centralizada (compartida con openMonitoreoDetails): usa
+                // taskNamesMatch() en vez de igualdad exacta y resuelve nombres legados
+                // "Tarea <id>" contra el catálogo, para que el color coincida con lo
+                // realmente confirmado en Firebase sin esperar al cierre del turno.
+                const reconciled = reconcileScheduledTaskWithSession(taskName, tasks);
+                displayTasks.push({ name: taskName, status: reconciled.status });
             });
         }
-        
+
         // Agregar las tareas extras
         for (let key in tasks) {
-            if (key.startsWith('extra_')) {
+            if (key.startsWith('extra_') && tasks[key]) {
                 displayTasks.push({ name: tasks[key].name, status: tasks[key].status });
             }
         }
@@ -5102,26 +5246,21 @@ window.openMonitoreoDetails = function(uid) {
         let displayTasks = [];
         if (assignedTasks && assignedTasks.length > 0) {
             assignedTasks.forEach(taskName => {
-                let taskStatus = 'Pendiente';
-                let obs = '';
-                for (let key in tasks) {
-                    if (tasks[key].name === taskName) {
-                        taskStatus = tasks[key].status;
-                        obs = tasks[key].observation || '';
-                        break;
-                    }
-                }
-                displayTasks.push({ name: taskName, status: taskStatus, observation: obs });
+                // Misma función de reconciliación que la tarjeta de
+                // renderActiveSessionsDashboard(): taskNamesMatch() en vez de igualdad
+                // exacta, con resolución de nombres legados "Tarea <id>" vía allTasks.
+                const reconciled = reconcileScheduledTaskWithSession(taskName, tasks);
+                displayTasks.push({ name: taskName, status: reconciled.status, observation: reconciled.observation });
             });
         }
 
         // Extras
         for (let key in tasks) {
-            if (key.startsWith('extra_')) {
-                displayTasks.push({ 
-                    name: tasks[key].name, 
-                    status: tasks[key].status || 'Pendiente', 
-                    observation: tasks[key].observation || 'Tarea extra agregada durante el turno.' 
+            if (key.startsWith('extra_') && tasks[key]) {
+                displayTasks.push({
+                    name: tasks[key].name,
+                    status: tasks[key].status || 'Pendiente',
+                    observation: tasks[key].observation || 'Tarea extra agregada durante el turno.'
                 });
             }
         }
@@ -5129,8 +5268,10 @@ window.openMonitoreoDetails = function(uid) {
         // Direct tasks fallback if displayTasks is empty
         if (displayTasks.length === 0 && Object.keys(tasks).length > 0) {
             for (let key in tasks) {
+                if (!tasks[key]) continue;
+                const isExtra = key.startsWith('extra_');
                 displayTasks.push({
-                    name: tasks[key].name || key,
+                    name: isExtra ? (tasks[key].name || key) : resolveTaskDisplayName(key, tasks[key]),
                     status: tasks[key].status || 'Pendiente',
                     observation: tasks[key].observation || ''
                 });
@@ -5538,7 +5679,19 @@ async function calcularIndicadores() {
         for (let taskId in tasks) {
             const task = tasks[taskId];
             const shiftDateStr = new Date(report.timestamp || report.loginTime || Date.now()).toLocaleDateString();
-            const taskObj = { name: task.name, date: shiftDateStr, type: task.type || 'N/A', observation: task.observation || 'N/A' };
+
+            let displayName = task.name || '';
+            const isExtra = taskId.startsWith('extra_') || displayName.includes('[EXTRA]');
+            if (!isExtra) {
+                if (isLegacyGenericTaskName(displayName)) {
+                    const tid = displayName.replace(/Tarea\s*/i, '').trim();
+                    displayName = resolveTaskDisplayName(tid, { name: displayName });
+                } else if (!taskId.startsWith('parsed_')) {
+                    displayName = resolveTaskDisplayName(taskId, task);
+                }
+            }
+
+            const taskObj = { name: displayName, date: shiftDateStr, type: task.type || 'N/A', observation: task.observation || 'N/A' };
             
             if (!task.status) continue;
             const tStatus = task.status.toLowerCase().trim();
