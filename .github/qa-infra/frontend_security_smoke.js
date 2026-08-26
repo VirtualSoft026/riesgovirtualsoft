@@ -225,6 +225,16 @@ function makeClassList(initial) {
   };
 }
 
+// Shared, testable ID/name-resolution helpers (canonicalTaskId,
+// isLegacyGenericTaskName, resolveTaskDisplayName, reconcileScheduledTaskWithSession,
+// buildTaskReportSummaryText) introduced by the numeric-ID / "Tarea <id>" hotfix.
+// Anything that exercises selectTask(), saveTaskBtn, Monitoreo reconciliation, or
+// shift-report rendering needs this source in scope.
+const TASK_IDENTITY_HELPERS_SOURCE = extractBetween(
+  'function canonicalTaskId(',
+  'function persistTaskToActiveSession(',
+);
+
 function buildSaveTaskBtnEnv(overrides = {}) {
   const persistAndCacheSource = extractBetween(
     'function persistTaskToActiveSession(',
@@ -251,6 +261,7 @@ function buildSaveTaskBtnEnv(overrides = {}) {
   };
 
   const activeTaskStatusEl = { classList: makeClassList(['status-pending']) };
+  let currentActiveTaskStatusEl = activeTaskStatusEl;
   const statusBtnEl = {
     classList: makeClassList(overrides.statusBtnClasses || ['btn-status', 'completed', 'active']),
     textContent: overrides.statusText !== undefined ? overrides.statusText : 'Finalizada',
@@ -267,7 +278,7 @@ function buildSaveTaskBtnEnv(overrides = {}) {
     },
     querySelector(sel) {
       if (sel === '.btn-status.active') return overrides.noStatusSelected ? null : statusBtnEl;
-      if (sel === '.task-item.active .task-status') return overrides.noActiveTaskEl ? null : activeTaskStatusEl;
+      if (sel === '.task-item.active .task-status') return overrides.noActiveTaskEl ? null : currentActiveTaskStatusEl;
       return null;
     },
   };
@@ -299,15 +310,18 @@ function buildSaveTaskBtnEnv(overrides = {}) {
     ? overrides.currentUser
     : { uid: 'QA_GESTOR', name: 'QA Gestor', role: 'Gestor' };
   const currentActiveTaskId = overrides.currentActiveTaskId !== undefined ? overrides.currentActiveTaskId : 'task_1';
+  // Matches currentActiveTaskId by default (id: 'task_1'): saveTaskBtn now requires
+  // currentSelectedTask to be resolved AND match the active task's canonical ID
+  // before it will persist anything (see testSaveTaskRejects*Selection below).
   const currentSelectedTask = overrides.currentSelectedTask !== undefined
     ? overrides.currentSelectedTask
-    : { Tarea: 'Tarea QA' };
+    : { id: 'task_1', Tarea: 'Tarea QA' };
   const taskStateCache = overrides.taskStateCache || {};
 
   const loadHandler = new Function(
     'document', 'firebase', 'database', 'localStorage', 'currentUser', 'currentActiveTaskId',
     'currentSelectedTask', 'taskStateCache', 'updateKPI', 'alert',
-    `${persistAndCacheSource}\n${btnSource}`,
+    `${TASK_IDENTITY_HELPERS_SOURCE}\n${persistAndCacheSource}\n${btnSource}`,
   );
   loadHandler(
     documentStub, firebaseStub, databaseStub, localStorageStub, currentUser, currentActiveTaskId,
@@ -324,6 +338,7 @@ function buildSaveTaskBtnEnv(overrides = {}) {
     localStorageStore,
     updateKPICalls,
     activeTaskStatusEl,
+    setActiveTaskStatusEl(element) { currentActiveTaskStatusEl = element; },
   };
 }
 
@@ -386,6 +401,28 @@ async function testSaveTaskSuccessUpdatesFirebaseCacheAndUI() {
   assert.equal(env.btnEl.disabled, false);
 }
 
+async function testSaveTaskKeepsVisualTargetWhenSelectionChangesDuringWrite() {
+  let resolveUpdate;
+  const pendingUpdate = new Promise((resolve) => { resolveUpdate = resolve; });
+  const env = buildSaveTaskBtnEnv({ updateResult: () => pendingUpdate });
+  const taskBStatusEl = { classList: makeClassList(['status-pending']) };
+
+  const saveTaskAPromise = env.handler();
+  await Promise.resolve();
+  assert.equal(env.databaseCalls[0].path, 'active_sessions/QA_GESTOR/tasks/task_1');
+  assert.equal(env.databaseCalls[0].data.name, 'Tarea QA');
+
+  // Simula que el Gestor selecciona B mientras la escritura de A sigue pendiente.
+  env.setActiveTaskStatusEl(taskBStatusEl);
+  resolveUpdate();
+  await saveTaskAPromise;
+
+  assert(env.activeTaskStatusEl.classList.contains('status-completed'), 'Only the task captured before the Firebase await must be colored');
+  assert(!env.activeTaskStatusEl.classList.contains('status-pending'));
+  assert(taskBStatusEl.classList.contains('status-pending'), 'The newly selected task must remain untouched');
+  assert(!taskBStatusEl.classList.contains('status-completed'));
+}
+
 async function testSaveTaskPermissionDeniedShowsErrorNotSuccess() {
   const error = new Error('permission_denied');
   error.code = 'PERMISSION_DENIED';
@@ -436,18 +473,24 @@ function testSelectTaskDoesNotDependOnWindowEvent() {
   const clickedEl = { classList: makeClassList() };
   const otherActiveEl = { classList: makeClassList(['active']) };
   const documentStub = {
+    querySelector(sel) { return { classList: { add: () => {}, remove: () => {} } }; },
+    getElementById(id) {
+      if (id === 'currentTaskTitle') return { textContent: '' };
+      if (id === 'taskObservation') return { value: '' };
+      return null;
+    },
     querySelectorAll(sel) {
       if (sel === '.task-item') return [otherActiveEl, clickedEl];
+      if (sel === '.btn-status') return [];
       return [];
     },
-    getElementById() { return null; },
   };
   const windowStub = {};
   const loadSelectTask = new Function(
-    'window', 'document', 'allTasks', 'currentUser', 'currentSelectedTask', 'currentActiveTaskId',
-    `${selectTaskSource}\nreturn { selectTask: window.selectTask, getCurrentActiveTaskId: () => currentActiveTaskId };`,
+    'window', 'document', 'allTasks', 'currentUser', 'currentSelectedTask', 'currentActiveTaskId', 'taskStateCache', 'renderQuickDocs',
+    `${TASK_IDENTITY_HELPERS_SOURCE}\n${selectTaskSource}\nreturn { selectTask: window.selectTask, getCurrentActiveTaskId: () => currentActiveTaskId };`,
   );
-  const { selectTask, getCurrentActiveTaskId } = loadSelectTask(windowStub, documentStub, [], null, null, null);
+  const { selectTask, getCurrentActiveTaskId } = loadSelectTask(windowStub, documentStub, [{ id: 'task_9', Tarea: 'Test Task' }], null, null, null, {}, () => {});
 
   // No global "event" exists in this sandbox at all: selectTask must still work
   // correctly using only the explicitly passed evt argument.
@@ -456,6 +499,318 @@ function testSelectTaskDoesNotDependOnWindowEvent() {
   assert.equal(getCurrentActiveTaskId(), 'task_9');
   assert(clickedEl.classList.contains('active'), 'Expected the clicked element to become active via the evt param');
   assert(!otherActiveEl.classList.contains('active'), 'Expected the previously active element to be cleared');
+}
+
+// ---------------------------------------------------------------------------
+// Numeric task-ID hotfix: allTasks carries number IDs (loadExcelTasks():
+// row.id = idx) but selectTask() always receives a string (decodeURIComponent()
+// of the onclick serialized by renderTree()). Before canonicalTaskId(), a task
+// whose original id is the number 0 could never be found (0 !== "0"), leaving
+// currentSelectedTask stale and the previous task's comment "stuck" when a
+// Gestor switched to another task.
+// ---------------------------------------------------------------------------
+function buildSelectTaskEnv(overrides = {}) {
+  const selectTaskSource = extractBetween(
+    'window.selectTask = function(taskId, evt) {',
+    '\n// Task Status Buttons Interaction',
+  );
+
+  const titleEl = { textContent: '' };
+  const obsEl = { value: '' };
+  const statusButtons = [
+    { textContent: 'Pendiente', classList: makeClassList(['btn-status', 'pending']) },
+    { textContent: 'En Proceso', classList: makeClassList(['btn-status', 'in-progress']) },
+    { textContent: 'Finalizada', classList: makeClassList(['btn-status', 'completed']) },
+    { textContent: 'No Realizada', classList: makeClassList(['btn-status', 'not-done']) },
+  ];
+
+  const documentStub = {
+    getElementById(id) {
+      if (id === 'currentTaskTitle') return titleEl;
+      if (id === 'taskObservation') return obsEl;
+      return null;
+    },
+    querySelectorAll(sel) {
+      if (sel === '.btn-status') return statusButtons;
+      if (sel === '.task-item') return [];
+      return [];
+    },
+    querySelector(sel) {
+      if (sel === '.btn-status.pending') return statusButtons[0];
+      return null;
+    },
+  };
+
+  const allTasks = overrides.allTasks || [
+    { id: 0, Tarea: 'Tarea Cero', 'Detalle de Tarea': 'Detalle de la tarea cero' },
+    { id: 1, Tarea: 'Tarea Uno', 'Detalle de Tarea': 'Detalle de la tarea uno' },
+  ];
+  const currentUser = overrides.currentUser || { uid: 'QA_GESTOR', name: 'QA Gestor', role: 'Gestor' };
+  const taskStateCache = overrides.taskStateCache || {};
+  const renderQuickDocsCalls = [];
+  const renderQuickDocs = (name) => renderQuickDocsCalls.push(name);
+
+  const loader = new Function(
+    'window', 'document', 'allTasks', 'currentUser', 'currentSelectedTaskInitial', 'currentActiveTaskIdInitial',
+    'taskStateCache', 'renderQuickDocs',
+    `
+    let currentSelectedTask = currentSelectedTaskInitial;
+    let currentActiveTaskId = currentActiveTaskIdInitial;
+    ${TASK_IDENTITY_HELPERS_SOURCE}
+    ${selectTaskSource}
+    return {
+      selectTask: window.selectTask,
+      getCurrentActiveTaskId: () => currentActiveTaskId,
+      getCurrentSelectedTask: () => currentSelectedTask,
+    };
+    `,
+  );
+  const { selectTask, getCurrentActiveTaskId, getCurrentSelectedTask } = loader(
+    {}, documentStub, allTasks, currentUser, null, null, taskStateCache, renderQuickDocs,
+  );
+
+  return {
+    selectTask, getCurrentActiveTaskId, getCurrentSelectedTask,
+    titleEl, obsEl, statusButtons, taskStateCache, renderQuickDocsCalls,
+  };
+}
+
+function clickEvt() {
+  return { currentTarget: { classList: makeClassList() } };
+}
+
+function testSelectTaskResolvesNumericIdZero() {
+  const env = buildSelectTaskEnv();
+  env.selectTask('0', clickEvt());
+
+  assert.equal(env.getCurrentActiveTaskId(), '0', 'currentActiveTaskId must be canonicalized to a string');
+  const selected = env.getCurrentSelectedTask();
+  assert(selected, 'selectTask("0", evt) must resolve the task whose original id is the number 0');
+  assert.equal(selected.id, 0);
+  assert.equal(env.titleEl.textContent, 'Tarea Cero');
+  assert(env.statusButtons[0].classList.contains('active'), 'A task with no cached progress must default to Pendiente');
+  assert.equal(env.obsEl.value, '', 'A task with no cached progress must start with an empty observation');
+}
+
+function testSelectTaskSwitchingClearsObservationAndRestoresPerTaskCache() {
+  const env = buildSelectTaskEnv();
+
+  // 1) Select task 0, then simulate having just saved a comment/status for it
+  //    (mirrors what saveTaskBtn writes into taskStateCache — see buildSaveTaskBtnEnv).
+  env.selectTask('0', clickEvt());
+  env.taskStateCache['0'] = { name: 'Tarea Cero', status: 'Finalizada', observation: 'Comentario de la tarea 0', updatedAt: 1 };
+
+  // 2) Switch to task 1, which has no cached progress: the previous task's comment
+  //    must NOT leak into the new task, and the status must reset to Pendiente.
+  //    This is the exact symptom reported: "guarda el comentario ... cambia a otra
+  //    tarea, permanece el comentario anterior".
+  env.selectTask('1', clickEvt());
+  assert.equal(env.getCurrentSelectedTask().id, 1);
+  assert.equal(env.obsEl.value, '', "Switching to an uncached task must clear the previous task's observation");
+  assert(env.statusButtons[0].classList.contains('active'), 'An uncached task must select Pendiente');
+  assert(!env.statusButtons[2].classList.contains('active'), "The previous task's Finalizada status must not leak into the new task");
+
+  // 3) Switch back to task 0: only its own comment/status must be restored.
+  env.selectTask('0', clickEvt());
+  assert.equal(env.getCurrentSelectedTask().id, 0);
+  assert.equal(env.obsEl.value, 'Comentario de la tarea 0');
+  assert(env.statusButtons[2].classList.contains('active'), 'Task 0 must restore its own Finalizada status');
+  assert(!env.statusButtons[0].classList.contains('active'), 'Pendiente must not remain active once a cached status is restored');
+}
+
+// ---------------------------------------------------------------------------
+// saveTaskBtn must refuse to persist an unresolved/stale selection instead of
+// falling back to a generic "Tarea <id>" name (root cause: allTasks.find()
+// failing on a number/string ID mismatch used to leave currentSelectedTask
+// stale while currentActiveTaskId still advanced to the new ID).
+// ---------------------------------------------------------------------------
+async function testSaveTaskRejectsUnresolvedSelection() {
+  const env = buildSaveTaskBtnEnv({ currentActiveTaskId: '0', currentSelectedTask: null });
+  await env.handler();
+  assert.equal(env.databaseCalls.length, 0, 'Must not write to Firebase when the selection could not be resolved');
+  assert.equal(env.taskStateCache['0'], undefined, 'Must never cache a record under an unresolved task ID');
+  assert.equal(env.alerts.length, 1);
+  assert.match(env.alerts[0], /Vuelve a seleccionarla/);
+}
+
+async function testSaveTaskRejectsMismatchedSelection() {
+  // currentActiveTaskId points at task "1" but currentSelectedTask is still the
+  // previously selected task "0" (a stale reference from before the switch).
+  const env = buildSaveTaskBtnEnv({
+    currentActiveTaskId: '1',
+    currentSelectedTask: { id: '0', Tarea: 'Tarea Cero' },
+  });
+  await env.handler();
+  assert.equal(env.databaseCalls.length, 0, 'A mismatched stale selection must never be persisted under the new task ID');
+  assert.equal(env.taskStateCache['1'], undefined);
+}
+
+async function testSaveTaskNeverPersistsGenericFallbackName() {
+  const env = buildSaveTaskBtnEnv({
+    currentActiveTaskId: 0,
+    currentSelectedTask: { id: 0, Tarea: 'Revisión de Eventos' },
+  });
+  await env.handler();
+
+  assert.equal(env.databaseCalls.length, 1);
+  assert.equal(env.databaseCalls[0].path, 'active_sessions/QA_GESTOR/tasks/0', 'A numeric-origin ID must be canonicalized to its string form in the write path');
+  assert.equal(env.databaseCalls[0].data.name, 'Revisión de Eventos');
+  assert.doesNotMatch(env.databaseCalls[0].data.name, /^Tarea\s+\d+$/, 'A valid selection must never persist the generic "Tarea <id>" fallback name');
+}
+
+function testSaveTaskSourceNeverBuildsGenericFallbackName() {
+  const btnSource = extractBetween(
+    "const saveTaskBtn = document.getElementById('saveTaskBtn');",
+    "const pForm = document.getElementById('permisosForm');",
+  );
+  assert.doesNotMatch(btnSource, /'Tarea '\s*\+\s*taskIdStr/, 'saveTaskBtn must never build a generic "Tarea <id>" fallback name');
+  assert.match(
+    btnSource,
+    /canonicalTaskId\(currentSelectedTask\.id\) !== taskIdStr/,
+    'saveTaskBtn must validate the selection resolved to the active task before persisting',
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Monitoreo reconciliation (renderActiveSessionsDashboard / openMonitoreoDetails):
+// both surfaces must use the SAME reconcileScheduledTaskWithSession() helper,
+// matching by taskNamesMatch() (never exact equality) and resolving legacy
+// "Tarea <id>" names against allTasks, so a Supervisor/Admin sees the correct
+// color for a confirmed Firebase save without waiting for shift close.
+// ---------------------------------------------------------------------------
+function buildTaskIdentityHelpers(allTasksFixture) {
+  const taskMatchHelpersSource = extractBetween('function cleanText(', 'const MONTHS_MAP');
+  const loader = new Function(
+    'allTasks',
+    `${taskMatchHelpersSource}\n${TASK_IDENTITY_HELPERS_SOURCE}\nreturn { reconcileScheduledTaskWithSession, resolveTaskDisplayName, isLegacyGenericTaskName, canonicalTaskId, taskNamesMatch, buildTaskReportSummaryText };`,
+  );
+  return loader(allTasksFixture || []);
+}
+
+function testReconcileScheduledTaskExactNameMatch() {
+  const helpers = buildTaskIdentityHelpers([]);
+  const sessionTasks = { t1: { name: 'Revisión de Eventos', status: 'Finalizada', observation: 'ok' } };
+  const result = helpers.reconcileScheduledTaskWithSession('Revisión de Eventos', sessionTasks);
+  assert.equal(result.status, 'Finalizada');
+  assert.equal(result.observation, 'ok');
+}
+
+function testReconcileScheduledTaskAcceptsNameVariant() {
+  const helpers = buildTaskIdentityHelpers([]);
+  // normalizeTaskName() treats these as equivalent (see taskNamesMatch), even
+  // though they are not string-equal — this is the "cronograma vs. catálogo"
+  // variant case called out explicitly in the bug report.
+  const sessionTasks = { t1: { name: 'Billetera Usuarios', status: 'Finalizada', observation: 'ok variante' } };
+  const result = helpers.reconcileScheduledTaskWithSession('Revisión de Billetera Usuarios PDV', sessionTasks);
+  assert.equal(result.status, 'Finalizada', 'A name variant accepted by taskNamesMatch() must still resolve to Finalizada');
+}
+
+function testReconcileScheduledTaskResolvesLegacyGenericName() {
+  const allTasksFixture = [{ id: 0, Tarea: 'Conciliación de Pasarelas' }];
+  const helpers = buildTaskIdentityHelpers(allTasksFixture);
+  const sessionTasks = { '0': { name: 'Tarea 0', status: 'Finalizada', observation: 'listo' } };
+  const result = helpers.reconcileScheduledTaskWithSession('Conciliación de Pasarelas', sessionTasks);
+  assert.equal(result.status, 'Finalizada', 'A legacy { key: "0", name: "Tarea 0" } entry must reconcile via allTasks');
+}
+
+function testReconcileScheduledTaskExcludesExtraEntries() {
+  const helpers = buildTaskIdentityHelpers([]);
+  const sessionTasks = { extra_123: { name: '[EXTRA] Revisión de Eventos', status: 'Finalizada', observation: 'ok' } };
+  const result = helpers.reconcileScheduledTaskWithSession('Revisión de Eventos', sessionTasks);
+  assert.equal(result.status, 'Pendiente', 'An extra_* entry must never be matched against a scheduled task, even with a similar name');
+}
+
+function testResolveTaskDisplayNameNeverExposesRawIdWhenUnresolved() {
+  const helpers = buildTaskIdentityHelpers([]); // no catalog available to resolve against
+  const name = helpers.resolveTaskDisplayName('7', { name: 'Tarea 7' });
+  assert.equal(name, 'Tarea programada (nombre no disponible)');
+  assert.doesNotMatch(name, /\b7\b/, 'Must never expose the raw technical ID to the end user');
+}
+
+function testResolveTaskDisplayNameKeepsRealNamesUnchanged() {
+  const helpers = buildTaskIdentityHelpers([]);
+  const name = helpers.resolveTaskDisplayName('extra_1', { name: '[EXTRA] Revisión especial' });
+  assert.equal(name, '[EXTRA] Revisión especial', 'A real (non-legacy-pattern) name must pass through unchanged');
+}
+
+function testMonitoreoCardAndModalUseSameReconciliation() {
+  const dashboardSource = extractBetween('function renderActiveSessionsDashboard(', 'function viewTimelineInMonitoreo(');
+  const modalSource = extractBetween('window.openMonitoreoDetails = function(uid) {', 'function populateGestoresDropdown(');
+  assert.match(dashboardSource, /reconcileScheduledTaskWithSession\(/);
+  assert.match(modalSource, /reconcileScheduledTaskWithSession\(/);
+  assert.doesNotMatch(dashboardSource, /tasks\[key\]\.name === taskName/, 'The dashboard card must no longer use exact-equality matching');
+  assert.doesNotMatch(modalSource, /tasks\[key\]\.name === taskName/, 'The details modal must no longer use exact-equality matching');
+
+  // Extra tasks must still be listed exactly once, keyed off extra_*, in both surfaces.
+  assert.match(dashboardSource, /key\.startsWith\('extra_'\)/);
+  assert.match(modalSource, /key\.startsWith\('extra_'\)/);
+  // The modal's raw-tasks fallback (used when the cronograma has no assignments loaded
+  // yet) must also resolve legacy names instead of showing the raw key/generic name.
+  assert.match(modalSource, /resolveTaskDisplayName\(key, tasks\[key\]\)/);
+}
+
+// ---------------------------------------------------------------------------
+// buildTaskReportSummaryText(): Historial de Turnos, the "Ver Todo" modal, and
+// the PDF export must all prioritize the structured report.tasks object
+// (names resolved via resolveTaskDisplayName) over the legacy report.reporte
+// text, so a legacy "Tarea <id>" baked into old text never leaks into a
+// visible surface.
+// ---------------------------------------------------------------------------
+function testBuildTaskReportSummaryTextPrefersStructuredTasksOverLegacyText() {
+  const helpers = buildTaskIdentityHelpers([{ id: 3, Tarea: 'Conciliación de Pasarelas' }]);
+  const report = {
+    reporte: '\n[ FINALIZADA ] - Tarea 3\nObservación: legado\n',
+    tasks: { '3': { name: 'Tarea 3', status: 'Finalizada', observation: 'obs estructurada' } },
+  };
+  const text = helpers.buildTaskReportSummaryText(report);
+  assert.match(text, /Conciliación de Pasarelas/);
+  assert.doesNotMatch(text, /Tarea\s+3\b/);
+}
+
+function testBuildTaskReportSummaryTextFallsBackToLegacyTextWhenNoStructuredTasks() {
+  const helpers = buildTaskIdentityHelpers([]);
+  const report = {
+    reporte: '\n[ FINALIZADA ] - Revisión Manual\nObservación: ok\n\n=== BITÁCORA DE TIEMPOS ===\n- Almuerzo: inicio 12:00 fin 13:00\n',
+  };
+  const text = helpers.buildTaskReportSummaryText(report);
+  assert.match(text, /Revisión Manual/);
+  assert.doesNotMatch(text, /BITÁCORA DE TIEMPOS/, 'Must strip the bitácora section from the task-only summary');
+}
+
+function testBuildTaskReportSummaryTextKeepsExtraPrefixAndNeverLeaksGenericName() {
+  const helpers = buildTaskIdentityHelpers([]);
+  const report = {
+    tasks: {
+      '0': { name: 'Tarea 0', status: 'Pendiente', observation: '' },
+      extra_1: { name: '[EXTRA] Revisión especial', status: 'Finalizada', observation: 'ok' },
+    },
+  };
+  const text = helpers.buildTaskReportSummaryText(report);
+  assert.doesNotMatch(text, /Tarea\s+0\b/);
+  assert.match(text, /Tarea programada \(nombre no disponible\)/);
+  assert.match(text, /\[EXTRA\] Revisión especial/);
+}
+
+function testShiftHistorySurfacesUseStructuredTaskSummary() {
+  const exportSource = extractBetween(
+    'window.exportShiftReport = async function(fb_id) {',
+    '// Logic for Shift Reports History',
+  );
+  const filtersSource = extractBetween(
+    'function applyShiftReportsFilters() {',
+    "window.openShiftDetailModal = function(fb_id) {",
+  );
+  const modalSource = extractBetween(
+    "window.openShiftDetailModal = function(fb_id) {",
+    "document.getElementById('shiftDetailModal').classList.add('active');",
+  );
+  [
+    ['exportShiftReport', exportSource],
+    ['applyShiftReportsFilters', filtersSource],
+    ['openShiftDetailModal', modalSource],
+  ].forEach(([name, src]) => {
+    assert.match(src, /buildTaskReportSummaryText\(/, `${name} must build its task summary via buildTaskReportSummaryText()`);
+  });
 }
 
 function testMergeTaskCachesConflictResolution() {
@@ -1018,9 +1373,145 @@ async function testMigrateLocalTasksToActiveSessionAbortsWhenConcurrentRemoteIsN
   assert.deepEqual(result.failed, []);
 }
 
+function buildMaliciousShiftReport() {
+  return {
+    fb_id: 'xss-report',
+    gestor: '<img src=x onerror=alert(1)>',
+    rol: '</span><script>alert(2)</script>',
+    setTrabajado: '<svg onload=alert(3)>',
+    horaInicio: '<img src=x onerror=alert(4)>',
+    horaFin: '<script>alert(5)</script>',
+    tiempoAlmuerzoMins: '<img src=x onerror=alert(6)>',
+    tiempoDesayunoMins: '<svg onload=alert(7)>',
+    inactividadTotalMins: '<script>alert(8)</script>',
+    timestamp: Date.now(),
+    reporte: 'Resumen seguro\n\n=== BITÁCORA DE TIEMPOS ===\n- <img src=x onerror=alert(9)>',
+    tasks: {
+      task_1: {
+        name: 'Tarea <script>alert(10)</script>',
+        status: 'Finalizada',
+        observation: '<img src=x onerror=alert(11)>',
+      },
+    },
+  };
+}
+
+function assertNoExecutablePayload(html, surface) {
+  assert.equal(typeof html, 'string', `${surface} must produce HTML`);
+  assert.doesNotMatch(html, /<script(?:\s|>)/i, `${surface} must not contain a script element from Firebase data`);
+  assert.doesNotMatch(html, /<img(?:\s|>)/i, `${surface} must not contain an injected image element`);
+  assert.doesNotMatch(html, /<svg(?:\s|>)/i, `${surface} must not contain an injected SVG element`);
+  assert.match(html, /&lt;(?:script|img|svg)/i, `${surface} must retain escaped, visible text instead of executable markup`);
+}
+
+async function testShiftReportExportEscapesAllStoredFields() {
+  const exportSource = extractBetween(
+    'window.exportShiftReport = async function(fb_id) {',
+    '// Logic for Shift Reports History',
+  );
+  const report = buildMaliciousShiftReport();
+  const helpers = buildTaskIdentityHelpers([]);
+  const alerts = [];
+  let appendedElement = null;
+  let exportedElement = null;
+  let removedElement = null;
+  let saveCalled = false;
+  const documentStub = {
+    createElement(tag) {
+      assert.equal(tag, 'div');
+      return { style: '', innerHTML: '' };
+    },
+    body: {
+      appendChild(element) { appendedElement = element; },
+      removeChild(element) { removedElement = element; },
+    },
+  };
+  const html2pdfChain = {
+    set() { return this; },
+    from(element) { exportedElement = element; return this; },
+    async save() { saveCalled = true; },
+  };
+  const windowStub = { html2pdf: () => html2pdfChain };
+  const databaseStub = {
+    ref() { throw new Error('The report fixture should be resolved from allShiftReports'); },
+  };
+  const loadExport = new Function(
+    'window', 'document', 'database', 'allShiftReports', 'alert', 'console',
+    'buildTaskReportSummaryText', 'escapeHTML',
+    `${exportSource}\nreturn window.exportShiftReport;`,
+  );
+  const exportShiftReport = loadExport(
+    windowStub,
+    documentStub,
+    databaseStub,
+    [report],
+    (message) => alerts.push(message),
+    { error() {} },
+    helpers.buildTaskReportSummaryText,
+    (value) => String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;'),
+  );
+
+  await exportShiftReport(report.fb_id);
+
+  assert.equal(alerts.length, 0, `Export must not hide an exception behind an alert: ${alerts.join(' | ')}`);
+  assert(saveCalled, 'The real html2pdf chain must reach save()');
+  assert.equal(exportedElement, appendedElement);
+  assert.equal(removedElement, appendedElement);
+  assertNoExecutablePayload(exportedElement.innerHTML, 'PDF export');
+}
+
+function testShiftDetailModalEscapesAllStoredFields() {
+  const modalSource = extractBetween(
+    'window.openShiftDetailModal = function(fb_id) {',
+    "document.getElementById('shiftDetailModal').classList.add('active');",
+  ) + "document.getElementById('shiftDetailModal').classList.add('active');\n};";
+  const report = buildMaliciousShiftReport();
+  const helpers = buildTaskIdentityHelpers([]);
+  const body = { innerHTML: '' };
+  const modal = { classList: makeClassList() };
+  const documentStub = {
+    getElementById(id) {
+      if (id === 'shiftDetailModalBody') return body;
+      if (id === 'shiftDetailModal') return modal;
+      if (id === 'exportPdfModalBtn') return null;
+      return null;
+    },
+  };
+  const windowStub = {};
+  const loadModal = new Function(
+    'window', 'document', 'allShiftReports', 'alert', 'buildTaskReportSummaryText', 'escapeHTML',
+    `${modalSource}\nreturn window.openShiftDetailModal;`,
+  );
+  const openShiftDetailModal = loadModal(
+    windowStub,
+    documentStub,
+    [report],
+    (message) => assert.fail(`Modal raised an unexpected alert: ${message}`),
+    helpers.buildTaskReportSummaryText,
+    (value) => String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;'),
+  );
+
+  openShiftDetailModal(report.fb_id);
+
+  assert(modal.classList.contains('active'));
+  assertNoExecutablePayload(body.innerHTML, 'Shift detail modal');
+}
+
 async function main() {
   testStoredXssEscaping();
   testInlineHandlerAndAvatarSafety();
+  await testShiftReportExportEscapesAllStoredFields();
+  testShiftDetailModalEscapesAllStoredFields();
   await testAtomicShiftClosure();
   testRoleBoundaries();
   testAnnouncementContract();
@@ -1030,9 +1521,27 @@ async function main() {
   await testSaveTaskRejectsWithoutObservation();
   await testSaveTaskDoesNotShowSuccessBeforeFirebaseResolves();
   await testSaveTaskSuccessUpdatesFirebaseCacheAndUI();
+  await testSaveTaskKeepsVisualTargetWhenSelectionChangesDuringWrite();
   await testSaveTaskPermissionDeniedShowsErrorNotSuccess();
   await testSaveTaskNetworkErrorAllowsRetry();
   testSelectTaskDoesNotDependOnWindowEvent();
+  testSelectTaskResolvesNumericIdZero();
+  testSelectTaskSwitchingClearsObservationAndRestoresPerTaskCache();
+  await testSaveTaskRejectsUnresolvedSelection();
+  await testSaveTaskRejectsMismatchedSelection();
+  await testSaveTaskNeverPersistsGenericFallbackName();
+  testSaveTaskSourceNeverBuildsGenericFallbackName();
+  testReconcileScheduledTaskExactNameMatch();
+  testReconcileScheduledTaskAcceptsNameVariant();
+  testReconcileScheduledTaskResolvesLegacyGenericName();
+  testReconcileScheduledTaskExcludesExtraEntries();
+  testResolveTaskDisplayNameNeverExposesRawIdWhenUnresolved();
+  testResolveTaskDisplayNameKeepsRealNamesUnchanged();
+  testMonitoreoCardAndModalUseSameReconciliation();
+  testBuildTaskReportSummaryTextPrefersStructuredTasksOverLegacyText();
+  testBuildTaskReportSummaryTextFallsBackToLegacyTextWhenNoStructuredTasks();
+  testBuildTaskReportSummaryTextKeepsExtraPrefixAndNeverLeaksGenericName();
+  testShiftHistorySurfacesUseStructuredTaskSummary();
   testMergeTaskCachesConflictResolution();
   testMergeTaskCachesPrefersLocalOnTieOrMissingUpdatedAt();
   await testFetchOwnActiveSessionTasksReadsOnlyOwnPath();
@@ -1065,7 +1574,10 @@ async function main() {
   console.log('TASK_PERSISTENCE_SUCCESS_CONFIRMED_BY_FIREBASE=PASS');
   console.log('TASK_PERSISTENCE_ERROR_HANDLING=PASS');
   console.log('TASK_PERSISTENCE_RETRY_AFTER_NETWORK_ERROR=PASS');
+  console.log('TASK_SAVE_SELECTION_RACE=PASS');
   console.log('SELECT_TASK_NO_WINDOW_EVENT=PASS');
+  console.log('TASK_ID_AND_MONITORING_RECONCILIATION=PASS');
+  console.log('SHIFT_REPORT_STORED_XSS=PASS');
   console.log('TASK_PROGRESS_MERGE_AND_RESTORE_ON_RELOAD=PASS');
   console.log('TASK_PROGRESS_MERGE_PREFERS_LOCAL_ON_TIE_OR_MISSING_UPDATEDAT=PASS');
   console.log('SHIFT_CLOSE_INCLUDES_TASKS=PASS');
