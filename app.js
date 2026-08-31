@@ -809,23 +809,71 @@ function parseSheetRange(sheetName, year = 2026, fallbackMonth = 0) {
 function getWeekSheet(sheetNames, targetDate) {
     if (!sheetNames || sheetNames.length === 0) return null;
     const year = targetDate.getFullYear();
-    const currentMonth = targetDate.getMonth();
+    const fallbackMonth = targetDate.getMonth();
+
+    let hasDatedSheet = false;
     for (let name of sheetNames) {
-        let r = parseSheetRange(name, year, currentMonth);
+        let r = parseSheetRange(name, year, fallbackMonth);
         if (r) {
+            hasDatedSheet = true;
             if (targetDate >= r.start && targetDate <= r.end) {
                 return name;
             }
         }
     }
-    // Fallback: Find the first sheet that looks like a weekly schedule
-    for (let name of sheetNames) {
-        if (name.toLowerCase().includes('semana')) {
-            return name;
+
+    // Fallback: Find the first sheet that looks like a weekly schedule only if NO sheet has dates
+    if (!hasDatedSheet) {
+        for (let name of sheetNames) {
+            if (name.toLowerCase().includes('semana')) {
+                return name;
+            }
+        }
+        return sheetNames[0];
+    }
+    return null;
+}
+
+async function fetchCronogramaRowsForDate(targetDate) {
+    const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+    const dayOfWeek = targetDate.getDay();
+    const monday = new Date(targetDate);
+    monday.setDate(targetDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+
+    const candidateMonths = [
+        targetDate.getMonth(),
+        monday.getMonth(),
+        sunday.getMonth()
+    ];
+    const uniqueMonths = [...new Set(candidateMonths)];
+
+    for (let monthIndex of uniqueMonths) {
+        let monthName = monthNames[monthIndex];
+        const cronogramaFile = `Cronograma ${monthName}.xlsx`;
+        const url = encodeURI('Cronograma de Tareas/' + cronogramaFile) + '?t=' + Date.now();
+
+        try {
+            const response = await fetch(url);
+            console.log(`XLSX_FETCH url=${url} status=${response.status}`);
+            if (!response.ok) continue;
+
+            const arrayBuffer = await response.arrayBuffer();
+            const workbook = XLSX.read(arrayBuffer, {type: 'array'});
+
+            const sheetName = getWeekSheet(workbook.SheetNames, targetDate);
+            if (sheetName) {
+                return XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "" });
+            }
+        } catch (e) {
+            console.warn(`Error procesando ${cronogramaFile}:`, e);
         }
     }
-    // Last resort: Return the very first sheet
-    return sheetNames[0];
+
+    console.error(`Ningún archivo de cronograma contiene la fecha ${targetDate.toLocaleDateString()}`);
+    return null;
 }
 
 function getCronogramaColumnsForToday(targetDate, shiftText, rows = []) {
@@ -871,23 +919,10 @@ function getCronogramaColumnsForToday(targetDate, shiftText, rows = []) {
 let globalCronogramaData = null;
 async function preloadCronograma() {
     try {
-        const todayForFile = new Date();
-        const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-        let monthName = monthNames[todayForFile.getMonth()];
-        if (todayForFile.getFullYear() === 2026 && todayForFile.getMonth() === 6 && todayForFile.getDate() < 6) {
-            monthName = "Junio";
-        }
-        const cronogramaFile = `Cronograma ${monthName}.xlsx`;
-        const url = encodeURI('Cronograma de Tareas/' + cronogramaFile) + '?t=' + Date.now();
-        const response = await fetch(url);
-        console.log(`XLSX_FETCH url=${url} status=${response.status}`);
-        if (!response.ok) return;
-        const arrayBuffer = await response.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer, {type: 'array'});
         const today = new Date();
-        const sheetName = getWeekSheet(workbook.SheetNames, today);
-        if (sheetName) {
-            globalCronogramaData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "" });
+        const rows = await fetchCronogramaRowsForDate(today);
+        if (rows) {
+            globalCronogramaData = rows;
             // Re-render dashboard just in case it loaded before this finished
             const viewMonitoreo = document.getElementById('view-monitoreo');
             if (viewMonitoreo && viewMonitoreo.style.display !== 'none') {
@@ -932,27 +967,13 @@ let gestorCronogramaAssignments = null;
 
 async function loadCronogramaAssignments(gestorName, gestorShift) {
     try {
-        const todayForFile = new Date();
-        const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-        let monthName = monthNames[todayForFile.getMonth()];
-        if (todayForFile.getFullYear() === 2026 && todayForFile.getMonth() === 6 && todayForFile.getDate() < 6) {
-            monthName = "Junio";
-        }
-        const cronogramaFile = `Cronograma ${monthName}.xlsx`;
-        const url = encodeURI('Cronograma de Tareas/' + cronogramaFile) + '?t=' + Date.now();
-        const response = await fetch(url);
-        console.log(`XLSX_FETCH url=${url} status=${response.status}`);
-        if (!response.ok) throw new Error("Fallo al cargar cronograma");
-        const arrayBuffer = await response.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer, {type: 'array'});
-        
         const today = new Date();
-        const sheetName = getWeekSheet(workbook.SheetNames, today);
-        if (!sheetName) return;
-        
-        const worksheet = workbook.Sheets[sheetName];
-        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
-        
+        const rows = await fetchCronogramaRowsForDate(today);
+        if (!rows) {
+            gestorCronogramaAssignments = [];
+            return;
+        }
+
         const colGroups = getCronogramaColumnsForToday(today, gestorShift, rows);
         
         gestorCronogramaAssignments = [];

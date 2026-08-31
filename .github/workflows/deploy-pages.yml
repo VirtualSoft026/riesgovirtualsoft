@@ -70,6 +70,7 @@ jobs:
             "Cronograma de Tareas/Cronograma Junio.xlsx"
             "Cronograma de Tareas/Cronograma Julio.xlsx"
             "Cronograma de Tareas/Cronograma Agosto.xlsx"
+            "Cronograma de Tareas/Cronograma Septiembre.xlsx"
             "Horario/Horario 2026.xlsx"
             "Teletrabajo/Teletrabajo.xlsx"
           )
@@ -107,6 +108,7 @@ jobs:
               "Cronograma de Tareas/Cronograma Junio.xlsx",
               "Cronograma de Tareas/Cronograma Julio.xlsx",
               "Cronograma de Tareas/Cronograma Agosto.xlsx",
+              "Cronograma de Tareas/Cronograma Septiembre.xlsx",
               "Horario/Horario 2026.xlsx",
               "Teletrabajo/Teletrabajo.xlsx",
           }
@@ -173,6 +175,7 @@ jobs:
               "_site/Cronograma de Tareas/Cronograma Junio.xlsx" \
               "_site/Cronograma de Tareas/Cronograma Julio.xlsx" \
               "_site/Cronograma de Tareas/Cronograma Agosto.xlsx" \
+              "_site/Cronograma de Tareas/Cronograma Septiembre.xlsx" \
               "_site/Horario/Horario 2026.xlsx" \
               "_site/Teletrabajo/Teletrabajo.xlsx"
           } | tee -a "$GITHUB_STEP_SUMMARY"
