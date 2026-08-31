@@ -6,7 +6,7 @@
     "node": "22.x"
   },
   "scripts": {
-    "check": "node --check qa_matrix.js && node --check migration_rehearsal.js && node --check frontend_security_smoke.js && node migration_rehearsal.test.js && node frontend_security_smoke.js",
+    "check": "node --check qa_matrix.js && node --check migration_rehearsal.js && node --check frontend_security_smoke.js && node migration_rehearsal.test.js && node frontend_security_smoke.js && node cronograma_cross_month.test.js",
     "test:frontend": "node frontend_security_smoke.js",
     "qa": "firebase emulators:exec --project demo-risk-manager-qa --config firebase.json \"node qa_matrix.js\"",
     "test:supervisor-comunicados-rules": "firebase emulators:exec --project demo-risk-manager-qa-supervisor-comunicados --config firebase.json \"node supervisor_comunicados_rules.spec.js\""
