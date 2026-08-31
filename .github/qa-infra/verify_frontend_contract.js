@@ -18,6 +18,10 @@ const inputs = [
   {
     label: 'F1',
     env: 'F1_APP_PATH',
+    // Updated 2026-08-31 (cronograma-cross-month): load the workbook that
+    // actually contains the target week when a schedule crosses months.
+    // Previous hash (task-monitoreo-sync hotfix):
+    // 4b008a29bb478fced9059ebb3e3792a79ec4a33722f2fc2e0387d5659f5fac56
     // Updated 2026-08-26 (task-monitoreo-sync hotfix): canonicalTaskId() fixes
     // the number/string ID mismatch (loadExcelTasks(): row.id = idx is a
     // number, but selectTask() always receives a string from the
@@ -46,7 +50,7 @@ const inputs = [
     // 29f9cdb7f0298fbf4e53755dba01231c76de8bfdf94cdb6ab4808c8b21914204
     // Hash before this hotfix (Supervisor comunicados capability):
     // 876049dfce42455256c3eae59f37a5d087fbbab24ca29f1ad09d4eba38a8b683
-    sha: '4b008a29bb478fced9059ebb3e3792a79ec4a33722f2fc2e0387d5659f5fac56',
+    sha: '05212422d25abfd0500c238e569f0de045bdeeb6c0c03722ae839966ca5257b9',
     mustContain: [
       "uid: userUid",
       "uid: currentUser.uid || firebase.auth().currentUser.uid",
