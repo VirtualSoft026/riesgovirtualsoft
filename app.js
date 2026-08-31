@@ -3216,7 +3216,7 @@ async function initApp() {
             e.preventDefault(); // Evitar recarga
             
             const formData = new FormData(pForm);
-            formData.append("_cc", "sara.santamaria@virtualsoft.tech");
+            formData.append("_cc", "sara.santamaria@virtualsoft.tech", "oriana.borja@virtualsoft.tech");
             
             const tipo = formData.get("Tipo_Permiso");
             const especifico = formData.get("Especificacion_Otro");
@@ -3563,7 +3563,7 @@ async function handleEndShift() {
             
             formData.append("_subject", `Reporte de Turno: ${localUser.name}`);
             formData.append("_captcha", "false");
-            formData.append("_cc", "sara.santamaria@virtualsoft.tech");
+            formData.append("_cc", "sara.santamaria@virtualsoft.tech", "oriana.borja@virtualsoft.tech");
             
             // Build task report
             let report = buildTaskReportSummaryText({ tasks: taskStateCache });
