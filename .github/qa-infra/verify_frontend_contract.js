@@ -18,6 +18,12 @@ const inputs = [
   {
     label: 'F1',
     env: 'F1_APP_PATH',
+    // Updated 2026-09-01 (gestor-end-shift): idle permission is requested only
+    // from the explicit enable button, SET validation ignores placeholder-only
+    // schedules, and local/auth session cleanup happens only after the atomic
+    // shift closure has been persisted successfully.
+    // Previous hash (cronograma-cross-month):
+    // 05212422d25abfd0500c238e569f0de045bdeeb6c0c03722ae839966ca5257b9
     // Updated 2026-08-31 (cronograma-cross-month): load the workbook that
     // actually contains the target week when a schedule crosses months.
     // Previous hash (task-monitoreo-sync hotfix):
@@ -50,7 +56,7 @@ const inputs = [
     // 29f9cdb7f0298fbf4e53755dba01231c76de8bfdf94cdb6ab4808c8b21914204
     // Hash before this hotfix (Supervisor comunicados capability):
     // 876049dfce42455256c3eae59f37a5d087fbbab24ca29f1ad09d4eba38a8b683
-    sha: '05212422d25abfd0500c238e569f0de045bdeeb6c0c03722ae839966ca5257b9',
+    sha: '98d6d1f72b4cef2295b574e16f13febe89a019fb77c42732af8ccdbbdb2615a1',
     mustContain: [
       "uid: userUid",
       "uid: currentUser.uid || firebase.auth().currentUser.uid",
