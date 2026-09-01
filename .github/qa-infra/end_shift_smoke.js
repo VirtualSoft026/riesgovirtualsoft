@@ -130,6 +130,29 @@ function testSetSelectionRules() {
   assert.equal(requiresSpecificSetSelection(loadedSchedule), false);
 }
 
+function testFormSubmitCcUsesOneStringValue() {
+  const helperSource = extractBetween(
+    'const FORM_SUBMIT_CC =',
+    '// XSS Sanitizer Helper',
+  );
+  const load = new Function(
+    `${helperSource}\nreturn { FORM_SUBMIT_CC, appendFormSubmitCc };`,
+  );
+  const { FORM_SUBMIT_CC, appendFormSubmitCc } = load();
+  const appendCalls = [];
+  const formData = {
+    append(...args) {
+      appendCalls.push(args);
+    },
+  };
+
+  appendFormSubmitCc(formData);
+  assert.deepEqual(appendCalls, [['_cc', FORM_SUBMIT_CC]]);
+  assert.equal(FORM_SUBMIT_CC.split(',').length, 2);
+  assert.equal((appSource.match(/appendFormSubmitCc\(formData\);/g) || []).length, 2);
+  assert.doesNotMatch(appSource, /formData\.append\(["']_cc["'][^\r\n]*,[^\r\n]*,[^\r\n]*\)/);
+}
+
 function testEndShiftSafetyOrder() {
   const handlerSource = extractBetween(
     'async function handleEndShift()',
@@ -172,6 +195,7 @@ async function run() {
   await testIdlePermissionStartFailureIsRecoverable();
   await testUnsupportedIdlePermissionDoesNotBlockShift();
   testSetSelectionRules();
+  testFormSubmitCcUsesOneStringValue();
   testEndShiftSafetyOrder();
   testPermissionIsNeverRequestedByTheEndShiftClick();
   console.log('END_SHIFT_SMOKE=PASS');
