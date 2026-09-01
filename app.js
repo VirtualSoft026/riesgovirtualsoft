@@ -379,74 +379,98 @@ function pushTimelineEvent(type, action) {
 
 let screenLockTimer = null;
 
+function setIdleDetectorWarning(visible, message = '') {
+    const warningBanner = document.getElementById('idleDetectorWarning');
+    const warningText = document.getElementById('idleDetectorWarningText');
+    if (warningText && message) warningText.textContent = message;
+    if (warningBanner) warningBanner.style.display = visible ? 'flex' : 'none';
+}
+
 async function checkAndStartIdleDetector() {
-    if ('IdleDetector' in window) {
-        try {
-            const status = await navigator.permissions.query({ name: 'idle-detection' });
-            if (status.state === 'granted') {
-                window.idleDetectorGranted = true;
-                startIdleDetectorLogic();
-            }
-        } catch (e) {
-            console.error('Permission query error:', e);
-        }
+    if (!('IdleDetector' in window)) {
+        setIdleDetectorWarning(true, 'Tu navegador no admite el permiso de inactividad. Esto no impide finalizar el turno.');
+        return false;
     }
+
+    try {
+        const status = await navigator.permissions.query({ name: 'idle-detection' });
+        if (status.state === 'granted') {
+            const started = await startIdleDetectorLogic();
+            window.idleDetectorGranted = started;
+            return started;
+        }
+        setIdleDetectorWarning(true, 'Permiso de inactividad pendiente o denegado. RiskOps no podrá registrar automáticamente cuando bloquees la pantalla. Esto no impide finalizar el turno.');
+    } catch (e) {
+        console.error('Permission query error:', e);
+        setIdleDetectorWarning(true, 'No fue posible verificar el permiso de inactividad. Esto no impide finalizar el turno.');
+    }
+    return false;
 }
 
 async function requestIdlePermission() {
-    if ('IdleDetector' in window) {
-        try {
-            const state = await IdleDetector.requestPermission();
-            if (state === 'granted') {
-                window.idleDetectorGranted = true;
-                startIdleDetectorLogic();
-            } else {
-                const warningBanner = document.getElementById('idleDetectorWarning');
-                if (warningBanner) warningBanner.style.display = 'flex';
-            }
-        } catch (e) {
-            console.error('Request permission error:', e);
-            const warningBanner = document.getElementById('idleDetectorWarning');
-            if (warningBanner) warningBanner.style.display = 'flex';
-        }
+    if (!('IdleDetector' in window)) {
+        setIdleDetectorWarning(true, 'Tu navegador no admite el permiso de inactividad. Esto no impide finalizar el turno.');
+        return false;
     }
+
+    try {
+        const state = await IdleDetector.requestPermission();
+        if (state === 'granted') {
+            const started = await startIdleDetectorLogic();
+            window.idleDetectorGranted = started;
+            if (!started) {
+                setIdleDetectorWarning(true, 'El permiso fue otorgado, pero el detector de inactividad no pudo iniciarse. Esto no impide finalizar el turno.');
+            }
+            return started;
+        }
+        window.idleDetectorGranted = false;
+        setIdleDetectorWarning(true, 'Permiso de inactividad denegado. Esto no impide finalizar el turno.');
+    } catch (e) {
+        console.error('Request permission error:', e);
+        window.idleDetectorGranted = false;
+        setIdleDetectorWarning(true, 'No fue posible activar el permiso de inactividad. Esto no impide finalizar el turno.');
+    }
+    return false;
 }
 
 async function startIdleDetectorLogic() {
-    if (window.idleDetectorStarted) return;
+    if (window.idleDetectorStarted) return true;
     window.idleDetectorStarted = true;
-    
-    const idleDetector = new IdleDetector();
-    idleDetector.addEventListener('change', () => {
-        const isLocked = idleDetector.screenState === 'locked';
-        const isIdle = idleDetector.userState === 'idle';
-        
-        if (isLocked) {
-            if (!screenLockTimer) {
-                screenLockTimer = setTimeout(() => {
-                    globalIdleState = true;
-                    applyIdleStateChange();
-                }, 10000);
-            }
-        } else if (isIdle) {
-            globalIdleState = true;
-            applyIdleStateChange();
-        } else {
-            if (screenLockTimer) {
-                clearTimeout(screenLockTimer);
-                screenLockTimer = null;
-            }
-            globalIdleState = false;
-            applyIdleStateChange();
-        }
-    });
-    
+
     try {
+        const idleDetector = new IdleDetector();
+        idleDetector.addEventListener('change', () => {
+            const isLocked = idleDetector.screenState === 'locked';
+            const isIdle = idleDetector.userState === 'idle';
+
+            if (isLocked) {
+                if (!screenLockTimer) {
+                    screenLockTimer = setTimeout(() => {
+                        globalIdleState = true;
+                        applyIdleStateChange();
+                    }, 10000);
+                }
+            } else if (isIdle) {
+                globalIdleState = true;
+                applyIdleStateChange();
+            } else {
+                if (screenLockTimer) {
+                    clearTimeout(screenLockTimer);
+                    screenLockTimer = null;
+                }
+                globalIdleState = false;
+                applyIdleStateChange();
+            }
+        });
+
         await idleDetector.start({ threshold: 3 * 60 * 1000 }); // 3 minutos
-        const warningBanner = document.getElementById('idleDetectorWarning');
-        if (warningBanner) warningBanner.style.display = 'none';
+        setIdleDetectorWarning(false);
+        return true;
     } catch (e) {
         console.error('IdleDetector start failed:', e);
+        window.idleDetectorStarted = false;
+        window.idleDetectorGranted = false;
+        return false;
     }
 }
 
@@ -472,22 +496,14 @@ function applyIdleStateChange() {
 
 checkAndStartIdleDetector();
 
-window.requestIdlePermissionManual = function() {
-    requestIdlePermission().then(() => {
-        if (window.idleDetectorGranted) {
-            alert("¡Permiso otorgado! RiskOps ahora podrá registrar tu inactividad correctamente.");
-        } else {
-            alert("El permiso sigue denegado. Por favor haz clic en el icono del candado junto a la URL en tu navegador y permite 'Conocer cuando usas tu dispositivo'.");
-        }
-    });
-};
-
-document.addEventListener('click', () => {
-    if (!window.idleDetectorGranted && !window.idleDetectorRequested) {
-        window.idleDetectorRequested = true;
-        requestIdlePermission();
+window.requestIdlePermissionManual = async function() {
+    const started = await requestIdlePermission();
+    if (started) {
+        alert("¡Permiso otorgado! RiskOps ahora podrá registrar tu inactividad correctamente.");
+    } else {
+        alert("El permiso no pudo activarse. Revisa los permisos del sitio en el navegador. Esto no impide finalizar tu turno.");
     }
-}, { once: true });
+};
 
 // Activity listeners
 function updateActivity() {
@@ -3389,6 +3405,24 @@ async function persistShiftClosureCore(reportUid, loginLogId, shiftReportObject)
     return reportRef.key;
 }
 
+function hasRealSetOptions(setSelect) {
+    if (!setSelect || !setSelect.options) return false;
+    return Array.from(setSelect.options).some(option => (
+        !option.disabled && option.value !== '' && option.value !== 'Todos'
+    ));
+}
+
+function requiresSpecificSetSelection(setSelect) {
+    if (!hasRealSetOptions(setSelect)) return false;
+    return setSelect.value === '' || setSelect.value === 'Todos';
+}
+
+function restoreEndShiftButton(button, previousHtml) {
+    if (!button) return;
+    button.innerHTML = previousHtml || "<i class='bx bx-log-out-circle'></i> Finalizar Turno";
+    button.disabled = false;
+}
+
 // Lógica de Pausa Turno Partido
 function toggleSplitShiftBreak() {
     if (!currentUser) return;
@@ -3431,26 +3465,36 @@ function toggleSplitShiftBreak() {
 }
 
 async function handleEndShift() {
-    if(confirm("¿Estás seguro que deseas finalizar tu turno actual? Se enviará un resumen al supervisor.")) {
-        // Cerrar almuerzo o desayuno o turno partido si quedó abierto
+    if (!confirm("¿Estás seguro que deseas finalizar tu turno actual? Se enviará un resumen al supervisor.")) return;
+
+    const btn = document.getElementById('endShiftBtn');
+    const prevHtml = btn ? btn.innerHTML : '';
+    let shiftClosurePersisted = false;
+
+    try {
+        let localUser = null;
+        try { localUser = JSON.parse(localStorage.getItem('riskOps_currentUser')); } catch(e) {}
+        if (!localUser) {
+            throw new Error('No se encontró la sesión local necesaria para generar el reporte.');
+        }
+
+        const setSelect = document.getElementById('activeSetSelect');
+        if (requiresSpecificSetSelection(setSelect)) {
+            alert("OBLIGATORIO: Debes seleccionar el SET específico en el que trabajaste antes de finalizar el turno (Arriba a la derecha).");
+            return;
+        }
+
+        if (btn) {
+            btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Notificando...";
+            btn.disabled = true;
+        }
+
+        // Cerrar almuerzo, desayuno o turno partido solo después de validar la sesión y el SET.
         if (isLunchBreak) toggleLunchBreak();
         if (isBreakfastBreak) toggleBreakfastBreak();
         if (isSplitShiftBreak) toggleSplitShiftBreak();
 
-        
-        let localUser = null;
-        try { localUser = JSON.parse(localStorage.getItem('riskOps_currentUser')); } catch(e) {}
-        
-        if (localUser) {
-            // Build task report
-            const setSelect = document.getElementById('activeSetSelect');
-            // Validación adicional con condicional para no bloquear con el valor de "Todos"
-            if(setSelect && setSelect.value === 'Todos' && setSelect.options.length > 2) {
-                alert("OBLIGATORIO: Debes seleccionar el SET específico en el que trabajaste antes de finalizar el turno (Arriba a la derecha).");
-                return;
-            }
-
-            const formData = new FormData();
+        const formData = new FormData();
             
             // Format login time
             const loginDate = new Date(localUser.loginTime);
@@ -3571,14 +3615,6 @@ async function handleEndShift() {
             report += "\n\n=== BITÁCORA DE TIEMPOS ===\n" + bitacoraTexto;
             formData.append("Resumen_de_Tareas", report);
             
-            // Reemplazar texto del botón para feedback visual
-            const btn = document.getElementById('endShiftBtn');
-            const prevHtml = btn ? btn.innerHTML : '';
-            if(btn) {
-                btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Notificando...";
-                btn.disabled = true;
-            }
-
             // Recalcular inactividadTotalMins usando cleanTimeline limpio sin superposiciones ni duplicados
             let inactividadMinsLimpia = 0;
             if (cleanTimeline && cleanTimeline.length > 0) {
@@ -3615,15 +3651,13 @@ async function handleEndShift() {
             // Si cualquiera falla, no se limpia la sesión local ni se intenta enviar correo.
             try {
                 await persistShiftClosureCore(reportUid, localUser.loginLogId, shiftReportObject);
+                shiftClosurePersisted = true;
             } catch (coreError) {
                 console.error('CORE_SHIFT_CLOSE_FAILED', {
                     code: coreError && coreError.code ? coreError.code : 'unknown',
                     message: coreError && coreError.message ? coreError.message : 'unknown'
                 });
-                if (btn) {
-                    btn.innerHTML = prevHtml;
-                    btn.disabled = false;
-                }
+                restoreEndShiftButton(btn, prevHtml);
                 alert('No fue posible finalizar el turno porque el reporte o el cierre de sesión no quedó guardado. Intenta nuevamente.');
                 return;
             }
@@ -3675,18 +3709,23 @@ async function handleEndShift() {
                 alert('Turno finalizado correctamente. No fue posible enviar la notificación por correo.');
             }
             window.location.href = 'login.html';
-        } else {
-            alert("Turno finalizado.");
-            if (localUser && localUser.loginLogId) {
-                database.ref('login_logs/' + localUser.loginLogId).update({
-                    logoutTime: firebase.database.ServerValue.TIMESTAMP
-                });
+    } catch (fatalError) {
+        console.error("FATAL END SHIFT ERROR:", fatalError);
+        restoreEndShiftButton(btn, prevHtml);
+
+        if (shiftClosurePersisted) {
+            currentUser = null;
+            try {
+                await firebase.auth().signOut();
+            } catch (signOutError) {
+                console.error('SHIFT_SIGNOUT_AFTER_PERSISTENCE_FAILED', signOutError);
             }
-            localStorage.removeItem('riskOps_currentUser');
-            localStorage.removeItem('riskOps_cache');
-            firebase.auth().signOut().catch(err => console.error(err));
+            alert("El turno quedó guardado, pero ocurrió un error al completar la salida. Serás dirigido al inicio de sesión.");
             window.location.href = 'login.html';
+            return;
         }
+
+        alert("No fue posible finalizar el turno: " + fatalError.message + "\n\nLa sesión se mantiene activa para que puedas intentar nuevamente.");
     }
 }
 
