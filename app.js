@@ -3444,7 +3444,8 @@ async function handleEndShift() {
         if (localUser) {
             // Build task report
             const setSelect = document.getElementById('activeSetSelect');
-            if(setSelect && setSelect.value === 'Todos') {
+            // Validación adicional con condicional para no bloquear con el valor de "Todos"
+            if(setSelect && setSelect.value === 'Todos' && setSelect.options.length > 2) {
                 alert("OBLIGATORIO: Debes seleccionar el SET específico en el que trabajaste antes de finalizar el turno (Arriba a la derecha).");
                 return;
             }
