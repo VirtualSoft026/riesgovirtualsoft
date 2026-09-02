@@ -487,11 +487,13 @@ function applyIdleStateChange() {
 
         if (globalIdleState && currentUser.status === 'Activo') {
             currentUser.status = 'Inactivo';
+            if (typeof pushTimelineEvent === 'function') pushTimelineEvent('Inactividad', 'start');
             if (typeof database !== 'undefined') database.ref(`users/${currentUser.uid}/status`).set('Inactivo');
             if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
             if (typeof syncActiveSessionToFirebase === 'function') syncActiveSessionToFirebase();
         } else if (!globalIdleState && currentUser.status === 'Inactivo') {
             currentUser.status = 'Activo';
+            if (typeof pushTimelineEvent === 'function') pushTimelineEvent('Inactividad', 'end');
             lastLocalActivityTimestamp = Date.now();
             if (typeof database !== 'undefined') database.ref(`users/${currentUser.uid}/status`).set('Activo');
             if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
@@ -525,6 +527,7 @@ function updateActivity() {
         // Si ya estábamos marcados inactivos localmente, o pasó más tiempo del umbral en silencio (browser throttling)
         if (currentUser.status === 'Inactivo' || timeSinceLast > INACTIVE_THRESHOLD) {
             currentUser.status = 'Activo';
+            if (typeof pushTimelineEvent === 'function') pushTimelineEvent('Inactividad', 'end');
             if (typeof database !== 'undefined') {
                 database.ref(`users/${currentUser.uid}/status`).set('Activo');
             }
@@ -539,6 +542,15 @@ document.addEventListener('click', updateActivity);
 document.addEventListener('scroll', updateActivity);
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
+        const timeSinceLastSync = Date.now() - lastSyncLoopTimestamp;
+        if (timeSinceLastSync > 5 * 60 * 1000 && typeof shiftTimeline !== 'undefined') {
+            shiftTimeline.push({
+                type: 'Inactividad',
+                start: lastSyncLoopTimestamp,
+                end: Date.now()
+            });
+            localStorage.setItem('riskOps_timeline', JSON.stringify(shiftTimeline));
+        }
         updateActivity();
     }
 });
@@ -561,6 +573,7 @@ setInterval(() => {
             if (typeof isSplitShiftBreak !== 'undefined' && isSplitShiftBreak) return;
 
             currentUser.status = 'Inactivo';
+            if (typeof pushTimelineEvent === 'function') pushTimelineEvent('Inactividad', 'start');
             if (typeof database !== 'undefined') {
                 database.ref(`users/${currentUser.uid}/status`).set('Inactivo');
             }
@@ -2257,7 +2270,7 @@ function syncActiveSessionToFirebase() {
     
     let isInactive = false;
     if (window.idleDetectorGranted) {
-        isInactive = globalIdleState;
+        isInactive = globalIdleState || isDomIdle;
     } else {
         if (globalIdleState || isDomIdle) {
             isInactive = true;
