@@ -520,6 +520,10 @@ function updateActivity() {
     const timeSinceLast = now - lastLocalActivityTimestamp;
     lastLocalActivityTimestamp = now;
     
+    if (typeof globalIdleState !== 'undefined') {
+        globalIdleState = false;
+    }
+    
     // Si somos Gestor y estábamos inactivos, volver a Activo inmediatamente
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
         const INACTIVE_THRESHOLD = 3 * 60 * 1000;
@@ -1182,7 +1186,7 @@ function getShiftForDate(rows, allScheduleBlocks, gestorName, date) {
 
 // Mapeo de URLs para documentos (especialmente videos pesados alojados en Google Drive)
 const privateGitHubDocs = {
-  "Guia Jira EGT - Proveedor de Casino.pdf": "https://github.com/RiesgoVirtualsoft/riskmanager-internal-docs/blob/main/Procedimientos/Guia%20Jira%20EGT%20-%20Proveedor%20de%20Casino.pdf",
+  "Guia Jira EGT - Proveedor de Casino.pdf": "https://virtualsoftserv.sharepoint.com/:b:/s/GestindeRiesgo/IQAN4F3bHU1fQLV0q-zHiZ22AcaHMxxApoL7T_v7J1fTfyU?e=msaPhD",
   "Instructivo de revisión de apuestas casino.pdf": "https://github.com/RiesgoVirtualsoft/riskmanager-internal-docs/blob/main/Procedimientos/Instructivo%20de%20revisi%C3%B3n%20de%20apuestas%20casino.pdf",
   "Instructivo de validación de GGR Casino.pdf": "https://github.com/RiesgoVirtualsoft/riskmanager-internal-docs/blob/main/Procedimientos/Instructivo%20de%20validaci%C3%B3n%20de%20GGR%20Casino.pdf",
   "Política Procedimiento De Aprobación De Retiros.pdf": "https://github.com/RiesgoVirtualsoft/riskmanager-internal-docs/blob/main/Procedimientos/Pol%C3%ADtica%20Procedimiento%20De%20Aprobaci%C3%B3n%20De%20Retiros.pdf",
@@ -1209,6 +1213,33 @@ function getDocUrl(fileName) {
     }
     return "Procesos/" + fileName;
 }
+
+const privateTeamsManuals = {
+    "3oaks.pdf": "https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQDKFNjEjbkHRqwX17cHrcuQAca3E58JknfNg1voWyPmYlg?e=beWE2e",
+    "Airdice.pdf": "https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQAOz1vWcvgbQYTDxPDwsJj3AWV0PHfqSKOKpe9ZpXsdHXE?e=tqWW4B",
+    "Amigogaming":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBy_TFBmiXtRIRBLM17t1GLAbpTqwvREudyaj3svco7E88?e=KhePZM",
+    "Amusnet":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQCBJoKWY5FfS7etdPZfnxzpAflSu1BD8XqdMI2_7uBIsPg?e=Xd2Gvv",
+    "Aviatrix":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBfvgW5WaX6TII45Petp95PAa5POqG8BQzWcy9yo92KkpI?e=TWSCB42",
+    "Belatra":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBfvgW5WaX6TII45Petp95PAa5POqG8BQzWcy9yo92KkpI?e=TWSCB4",
+    "Egt":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBfvgW5WaX6TII45Petp95PAa5POqG8BQzWcy9yo92KkpI?e=TWSCB4",
+    "Evolution":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQDlFklX__OXRr5D7HHkhTxNAUA5QCL87QdDe3u7ngX-rUg?e=BtCIFL",
+    "Mancala":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQASeOCMQcuoR4um2ha_bUcsAVPNezVck9cXaS30gC5JYik?e=HQDduM",
+    "Manual":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQAlqJvOPdb1Q5yLeAK5hSpHAeGml7SGGGhPtHj52ExkWJA?e=D821Dz",
+    "Pariplay":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQC_VU-AHEJhRKGK8Qfw1Hh2AQSzWxI4FWDT3AYovt01TaE?e=VOJ7nx",
+    "playnGo":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQCC_qzPuTOXQqcoqika6LLrAfM9yZKteZJ0kMPAoY9e3fw?e=RZuKKd",
+    "PlaytechLive":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBNmdba5xoAS6gdkPxkpJmdAZyiMaIgRMITPVl17kTxxNk?e=Cehg9s",
+    "Pragmatic":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQAt0TYGB8kkQ7Du3JNnd9XfAe69Mxr5Yga2S_AVlZKUsoo?e=yz932I",
+    "PragmaticplaySlot":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBed0oHqboZRabYqQnGJMxUATLlSdPshzsD7pnAsl8JxdM?e=wIyTFp",
+    "Redrakegaming":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQCmcIAXj_tLRZKJx2dpTMyZAQP18AdXeKvHLc1PtnVBhd4?e=e6ltHs",
+};
+
+function getManualUrl(fileName) {
+    if (privateTeamsManuals[fileName]) {
+        return privateTeamsManuals[fileName];
+    }
+    return "Manuales/" + fileName;
+}
+
 
 let taskStateCache = {};
 try {
@@ -3078,10 +3109,38 @@ async function initApp() {
                 `;
             });
         })
-        .catch(err => console.error("Error cargando la lista de procesos:", err));
+                .catch(err => console.error("Error cargando la lista de procesos:", err));
     }
 
-    // Poblar nombre en form de permisos y manejar envío por AJAX
+    // --- Inyección del Módulo de Manuales ---
+    const manualesGrid = document.querySelector('.manuales-grid');
+    if(manualesGrid) {
+        const archivos = Object.keys(privateTeamsManuals);
+        archivos.forEach(file => {
+                const isVideo = file.toLowerCase().endsWith('.mp4');
+                const isWord = file.toLowerCase().endsWith('.docx') || file.toLowerCase().endsWith('.doc');
+                const isExcel = file.toLowerCase().endsWith('.xlsx') || file.toLowerCase().endsWith('.xls');
+                const isHtml = file.toLowerCase().endsWith('.html');
+                
+                let icon = 'bx-file-pdf';
+                let color = '#FF5A5A'; // PDF red
+                
+                if(isVideo) { icon = 'bx-video'; color = '#3B82F6'; }
+                else if(isWord) { icon = 'bx-file-blank'; color = '#2563EB'; } // Word blue
+                else if(isExcel) { icon = 'bx-table'; color = '#10B981'; } // Excel green
+                else if(isHtml) { icon = 'bx-globe'; color = '#F59E0B'; } // HTML orange
+
+                manualesGrid.innerHTML += `
+                    <a href="${escapeHTML(getManualUrl(file))}" target="_blank" rel="noopener noreferrer" class="glass-panel" style="padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; transition: transform 0.2s;">
+                        <i class='bx ${icon}' style="font-size: 40px; color: ${color};"></i>
+                        <span style="font-size: 14px; color: var(--text-primary); font-weight: 500;">${escapeHTML(file.replace(/\.[^/.]+$/, ""))}</span>
+                    </a>
+                `;
+            });
+        
+    }
+
+// Poblar nombre en form de permisos y manejar envío por AJAX
     if(currentUser) {
         const pName = document.getElementById('permisoGestorName');
         if(pName) pName.value = currentUser.name;
@@ -3562,7 +3621,7 @@ async function handleEndShift() {
             let cleanTimeline = [];
             if (shiftTimeline && shiftTimeline.length > 0) {
                 // Separar pausas programadas (Desayuno / Almuerzo) de inactividades automáticas
-                const breaks = shiftTimeline.filter(b => b.type === 'Desayuno' || b.type === 'Almuerzo');
+                const breaks = shiftTimeline.filter(b => b.type === 'Desayuno' || b.type === 'Almuerzo' || b.type === 'Pausa de Turno');
                 let sortedEvs = [...shiftTimeline].sort((a, b) => a.start - b.start);
                 
                 sortedEvs.forEach(ev => {
@@ -3663,6 +3722,7 @@ async function handleEndShift() {
                 inactividadTotalMins: inactividadMinsLimpia,
                 tiempoAlmuerzoMins: lunchMinutes,
                 tiempoDesayunoMins: breakfastMinutes,
+                tiempoPausaTurnoMins: totalSplitShiftTimeMs ? parseFloat((totalSplitShiftTimeMs / 60000).toFixed(1)) : 0,
                 timestamp: Date.now()
             };
 
@@ -5579,8 +5639,14 @@ async function calcularIndicadores() {
                 const normFb = fbGestor.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                 return mstrGestoresList.some(sel => {
                     const normMstr = sel.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                    const mstrParts = normMstr.split(' ');
-                    return mstrParts.every(p => normFb.includes(p));
+                    if (normFb === normMstr) return true;
+                    const mstrParts = normMstr.split(' ').filter(Boolean);
+                    if (mstrParts.every(p => normFb.includes(p))) return true;
+                    const fbParts = normFb.split(' ').filter(Boolean);
+                    if (mstrParts.length >= 2 && fbParts.length >= 2) {
+                        return normMstr.includes(fbParts[0]) && normMstr.includes(fbParts[1]);
+                    }
+                    return false;
                 });
             };
             shiftReports = shiftReports.filter(report => checkGestorMatch(report.gestor, selectedGestores));
@@ -5681,7 +5747,13 @@ async function calcularIndicadores() {
                 if (diffMins < 0) diffMins += 1440; // Cruzó la medianoche
                 
                 if (diffMins > 0 && diffMins <= 1440) {
-                    totalMinutosConectados += diffMins;
+                    let almuerzo = report.tiempoAlmuerzoMins || 0;
+                    let desayuno = report.tiempoDesayunoMins || 0;
+                    let pausaTurno = report.tiempoPausaTurnoMins || 0;
+                    let tiempoEfectivo = diffMins - almuerzo - desayuno - pausaTurno;
+                    if (tiempoEfectivo < 0) tiempoEfectivo = 0;
+                    
+                    totalMinutosConectados += tiempoEfectivo;
                     turnosValidosParaTiempo++;
                 }
             }
@@ -7237,8 +7309,15 @@ function renderControlOperativoFiltered() {
         if (selectedGestores.includes(mstrGestor)) return true;
         const normMstr = mstrGestor.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         return selectedGestores.some(sel => {
-            const parts = sel.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(' ');
-            return parts.every(p => normMstr.includes(p));
+            const normSel = sel.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            if (normMstr === normSel) return true;
+            const parts = normSel.split(' ').filter(Boolean);
+            if (parts.every(p => normMstr.includes(p))) return true;
+            const mstrParts = normMstr.split(' ').filter(Boolean);
+            if (parts.length >= 2 && mstrParts.length >= 2) {
+                return normMstr.includes(parts[0]) && normMstr.includes(parts[1]);
+            }
+            return false;
         });
     };
     

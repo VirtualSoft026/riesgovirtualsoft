@@ -62,7 +62,7 @@ const inputs = [
     // 29f9cdb7f0298fbf4e53755dba01231c76de8bfdf94cdb6ab4808c8b21914204
     // Hash before this hotfix (Supervisor comunicados capability):
     // 876049dfce42455256c3eae59f37a5d087fbbab24ca29f1ad09d4eba38a8b683
-    sha: 'dd94aa15343edc8484d6d6b7598d5525fb45b5feb6e4d8c01bbf87e3f9b8f318',
+    sha: '13ffd0f3ff5a40a7240a47810710a0202abb97938ac1c4792f0a7d6745fb0c95',
     mustContain: [
       "uid: userUid",
       "uid: currentUser.uid || firebase.auth().currentUser.uid",
