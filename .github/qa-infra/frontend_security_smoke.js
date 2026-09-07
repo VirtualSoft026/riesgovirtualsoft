@@ -13,6 +13,65 @@ function extractBetween(startMarker, endMarker) {
   return appSource.slice(start, end);
 }
 
+function testInactivityUsesBrowserAwareSignals() {
+  const helperSource = extractBetween(
+    'function shouldApplyDomIdleFallback(',
+    '\nfunction updateActivity(',
+  );
+  const loadHelper = new Function(
+    'window',
+    'document',
+    'lastLocalActivityTimestamp',
+    'DOM_IDLE_FALLBACK_THRESHOLD_MS',
+    `${helperSource}\nreturn shouldApplyDomIdleFallback;`,
+  );
+  const threshold = 5 * 60 * 1000;
+  const lastActivity = 1_000;
+
+  const hiddenPageFallback = loadHelper(
+    { idleDetectorGranted: false },
+    { visibilityState: 'hidden', hasFocus: () => false },
+    lastActivity,
+    threshold,
+  );
+  assert.equal(hiddenPageFallback(lastActivity + threshold + 1), false);
+
+  const unfocusedPageFallback = loadHelper(
+    { idleDetectorGranted: false },
+    { visibilityState: 'visible', hasFocus: () => false },
+    lastActivity,
+    threshold,
+  );
+  assert.equal(unfocusedPageFallback(lastActivity + threshold + 1), false);
+
+  const focusedPageFallback = loadHelper(
+    { idleDetectorGranted: false },
+    { visibilityState: 'visible', hasFocus: () => true },
+    lastActivity,
+    threshold,
+  );
+  assert.equal(focusedPageFallback(lastActivity + threshold), false);
+  assert.equal(focusedPageFallback(lastActivity + threshold + 1), true);
+
+  const nativeDetectorFallback = loadHelper(
+    { idleDetectorGranted: true },
+    { visibilityState: 'visible', hasFocus: () => true },
+    lastActivity,
+    threshold,
+  );
+  assert.equal(nativeDetectorFallback(lastActivity + threshold + 1), false);
+
+  const startSource = extractBetween(
+    'async function startIdleDetectorLogic(',
+    '\nfunction applyIdleStateChange(',
+  );
+  assert.match(startSource, /if \(idleDetectorStartPromise\) return idleDetectorStartPromise;/);
+  assert(startSource.indexOf('await idleDetector.start(')
+    < startSource.indexOf('window.idleDetectorStarted = true;'));
+  assert.match(appSource, /document\.addEventListener\('visibilitychange', updateActivity\);/);
+  assert.match(appSource, /window\.addEventListener\('focus', updateActivity\);/);
+}
+
 function testStoredXssEscaping() {
   const escapeSource = extractBetween('function escapeHTML(', 'window.escapeHTML');
   const renderSource = extractBetween('function renderIncidentsTable(', '/**');
@@ -1508,6 +1567,7 @@ function testShiftDetailModalEscapesAllStoredFields() {
 }
 
 async function main() {
+  testInactivityUsesBrowserAwareSignals();
   testStoredXssEscaping();
   testInlineHandlerAndAvatarSafety();
   await testShiftReportExportEscapesAllStoredFields();
@@ -1563,6 +1623,7 @@ async function main() {
   testRecoverGestorTaskProgressOrdersSafetyChecksCorrectly();
   testGestorTaskRecoveryWiredIntoInitApp();
   console.log('FRONTEND_SECURITY_SMOKE=PASS');
+  console.log('BROWSER_AWARE_INACTIVITY=PASS');
   console.log('STORED_XSS_LOG_RENDERING=PASS');
   console.log('INLINE_HANDLER_XSS_GUARD=PASS');
   console.log('AVATAR_ATTRIBUTE_XSS_GUARD=PASS');

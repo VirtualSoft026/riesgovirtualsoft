@@ -280,6 +280,8 @@ function setCustomMultiSelectValues(containerId, newValuesArray) {
 // --- INACTIVITY & LUNCH TRACKING GLOBALS ---
 let lastLocalActivityTimestamp = Date.now();
 let lastSyncLoopTimestamp = Date.now();
+const NATIVE_IDLE_THRESHOLD_MS = 3 * 60 * 1000;
+const DOM_IDLE_FALLBACK_THRESHOLD_MS = 5 * 60 * 1000;
 let isLunchBreak = false;
 let lunchStartTime = null;
 let totalLunchTimeMs = 0;
@@ -290,6 +292,10 @@ let isSplitShiftBreak = false;
 let splitShiftStartTime = null;
 let totalSplitShiftTimeMs = 0;
 let globalIdleState = false; // Tracks if the OS/PC is idle or locked via IdleDetector
+let idleDetectorStartPromise = null;
+let activeIdleDetector = null;
+window.idleDetectorGranted = false;
+window.idleDetectorStarted = false;
 
 function saveBreakState() {
     localStorage.setItem('riskOps_breakState', JSON.stringify({
@@ -403,6 +409,9 @@ async function checkAndStartIdleDetector() {
         if (status.state === 'granted') {
             const started = await startIdleDetectorLogic();
             window.idleDetectorGranted = started;
+            if (!started) {
+                setIdleDetectorWarning(true, 'El permiso está otorgado, pero el detector de inactividad no pudo iniciarse. Usa el botón para reintentar.');
+            }
             return started;
         }
         setIdleDetectorWarning(true, 'Permiso de inactividad pendiente o denegado. RiskOps no podrá registrar automáticamente cuando bloquees la pantalla. Esto no impide finalizar el turno.');
@@ -440,44 +449,54 @@ async function requestIdlePermission() {
 }
 
 async function startIdleDetectorLogic() {
-    if (window.idleDetectorStarted) return true;
-    window.idleDetectorStarted = true;
+    if (window.idleDetectorStarted && activeIdleDetector) return true;
+    if (idleDetectorStartPromise) return idleDetectorStartPromise;
 
-    try {
-        const idleDetector = new IdleDetector();
-        idleDetector.addEventListener('change', () => {
-            const isLocked = idleDetector.screenState === 'locked';
-            const isIdle = idleDetector.userState === 'idle';
+    idleDetectorStartPromise = (async () => {
+        try {
+            const idleDetector = new IdleDetector();
+            idleDetector.addEventListener('change', () => {
+                const isLocked = idleDetector.screenState === 'locked';
+                const isIdle = idleDetector.userState === 'idle';
 
-            if (isLocked) {
-                if (!screenLockTimer) {
-                    screenLockTimer = setTimeout(() => {
-                        globalIdleState = true;
-                        applyIdleStateChange();
-                    }, 10000);
+                if (isLocked) {
+                    if (!screenLockTimer) {
+                        screenLockTimer = setTimeout(() => {
+                            globalIdleState = true;
+                            applyIdleStateChange();
+                        }, 10000);
+                    }
+                } else if (isIdle) {
+                    globalIdleState = true;
+                    applyIdleStateChange();
+                } else {
+                    if (screenLockTimer) {
+                        clearTimeout(screenLockTimer);
+                        screenLockTimer = null;
+                    }
+                    globalIdleState = false;
+                    applyIdleStateChange();
                 }
-            } else if (isIdle) {
-                globalIdleState = true;
-                applyIdleStateChange();
-            } else {
-                if (screenLockTimer) {
-                    clearTimeout(screenLockTimer);
-                    screenLockTimer = null;
-                }
-                globalIdleState = false;
-                applyIdleStateChange();
-            }
-        });
+            });
 
-        await idleDetector.start({ threshold: 3 * 60 * 1000 }); // 3 minutos
-        setIdleDetectorWarning(false);
-        return true;
-    } catch (e) {
-        console.error('IdleDetector start failed:', e);
-        window.idleDetectorStarted = false;
-        window.idleDetectorGranted = false;
-        return false;
-    }
+            await idleDetector.start({ threshold: NATIVE_IDLE_THRESHOLD_MS });
+            activeIdleDetector = idleDetector;
+            window.idleDetectorStarted = true;
+            window.idleDetectorGranted = true;
+            setIdleDetectorWarning(false);
+            return true;
+        } catch (e) {
+            console.error('IdleDetector start failed:', e);
+            activeIdleDetector = null;
+            window.idleDetectorStarted = false;
+            window.idleDetectorGranted = false;
+            return false;
+        } finally {
+            idleDetectorStartPromise = null;
+        }
+    })();
+
+    return idleDetectorStartPromise;
 }
 
 function applyIdleStateChange() {
@@ -505,15 +524,28 @@ function applyIdleStateChange() {
 checkAndStartIdleDetector();
 
 window.requestIdlePermissionManual = async function() {
-    const started = await requestIdlePermission();
-    if (started) {
-        alert("¡Permiso otorgado! RiskOps ahora podrá registrar tu inactividad correctamente.");
-    } else {
-        alert("El permiso no pudo activarse. Revisa los permisos del sitio en el navegador. Esto no impide finalizar tu turno.");
+    const enableButton = document.querySelector('#idleDetectorWarning button');
+    if (enableButton) enableButton.disabled = true;
+    try {
+        const started = await requestIdlePermission();
+        if (started) {
+            alert("¡Permiso otorgado! RiskOps ahora podrá registrar tu inactividad correctamente.");
+        } else {
+            alert("El permiso no pudo activarse. Revisa los permisos del sitio en el navegador. Esto no impide finalizar tu turno.");
+        }
+    } finally {
+        if (enableButton) enableButton.disabled = false;
     }
 };
 
 // Activity listeners
+function shouldApplyDomIdleFallback(now = Date.now()) {
+    if (window.idleDetectorGranted) return false;
+    if (document.visibilityState !== 'visible') return false;
+    if (typeof document.hasFocus === 'function' && !document.hasFocus()) return false;
+    return now - lastLocalActivityTimestamp > DOM_IDLE_FALLBACK_THRESHOLD_MS;
+}
+
 function updateActivity() {
     loadBreakState();
     const now = Date.now();
@@ -526,10 +558,8 @@ function updateActivity() {
     
     // Si somos Gestor y estábamos inactivos, volver a Activo inmediatamente
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
-        const INACTIVE_THRESHOLD = 3 * 60 * 1000;
-        
         // Si ya estábamos marcados inactivos localmente, o pasó más tiempo del umbral en silencio (browser throttling)
-        if (currentUser.status === 'Inactivo' || timeSinceLast > INACTIVE_THRESHOLD) {
+        if (currentUser.status === 'Inactivo' || timeSinceLast > DOM_IDLE_FALLBACK_THRESHOLD_MS) {
             currentUser.status = 'Activo';
             if (typeof pushTimelineEvent === 'function') pushTimelineEvent('Inactividad', 'end');
             if (typeof database !== 'undefined') {
@@ -544,20 +574,8 @@ document.addEventListener('mousemove', updateActivity);
 document.addEventListener('keydown', updateActivity);
 document.addEventListener('click', updateActivity);
 document.addEventListener('scroll', updateActivity);
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-        const timeSinceLastSync = Date.now() - lastSyncLoopTimestamp;
-        if (timeSinceLastSync > 5 * 60 * 1000 && typeof shiftTimeline !== 'undefined') {
-            shiftTimeline.push({
-                type: 'Inactividad',
-                start: lastSyncLoopTimestamp,
-                end: Date.now()
-            });
-            localStorage.setItem('riskOps_timeline', JSON.stringify(shiftTimeline));
-        }
-        updateActivity();
-    }
-});
+document.addEventListener('visibilitychange', updateActivity);
+window.addEventListener('focus', updateActivity);
 
 // Fast checker loop to apply 10s inactivity exactly on time
 setInterval(() => {
@@ -565,11 +583,9 @@ setInterval(() => {
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
         if (window.idleDetectorGranted) return; // Si hay detector nativo, no usar el fallback
         
-        const timeSinceLastActivity = Date.now() - lastLocalActivityTimestamp;
-        const INACTIVE_THRESHOLD = 3 * 60 * 1000; // 3 min fallback
-        
-        // Si superamos el umbral y aún estamos marcados como Activos
-        if (timeSinceLastActivity > INACTIVE_THRESHOLD && currentUser.status === 'Activo') {
+        // El fallback DOM no puede observar actividad en otras pestañas o ventanas.
+        // Solo se usa cuando esta página está visible y enfocada para evitar falsos positivos.
+        if (shouldApplyDomIdleFallback() && currentUser.status === 'Activo') {
             // Ignorar si está en pausa global o breaks
             if (typeof globalIdleState !== 'undefined' && globalIdleState) return;
             if (typeof isLunchBreak !== 'undefined' && isLunchBreak) return;
@@ -2295,17 +2311,11 @@ function syncActiveSessionToFirebase() {
     let newLastActive = Date.now();
     let currentStatus = 'Activo';
     
-    const timeSinceLastActivity = Date.now() - lastLocalActivityTimestamp;
-    const idleThreshold = (currentUser && currentUser.role === 'Gestor') ? (3 * 60 * 1000) : (5 * 60 * 1000);
-    const isDomIdle = timeSinceLastActivity > idleThreshold;
-    
     let isInactive = false;
     if (window.idleDetectorGranted) {
-        isInactive = globalIdleState || isDomIdle;
-    } else {
-        if (globalIdleState || isDomIdle) {
-            isInactive = true;
-        }
+        isInactive = globalIdleState;
+    } else if (shouldApplyDomIdleFallback(nowMs)) {
+        isInactive = true;
     }
     
     if (isSplitShiftBreak) {

@@ -22,6 +22,9 @@ const inputs = [
     // recipients are passed as one comma-separated string. Supplying a third
     // string argument makes browsers treat it as a Blob filename and throws
     // before the shift report can be persisted.
+    // Updated 2026-09-07 (browser-aware inactivity): the DOM fallback is
+    // suspended while RiskOps is hidden or unfocused, and IdleDetector startup
+    // is serialized so the explicit permission button reports real state.
     // Previous hash (gestor-end-shift):
     // 98d6d1f72b4cef2295b574e16f13febe89a019fb77c42732af8ccdbbdb2615a1
     // Updated 2026-09-01 (gestor-end-shift): idle permission is requested only
@@ -62,7 +65,7 @@ const inputs = [
     // 29f9cdb7f0298fbf4e53755dba01231c76de8bfdf94cdb6ab4808c8b21914204
     // Hash before this hotfix (Supervisor comunicados capability):
     // 876049dfce42455256c3eae59f37a5d087fbbab24ca29f1ad09d4eba38a8b683
-    sha: '13ffd0f3ff5a40a7240a47810710a0202abb97938ac1c4792f0a7d6745fb0c95',
+    sha: '778420ac9fb46f4238f94a73276669368a74a8c32c170bfbd5a98fc295e62793',
     mustContain: [
       "uid: userUid",
       "uid: currentUser.uid || firebase.auth().currentUser.uid",
