@@ -48,8 +48,11 @@ temp_horario_working.xlsx
 Thumbs.db
 desktop.ini
 
-# Firebase local cache
+# Firebase local cache & emulator persistence
 .firebase/
+emulator_data/
+Iniciar_Laboratorio_Local.bat
+database.json
 
 # Excel files with PII/Confidential — never publish to GitHub Pages
 Cronograma de Tareas/*.xlsx
