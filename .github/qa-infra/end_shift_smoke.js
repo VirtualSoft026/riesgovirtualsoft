@@ -46,6 +46,11 @@ function loadIdlePermissionFunctions(IdleDetectorClass) {
     'applyIdleStateChange',
     `let screenLockTimer = null;
      let globalIdleState = false;
+     let idleDetectorStartPromise = null;
+     let activeIdleDetector = null;
+     const NATIVE_IDLE_THRESHOLD_MS = 3 * 60 * 1000;
+     window.idleDetectorGranted = false;
+     window.idleDetectorStarted = false;
      ${idleSource}
      return { requestIdlePermission, startIdleDetectorLogic };`,
   );

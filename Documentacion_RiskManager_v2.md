@@ -1,6 +1,6 @@
 # 📋 Risk Manager — Documentación Técnica y Funcional
 ### Versión Actualizada: 30 de Julio 2026
-**Proyecto:** `riskops-75637` · **URL:** [riskops-75637.web.app](https://riskops-75637.web.app) · **Repositorio:** [GitHub](https://github.com/VirtualSoft026/riesgovirtualsoft)
+**Proyecto Firebase:** configurado por entorno · **URL de Hosting:** configurada por entorno · **Repositorio:** [GitHub](https://github.com/VirtualSoft026/riesgovirtualsoft)
 
 ---
 
@@ -83,12 +83,16 @@
 ### Configuración
 ```javascript
 // firebase-config.js
-apiKey: "AIzaSyBj...",
-authDomain: "riskops-75637.firebaseapp.com",
-databaseURL: "https://riskops-75637-default-rtdb.firebaseio.com",
-projectId: "riskops-75637",
-appId: "1:874205588056:web:95eb04536fd4586e26b82d"
+const firebaseConfig = {
+  apiKey: "<FIREBASE_API_KEY>",
+  authDomain: "<FIREBASE_AUTH_DOMAIN>",
+  databaseURL: "<FIREBASE_DATABASE_URL>",
+  projectId: "<FIREBASE_PROJECT_ID>",
+  appId: "<FIREBASE_APP_ID>"
+};
 ```
+
+Los valores reales se administran fuera de esta documentación y no deben copiarse en guías, tickets ni evidencias de QA.
 
 ### Rutas de Base de Datos (Realtime DB)
 
@@ -228,7 +232,8 @@ appId: "1:874205588056:web:95eb04536fd4586e26b82d"
 > Nota (2026-08-24): Fase 1 había restringido la gestión de comunicados exclusivamente a Admin. Un requerimiento posterior habilitó a Supervisor para crear/publicar comunicados y consultar lecturas; eliminación y edición de comunicados existentes permanecen exclusivas de Admin. Detalle en `README_SECURITY.md` ("Actualización posterior — Comunicados").
 
 ### Detección de Inactividad
-- **Idle Detector API**: Detecta bloqueo de pantalla y cambio de pestaña > 5 minutos
+- **Idle Detector API**: Detecta inactividad general del equipo y bloqueo de pantalla durante más de 3 minutos; se activa únicamente desde el botón **Habilitar Permiso**
+- **Fallback DOM**: Solo evalúa 5 minutos sin interacción cuando RiskOps está visible y enfocado; cambiar de pestaña o ventana no genera inactividad
 - Actualiza estado en `active_sessions/{uid}` (`Activo` vs `Inactivo`)
 - Los tiempos de inactividad se registran en la bitácora del turno
 
@@ -239,10 +244,9 @@ appId: "1:874205588056:web:95eb04536fd4586e26b82d"
 ### Firebase Hosting
 ```bash
 # Desplegar cambios
-npx firebase-tools deploy --only hosting
+npx firebase-tools deploy --only hosting --project "$FIREBASE_PROJECT_ID"
 
-# Proyecto: riskops-75637
-# URL: https://riskops-75637.web.app
+# Proyecto y URL: definidos por el entorno de despliegue
 ```
 
 ### GitHub

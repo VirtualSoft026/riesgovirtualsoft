@@ -1,7 +1,7 @@
 /**
  * inactivity_timeline.test.js
  *
- * Unit tests for the 5 proposed inactivity fixes.
+ * Unit tests for inactivity state and timeline behavior.
  * These tests validate that the inactivity detection system correctly
  * registers events in the timeline (pushTimelineEvent) from ALL detection
  * mechanisms, not just from syncActiveSessionToFirebase().
@@ -9,9 +9,8 @@
  * Pattern: same as end_shift_smoke.js — extract source fragments from app.js
  * and evaluate them in a sandboxed Function context with stubs.
  *
- * Expected behavior:
- *   - FAIL against current production code (demonstrates the bugs)
- *   - PASS after the fixes are applied
+ * These assertions also prevent hidden or unfocused RiskOps tabs from being
+ * retroactively counted as inactivity when browser-wide detection is absent.
  */
 
 const assert = require('node:assert/strict');
@@ -179,10 +178,10 @@ function testUpdateActivityClosesInactivityEvent() {
 }
 
 // ============================================================================
-// TEST 6 (Fix #4 — static): syncActiveSessionToFirebase must use isDomIdle
-// even when IdleDetector is granted
+// TEST 6 (browser-aware): native IdleDetector is authoritative when granted;
+// DOM fallback is only consulted when the native detector is unavailable
 // ============================================================================
-function testSyncCombinesBothIdleSignals() {
+function testSyncKeepsNativeAndDomIdleSignalsSeparated() {
   const inactivityBlock = extractBetween(
     '// --- INACTIVITY LOGIC ---',
     'localStatus = currentStatus;',
@@ -195,29 +194,42 @@ function testSyncCombinesBothIdleSignals() {
   assert(idleDetectorBlock, 'Could not find the idleDetectorGranted block');
 
   const blockBody = idleDetectorBlock[1];
-  const usesDomIdle = /isDomIdle/.test(blockBody);
-
-  assert(
-    usesDomIdle,
-    'When IdleDetector is granted, isInactive must consider isDomIdle too — users who leave the web but stay on the PC are never detected'
+  assert.match(
+    blockBody,
+    /isInactive\s*=\s*globalIdleState/,
+    'When IdleDetector is granted, its browser-wide state must be authoritative'
+  );
+  assert.doesNotMatch(
+    blockBody,
+    /shouldApplyDomIdleFallback|isDomIdle/,
+    'Native detection must not be mixed with page-only inactivity'
+  );
+  assert.match(
+    inactivityBlock,
+    /else\s+if\s*\(shouldApplyDomIdleFallback\(nowMs\)\)/,
+    'DOM fallback must only run when native detection is unavailable'
   );
 }
 
 // ============================================================================
-// TEST 7 (Fix #5 — static): visibilitychange handler must detect PC
-// suspension by checking lastSyncLoopTimestamp
+// TEST 7 (browser-aware): changing tabs must refresh local activity without
+// backfilling the hidden interval as inactivity
 // ============================================================================
-function testVisibilityChangeDetectsSuspension() {
+function testVisibilityChangeDoesNotBackfillHiddenTime() {
   const visibilitySource = extractBetween(
     "document.addEventListener('visibilitychange'",
     '// Fast checker loop',
   );
 
-  const checksTimeSinceSync = /lastSyncLoopTimestamp/.test(visibilitySource);
-
-  assert(
-    checksTimeSinceSync,
-    'visibilitychange must check lastSyncLoopTimestamp to detect PC suspension and inject retroactive Inactividad events'
+  assert.doesNotMatch(
+    visibilitySource,
+    /lastSyncLoopTimestamp|shiftTimeline\.push/,
+    'Changing tabs must not inject retroactive inactivity'
+  );
+  assert.match(
+    visibilitySource,
+    /visibilitychange',\s*updateActivity\)/,
+    'Visibility changes must refresh the local activity timestamp'
   );
 }
 
@@ -289,8 +301,8 @@ const tests = [
   ['Fix1-behavior: active transition records end', testApplyIdleStateChangeRecordsActiveTransition],
   ['Fix2-static: fallback 1s interval pushes timeline', testFallbackIntervalPushesTimelineStart],
   ['Fix3-static: updateActivity closes inactivity', testUpdateActivityClosesInactivityEvent],
-  ['Fix4-static: sync combines IdleDetector + DOM idle', testSyncCombinesBothIdleSignals],
-  ['Fix5-static: visibilitychange detects suspension', testVisibilityChangeDetectsSuspension],
+  ['Browser-aware: sync separates native and DOM idle signals', testSyncKeepsNativeAndDomIdleSignalsSeparated],
+  ['Browser-aware: visibilitychange does not backfill hidden time', testVisibilityChangeDoesNotBackfillHiddenTime],
   ['Structural: all mechanisms record in timeline', testAllMechanismsRecordInTimeline],
   ['Safety: no duplicate timeline events', testNoDuplicateTimelineEvents],
 ];
