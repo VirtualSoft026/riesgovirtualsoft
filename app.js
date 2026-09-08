@@ -786,6 +786,11 @@ function taskNamesMatch(cronTask, masterTask) {
     if (!cronTask || !masterTask) return false;
     const normCron = normalizeTaskName(cronTask);
     const normMaster = normalizeTaskName(masterTask);
+
+    if (normCron.includes("seon") && normMaster.includes("seon")) {
+        return normCron === normMaster;
+    }
+
     return normCron === normMaster || normMaster.includes(normCron) || normCron.includes(normMaster);
 }
 
