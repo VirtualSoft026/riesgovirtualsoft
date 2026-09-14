@@ -42,6 +42,7 @@ temp_mstr_raw.json
 temp_mstr_raw_full.json
 temp_reports.json
 temp_horario_working.xlsx
+kpi_operativos_seed.json
 
 # OS generated files
 .DS_Store
@@ -64,3 +65,7 @@ uid_mapping.json
 # Importer output directories
 task_import_output/
 dry_run_output/
+
+# Prompts & AI context instructions
+docs/PROMPT_PRINCIPAL_RISKOPS.md
+

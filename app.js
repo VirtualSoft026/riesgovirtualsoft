@@ -143,7 +143,7 @@ function setupCustomMultiSelect(containerId, optionsList, onChangeCallback) {
                 <button type="button" class="btn-clear-all">Desmarcar Todos</button>
             </div>
             <div style="padding: 4px 6px; margin-bottom: 6px;">
-                <input type="text" placeholder="Buscar gestor..." class="multiselect-search-input modern-input" style="width: 100%; height: 32px; font-size: 12px; padding: 4px 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                <input type="text" id="${containerId}-search" name="${containerId}-search" aria-label="Buscar gestor" placeholder="Buscar gestor..." class="multiselect-search-input modern-input" style="width: 100%; height: 32px; font-size: 12px; padding: 4px 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
             </div>
             <div class="multiselect-options-list"></div>
         </div>
@@ -207,9 +207,20 @@ function setupCustomMultiSelect(containerId, optionsList, onChangeCallback) {
     trigger.onclick = (e) => {
         e.stopPropagation();
         const isOpen = container.classList.contains('open');
-        document.querySelectorAll('.custom-multiselect').forEach(m => m.classList.remove('open'));
+        document.querySelectorAll('.custom-multiselect').forEach(m => {
+            m.classList.remove('open');
+            const p = m.closest('.glass-panel');
+            if (p) p.style.zIndex = p.dataset.origZIndex || '';
+        });
         if (!isOpen) {
             container.classList.add('open');
+            const parentPanel = container.closest('.glass-panel');
+            if (parentPanel) {
+                if (parentPanel.dataset.origZIndex === undefined) {
+                    parentPanel.dataset.origZIndex = parentPanel.style.zIndex || '';
+                }
+                parentPanel.style.zIndex = '99999';
+            }
             if (searchInput) searchInput.focus();
         }
     };
@@ -242,6 +253,10 @@ function setupCustomMultiSelect(containerId, optionsList, onChangeCallback) {
         document.addEventListener('click', (e) => {
             if (!container.contains(e.target)) {
                 container.classList.remove('open');
+                const parentPanel = container.closest('.glass-panel');
+                if (parentPanel) {
+                    parentPanel.style.zIndex = parentPanel.dataset.origZIndex || '';
+                }
             }
         });
         container._outsideClickListenerAdded = true;
@@ -606,7 +621,24 @@ setInterval(() => {
 try {
     currentUser = currentUserObj ? JSON.parse(currentUserObj) : null;
     if (currentUser) {
-        if (!currentUser.status) currentUser.status = 'Activo';
+        // Validar si la sesión guardada en localStorage es de un día anterior para Gestores
+        if (currentUser.role === 'Gestor' && currentUser.loginTime) {
+            const loginD = new Date(currentUser.loginTime);
+            const nowD = new Date();
+            const isSameDay = !isNaN(loginD.getTime()) &&
+                              loginD.getDate() === nowD.getDate() &&
+                              loginD.getMonth() === nowD.getMonth() &&
+                              loginD.getFullYear() === nowD.getFullYear();
+            if (!isSameDay) {
+                localStorage.removeItem('riskOps_currentUser');
+                localStorage.removeItem('riskOps_cache');
+                localStorage.removeItem('riskOps_breakState');
+                localStorage.removeItem('riskOps_timeline');
+                currentUser = null;
+                window.location.href = 'login.html';
+            }
+        }
+        if (currentUser && !currentUser.status) currentUser.status = 'Activo';
         // Mobile / Role handling
         if (window.innerWidth <= 768) {
             if (['Admin', 'Supervisor'].includes(currentUser.role)) {
@@ -652,7 +684,13 @@ try {
                 if (currentUser.hasSplitShift !== newVal) {
                     currentUser.hasSplitShift = newVal;
                     localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
-                    updateNavigation(); // Muestra/oculta el boton en vivo
+                    const toggleSplitShiftBtn = document.getElementById('toggleSplitShiftBtn');
+                    if (toggleSplitShiftBtn) {
+                        toggleSplitShiftBtn.style.display = newVal ? 'flex' : 'none';
+                    }
+                    if (typeof setupSidebar === 'function') {
+                        setupSidebar();
+                    }
                 }
             });
 
@@ -786,12 +824,16 @@ function taskNamesMatch(cronTask, masterTask) {
     if (!cronTask || !masterTask) return false;
     const normCron = normalizeTaskName(cronTask);
     const normMaster = normalizeTaskName(masterTask);
+    if (normCron === normMaster) return true;
 
-    if (normCron.includes("seon") && normMaster.includes("seon")) {
-        return normCron === normMaster;
+    // Solo permitir inclusión si ambas cadenas son suficientemente largas y específicas
+    // para evitar que palabras cortas genéricas ("revision", "alertas", "eventos") causen falsos positivos
+    const minLen = Math.min(normCron.length, normMaster.length);
+    if (minLen >= 15 && (normMaster.includes(normCron) || normCron.includes(normMaster))) {
+        const diff = Math.abs(normCron.length - normMaster.length);
+        if (diff <= 6) return true;
     }
-
-    return normCron === normMaster || normMaster.includes(normCron) || normCron.includes(normMaster);
+    return false;
 }
 
 function setNamesMatch(set1, set2) {
@@ -1400,6 +1442,36 @@ async function loadExcelTasks() {
             allTasks.push({ ...row, id: taskId });
         });
         
+        // Inicializar estado 'En Proceso' para las tareas asignadas del gestor
+        if (currentUser && currentUser.role === 'Gestor' && processedRows && processedRows.length > 0) {
+            let hasNewTasksToSync = false;
+            processedRows.forEach((row, index) => {
+                const taskId = canonicalTaskId(row.id !== undefined ? row.id : index);
+                const taskName = row['Tarea'];
+                if (!taskStateCache[taskId]) {
+                    taskStateCache[taskId] = {
+                        name: taskName,
+                        status: 'En Proceso',
+                        observation: '',
+                        updatedAt: Date.now()
+                    };
+                    hasNewTasksToSync = true;
+                }
+            });
+            if (hasNewTasksToSync) {
+                try {
+                    localStorage.setItem('riskOps_cache', JSON.stringify(taskStateCache));
+                } catch (e) {}
+                if (currentUser.uid) {
+                    try {
+                        await migrateLocalTasksToActiveSession(currentUser.uid, taskStateCache, {});
+                    } catch (syncErr) {
+                        console.error("Error al sincronizar tareas iniciales En Proceso:", syncErr);
+                    }
+                }
+            }
+        }
+        
         // Populate Set Selector
         const select = document.getElementById('activeSetSelect');
         if(select) {
@@ -1988,9 +2060,11 @@ function renderTree(tasksBySet) {
             </div>
             <div class="${childrenClass}">
                 ${tasksBySet[set].map(task => {
+                    const cId = canonicalTaskId(task.id);
+                    const taskEntry = taskStateCache[cId] || taskStateCache[task.id];
                     let statusClass = 'status-pending';
-                    if (taskStateCache[task.id]) {
-                        const statusText = taskStateCache[task.id].status;
+                    if (taskEntry) {
+                        const statusText = taskEntry.status;
                         if (statusText === 'Finalizada') statusClass = 'status-completed';
                         else if (statusText === 'En Proceso') statusClass = 'status-in-progress';
                         else if (statusText === 'No Realizada') statusClass = 'status-not-done';
@@ -2544,14 +2618,10 @@ window.selectTask = function(taskId, evt) {
                 textArea.value = detailText;
             }
         } else {
-            if(textArea) {
-               textArea.value = task['Detalle de Tarea'] || "";
-            }
-
             // Restore from cache if exists
             document.querySelectorAll('.btn-status').forEach(el => el.classList.remove('active'));
             if(taskStateCache[canonicalId]) {
-                if(textArea) textArea.value = taskStateCache[canonicalId].observation;
+                if(textArea) textArea.value = taskStateCache[canonicalId].observation || "";
 
                 const cachedStatus = taskStateCache[canonicalId].status;
                 let found = false;
@@ -3247,6 +3317,11 @@ async function initApp() {
                 btn.innerHTML = "<i class='bx bx-check'></i> Guardado Exitosamente";
                 btn.classList.add('btn-success');
 
+                // Limpiar el campo de texto de observaciones al confirmarse el envío de la actividad
+                if (obsField) {
+                    obsField.value = '';
+                }
+
                 // Actualizar estado visual de la tarea guardada
                 if (visualTaskElement) {
                     visualTaskElement.classList.remove('status-pending', 'status-completed', 'status-not-done', 'status-in-progress');
@@ -3575,6 +3650,21 @@ async function handleEndShift() {
         if (requiresSpecificSetSelection(setSelect)) {
             alert("OBLIGATORIO: Debes seleccionar el SET específico en el que trabajaste antes de finalizar el turno (Arriba a la derecha).");
             return;
+        }
+
+        // Validación obligatoria: el gestor debe tener todas sus tareas gestionadas (Finalizada o No Realizada)
+        if (localUser && localUser.role === 'Gestor' && typeof taskStateCache !== 'undefined' && taskStateCache) {
+            const unmanagedTasks = [];
+            for (const tId in taskStateCache) {
+                const entry = taskStateCache[tId];
+                if (entry && (entry.status === 'En Proceso' || entry.status === 'Pendiente')) {
+                    unmanagedTasks.push(entry.name || tId);
+                }
+            }
+            if (unmanagedTasks.length > 0) {
+                alert(`OBLIGATORIO: Tienes ${unmanagedTasks.length} tarea(s) sin gestionar (En Proceso o Pendientes). Debes gestionar todas tus tareas asignadas (marcando Finalizada o No Realizada) antes de finalizar el turno.`);
+                return;
+            }
         }
 
         if (btn) {
@@ -4043,7 +4133,7 @@ async function renderPendingUsers() {
                     <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="showUserRejectBox(decodeURIComponent('${encodeInlineHandlerArg(user.id)}'))">Rechazar</button>
                 </div>
                 <div id="user-reject-box-${escapeHTML(user.id)}" style="display:none; flex-direction:column; gap:5px; margin-top:5px;">
-                    <input type="text" id="user-reason-${escapeHTML(user.id)}" placeholder="Motivo de rechazo" class="modern-input" style="padding:4px; font-size:11px; width:100%;">
+                    <input type="text" id="user-reason-${escapeHTML(user.id)}" name="user-reason-${escapeHTML(user.id)}" aria-label="Motivo de rechazo" placeholder="Motivo de rechazo" class="modern-input" style="padding:4px; font-size:11px; width:100%;">
                     <div style="display:flex; gap:5px; justify-content:center;">
                         <button class="btn btn-danger" style="padding: 2px 5px; font-size: 10px;" onclick="confirmRejectUser(decodeURIComponent('${encodeInlineHandlerArg(user.id)}'))">Confirmar</button>
                         <button class="btn btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="cancelRejectUser(decodeURIComponent('${encodeInlineHandlerArg(user.id)}'))">Cancelar</button>
@@ -4196,16 +4286,16 @@ async function renderPendingPermissions() {
                         <button class="btn btn-danger" style="padding: 6px 14px; font-size: 12px; display:inline-flex; align-items:center; gap:4px;" onclick="showPermRejectBox(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))"><i class='bx bx-x' style="font-size:16px;"></i> Rechazar</button>
                     </div>
                     <div id="perm-approve-box-${escapeHTML(p.fb_id)}" style="display:none; flex-direction:column; gap:8px; margin-top:5px; background: rgba(16, 185, 129, 0.08); padding: 10px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
-                        <label style="font-size:11px; font-weight:600; color:var(--success); text-align:left;">Observación de aprobación:</label>
-                        <textarea id="perm-approve-reason-${escapeHTML(p.fb_id)}" placeholder="Escribe un comentario u observación para el gestor..." class="modern-input" style="padding:8px; font-size:12px; width:100%; min-height:60px; resize:vertical; box-sizing:border-box; border-radius:6px; font-family:inherit;"></textarea>
+                        <label for="perm-approve-reason-${escapeHTML(p.fb_id)}" style="font-size:11px; font-weight:600; color:var(--success); text-align:left;">Observación de aprobación:</label>
+                        <textarea id="perm-approve-reason-${escapeHTML(p.fb_id)}" name="perm-approve-reason-${escapeHTML(p.fb_id)}" placeholder="Escribe un comentario u observación para el gestor..." class="modern-input" style="padding:8px; font-size:12px; width:100%; min-height:60px; resize:vertical; box-sizing:border-box; border-radius:6px; font-family:inherit;"></textarea>
                         <div style="display:flex; gap:6px; justify-content:flex-end;">
                             <button class="btn btn-success" style="padding: 5px 12px; font-size: 11px;" onclick="confirmApprovePerm(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))">Confirmar Aprobar</button>
                             <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;" onclick="cancelApprovePerm(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))">Cancelar</button>
                         </div>
                     </div>
                     <div id="perm-reject-box-${escapeHTML(p.fb_id)}" style="display:none; flex-direction:column; gap:8px; margin-top:5px; background: rgba(239, 68, 68, 0.08); padding: 10px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
-                        <label style="font-size:11px; font-weight:600; color:var(--danger); text-align:left;">Motivo de rechazo:</label>
-                        <textarea id="perm-reason-${escapeHTML(p.fb_id)}" placeholder="Escribe la razón por la cual se rechaza..." class="modern-input" style="padding:8px; font-size:12px; width:100%; min-height:60px; resize:vertical; box-sizing:border-box; border-radius:6px; font-family:inherit;"></textarea>
+                        <label for="perm-reason-${escapeHTML(p.fb_id)}" style="font-size:11px; font-weight:600; color:var(--danger); text-align:left;">Motivo de rechazo:</label>
+                        <textarea id="perm-reason-${escapeHTML(p.fb_id)}" name="perm-reason-${escapeHTML(p.fb_id)}" placeholder="Escribe la razón por la cual se rechaza..." class="modern-input" style="padding:8px; font-size:12px; width:100%; min-height:60px; resize:vertical; box-sizing:border-box; border-radius:6px; font-family:inherit;"></textarea>
                         <div style="display:flex; gap:6px; justify-content:flex-end;">
                             <button class="btn btn-danger" style="padding: 5px 12px; font-size: 11px;" onclick="confirmRejectPerm(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))">Confirmar Rechazo</button>
                             <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;" onclick="cancelRejectPerm(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))">Cancelar</button>
@@ -4983,6 +5073,17 @@ function setupSidebar() {
     alignAdministrativeControlsByRole();
 }
 
+function updateNavigation() {
+    const toggleSplitShiftBtn = document.getElementById('toggleSplitShiftBtn');
+    if (toggleSplitShiftBtn && typeof currentUser !== 'undefined' && currentUser) {
+        toggleSplitShiftBtn.style.display = (currentUser.hasSplitShift === true) ? 'flex' : 'none';
+    }
+    if (typeof setupSidebar === 'function') {
+        setupSidebar();
+    }
+}
+window.updateNavigation = updateNavigation;
+
 let allActiveSessions = {};
 
 const availableAvatars = [
@@ -5510,21 +5611,45 @@ window.kpiUsersData = {}; // email -> name
 window.retirosGlobalData = null; // Carga automática del backend
 window.kpiTaskLists = { finalizadas: [], no_realizadas: [], pendientes: [] };
 
-// Cargar data de retiros automáticamente (JSON pre-procesado por el bat)
-function loadRetirosData() {
-    fetch('Retiros/retiros_data.json')
-        .then(response => {
-            if (!response.ok) throw new Error('No se encontró el JSON');
-            return response.json();
-        })
-        .then(data => {
-            window.retirosGlobalData = data;
-            console.log("Data de retiros cargada automáticamente:", Object.keys(data).length, "gestores");
-        })
-        .catch(err => {
-            console.warn("No hay data de retiros automatizada o hubo un error:", err);
-            window.retirosGlobalData = null;
-        });
+// Función centralizada para obtener datos de KPIs respetando el aislamiento de entornos
+async function fetchKpiOperativosData() {
+    const isLocal = typeof window !== 'undefined' && (
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.protocol === 'file:'
+    );
+
+    if (isLocal) {
+        try {
+            const seedResp = await fetch('kpi_operativos_seed.json?v=' + new Date().getTime());
+            if (seedResp.ok) {
+                const seedData = await seedResp.json();
+                if (seedData && Object.keys(seedData).length > 0) {
+                    console.log("[Laboratorio Local] Datos semilla cargados con éxito desde kpi_operativos_seed.json");
+                    return seedData;
+                }
+            }
+        } catch (e) {
+            console.warn("[Laboratorio Local] kpi_operativos_seed.json no disponible, usando archivo estándar", e);
+        }
+    }
+
+    const response = await fetch('kpi_operativos_v2.json?v=' + new Date().getTime());
+    if (!response.ok) throw new Error("No se pudo cargar kpi_operativos_v2.json");
+    return await response.json();
+}
+
+// Cargar data de retiros automáticamente (JSON pre-procesado del motor operativo o seed en local)
+async function loadRetirosData() {
+    try {
+        const data = await fetchKpiOperativosData();
+        window.retirosGlobalData = data;
+        window.controlOperativoRawData = data;
+        console.log("Data de retiros cargada automáticamente:", Object.keys(data).length, "gestores");
+    } catch (err) {
+        console.warn("No hay data de retiros automatizada o hubo un error:", err);
+        window.retirosGlobalData = null;
+    }
 }
 
 function loadGestoresForKPIs() {
@@ -5625,27 +5750,15 @@ async function calcularIndicadores() {
     
     let shiftReports = [];
     try {
-        let snapshotReports, snapshotActive;
+        let snapshotReports;
         
         if (gestorName === 'todos' || selectedGestores.length > 0) {
             snapshotReports = await database.ref('shift_reports').once('value');
-            snapshotActive = await database.ref('active_sessions').once('value');
         }
         
-        if (snapshotReports.exists()) {
+        if (snapshotReports && snapshotReports.exists()) {
             const data = snapshotReports.val();
             shiftReports = shiftReports.concat(Object.values(data));
-        }
-        
-        if (snapshotActive.exists()) {
-            const data = snapshotActive.val();
-            // Normalizar active_sessions para que coincida con el formato de shift_reports
-            const activeArr = Object.values(data).map(session => ({
-                ...session,
-                gestor: session.name, // Asegurar que exista el campo gestor
-                timestamp: typeof session.loginTime === 'string' ? new Date(session.loginTime).getTime() : session.loginTime
-            }));
-            shiftReports = shiftReports.concat(activeArr);
         }
         
         if (selectedGestores.length > 0 && gestorName !== 'todos') {
@@ -6013,15 +6126,18 @@ async function calcularIndicadores() {
     const cardRetiros = document.getElementById('kpiRetirosPenalidadCard');
     const textPenalidad = document.getElementById('kpiPenalidadRetiros');
     const textDemora = document.getElementById('kpiDemoraPromedioText');
-    const cardPagados = document.getElementById('kpiRetirosPagados');
+    const cardPagados = document.getElementById('metric-approved-count');
+    const cardPagadosTitle = document.getElementById('metric-approved-title');
     const cardRechazados = document.getElementById('kpiRetirosRechazados');
     const retirosCardsElements = document.querySelectorAll('.retiros-card');
+    
+    // Set a flag so the real-time Firebase listener knows if we are overriding the value
+    window.isFilteredByGestor = gestorName !== 'todos';
     
     // Asegurar que controlOperativoRawData esté cargado
     if (!window.controlOperativoRawData) {
         try {
-            const resp = await fetch(`kpi_operativos_v2.json?v=${new Date().getTime()}`);
-            if (resp.ok) window.controlOperativoRawData = await resp.json();
+            window.controlOperativoRawData = await fetchKpiOperativosData();
         } catch (e) {
             console.error("Error al cargar datos de operativos", e);
         }
@@ -6060,8 +6176,10 @@ async function calcularIndicadores() {
             const dateStartStr = document.getElementById('operativoDateStart')?.value;
             const dateEndStr = document.getElementById('operativoDateEnd')?.value;
             if (dateStartStr && dateEndStr) {
-                const start = new Date(dateStartStr);
-                const end = new Date(dateEndStr);
+                const sp = dateStartStr.split('-').map(Number);
+                const ep = dateEndStr.split('-').map(Number);
+                const start = new Date(sp[0], sp[1] - 1, sp[2]);
+                const end = new Date(ep[0], ep[1] - 1, ep[2]);
                 for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
                     addDates(new Date(d));
                 }
@@ -6101,7 +6219,12 @@ async function calcularIndicadores() {
         }
     }
 
-    if (cardPagados) cardPagados.textContent = finalStats.totalAprobados;
+    if (cardPagados) {
+        cardPagados.textContent = finalStats.totalAprobados;
+        if (cardPagadosTitle) {
+            cardPagadosTitle.textContent = window.isFilteredByGestor ? "Retiros Aprobados (Filtrado)" : "Retiros Aprobados (Global)";
+        }
+    }
     if (cardRechazados) cardRechazados.textContent = finalStats.totalRechazados;
     
     if (finalStats.retirosConTiempo > 0) {
@@ -6163,12 +6286,27 @@ async function calcularIndicadores() {
     // Mostrar Bitácora integrada
     const cardBitacora = document.getElementById('kpiBitacoraInlineCard');
     const listBitacora = document.getElementById('kpiBitacoraInlineList');
+    const titleBitacora = document.getElementById('kpiBitacoraTitle');
+    
+    let gestorLabel = 'Todos los Gestores';
+    if (selectedGestores && selectedGestores.length === 1) {
+        gestorLabel = selectedGestores[0];
+    } else if (selectedGestores && selectedGestores.length > 1) {
+        gestorLabel = selectedGestores.join(', ');
+    }
+    
+    if (titleBitacora) {
+        titleBitacora.innerHTML = `<i class='bx bx-time-five' style="color: #8B5CF6; margin-right: 6px;"></i> Desglose de Horarios - <span style="color: var(--accent-primary); font-weight: 700;">${escapeHTML(gestorLabel)}</span> <span style="font-size: 13px; color: var(--text-secondary); font-weight: normal;">(Desayuno, Almuerzo/Cena e Inactividad)</span>`;
+    }
+
     if (cardBitacora && listBitacora) {
         if (window.kpiBitacoraHTML && window.kpiBitacoraHTML.trim() !== '') {
             listBitacora.innerHTML = window.kpiBitacoraHTML;
             cardBitacora.style.display = 'flex';
         } else {
-            cardBitacora.style.display = 'none';
+            const periodoText = periodo === 'hoy' ? 'Hoy' : (periodo === 'ayer' ? 'Ayer' : (periodo === 'semanal' ? 'Últimos 7 días' : (periodo === '30dias' ? 'Últimos 30 días' : (periodo === 'mes' ? 'Este Mes' : 'Periodo seleccionado'))));
+            listBitacora.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 13px; background: var(--bg-primary); border-radius: 10px; border: 1px dashed var(--glass-border);"><i class='bx bx-info-circle' style="font-size: 18px; display: block; margin-bottom: 5px; opacity: 0.5;"></i> No se registran turnos cerrados ni pausas para <strong style="color: var(--text-primary);">${escapeHTML(gestorLabel)}</strong> en el periodo seleccionado (${periodoText}).</div>`;
+            cardBitacora.style.display = 'flex';
         }
     }
     
@@ -6605,8 +6743,8 @@ function renderConfigGestores() {
                 </td>
                 <td style="padding: 15px; color: var(--text-secondary); font-size: 13px;">${u.email}</td>
                 <td style="padding: 15px; text-align: center;">
-                    <label class="switch" style="position: relative; display: inline-block; width: 44px; height: 22px;">
-                        <input type="checkbox" onchange="toggleGestorSplitShift('${u.uid}', this.checked)" ${hasSplitShift ? 'checked' : ''} style="opacity: 0; width: 0; height: 0;">
+                    <label for="splitShiftToggle_${u.uid}" class="switch" style="position: relative; display: inline-block; width: 44px; height: 22px;">
+                        <input type="checkbox" id="splitShiftToggle_${u.uid}" name="splitShiftToggle_${u.uid}" aria-label="Turno Partido para ${escapeHTML(u.name || 'Gestor')}" onchange="toggleGestorSplitShift('${u.uid}', this.checked)" ${hasSplitShift ? 'checked' : ''} style="opacity: 0; width: 0; height: 0;">
                         <span class="slider round" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: ${hasSplitShift ? 'var(--success)' : 'var(--glass-border)'}; transition: .4s; border-radius: 22px;">
                             <span style="position: absolute; height: 16px; width: 16px; left: ${hasSplitShift ? '24px' : '3px'}; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
                         </span>
@@ -7092,9 +7230,7 @@ function generarReporteEjecutivoPDF() {
 
 async function loadControlOperativoData() {
     try {
-        const response = await fetch('kpi_operativos_v2.json?' + new Date().getTime());
-        if (!response.ok) throw new Error("No se pudo cargar kpi_operativos_v2.json");
-        const data = await response.json();
+        const data = await fetchKpiOperativosData();
         window.controlOperativoRawData = data;
         
         // Merge Inactividad from Firebase shift_reports
@@ -7382,6 +7518,10 @@ function renderControlOperativoFiltered() {
             
             if (inRange) {
                 const d = window.controlOperativoRawData[gestor][fecha];
+                const procesadosEnDia = (d.Retiros_Procesados !== undefined)
+                    ? d.Retiros_Procesados
+                    : ((d.Retiros_Aprobados || 0) + (d.Retiros_Rechazados || 0));
+                const esDiaActivo = (d.Dias_Laborados && d.Dias_Laborados > 0) ? d.Dias_Laborados : (procesadosEnDia > 0 ? 1 : 0);
                 
                 // Add to Global Data
                 aggregatedDataGlobal[gestor].Retiros_Aprobados += d.Retiros_Aprobados || 0;
@@ -7390,7 +7530,7 @@ function renderControlOperativoFiltered() {
                 aggregatedDataGlobal[gestor].Dias_Tarde += d.Dias_Tarde || 0;
                 aggregatedDataGlobal[gestor].Minutos_Tarde_Total += d.Minutos_Tarde_Total || 0;
                 aggregatedDataGlobal[gestor].Minutos_Inactividad_Total += d.Minutos_Inactividad_Total || 0;
-                aggregatedDataGlobal[gestor].Dias_Laborados += d.Dias_Laborados || 0;
+                aggregatedDataGlobal[gestor].Dias_Laborados += esDiaActivo;
 
                 // Add to Filtered Data (only if this gestor is selected)
                 if (checkGestorMatch(gestor)) {
@@ -7406,7 +7546,7 @@ function renderControlOperativoFiltered() {
                     aggregatedData[gestor].Dias_Tarde += d.Dias_Tarde || 0;
                     aggregatedData[gestor].Minutos_Tarde_Total += d.Minutos_Tarde_Total || 0;
                     aggregatedData[gestor].Minutos_Inactividad_Total += d.Minutos_Inactividad_Total || 0;
-                    aggregatedData[gestor].Dias_Laborados += d.Dias_Laborados || 0;
+                    aggregatedData[gestor].Dias_Laborados += esDiaActivo;
                 }
             }
         }
@@ -7536,6 +7676,20 @@ function renderControlOperativoFiltered() {
 function renderControlOperativoCharts(data, dailyData, selectedGestor) {
     const isGlobal = (selectedGestor === 'Todos' || selectedGestor.includes('Gestores'));
     
+    let realSelectedGestor = null;
+    if (!isGlobal && selectedGestor) {
+        const rawKeys = Object.keys(window.controlOperativoRawData || {});
+        realSelectedGestor = rawKeys.find(k => k === selectedGestor);
+        if (!realSelectedGestor) {
+            const parts = selectedGestor.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(' ');
+            realSelectedGestor = rawKeys.find(k => {
+                const normK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                return parts.every(p => normK.includes(p));
+            });
+        }
+        if (!realSelectedGestor) realSelectedGestor = selectedGestor;
+    }
+
     // UI titles update
     const elTitlePeores = document.getElementById('titleTardanzasPeores');
     const elTitleMejores = document.getElementById('titleTardanzasMejores');
@@ -7616,14 +7770,6 @@ function renderControlOperativoCharts(data, dailyData, selectedGestor) {
     
     } else {
         // SINGLE GESTOR:
-        let realSelectedGestor = Object.keys(window.controlOperativoRawData).find(k => k === selectedGestor);
-        if (!realSelectedGestor) {
-            const parts = selectedGestor.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(' ');
-            realSelectedGestor = Object.keys(window.controlOperativoRawData).find(k => {
-                const normK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                return parts.every(p => normK.includes(p));
-            });
-        }
         if (!realSelectedGestor) realSelectedGestor = selectedGestor;
 
         // 1. Fechas con Llegadas Tarde (Show all dates in sortedDates with red bars for late minutes)
@@ -8063,9 +8209,11 @@ function drawScatterMatriz(id, gestores, data, isGlobal = true) {
     } else {
         const gestor = gestores[0];
         const gData = data[gestor];
+        const rawTasa = gData ? (typeof gData.Tasa_Aprobacion_Dia === 'string' ? parseFloat(gData.Tasa_Aprobacion_Dia.replace('%', '')) : (gData.Tasa_Aprobacion_Dia || 0)) : 0;
+        const rawRechazos = gData ? (typeof gData.Porcentaje_Rechazos === 'string' ? parseFloat(gData.Porcentaje_Rechazos.replace('%', '')) : (gData.Porcentaje_Rechazos || 0)) : 0;
         const scatterPoint = gData ? [{
-            x: gData.Tasa_Aprobacion_Dia || 0,
-            y: gData.Porcentaje_Rechazos || 0,
+            x: isNaN(rawTasa) ? 0 : rawTasa,
+            y: isNaN(rawRechazos) ? 0 : rawRechazos,
             name: gestor
         }] : [];
 
@@ -8500,6 +8648,7 @@ function initAtomicApprovedCounterListener() {
 }
 
 function updateApprovedCountUI(count) {
+    if (window.isFilteredByGestor) return; // Prevent overwriting filtered value with global realtime updates
     const countEl = document.getElementById('metric-approved-count');
     if (countEl) {
         countEl.textContent = count || 0;

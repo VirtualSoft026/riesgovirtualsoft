@@ -106,12 +106,12 @@
 
         <!-- Main Content -->
         <main class="main-content">
-            <div id="idleDetectorWarning" style="display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 99999; background: #fee2e2; border-bottom: 2px solid #ef4444; color: #b91c1c; padding: 15px 20px; align-items: center; justify-content: center; gap: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-                <div style="display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px;">
-                    <i class='bx bx-error-circle' style="font-size: 22px;"></i>
-                    <span id="idleDetectorWarningText">Permiso de inactividad pendiente o denegado. RiskOps no podrá registrar automáticamente tu actividad en otras ventanas.</span>
+            <div id="idleDetectorWarning" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); color: var(--danger); padding: 12px 20px; border-radius: 8px; margin: 20px 20px 0 20px; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 10px; font-weight: 500; font-size: 13px;">
+                    <i class='bx bx-error-circle' style="font-size: 18px;"></i>
+                    <span id="idleDetectorWarningText">Permiso de inactividad pendiente o denegado. RiskOps no podrá registrar automáticamente cuando bloquees la pantalla.</span>
                 </div>
-                <button class="btn btn-outline" onclick="requestIdlePermissionManual()" style="background: #ef4444; color: white; border: none; padding: 8px 16px; font-size: 13px; font-weight: bold; border-radius: 6px; cursor: pointer; box-shadow: 0 2px 4px rgba(239,68,68,0.3);">Habilitar Permiso</button>
+                <button class="btn btn-outline" onclick="requestIdlePermissionManual()" style="padding: 6px 15px; font-size: 12px; border-color: var(--danger); color: var(--danger);">Habilitar Permiso</button>
             </div>
             <!-- Header -->
             <header class="top-header glass-panel">
@@ -155,11 +155,11 @@
                     </div>
                     
                     <div style="margin-bottom: 15px; display: flex; flex-direction: column; gap: 8px;">
-                        <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 2px; display: block;">Selecciona tu SET a trabajar:</label>
+                        <label for="activeSetSelect" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 2px; display: block;">Selecciona tu SET a trabajar:</label>
                         <select id="activeSetSelect" class="modern-input" style="padding: 8px;">
                             <option value="Todos">Mostrar Todos</option>
                         </select>
-                        <label style="font-size: 12px; color: var(--text-secondary); margin-top: 5px; margin-bottom: 2px; display: block;">Filtrar por Responsable:</label>
+                        <label for="filter-assignee" style="font-size: 12px; color: var(--text-secondary); margin-top: 5px; margin-bottom: 2px; display: block;">Filtrar por Responsable:</label>
                         <select id="filter-assignee" class="modern-input" style="padding: 8px;" onchange="renderAssignedTasksFilter()">
                             <option value="Todos">Todos los Responsables</option>
                         </select>
@@ -186,7 +186,7 @@
                     </div>
 
                     <div class="task-controls">
-                        <label>Estado de la Tarea:</label>
+                        <span class="form-label" style="font-size: 13px; color: var(--text-secondary); display: block; margin-bottom: 5px;">Estado de la Tarea:</span>
                         <div class="status-buttons">
                             <button class="btn-status pending active"><i class='bx bx-time'></i> Pendiente</button>
                             <button class="btn-status in-progress"><i class='bx bx-loader-alt bx-spin-hover'></i> En Proceso</button>
@@ -196,8 +196,8 @@
                     </div>
 
                     <div class="task-form">
-                        <label>Notas Técnicas:</label>
-                        <textarea id="taskObservation" placeholder="Ingresa observaciones de la gestión..." class="modern-input"></textarea>
+                        <label for="taskObservation">Notas Técnicas:</label>
+                        <textarea id="taskObservation" name="taskObservation" placeholder="Ingresa observaciones de la gestión..." class="modern-input"></textarea>
                         
                         <div class="action-bar" style="margin-top: 15px;">
                             <button class="btn btn-primary" id="saveTaskBtn">Guardar Progreso</button>
@@ -230,13 +230,13 @@
                 <div class="glass-panel" style="padding: 20px; overflow-x: auto; position: relative;">
                     <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <label style="color: var(--text-secondary); font-size: 14px;">Seleccionar Semana:</label>
+                            <label for="weekSelector" style="color: var(--text-secondary); font-size: 14px;">Seleccionar Semana:</label>
                             <select id="weekSelector" class="modern-input" style="padding: 8px; width: auto; min-width: 250px; background: var(--bg-dark);">
                                 <option value="">Cargando semanas...</option>
                             </select>
                         </div>
                         <div id="horarioGestorFilterContainer" style="display: flex; align-items: center; gap: 8px;">
-                            <label style="color: var(--text-secondary); font-size: 14px;">Filtrar Gestores:</label>
+                            <span class="form-label" style="color: var(--text-secondary); font-size: 14px;">Filtrar Gestores:</span>
                             <div id="scheduleGestorMultiSelect" class="custom-multiselect">
                                 <div class="custom-multiselect-btn" onclick="toggleMultiSelectDropdown('scheduleGestorMultiSelect')">
                                     <span class="multiselect-label">Todos los gestores</span>
@@ -260,13 +260,13 @@
                 <div class="glass-panel" style="padding: 20px; overflow-x: auto;">
                     <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <label style="color: var(--text-secondary); font-size: 14px;">Seleccionar Semana:</label>
+                            <label for="teletrabajoWeekSelector" style="color: var(--text-secondary); font-size: 14px;">Seleccionar Semana:</label>
                             <select id="teletrabajoWeekSelector" class="modern-input" style="padding: 8px; width: auto; min-width: 250px; background: var(--bg-dark);">
                                 <option value="">Cargando semanas...</option>
                             </select>
                         </div>
                         <div id="teletrabajoGestorFilterContainer" style="display: flex; align-items: center; gap: 8px;">
-                            <label style="color: var(--text-secondary); font-size: 14px;">Filtrar Gestores:</label>
+                            <span class="form-label" style="color: var(--text-secondary); font-size: 14px;">Filtrar Gestores:</span>
                             <div id="teletrabajoGestorMultiSelect" class="custom-multiselect">
                                 <div class="custom-multiselect-btn" onclick="toggleMultiSelectDropdown('teletrabajoGestorMultiSelect')">
                                     <span class="multiselect-label">Todos los gestores</span>
@@ -308,9 +308,9 @@
                         <form id="permisosForm" action="https://formsubmit.co/maria.sanchez@virtualsoft.tech" method="POST" class="task-form" style="margin-top: 15px;">
                             <input type="hidden" name="_subject" value="Nueva Solicitud de Permiso - Gestor Riesgo">
                             <input type="hidden" name="_captcha" value="false">
-                            <label>Nombre del Gestor</label>
+                            <label for="permisoGestorName">Nombre del Gestor</label>
                             <input type="text" name="Gestor" class="modern-input" id="permisoGestorName" readonly required style="min-height: 40px; margin-bottom: 10px;">
-                            <label>Tipo de Permiso</label>
+                            <label for="tipoPermisoSelect">Tipo de Permiso</label>
                             <select name="Tipo_Permiso" id="tipoPermisoSelect" class="modern-input" required style="min-height: 40px; margin-bottom: 10px;">
                                 <option value="" disabled selected>Seleccione...</option>
                                 <option value="Vacaciones">Vacaciones</option>
@@ -321,23 +321,23 @@
                                 <option value="Otro">Otro</option>
                             </select>
                             <div id="otroPermisoContainer" style="display: none; margin-bottom: 10px;">
-                                <label>Especifique</label>
+                                <label for="otroPermisoInput">Especifique</label>
                                 <input type="text" name="Especificacion_Otro" id="otroPermisoInput" class="modern-input" style="min-height: 40px;">
                             </div>
                             <div id="standardDateContainer">
-                                <label>Fecha del Permiso</label>
+                                <label for="permisoFecha">Fecha del Permiso</label>
                                 <input type="date" name="Fecha" id="permisoFecha" class="modern-input" required style="min-height: 40px; margin-bottom: 10px;">
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-                                    <div><label>Hora Inicio</label><input type="time" name="Hora_Inicio" id="permisoHoraInicio" class="modern-input" required style="min-height: 40px; width: 100%;"></div>
-                                    <div><label>Hora Fin</label><input type="time" name="Hora_Fin" id="permisoHoraFin" class="modern-input" required style="min-height: 40px; width: 100%;"></div>
+                                    <div><label for="permisoHoraInicio">Hora Inicio</label><input type="time" name="Hora_Inicio" id="permisoHoraInicio" class="modern-input" required style="min-height: 40px; width: 100%;"></div>
+                                    <div><label for="permisoHoraFin">Hora Fin</label><input type="time" name="Hora_Fin" id="permisoHoraFin" class="modern-input" required style="min-height: 40px; width: 100%;"></div>
                                 </div>
                             </div>
                             <div id="vacacionesDateContainer" style="display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-                                <div><label>Desde (Fecha)</label><input type="date" name="Fecha_Desde" id="permisoFechaDesde" class="modern-input" style="min-height: 40px; width: 100%;"></div>
-                                <div><label>Hasta (Fecha)</label><input type="date" name="Fecha_Hasta" id="permisoFechaHasta" class="modern-input" style="min-height: 40px; width: 100%;"></div>
+                                <div><label for="permisoFechaDesde">Desde (Fecha)</label><input type="date" name="Fecha_Desde" id="permisoFechaDesde" class="modern-input" style="min-height: 40px; width: 100%;"></div>
+                                <div><label for="permisoFechaHasta">Hasta (Fecha)</label><input type="date" name="Fecha_Hasta" id="permisoFechaHasta" class="modern-input" style="min-height: 40px; width: 100%;"></div>
                             </div>
-                            <label>Motivo y Justificación</label>
-                            <textarea name="Justificacion" class="modern-input" required style="min-height: 100px;"></textarea>
+                            <label for="permisoJustificacion">Motivo y Justificación</label>
+                            <textarea id="permisoJustificacion" name="Justificacion" class="modern-input" required style="min-height: 100px;"></textarea>
                             <button type="submit" class="btn btn-primary" style="margin-top: 15px;"><i class='bx bx-send'></i> Enviar a Supervisor</button>
                         </form>
                     </div>
@@ -356,11 +356,11 @@
                 
                 <div class="glass-panel" style="padding: 10px; margin-bottom: 15px; display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; border: 1px solid var(--glass-border);">
                     <div style="flex: 1; min-width: 180px;">
-                        <label style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; display: block; font-weight: 500;">Buscar por Nombre o Email:</label>
+                        <label for="filterAprobacionesSearch" style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; display: block; font-weight: 500;">Buscar por Nombre o Email:</label>
                         <input type="text" id="filterAprobacionesSearch" placeholder="🔍 Escriba para buscar todos los registros..." class="modern-input" style="min-height: 32px; padding: 6px 10px; font-size: 12px; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 6px; width: 100%;" oninput="renderPendingUsers()">
                     </div>
                     <div style="flex: 1; min-width: 180px;">
-                        <label style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; display: block; font-weight: 500;">Filtrar por Estado:</label>
+                        <label for="filterAprobacionesStatus" style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; display: block; font-weight: 500;">Filtrar por Estado:</label>
                         <select id="filterAprobacionesStatus" class="modern-input" style="min-height: 32px; padding: 6px 10px; font-size: 12px; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 6px; width: 100%;" onchange="renderPendingUsers()">
                             <option value="Todos" style="color: black;">Todos</option>
                             <option value="Pendiente" style="color: black;">Pendientes de Aprobación</option>
@@ -409,9 +409,9 @@
                 <h2 class="panel-title" style="margin-bottom: 20px; color: var(--success);"><i class='bx bx-history'></i> Historial de Turnos Global</h2>
                 
                 <!-- Filtros para historial de turnos -->
-                <div class="glass-panel" style="padding: 15px; margin-bottom: 20px; display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; border: 1px solid var(--glass-border);">
+                <div class="glass-panel" style="padding: 15px; margin-bottom: 20px; display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; border: 1px solid var(--glass-border); position: relative; z-index: 50;">
                     <div style="flex: 1; min-width: 220px;">
-                        <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; display: block; font-weight: 500;">Filtrar por Gestor(es):</label>
+                        <span class="form-label" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; display: block; font-weight: 500;">Filtrar por Gestor(es):</span>
                         <div id="turnosGestorMultiSelect" class="custom-multiselect" style="width: 100%;">
                             <div class="custom-multiselect-btn" style="min-height: 40px;" onclick="toggleMultiSelectDropdown('turnosGestorMultiSelect')">
                                 <span class="multiselect-label">Todos los gestores</span>
@@ -421,7 +421,7 @@
                         </div>
                     </div>
                     <div style="flex: 1; min-width: 200px;">
-                        <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; display: block; font-weight: 500;">Filtrar por Fecha:</label>
+                        <label for="filterFechaInput" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; display: block; font-weight: 500;">Filtrar por Fecha:</label>
                         <input type="date" id="filterFechaInput" class="modern-input" style="min-height: 40px; padding: 10px; resize: none;">
                     </div>
                     <div>
@@ -429,7 +429,7 @@
                     </div>
                 </div>
 
-                <div class="glass-panel" style="padding: 0 20px 20px 20px; border: 1px solid var(--success); overflow-x: auto; overflow-y: auto; max-height: 500px;">
+                <div class="glass-panel" style="padding: 0 20px 20px 20px; border: 1px solid var(--success); overflow-x: auto; overflow-y: auto; max-height: 500px; position: relative; z-index: 1;">
                     <table style="width: 100%; border-collapse: collapse;">
                         <thead>
                             <tr>
@@ -512,9 +512,9 @@
                     <!-- Panel de Filtros Horizontal Superior para Operativo -->
                     <div class="glass-panel filter-section" style="margin-bottom: 25px; display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap; position: relative; z-index: 500;">
                         <div style="flex: 1; min-width: 250px;">
-                            <label style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 700;">
+                            <span class="form-label" style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 700;">
                                 <i class='bx bx-user' style="margin-right: 5px; color: var(--primary);"></i>Gestor(es) a Evaluar
-                            </label>
+                            </span>
                             <div id="operativoGestorMultiSelect" class="custom-multiselect" style="width: 100%;">
                                 <div class="custom-multiselect-btn" style="height: 48px; background: var(--bg-secondary, #f8f9fa); border-radius: 12px;" onclick="toggleMultiSelectDropdown('operativoGestorMultiSelect')">
                                     <span class="multiselect-label">Todos los gestores</span>
@@ -525,7 +525,7 @@
                         </div>
 
                         <div style="flex: 1; min-width: 250px;">
-                            <label style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 700;">
+                            <label for="filtroFechaOperativo" style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 700;">
                                 <i class='bx bx-calendar' style="margin-right: 5px; color: var(--primary);"></i>Periodo de Evaluación
                             </label>
                             <select id="filtroFechaOperativo" class="modern-input" style="box-sizing: border-box; height: 48px; padding: 0 16px; width: 100%; border-radius: 12px; background: var(--bg-secondary, #f8f9fa); border: 1px solid rgba(0,0,0,0.05); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); transition: all 0.3s ease; outline: none;" onchange="toggleOperativoCustomDates(); renderControlOperativoFiltered()">
@@ -542,13 +542,13 @@
 
                         <div id="operativoCustomDateContainer" style="display: none; flex: 2; min-width: 300px; gap: 10px; align-items: flex-end;">
                             <div style="flex: 1;">
-                                <label style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 700;">
+                                <label for="operativoDateStart" style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 700;">
                                     <i class='bx bx-calendar-star' style="margin-right: 5px; color: var(--primary);"></i>Desde
                                 </label>
                                 <input type="date" id="operativoDateStart" class="modern-input" onchange="renderControlOperativoFiltered()" style="box-sizing: border-box; height: 48px; padding: 0 16px; width: 100%; border-radius: 12px; background: var(--bg-secondary, #f8f9fa); border: 1px solid rgba(0,0,0,0.05); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); outline: none;">
                             </div>
                             <div style="flex: 1;">
-                                <label style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 700;">
+                                <label for="operativoDateEnd" style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 700;">
                                     <i class='bx bx-calendar-check' style="margin-right: 5px; color: var(--primary);"></i>Hasta
                                 </label>
                                 <input type="date" id="operativoDateEnd" class="modern-input" onchange="renderControlOperativoFiltered()" style="box-sizing: border-box; height: 48px; padding: 0 16px; width: 100%; border-radius: 12px; background: var(--bg-secondary, #f8f9fa); border: 1px solid rgba(0,0,0,0.05); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); outline: none;">
@@ -714,7 +714,7 @@
                                             <div style="background: rgba(139, 92, 246, 0.1); color: #8B5CF6; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
                                                 <i class='bx bx-time-five'></i>
                                             </div>
-                                            <h3 style="font-size: 15px; color: var(--text-primary); font-weight: 600; margin: 0; text-align: left;">Desglose de Horarios (Desayuno, Almuerzo/Cena e Inactividad)</h3>
+                                            <h3 id="kpiBitacoraTitle" style="font-size: 15px; color: var(--text-primary); font-weight: 600; margin: 0; text-align: left;">Desglose de Horarios (Desayuno, Almuerzo/Cena e Inactividad)</h3>
                                         </div>
                                     </div>
                                     <div id="kpiBitacoraInlineList" style="background: transparent; padding: 10px 0 0 0; border-radius: var(--radius-md); font-size: 13px; max-height: 400px; overflow-y: auto; color: var(--text-primary); width: 100%; box-sizing: border-box; border-top: 1px dashed var(--glass-border);">
@@ -728,7 +728,7 @@
                         
                         <!-- Contador Operacional Atómico -->
                         <div id="retirosGlobalWidget" class="metric-approved-widget glass-panel" style="margin-top: 15px; margin-bottom: 20px; padding: 15px; text-align: center; border-radius: 12px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2);">
-                            <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--success); font-weight: 700; display: block;">Retiros Aprobados (Global)</span>
+                            <span id="metric-approved-title" style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--success); font-weight: 700; display: block;">Retiros Aprobados (Global)</span>
                             <span id="metric-approved-count" style="font-size: 28px; font-weight: 800; color: var(--success); display: inline-block; transition: transform 0.3s ease;">0</span>
                         </div>
                     </div>
@@ -802,7 +802,7 @@
                         <!-- Filtros -->
                         <div style="display: flex; gap: 15px; align-items: center; background: rgba(255,255,255,0.03); padding: 10px 20px; border-radius: var(--radius-lg); border: 1px solid var(--glass-border);">
                             <div style="display: flex; flex-direction: column; gap: 5px;">
-                                <label style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Rango de Fecha</label>
+                                <label for="tiemposDateFilter" style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Rango de Fecha</label>
                                 <select id="tiemposDateFilter" class="modern-input" onchange="toggleTiemposCustomDates(); loadTiemposMetrics()" style="min-width: 150px; padding: 6px 12px; font-size: 13px;">
                                     <option value="today">Solo Hoy</option>
                                     <option value="yesterday">Solo Ayer</option>
@@ -816,16 +816,16 @@
                             </div>
                             <div id="tiemposCustomDateContainer" style="display: none; flex-direction: row; gap: 10px; align-items: center;">
                                 <div style="display: flex; flex-direction: column; gap: 5px;">
-                                    <label style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Desde</label>
+                                    <label for="tiemposDateStart" style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Desde</label>
                                     <input type="date" id="tiemposDateStart" class="modern-input" onchange="loadTiemposMetrics()" style="padding: 6px 12px; font-size: 13px;">
                                 </div>
                                 <div style="display: flex; flex-direction: column; gap: 5px;">
-                                    <label style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Hasta</label>
+                                    <label for="tiemposDateEnd" style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Hasta</label>
                                     <input type="date" id="tiemposDateEnd" class="modern-input" onchange="loadTiemposMetrics()" style="padding: 6px 12px; font-size: 13px;">
                                 </div>
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 5px;">
-                                <label style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Gestor</label>
+                                <label for="tiemposGestorFilter" style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Gestor</label>
                                 <select id="tiemposGestorFilter" class="modern-input" onchange="loadTiemposMetrics()" style="min-width: 160px; padding: 6px 12px; font-size: 13px;">
                                     <option value="all">Todos los Gestores</option>
                                 </select>
@@ -966,7 +966,7 @@
                             <h3 style="margin-top: 0; font-size: 16px; color: var(--text-primary); margin-bottom: 15px;"><i class='bx bx-plus-circle'></i> Registrar Novedad / Incidente</h3>
                             <form id="incidentForm" onsubmit="handleNewIncidentSubmit(event)">
                                 <div style="margin-bottom: 12px;">
-                                    <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Tipo de Incidente</label>
+                                    <label for="incidentType" style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Tipo de Incidente</label>
                                     <select id="incidentType" class="modern-input" style="width: 100%; padding: 10px;" required>
                                         <option value="Soporte Técnico">Soporte Técnico</option>
                                         <option value="Falla de Sistema">Falla de Sistema</option>
@@ -977,15 +977,15 @@
                                     </select>
                                 </div>
                                 <div style="margin-bottom: 12px;">
-                                    <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Título de la Novedad</label>
+                                    <label for="incidentTitle" style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Título de la Novedad</label>
                                     <input type="text" id="incidentTitle" class="modern-input" placeholder="Ej: Error en pasarela de pago..." style="width: 100%; padding: 10px;" required>
                                 </div>
                                 <div style="margin-bottom: 12px;">
-                                    <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Responsable / Afiliado</label>
+                                    <label for="incidentAssignee" style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Responsable / Afiliado</label>
                                     <input type="text" id="incidentAssignee" class="modern-input" placeholder="Gestor o Responsable..." style="width: 100%; padding: 10px;">
                                 </div>
                                 <div style="margin-bottom: 15px;">
-                                    <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Detalle / Observaciones</label>
+                                    <label for="incidentDetail" style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Detalle / Observaciones</label>
                                     <textarea id="incidentDetail" class="modern-input" placeholder="Describe los detalles del incidente..." style="width: 100%; height: 100px; padding: 10px;" required></textarea>
                                 </div>
                                 <button type="submit" class="btn btn-primary" style="width: 100%; height: 42px; display: flex; align-items: center; justify-content: center; gap: 8px;">
@@ -1082,10 +1082,10 @@
             <h2 style="color: var(--accent-primary);"><i class='bx bx-task'></i> Añadir Tarea Adicional</h2>
             <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 15px;">Registra cualquier tarea extra asignada por tu supervisor que no esté en el cronograma base.</p>
             
-            <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 5px;">Nombre de la Tarea Extra:</label>
+            <label for="extraTaskName" style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 5px;">Nombre de la Tarea Extra:</label>
             <input type="text" id="extraTaskName" class="modern-input" placeholder="Ej: Revisión especial de correos..." style="margin-bottom: 15px; width: 100%;">
             
-            <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 5px;">Estado de la Gestión:</label>
+            <label for="extraTaskStatus" style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 5px;">Estado de la Gestión:</label>
             <select id="extraTaskStatus" class="modern-input" style="margin-bottom: 15px; width: 100%;">
                 <option value="Finalizada" selected>Finalizada</option>
                 <option value="En Proceso">En Proceso</option>
@@ -1093,7 +1093,7 @@
                 <option value="No Realizada">No Realizada</option>
             </select>
             
-            <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 5px;">Notas Técnicas / Observaciones:</label>
+            <label for="extraTaskObs" style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 5px;">Notas Técnicas / Observaciones:</label>
             <textarea id="extraTaskObs" placeholder="Detalla la gestión realizada..." class="modern-input" style="min-height: 80px; margin-bottom: 15px; width: 100%;"></textarea>
             
             <div class="modal-actions" style="margin-top: 5px;">
@@ -1107,10 +1107,10 @@
     <div id="newComunicadoModal" class="modal-overlay">
         <div class="modal glass-panel" style="max-width: 600px; width: 90%;">
             <h2 style="color: var(--warning);"><i class='bx bx-edit'></i> Redactar Nuevo Comunicado</h2>
-            <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 5px;">Título del Comunicado:</label>
-            <input type="text" id="comunicadoTitle" class="modern-input" placeholder="Ej: Nueva Política de Permisos" style="margin-bottom: 15px; width: 100%;">
+            <label for="comunicadoTitle" style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 5px;">Título del Comunicado:</label>
+            <input type="text" id="comunicadoTitle" name="comunicadoTitle" class="modern-input" placeholder="Ej: Nueva Política de Permisos" style="margin-bottom: 15px; width: 100%;">
             
-            <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 5px;">Contenido / Mensaje:</label>
+            <span id="comunicadoContentLabel" class="form-label" style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 5px;">Contenido / Mensaje:</span>
             <div style="border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; margin-bottom: 15px; overflow: hidden;">
                 <!-- Barra de herramientas del editor -->
                 <div style="background: rgba(0,0,0,0.2); padding: 8px; display: flex; gap: 5px; border-bottom: 1px solid rgba(255,255,255,0.1); flex-wrap: wrap; align-items: center;">
@@ -1126,7 +1126,7 @@
                     <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px; color: #e2e8f0; border-color: rgba(255,255,255,0.3);" onclick="document.execCommand('foreColor', false, '#e2e8f0')" title="Texto Blanco"><i class='bx bx-font-color'></i></button>
                 </div>
                 <!-- Área de contenido editable -->
-                <div id="comunicadoContent" class="rich-text" contenteditable="true" style="min-height: 150px; padding: 15px; font-size: 14px; outline: none; background: rgba(0,0,0,0.1); color: var(--text-primary); max-height: 300px; overflow-y: auto;" placeholder="Escribe aquí toda la información que los gestores deben conocer..."></div>
+                <div id="comunicadoContent" role="textbox" aria-multiline="true" aria-labelledby="comunicadoContentLabel" class="rich-text" contenteditable="true" style="min-height: 150px; padding: 15px; font-size: 14px; outline: none; background: rgba(0,0,0,0.1); color: var(--text-primary); max-height: 300px; overflow-y: auto;" placeholder="Escribe aquí toda la información que los gestores deben conocer..."></div>
             </div>
             
             <div class="modal-actions" style="margin-top: 5px;">
@@ -1185,8 +1185,8 @@
             </div>
             
             <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--glass-border); text-align: left;">
-                <label style="font-size: 13px; color: var(--text-secondary);"><i class='bx bx-lock-alt'></i> Cambiar Contraseña</label>
-                <input type="password" id="newPasswordInput" class="modern-input" placeholder="Escribe la nueva contraseña" style="margin-top: 8px;">
+                <label for="newPasswordInput" style="font-size: 13px; color: var(--text-secondary);"><i class='bx bx-lock-alt'></i> Cambiar Contraseña</label>
+                <input type="password" id="newPasswordInput" name="newPasswordInput" autocomplete="new-password" class="modern-input" placeholder="Escribe la nueva contraseña" style="margin-top: 8px;">
             </div>
             <div class="modal-actions" style="margin-top: 20px;">
                 <button class="btn btn-outline" onclick="closeModal('profileModal')">Cancelar</button>
