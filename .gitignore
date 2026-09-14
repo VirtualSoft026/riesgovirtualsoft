@@ -68,4 +68,5 @@ dry_run_output/
 
 # Prompts & AI context instructions
 docs/PROMPT_PRINCIPAL_RISKOPS.md
+.agents/
 
