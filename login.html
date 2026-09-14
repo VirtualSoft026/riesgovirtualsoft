@@ -63,12 +63,12 @@
             <form id="loginForm" class="login-form">
                 <div class="input-group">
                     <i class='bx bx-envelope'></i>
-                    <input type="email" id="loginEmail" placeholder="Correo Electrónico" required>
+                    <input type="email" id="loginEmail" name="email" autocomplete="username" aria-label="Correo Electrónico" placeholder="Correo Electrónico" required>
                 </div>
                 
                 <div class="input-group">
                     <i class='bx bx-lock-alt'></i>
-                    <input type="password" id="loginPassword" placeholder="Contraseña" required>
+                    <input type="password" id="loginPassword" name="password" autocomplete="current-password" aria-label="Contraseña" placeholder="Contraseña" required>
                     <i class='bx bx-show toggle-password' style="position: absolute; right: 14px; left: auto; cursor: pointer;"></i>
                 </div>
 
@@ -98,29 +98,29 @@
             <form id="registerForm" class="login-form">
                 <div class="input-group">
                     <i class='bx bx-user'></i>
-                    <input type="text" id="regName" placeholder="Nombre Completo" required>
+                    <input type="text" id="regName" name="nombre" autocomplete="name" aria-label="Nombre Completo" placeholder="Nombre Completo" required>
                 </div>
 
                 <div class="input-group">
                     <i class='bx bx-envelope'></i>
-                    <input type="email" id="regEmail" placeholder="Correo Electrónico" required>
+                    <input type="email" id="regEmail" name="email" autocomplete="email" aria-label="Correo Electrónico" placeholder="Correo Electrónico" required>
                 </div>
 
                 <div class="input-group">
                     <i class='bx bx-lock-alt'></i>
-                    <input type="password" id="regPassword" placeholder="Contraseña" required>
+                    <input type="password" id="regPassword" name="password" autocomplete="new-password" aria-label="Contraseña" placeholder="Contraseña" required>
                     <i class='bx bx-show toggle-password' style="position: absolute; right: 14px; left: auto; cursor: pointer;"></i>
                 </div>
 
                 <div class="input-group">
                     <i class='bx bx-lock-alt'></i>
-                    <input type="password" id="regConfirmPassword" placeholder="Confirmar Contraseña" required>
+                    <input type="password" id="regConfirmPassword" name="confirmPassword" autocomplete="new-password" aria-label="Confirmar Contraseña" placeholder="Confirmar Contraseña" required>
                     <i class='bx bx-show toggle-password' style="position: absolute; right: 14px; left: auto; cursor: pointer;"></i>
                 </div>
 
                 <div class="input-group">
                     <i class='bx bx-briefcase'></i>
-                    <select id="regRole" required>
+                    <select id="regRole" name="rol" aria-label="Rol en el Sistema" required>
                         <option value="" disabled selected>Rol en el Sistema</option>
                         <option value="Gestor">Gestor</option>
                         <option value="Supervisor">Supervisor</option>
@@ -153,7 +153,7 @@
                 
                 <div class="input-group">
                     <i class='bx bx-envelope'></i>
-                    <input type="email" name="Correo_Solicitante" id="forgotEmail" placeholder="Ingresa tu correo" required>
+                    <input type="email" name="Correo_Solicitante" id="forgotEmail" autocomplete="email" aria-label="Correo de recuperación" placeholder="Ingresa tu correo" required>
                 </div>
 
                 <button type="submit" class="btn btn-primary" style="margin-top: 20px; font-size: 16px; padding: 12px;">
