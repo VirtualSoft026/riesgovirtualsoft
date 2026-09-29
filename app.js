@@ -1354,9 +1354,30 @@ async function loadExcelTasks() {
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
         
-        // Assign ID to all master tasks in json
-        json.forEach((row, idx) => {
-            row.id = idx;
+        // Assign a stable ID to each master task based on its content (Set + Tarea),
+        // not its row position. Un id por posición ("idx") cambia si alguien inserta,
+        // borra o reordena filas en Tareas de Riesgo.xlsx, dejando huérfano el progreso
+        // ya guardado (taskStateCache/Firebase) de cualquier tarea posterior al cambio —
+        // el mismo problema de fondo que las tareas sintéticas (ver generateDeterministicMockTaskId
+        // más abajo), pero aplicado a tareas reales del catálogo.
+        const usedMasterTaskIds = new Set();
+        json.forEach((row) => {
+            const set = row['Set '] || row['Set'] || 'Otros';
+            const taskName = row['Tarea'] || '';
+            const raw = `${String(set).trim().toLowerCase()}::${String(taskName).trim().toLowerCase()}`;
+            let hash = 0;
+            for (let i = 0; i < raw.length; i++) {
+                hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+                hash |= 0;
+            }
+            // Rango 0-9999, separado del rango 10000-99999 de las tareas sintéticas
+            // (generateDeterministicMockTaskId) para que nunca puedan coincidir.
+            let candidate = Math.abs(hash) % 10000;
+            while (usedMasterTaskIds.has(candidate)) {
+                candidate = (candidate + 1) % 10000;
+            }
+            usedMasterTaskIds.add(candidate);
+            row.id = candidate;
         });
         
         let processedRows = [];
@@ -1464,10 +1485,12 @@ async function loadExcelTasks() {
 
             // Purgar tareas huérfanas o desactualizadas del caché local (evita que tareas de turnos pasados bloqueen el cierre)
             let cacheWasPurged = false;
+            const purgedTaskIds = [];
             for (const cachedId in taskStateCache) {
                 if (!validAssignedIds.has(cachedId) && !cachedId.startsWith('extra_')) {
                     delete taskStateCache[cachedId];
                     cacheWasPurged = true;
+                    purgedTaskIds.push(cachedId);
                 }
             }
 
@@ -1494,6 +1517,23 @@ async function loadExcelTasks() {
                     } catch (syncErr) {
                         console.error("Error al sincronizar tareas iniciales En Proceso:", syncErr);
                     }
+                }
+            }
+
+            // Reflejar la purga también en Firebase: sin esto, active_sessions/{uid}/tasks
+            // acumula para siempre las entradas huérfanas (nunca se borran solas), y una
+            // recarga posterior las trae de vuelta vía recoverGestorTaskProgress() ->
+            // mergeTaskCaches() solo para que loadExcelTasks() las vuelva a purgar en el
+            // siguiente ciclo. Best-effort: un fallo aquí no bloquea la carga de tareas.
+            if (currentUser.uid && purgedTaskIds.length > 0) {
+                try {
+                    const removals = {};
+                    purgedTaskIds.forEach((purgedId) => {
+                        removals[`active_sessions/${currentUser.uid}/tasks/${purgedId}`] = null;
+                    });
+                    await database.ref().update(removals);
+                } catch (purgeErr) {
+                    console.error("Error al limpiar en Firebase las tareas huérfanas del caché:", purgeErr);
                 }
             }
         }
@@ -2113,7 +2153,7 @@ function renderTree(tasksBySet) {
 
 // --- Identidad canónica y nombre visible de tareas normales ---------------
 // Los IDs de tareas normales pueden llegar como number (loadExcelTasks():
-// row.id = idx) o como string (decodeURIComponent() del onclick serializado
+// row.id = hash estable de Set+Tarea) o como string (decodeURIComponent() del onclick serializado
 // por renderTree()). Comparar ambos con === sin normalizar produce falsos
 // negativos (0 !== "0") que dejan la selección de tarea sin resolver.
 // canonicalTaskId() es el único punto de conversión: se usa para
@@ -2619,7 +2659,7 @@ window.selectTask = function(taskId, evt) {
     if(eventTarget) eventTarget.classList.add('active');
 
     // Comparar por ID canónico (string): allTasks trae IDs number (loadExcelTasks:
-    // row.id = idx) mientras que taskId llega siempre como string (decodeURIComponent()
+    // row.id = hash estable de Set+Tarea) mientras que taskId llega siempre como string (decodeURIComponent()
     // del onclick serializado por renderTree()). Sin canonicalTaskId(), 0 !== "0"
     // dejaba la selección sin resolver.
     const task = allTasks.find(t => canonicalTaskId(t.id) === canonicalId);
