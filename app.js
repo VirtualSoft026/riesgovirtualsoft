@@ -1386,7 +1386,22 @@ async function loadExcelTasks() {
                 
                 // Generate mock tasks for assignments that aren't in the master sheet
                 const generatedMocks = [];
-                let mockId = 10000;
+                const usedMockIds = new Set();
+                const generateDeterministicMockTaskId = (taskName, set) => {
+                    const raw = `${(set || 'Otros').trim().toLowerCase()}::${(taskName || '').trim().toLowerCase()}`;
+                    let hash = 0;
+                    for (let i = 0; i < raw.length; i++) {
+                        hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+                        hash |= 0;
+                    }
+                    let candidate = 10000 + (Math.abs(hash) % 89999);
+                    while (usedMockIds.has(candidate)) {
+                        candidate++;
+                    }
+                    usedMockIds.add(candidate);
+                    return candidate;
+                };
+
                 gestorCronogramaAssignments.forEach(assign => {
                     const hasMasterMatch = json.some(row => 
                         taskNamesMatch(assign.task, row['Tarea']) && setNamesMatch(assign.set, row['Set '] || row['Set'] || 'Otros')
@@ -1401,7 +1416,7 @@ async function loadExcelTasks() {
                             'Día': 'Diario',
                             'Instrucciones': '1. Realizar la validación de la tarea de acuerdo con el procedimiento estándar.\n2. Registrar cualquier anomalía en los canales oficiales.\n3. Marcar como completada en esta plataforma al finalizar.',
                             'Documento / Video de Apoyo': '',
-                            id: mockId++
+                            id: generateDeterministicMockTaskId(assign.task, assign.set)
                         };
                         generatedMocks.push(mockRow);
                     }
@@ -1442,9 +1457,20 @@ async function loadExcelTasks() {
             allTasks.push({ ...row, id: taskId });
         });
         
-        // Inicializar estado 'En Proceso' para las tareas asignadas del gestor
-        if (currentUser && currentUser.role === 'Gestor' && processedRows && processedRows.length > 0) {
+        // Inicializar estado 'En Proceso' para las tareas asignadas del gestor y purgar huérfanas
+        if (currentUser && currentUser.role === 'Gestor' && Array.isArray(processedRows)) {
             let hasNewTasksToSync = false;
+            const validAssignedIds = new Set(processedRows.map((row, index) => canonicalTaskId(row.id !== undefined ? row.id : index)));
+
+            // Purgar tareas huérfanas o desactualizadas del caché local (evita que tareas de turnos pasados bloqueen el cierre)
+            let cacheWasPurged = false;
+            for (const cachedId in taskStateCache) {
+                if (!validAssignedIds.has(cachedId) && !cachedId.startsWith('extra_')) {
+                    delete taskStateCache[cachedId];
+                    cacheWasPurged = true;
+                }
+            }
+
             processedRows.forEach((row, index) => {
                 const taskId = canonicalTaskId(row.id !== undefined ? row.id : index);
                 const taskName = row['Tarea'];
@@ -1458,11 +1484,11 @@ async function loadExcelTasks() {
                     hasNewTasksToSync = true;
                 }
             });
-            if (hasNewTasksToSync) {
+            if (hasNewTasksToSync || cacheWasPurged) {
                 try {
                     localStorage.setItem('riskOps_cache', JSON.stringify(taskStateCache));
                 } catch (e) {}
-                if (currentUser.uid) {
+                if (currentUser.uid && hasNewTasksToSync) {
                     try {
                         await migrateLocalTasksToActiveSession(currentUser.uid, taskStateCache, {});
                     } catch (syncErr) {
@@ -3652,15 +3678,45 @@ async function handleEndShift() {
             return;
         }
 
-        // Validación obligatoria: el gestor debe tener todas sus tareas gestionadas (Finalizada o No Realizada)
+        // Validación obligatoria: el gestor debe tener todas sus tareas asignadas gestionadas (Finalizada o No Realizada)
         if (localUser && localUser.role === 'Gestor' && typeof taskStateCache !== 'undefined' && taskStateCache) {
             const unmanagedTasks = [];
-            for (const tId in taskStateCache) {
-                const entry = taskStateCache[tId];
-                if (entry && (entry.status === 'En Proceso' || entry.status === 'Pendiente')) {
-                    unmanagedTasks.push(entry.name || tId);
+
+            // 1. Validar únicamente las tareas asignadas hoy en el catálogo activo (allTasks)
+            if (Array.isArray(allTasks)) {
+                for (const task of allTasks) {
+                    const cId = canonicalTaskId(task.id);
+                    const entry = taskStateCache[cId];
+                    const statusNorm = (entry && entry.status ? String(entry.status) : '').toLowerCase().replace(/_/g, ' ').trim();
+                    const isManaged = statusNorm === 'finalizada' || statusNorm === 'no realizada';
+                    if (!isManaged) {
+                        unmanagedTasks.push(task['Tarea'] || (entry && entry.name) || cId);
+                    }
+                }
+            } else {
+                // Fallback de seguridad si allTasks no estuviese disponible
+                for (const tId in taskStateCache) {
+                    if (!tId.startsWith('extra_')) {
+                        const entry = taskStateCache[tId];
+                        const statusNorm = (entry && entry.status ? String(entry.status) : '').toLowerCase().replace(/_/g, ' ').trim();
+                        if (statusNorm !== 'finalizada' && statusNorm !== 'no realizada') {
+                            unmanagedTasks.push((entry && entry.name) || tId);
+                        }
+                    }
                 }
             }
+
+            // 2. Validar también cualquier tarea extra creada en el turno en curso
+            for (const tId in taskStateCache) {
+                if (tId.startsWith('extra_')) {
+                    const entry = taskStateCache[tId];
+                    const statusNorm = (entry && entry.status ? String(entry.status) : '').toLowerCase().replace(/_/g, ' ').trim();
+                    if (statusNorm !== 'finalizada' && statusNorm !== 'no realizada') {
+                        unmanagedTasks.push((entry && entry.name) || tId);
+                    }
+                }
+            }
+
             if (unmanagedTasks.length > 0) {
                 alert(`OBLIGATORIO: Tienes ${unmanagedTasks.length} tarea(s) sin gestionar (En Proceso o Pendientes). Debes gestionar todas tus tareas asignadas (marcando Finalizada o No Realizada) antes de finalizar el turno.`);
                 return;
