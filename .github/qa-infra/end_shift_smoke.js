@@ -195,6 +195,15 @@ function testPermissionIsNeverRequestedByTheEndShiftClick() {
   assert.doesNotMatch(handlerSource, /requestIdlePermission/);
 }
 
+function testEndShiftValidatesOnlyAssignedTasksAndIgnoresOrphans() {
+  const handlerSource = extractBetween(
+    'async function handleEndShift()',
+    '// Inicializar inmediatamente',
+  );
+  assert.match(handlerSource, /for\s*\(\s*const\s+task\s+of\s+allTasks\s*\)/);
+  assert.match(handlerSource, /statusNorm\s*===\s*'finalizada'\s*\|\|\s*statusNorm\s*===\s*'no realizada'/);
+}
+
 async function run() {
   await testIdlePermissionSuccessWaitsForDetectorStart();
   await testIdlePermissionStartFailureIsRecoverable();
@@ -203,6 +212,7 @@ async function run() {
   testFormSubmitCcUsesOneStringValue();
   testEndShiftSafetyOrder();
   testPermissionIsNeverRequestedByTheEndShiftClick();
+  testEndShiftValidatesOnlyAssignedTasksAndIgnoresOrphans();
   console.log('END_SHIFT_SMOKE=PASS');
 }
 
