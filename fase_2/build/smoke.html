@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smoke test del bundle RiskOps</title>
+<style>
+  body { font: 14px/1.5 system-ui, sans-serif; max-width: 860px; margin: 24px auto; padding: 0 16px; }
+  h1 { font-size: 20px; } h2 { font-size: 15px; margin: 22px 0 6px; }
+  button { padding: 6px 12px; margin-right: 6px; }
+  pre { background: #f3f4f6; padding: 10px; border-radius: 6px; max-height: 220px; overflow: auto; white-space: pre-wrap; }
+  .ok { color: #157a3c; } .bad { color: #b42318; }
+  input { padding: 4px 6px; }
+</style>
+</head>
+<body>
+<h1>Smoke test del bundle <code>RiskOps</code> (navegador real)</h1>
+<p>Carga <code>dist/riskops.bundle.js</code> como <strong>script clásico</strong> (sin <code>type="module"</code>), igual que se hará en producción. No usa Firebase.</p>
+
+<h2>1. Carga del bundle</h2>
+<pre id="load">…</pre>
+
+<h2>2. Funciones puras</h2>
+<p>
+  Login: <input id="login" value="6/16/2026, 8:20:00 a. m." size="24">
+  Turno: <input id="shift" value="8:00 am - 5:00 pm" size="18">
+  <button id="tard">Calcular tardanza</button>
+</p>
+<pre id="pure"></pre>
+
+<h2>3. IdleDetector (API real del navegador)</h2>
+<p>
+  <button id="idleInit">Iniciar detector</button>
+  <button id="idlePerm">Solicitar permiso</button>
+  <button id="idleFallback">¿Fallback DOM aplicable ahora?</button>
+</p>
+<p>Deja la pestaña sin tocar 3 min (o bloquea la pantalla) para ver los eventos.</p>
+<pre id="idle"></pre>
+
+<script src="dist/riskops.bundle.js"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const log = (id, msg) => { $(id).textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`; };
+  let lastActivity = Date.now();
+  ['mousemove', 'keydown', 'click', 'scroll'].forEach((e) => document.addEventListener(e, () => { lastActivity = Date.now(); }));
+
+  try {
+    const namespaces = Object.keys(RiskOps);
+    $('load').innerHTML = `<span class="ok">OK</span> — global RiskOps con ${namespaces.length} espacios de nombres:\n${namespaces.join(', ')}`;
+  } catch (error) {
+    $('load').innerHTML = `<span class="bad">FALLA</span> — ${error}`;
+  }
+
+  $('tard').onclick = () => {
+    const t = RiskOps.timeMetrics.getTardiness($('login').value, $('shift').value);
+    const start = RiskOps.dateTime.parseShiftStart($('shift').value);
+    const exp = RiskOps.shiftExpiration.evaluateShiftExpiration($('shift').value, new Date());
+    const html = RiskOps.sanitization.sanitizeAnnouncementHTML('<b onclick="x()">negrita</b><script>alert(1)<\/script>');
+    $('pure').textContent = `tardanza = ${t} min\nparseShiftStart = ${JSON.stringify(start)}\nexpirado ahora = ${JSON.stringify(exp)}\nsanitizado = ${html}`;
+  };
+
+  const idle = () => RiskOps.idleDetector;
+  $('idleInit').onclick = async () => {
+    log('idle', `IdleDetector en window: ${'IdleDetector' in window}`);
+    const started = await idle().initIdleDetector({
+      onIdleChange: (isIdle) => log('idle', `onIdleChange(${isIdle})`),
+      onWarning: (visible, message) => log('idle', `onWarning(${visible}${message ? ', ' + message : ''})`),
+      getLastActivityTimestamp: () => lastActivity
+    });
+    log('idle', `detector iniciado = ${started}`);
+  };
+  $('idlePerm').onclick = async () => log('idle', `permiso/inicio manual = ${await idle().requestIdlePermissionManual()}`);
+  $('idleFallback').onclick = () => log('idle', `shouldApplyDomIdleFallback = ${idle().shouldApplyDomIdleFallback(Date.now())} (última actividad hace ${Math.round((Date.now() - lastActivity) / 1000)} s)`);
+</script>
+</body>
+</html>

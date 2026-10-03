@@ -1,0 +1,6 @@
+{
+  "name": "riskops-src",
+  "private": true,
+  "type": "module",
+  "description": "Marca este árbol (src/) como módulos ES para Node, sin afectar el build de esbuild (que detecta el formato por sintaxis, no por este campo) ni la app en producción (app.js/login.js no viven aquí)."
+}

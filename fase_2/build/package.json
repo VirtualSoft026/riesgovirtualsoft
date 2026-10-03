@@ -1,0 +1,14 @@
+{
+  "name": "riskops-src-bundle",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bundle mínimo (esbuild) de src/ a un script clásico IIFE para RiskOps Fase 2.",
+  "scripts": {
+    "build": "node build.mjs",
+    "verify": "node verify-bundle.mjs",
+    "smoke": "node build.mjs && node serve.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

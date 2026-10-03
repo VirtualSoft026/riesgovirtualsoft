@@ -1,0 +1,109 @@
+Resultado de: node fase_2/src/tests/run-utils-tests.mjs
+Generado: 2026-10-03, corrido aqui mismo contra una copia byte-identica de fase_2/src/utils/
+(mismo tamano y fecha de modificacion que los archivos reales en tu equipo, verificados antes de escribir este log).
+Para reproducirlo tu mismo en tu equipo:
+  cd fase_2/src
+  node tests/run-utils-tests.mjs
+
+============================================================
+
+
+--- utils/constants.test.mjs ---
+  [PASS] STORAGE_KEYS conserva las claves de localStorage usadas hoy en app.js
+  [PASS] los catálogos de estado quedan congelados (Object.freeze)
+  [PASS] intentar mutar un catálogo congelado no cambia su valor
+  [PASS] TASK_STATUS cubre los cuatro estados usados por el cierre de turno
+  [PASS] los umbrales de tiempo son números positivos y consistentes entre sí
+  [PASS] EXTRA_TASK_KEY_PREFIX mantiene el prefijo esperado
+constants.js: 6 passed, 0 failed.
+
+--- utils/date-time.test.mjs ---
+  [PASS] normalizeMeridiem reconoce "p. m." y "AM" con puntos y mayúsculas
+  [PASS] normalizeMeridiem devuelve null para valores vacíos o irreconocibles
+  [PASS] to24Hour convierte mediodía y medianoche correctamente
+  [PASS] parseClockTime admite "8", "8:30" y "10:15 p. m."
+  [PASS] parseClockTime devuelve null con valores vacíos (incluido el 0 numérico)
+  [PASS] parseTimeFromLocaleString lee la hora de un string local con y sin meridiano
+  [PASS] parseShiftStart respeta un horario explícito "8:00 am - 5:00 pm"
+  [PASS] parseShiftStart usa las convenciones históricas de SET cuando no hay hora explícita
+  [PASS] parseShiftStart devuelve null para texto vacío o no reconocido
+  [PASS] parseShiftRange separa inicio y fin, y exige un fin parseable
+  [PASS] toMinutesOfDay convierte horas y minutos a minutos desde medianoche
+  [PASS] minutesBetweenWrappingMidnight suma un día cuando el fin es antes del inicio
+  [PASS] parseTimeToMs interpreta fechas completas directamente
+  [PASS] parseTimeToMs aplica "HH:MM AM/PM" sobre la fecha base cuando no hay fecha completa
+  [PASS] parseTimeToMs devuelve NaN cuando no puede interpretar el valor
+date-time.js: 15 passed, 0 failed.
+
+--- utils/excel.test.mjs ---
+  [PASS] excelToJSDate convierte el serial 25569 exactamente al 1-ene-1970 (época Unix)
+  [PASS] excelToJSDate trata el serial 0 como vacío (0 es "falsy" en JS)
+  [PASS] excelToJSDate devuelve null con valores no numéricos o vacíos
+  [PASS] parseExcelDate interpreta fechas ISO (con guiones) directamente
+  [PASS] parseExcelDate con formato "DD/MM/YYYY" puede fallar si el día supera 12 (límite real conocido)
+  [PASS] parseExcelDate interpreta números como seriales de Excel
+  [PASS] parseExcelDate devuelve null para 0, vacío o texto no numérico
+  [PASS] readFirstSheetRows lee la primera hoja con el formato de filas (header:1)
+  [PASS] readFirstSheetRows usa {defval: ""} cuando se pide asObjects
+  [PASS] readFirstSheetRows devuelve null sin libro, sin hojas o sin la hoja referenciada
+  [PASS] hasMinimumRows exige al menos 3 filas por defecto y respeta el mínimo dado
+  [PASS] getCell devuelve el valor de la celda o el fallback si la fila/columna no existe
+  [PASS] isSameDate compara una fecha de Excel (UTC) con una fecha local de JS
+excel.js: 13 passed, 0 failed.
+
+--- utils/normalize.test.mjs ---
+  [PASS] normalizeName quita acentos, espacios y pasa a minúsculas
+  [PASS] normalizeName devuelve "" con valores vacíos
+  [PASS] namesMatch acepta un nombre parcial contenido en el nombre completo
+  [PASS] namesMatch rechaza nombres distintos
+  [PASS] namesMatch aplica la excepción documentada "Daniel" vs "Josue"
+  [PASS] namesMatch devuelve false si algún nombre queda vacío tras filtrar tokens cortos
+  [PASS] cleanText quita tildes, puntuación y colapsa espacios
+  [PASS] cleanText devuelve "" con valores no-string o vacíos
+  [PASS] normalizeTaskName reconoce las variantes históricas de nombres de tarea
+  [PASS] normalizeTaskName deja igual (solo limpio) un nombre sin alias conocido
+  [PASS] taskNamesMatch reconoce coincidencia exacta tras normalizar
+  [PASS] taskNamesMatch aplica tolerancia difusa (longitud >= 15 y diferencia <= 6)
+  [PASS] taskNamesMatch rechaza nombres cortos y distintos, y valores vacíos
+  [PASS] setNamesMatch compara SETs por contención después de limpiar el texto
+normalize.js: 14 passed, 0 failed.
+
+--- utils/result.test.mjs ---
+  [PASS] ok() construye un resultado exitoso congelado
+  [PASS] fail() construye un error con código, mensaje y causa
+  [PASS] fail() usa message="" y cause=null por defecto
+  [PASS] fail() devuelve un resultado y un error congelados
+  [PASS] ERROR_CODES incluye los códigos usados por adapters y controladores, y está congelado
+result.js: 5 passed, 0 failed.
+
+--- utils/sanitization.test.mjs ---
+  [PASS] escapeHTML escapa las cinco entidades básicas
+  [PASS] escapeHTML devuelve "" para null y undefined
+  [PASS] encodeInlineHandlerArg codifica la cadena y además escapa comillas simples
+  [PASS] sanitizeAnnouncementHref acepta http(s) y mailto
+  [PASS] sanitizeAnnouncementHref rechaza esquemas peligrosos y rutas "//" (protocol-relative)
+  [PASS] sanitizeAnnouncementHref acepta una ruta relativa sin esquema
+  [PASS] sanitizeAnnouncementHref devuelve "" con valores vacíos
+  [PASS] sanitizeAnnouncementHTML conserva las etiquetas permitidas
+  [PASS] sanitizeAnnouncementHTML quita la etiqueta <script>, pero su texto interno queda como texto plano escapado (hallazgo real, no es un riesgo de XSS porque ya no está dentro de un <script> ejecutable)
+  [PASS] sanitizeAnnouncementHTML traduce alias de etiquetas (b→strong, i→em, div→p)
+  [PASS] sanitizeAnnouncementHTML desenvuelve etiquetas no permitidas pero conserva su texto
+  [PASS] sanitizeAnnouncementHTML quita un href peligroso pero conserva el enlace y su texto
+  [PASS] sanitizeAnnouncementHTML conserva un href legítimo
+  [PASS] sanitizeAnnouncementHTML devuelve "" con null o undefined
+sanitization.js: 14 passed, 0 failed.
+
+--- utils/validation.test.mjs ---
+  [PASS] isNonEmptyString exige texto no vacío tras recortar espacios
+  [PASS] isFiniteNumber exige un número finito real (no texto, no Infinity, no NaN)
+  [PASS] isValidDate exige una instancia de Date válida (no un string de fecha)
+  [PASS] isOneOf acepta arreglos y Sets como lista de valores permitidos
+  [PASS] findMissingFields detecta undefined, null y "" como campos faltantes
+  [PASS] findMissingFields trata un origen null/undefined como objeto vacío
+  [PASS] findMissingFields devuelve un arreglo vacío cuando no falta nada
+validation.js: 7 passed, 0 failed.
+
+==============================
+Resultado: todas las suites pasaron.
+
+Codigo de salida del proceso: 0
