@@ -1283,9 +1283,9 @@ const privateTeamsManuals = {
     "Amigogaming":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBy_TFBmiXtRIRBLM17t1GLAbpTqwvREudyaj3svco7E88?e=KhePZM",
     "Amusnet":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQCBJoKWY5FfS7etdPZfnxzpAflSu1BD8XqdMI2_7uBIsPg?e=Xd2Gvv",
     "Aviatrix":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBfvgW5WaX6TII45Petp95PAa5POqG8BQzWcy9yo92KkpI?e=TWSCB42",
-    "Belatra":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBfvgW5WaX6TII45Petp95PAa5POqG8BQzWcy9yo92KkpI?e=TWSCB4",
-    "Egt":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBfvgW5WaX6TII45Petp95PAa5POqG8BQzWcy9yo92KkpI?e=TWSCB4",
-    "Evolution":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQDlFklX__OXRr5D7HHkhTxNAUA5QCL87QdDe3u7ngX-rUg?e=BtCIFL",
+    "Belatra":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBPSE6f50toQ5-dN47fDzPOAXqhCkyx02toLxiTcics57o?e=DydGH1",
+    "Egt":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQDPREAJmsY_Roey_HAIsjnDAVboOIr8TspQEggMd_VdQkQ?e=B4xw1A",
+    "Evolution":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQDlFklX__OXRr5D7HHkhTxNAUA5QCL87QdDe3u7ngX-rUg?e=uBw53Y",
     "Mancala":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQASeOCMQcuoR4um2ha_bUcsAVPNezVck9cXaS30gC5JYik?e=HQDduM",
     "Manual":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQAlqJvOPdb1Q5yLeAK5hSpHAeGml7SGGGhPtHj52ExkWJA?e=D821Dz",
     "Pariplay":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQC_VU-AHEJhRKGK8Qfw1Hh2AQSzWxI4FWDT3AYovt01TaE?e=VOJ7nx",
@@ -1294,6 +1294,7 @@ const privateTeamsManuals = {
     "Pragmatic":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQAt0TYGB8kkQ7Du3JNnd9XfAe69Mxr5Yga2S_AVlZKUsoo?e=yz932I",
     "PragmaticplaySlot":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBed0oHqboZRabYqQnGJMxUATLlSdPshzsD7pnAsl8JxdM?e=wIyTFp",
     "Redrakegaming":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQCmcIAXj_tLRZKJx2dpTMyZAQP18AdXeKvHLc1PtnVBhd4?e=e6ltHs",
+    "Playson":"https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBhSbX5zfApSrkM8kbx40OCAczup6lOC1k9v19dyssPyfc?e=zBegXK"
 };
 
 function getManualUrl(fileName) {
