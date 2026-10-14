@@ -8,6 +8,13 @@ let screenLockTimer = null;
 let idleDetectorGranted = false;
 let idleDetectorStarted = false;
 
+// Inicializa las banderas en window para que app.js y el arnés de QA las lean
+// desde el primer momento (antes de que initIdleDetector() sea invocado).
+if (typeof window !== 'undefined') {
+    window.idleDetectorGranted = false;
+    window.idleDetectorStarted = false;
+}
+
 let onIdleChange = () => {};
 let onWarning = () => {};
 let getLastActivityTimestamp = () => Date.now();
@@ -49,6 +56,12 @@ function configureCallbacks(callbacks = {}) {
 function setDetectorStatus(granted, started) {
     idleDetectorGranted = granted;
     idleDetectorStarted = started;
+
+    // Espejo en window para compatibilidad con app.js y el arnés de QA.
+    if (typeof window !== 'undefined') {
+        window.idleDetectorGranted = granted;
+        window.idleDetectorStarted = started;
+    }
 }
 
 /**

@@ -1,0 +1,53 @@
+Log completo — fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs
+Fecha de la corrida: 2026-10-03
+Comando: node fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs
+Entorno: Node v22.22.2 (sandbox de ejecución de pruebas), sobre copia descargada
+byte a byte del equipo del usuario de:
+  - fase_2/src/services/storage/local-session-storage.js
+  - fase_2/src/domain/shifts/shift-calculator.js
+  - fase_2/src/domain/shifts/timeline-service.js
+  - fase_2/src/tests/test-harness.mjs
+(comparación diff confirmada sin diferencias antes de esta corrida).
+
+Nota sobre las dos trazas de advertencia que aparecen abajo: NO son fallas.
+Las pruebas A6 y A7 provocan a propósito un error (JSON corrupto y
+localStorage.setItem lanzando "QuotaExceededError simulado") para verificar
+que local-session-storage.js contiene el error con console.warn() en vez de
+dejarlo propagarse. La ruta "/mnt/attach/outputs/..." que aparece en las
+trazas es la ruta interna del entorno de pruebas (sandbox en la nube), no
+una ruta del equipo del usuario.
+
+================================================================================
+
+  [PASS] A1. defaultState() incluye shiftTimeline: [] y los 9 campos de pausas en falso/0/null
+  [PASS] A2. normalizeState() sanea valores inválidos a los valores por defecto
+  [PASS] A3. normalizeState() copia shiftTimeline por valor, no por referencia
+  [PASS] A4. saveBreakState()/loadBreakState() hacen round-trip fiel, incluido shiftTimeline
+  [PASS] A5. loadBreakState() devuelve defaultState() si la llave no existe
+No se pudo cargar el estado de pausas: SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+    at JSON.parse (<anonymous>)
+    at loadBreakState (file:///.../fase_2/src/services/storage/local-session-storage.js:29:49)
+    at file:///.../fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs:181:22
+    at test (file:///.../fase_2/src/tests/test-harness.mjs:21:13)
+    (traza interna de Node omitida: ModuleJob.run / onImport.tracePromise / asyncRunEntryPointWithESMLoader)
+  [PASS] A6. loadBreakState() devuelve defaultState() ante JSON corrupto, sin lanzar
+No se pudo guardar el estado de pausas: Error: QuotaExceededError simulado
+    at Object.setItem (file:///.../fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs:90:23)
+    at saveBreakState (file:///.../fase_2/src/services/storage/local-session-storage.js:14:22)
+    at file:///.../fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs:187:31
+    at getActual (node:assert:609:5)
+    at Function.doesNotThrow (node:assert:777:32)
+    at file:///.../fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs:187:12
+    at test (file:///.../fase_2/src/tests/test-harness.mjs:21:13)
+    (traza interna de Node omitida: ModuleJob.run / onImport.tracePromise)
+  [PASS] A7. saveBreakState() contiene el error si localStorage.setItem lanza (p. ej. cuota excedida)
+  [PASS] B1 [RIESGO CRÍTICO]. loadBreakState() descarta en silencio una línea de tiempo real guardada por app.js
+  [PASS] B2 [RIESGO CRÍTICO]. saveBreakState() nunca lee ni escribe "riskOps_timeline"
+  [PASS] B3 [RIESGO CRÍTICO]. "riskOps_breakState" de producción jamás trae shiftTimeline (contrato documentado, no inferido)
+  [PASS] C1. pushTimelineEvent("start", ...) cierra eventos abiertos y abre uno nuevo
+  [PASS] C2. pushTimelineEvent("end", ...) cierra el último evento abierto de ese tipo
+break-state-timeline-coherence: 12 passed, 0 failed.
+
+================================================================================
+Código de salida: 0
+Total: 12 pruebas, 12 pasaron, 0 fallaron.

@@ -1,0 +1,1204 @@
+=== Suites nuevas del corte historial-navegacion ===
+--- tests/domain/auth-service.test.mjs
+  [PASS] Admin: ve Monitoreo, Comunicados, Turnos, Aprobaciones dentro del grupo Admin, y Config. Gestores; oculta Mis Tareas y Tiempos
+  [PASS] Supervisor: ve Comunicados del gestor en la barra y NO ve Config. Gestores
+  [PASS] Gestor: Mis Tareas, Comunicados, Horario, Docs y Permisos en ese orden; Administración oculta; filtros de gestor ocultos
+  [PASS] rol desconocido (p. ej. "Auditor", que no existe en app.js), sin rol o sin usuario: cae en la rama Gestor, como el else del original
+  [PASS] botones de pausa de la barra lateral: solo el Gestor ve Almuerzo y Desayuno (la Pausa de Turno la gobierna el flag, no esta política)
+  [PASS] controles administrativos: la aprobación de usuarios solo la ve el Admin; "Gestión Comunicados" se oculta a quien no puede gestionarla
+  [PASS] contraseña: se rechaza vacía o en blanco; no se recorta (original: !newPass || newPass.trim() === "")
+  [PASS] errores de Firebase Auth mapeados a los textos del original
+  [PASS] alcance de notificaciones: Admin y Supervisor leen todas; el Gestor solo las suyas
+  [PASS] Admin/Supervisor: solo los permisos Pendiente con notified_admin === false pasan a true
+  [PASS] Gestor: solo los permisos ya respondidos con notified === false pasan a true
+  [PASS] changeUserPassword: contraseña en blanco no llama a la autenticación
+  [PASS] changeUserPassword: sin sesión de Firebase Auth informa el error y no cierra el modal
+  [PASS] changeUserPassword: si getAuthUser lanza, se trata como error (dentro del try del original)
+  [PASS] changeUserPassword: éxito llama a updatePassword con el valor recibido y pide cerrar el modal a los 2 s
+  [PASS] changeUserPassword: errores de Firebase (reautenticación, débil, otro) y el resultado NUNCA contiene la contraseña
+auth-service / notification-rules (política de navegación, controles administrativos, contraseña, notificaciones): 16 passed, 0 failed.
+exit=0
+--- tests/domain/shift-report-view.test.mjs
+  [PASS] diferencial vs app.js: filtrar por gestor/fecha/ventana por defecto da las mismas filas en el mismo orden (400 casos con semilla)
+  [PASS] ventana por defecto: desde las 00:00 de AYER (hora local); incluye ayer y hoy, excluye antier
+  [PASS] filtro de fecha: coincide por la fecha LOCAL del timestamp o porque horaInicio/horaFin contienen el texto
+  [PASS] filtro de gestor: sin tildes ni mayúsculas; con filtro explícito no se aplica la ventana de 2 días; orden descendente
+  [PASS] mensajes: vacío con/sin filtros y pie informativo (textos idénticos al original, incluida la palabra "complete")
+  [PASS] opciones del multiselect: gestores únicos recortados y ordenados (app.js 4602-4607)
+  [PASS] diferencial vs app.js: líneas de bitácora (recortadas, sin vacías, sin repetidas) en 200 textos con semilla
+  [PASS] nombre de archivo y opciones del PDF (app.js 4543-4554)
+  [PASS] diferencial vs app.js: tiempo efectivo del panel (variante por defecto) en 600 reportes con semilla
+  [PASS] parseShiftReportTime: fecha completa, "a. m./p. m." y hora suelta sobre el día base
+  [PASS] el panel RESTA la Pausa de Turno (regla confirmada): 08:00-18:00, almuerzo 30, pausa 180 => 390 min (6,50 h)
+  [PASS] reportes que no cuentan: sin horas, ilegibles, o duración fuera de (0, 1440]; nunca negativo
+  [PASS] HALLAZGO / decisión abierta: el panel NO resta la penalidad de conectividad y el correo de cierre SÍ; ambas variantes disponibles con parámetro explícito
+shift-report-view (filtros, bitácora, PDF y tiempo efectivo del panel de reportes): 13 passed, 0 failed.
+exit=0
+--- tests/domain/monitoring-view.test.mjs
+  [PASS] diferencial vs app.js: insignia de retraso/puntualidad idéntica en 1500 ingresos con semilla (turnos am/pm, medianoche, +4 h, sin turno)
+  [PASS] retraso: límites exactos (5 min = A tiempo; 6 min = +6m Tarde; 240 min = tarde; 241 min = Fuera de Horario)
+  [PASS] diferencial vs app.js: filtro de sesiones (búsqueda, turno, estado, supervisores excluidos) idéntico en 1200 combinaciones con semilla
+  [PASS] filtro: una sesión "En Pausa de Turno" con latido reciente NO cuenta como en línea (corrección ya incorporada en el repo)
+  [PASS] filtro: supervisores excluidos por subcadena sin importar mayúsculas (incluye "Sara" y "Maria" sueltos: también excluye a "Mariana")
+  [PASS] diferencial vs app.js: avance de tareas (contadores, porcentajes y respaldo para sesiones antiguas) en 800 sesiones con semilla
+  [PASS] diferencial vs app.js: lista de tareas de la tarjeta (asignadas reconciliadas + extras, estados, escape de HTML) en 600 sesiones con semilla
+  [PASS] diferencial vs app.js: bitácora (glitches < 60 s, inactividad en curso por pérdida de señal, iconos por tipo, duraciones) en 800 sesiones con semilla
+  [PASS] bitácora: sin eventos se muestra el mensaje; con pausa de turno el icono es el de pausa; la Inactividad en curso no se duplica ni se agrega si está en pausa
+  [PASS] diferencial vs app.js: detalle de tareas del modal (asignadas, extras, respaldo directo, estados, observaciones) en 700 sesiones con semilla
+  [PASS] detalle: insignias por estado y observación vacía
+  [PASS] texto de información del modal y avatares
+  [PASS] tarjeta: modelo + HTML con estado de Pausa de Turno, escape de datos y botones con uid codificado
+  [PASS] tarjeta: sesión sin latido por más de 2 min y fuera de pausa se muestra Inactivo; en pausa se conserva aunque no haya latido
+monitoring-view (tarjetas de Monitoreo: filtros, estado, retraso, tareas, bitácora y detalle): 14 passed, 0 failed.
+exit=0
+--- tests/domain/historial-repositories.test.mjs
+  [PASS] nombres de gestores aprobados: solo Gestor aprobado, recortados, sin repetir y ordenados (app.js 5648-5655)
+  [PASS] markAllAsRead Gestor: consulta solo sus permisos (orderByChild uid) y marca los ya respondidos
+  [PASS] markAllAsRead: sin permisos o sin nada por marcar no escribe
+  [PASS] monitoreo: escucha active_sessions (vacío = {}), propaga errores y permite dejar de escuchar
+  [PASS] markAllAsRead Gestor sin uid en el usuario usa el uid de Auth; sin ninguno no hace nada; sin usuario no hace nada
+  [PASS] markAllAsRead Admin/Supervisor: un solo update con los pendientes sin ver por el admin
+  [PASS] shift_reports: lista con fb_id y lectura por id (sin fb_id, como el original); vacío = []
+repositorios Firebase del corte historial/navegación (base inyectada, sin red): 7 passed, 0 failed.
+exit=0
+--- tests/ui/shift-reports-view.test.mjs
+  [PASS] diferencial vs app.js: resaltado [ESTADO] de tabla, modal y PDF idéntico (incluye HTML malicioso escapado)
+  [PASS] diferencial vs app.js: desplegable de bitácora de la fila idéntico, con y sin bitácora
+  [PASS] diferencial vs app.js: bitácora del modal (app.js 4756-4764) y del PDF (4478-4484) idénticas
+  [PASS] fila de la tabla: escapa gestor/set/horas, codifica el id del botón y conserva los textos del original
+  [PASS] modal "Ver Todo": tiempos como en el correo (N/A cuando faltan), rol por defecto Gestor y bitácora
+  [PASS] PDF: fecha de generación con formato es-CO, cabecera RISK MANAGER y el mismo escape que la tabla
+  [PASS] filas auxiliares del historial: cargando y vacío (con escape del mensaje)
+shift-reports-view (HTML de la tabla, el modal "Ver Todo" y el PDF del historial de turnos): 7 passed, 0 failed.
+exit=0
+--- tests/controllers/app-router.test.mjs
+  [PASS] diferencial vs app.js: mismas operaciones y MISMO ORDEN (display y appendChild) para cada rol, con todos los elementos presentes
+  [PASS] diferencial: con elementos ausentes (cada id faltante por separado) el resultado sigue siendo idéntico
+  [PASS] adminNavGroup ausente: el original lanzaría TypeError al anexar Monitoreo; el nuevo lo omite sin lanzar (único cambio de comportamiento, a favor de la robustez)
+  [PASS] Admin vs Supervisor vs Gestor: Config. Gestores solo para Admin; Mis Tareas solo para Gestor
+  [PASS] el router NO toca el botón de Pausa de Turno (lo gobierna RiskOps.shiftController)
+  [PASS] diferencial alignAdministrativeControlsByRole: mismos estilos que el original para cada rol (y sin usuario)
+  [PASS] alignAdministrativeControlsByRole: Admin ve la sección de usuarios (display ""), Supervisor y Gestor no ("none")
+  [PASS] alignAdministrativeControlsByRole: sin elementos en la página no falla
+  [PASS] updateNavigation: refresca el botón de Pausa de Turno y luego reordena la barra
+app-router (navegación por rol: diferencial vs setupSidebar, alignAdministrativeControlsByRole, updateNavigation): 9 passed, 0 failed.
+exit=0
+--- tests/controllers/monitoring-controller.test.mjs
+  [PASS] listener: guarda las sesiones y repinta; sin datos = {}; error se registra
+  [PASS] tarjeta: "En Pausa de Turno" con latido reciente se ve En Pausa de Turno ⏸️ y filtra como NO en línea
+  [PASS] tarjeta: avatar local con respaldo a ui-avatars si la imagen falla (una sola vez), alt con el nombre
+  [PASS] filtros: búsqueda sin tildes, supervisores excluidos y sin sesiones muestra el estado vacío; no se muta la sesión recibida
+  [PASS] sin monitoreoGrid en la página: no hace nada
+  [PASS] bitácora: abre el modal con el nombre y las filas; sesión inexistente o sin modal no hace nada
+  [PASS] bitácora: Inactividad en curso por pérdida de señal se agrega (el reloj es el inyectado)
+  [PASS] detalle de tareas: nombre, info, avatar con respaldo, tareas asignadas reconciliadas y extras
+  [PASS] detalle: sin tareas muestra el mensaje; sesión inexistente no abre nada
+  [PASS] desplegable de gestores: opción "Todos" y un <option> por gestor aprobado; sin el elemento no hace nada; errores se registran
+monitoring-controller (listener, tarjetas, bitácora, detalle y desplegable de gestores): 10 passed, 0 failed.
+exit=0
+--- tests/controllers/shift-reports-controller.test.mjs
+  [PASS] sin tabla en la página no hace nada
+  [PASS] renderShiftReports: pinta "cargando", carga de Firebase, arma el multiselect y filtra por defecto (últimos 2 días)
+  [PASS] error de Firebase: se registra y se muestran los datos que hubiera (lista vacía) sin lanzar
+  [PASS] modal "Ver Todo": rellena el cuerpo, ata el botón PDF al id y lo abre; id desconocido avisa
+  [PASS] exportShiftReport: reporte que solo existe en Firebase se exporta; si el motor falla avisa y registra (el contenedor queda, igual que el original)
+  [PASS] footer informativo: sin filtros se muestra a los 50 ms con el conteo; con filtros se retira
+  [PASS] sin resultados: mensaje según haya o no filtros explícitos
+  [PASS] segunda llamada con datos precargados filtra de inmediato (sin fila de "cargando")
+  [PASS] exportShiftReport: con el motor de PDF genera el archivo con las opciones del original y limpia el contenedor temporal
+  [PASS] exportShiftReport: sin motor de PDF avisa "Cargando motor..."; reporte no encontrado en memoria se busca en Firebase y si no existe avisa
+shift-reports-controller (historial de turnos: carga, filtros, modal y PDF): 10 passed, 0 failed.
+exit=0
+--- tests/controllers/profile-notifications-controller.test.mjs
+  [PASS] openProfileModal: copia avatar, nombre y rol, limpia el campo y el mensaje y abre el modal
+  [PASS] openProfileModal: usuario sin nombre ni rol usa "Usuario" y "Rol"
+  [PASS] toggleProfilePassword: alterna password/text y el icono bx-show/bx-hide
+  [PASS] toggleNotifications: alterna block/none (vacío cuenta como cerrado)
+  [PASS] changePassword: campo en blanco muestra el aviso en rojo y no llama a Firebase
+  [PASS] changePassword: sin sesión de Auth
+  [PASS] changePassword: éxito, mensaje verde y cierra el modal a los 2000 ms; la contraseña llega solo a updatePassword
+  [PASS] markAllAsRead: sin usuario no consulta; con usuario delega; un error se registra y no se propaga
+  [PASS] changePassword: errores de Firebase, mensaje específico, color rojo, se registra el error y NUNCA la contraseña
+profile-controller / notifications-controller (perfil, contraseña y notificaciones): 9 passed, 0 failed.
+exit=0
+
+=== Regresion completa de src/tests/{domain,utils,ui,controllers} ===
+--- tests/controllers/announcements-controller.test.mjs
+  [PASS] initListener: carga los comunicados, actualiza la insignia y abre el modal urgente con el más antiguo
+  [PASS] initListener: solo repinta las vistas que están abiertas (display === "block")
+  [PASS] initListener: el listener reacciona a cambios en vivo y se puede cancelar
+  [PASS] insignia: Admin y Supervisor nunca la ven; el Gestor con todo leído tampoco
+  [PASS] insignia: sin elemento en la página no falla
+  [PASS] urgente: no pisa el modal que ya está abierto ni actúa sin uid
+  [PASS] urgente: el contenido malicioso se sanitiza; título y autor se asignan como texto
+  [PASS] abrir modal nuevo: solo roles que publican; limpia título y contenido
+  [PASS] vista de lectura: muestra título/autor/fecha como texto y el cuerpo sanitizado; id inexistente no hace nada
+  [PASS] lecturas con nombres maliciosos: se escapan (lectores y pendientes)
+  [PASS] renderAdmin muestra Eliminar solo al Admin; renderGestor marca leídos con su fecha
+  [PASS] publicar: sin sesión de Firebase falla con aviso "Error al publicar." (el original lanza TypeError dentro del try)
+  [PASS] eliminar: Supervisor y Gestor son rechazados al pedir; y si el rol cambia antes de confirmar, se cancela
+  [PASS] markAsRead: escribe readBy/{uid} con nombre y fecha; el listener refresca insignia y avanza el urgente
+  [PASS] markAsRead: sin usuario o sin nombre el SDK rechaza (undefined) y se avisa; no deja nada escrito
+  [PASS] publicar: Gestor o sin usuario son rechazados con aviso y sin escribir; campos vacíos avisan
+  [PASS] publicar: si la base lo rechaza, se avisa "Error al publicar." y el modal NO se cierra
+  [PASS] publicar: authorUid sale de la sesión de Firebase (auth.uid), no del uid guardado en el usuario local
+  [PASS] lecturas: lista quién leyó y quién falta (gestores aprobados); Gestor no puede consultarlas
+  [PASS] doble lectura CON skipIfAlreadyRead: la segunda es un no-op (sin error, sin segunda escritura, sin duplicar)
+  [PASS] urgente: mientras se registra el botón queda deshabilitado con "Registrando..."
+  [PASS] doble lectura SIN opción: la regla de Firebase (escritura única) rechaza la segunda y se avisa "Error al marcar como leído." (comportamiento original)
+  [PASS] publicar: Admin/Supervisor publican con el payload exacto; se cierra el modal y se avisa
+  [PASS] eliminar: solo Admin; pide confirmación y borra al confirmar; si falla avisa; siempre restaura el botón
+  [PASS] cola de urgentes: marcar el actual cierra el modal y a los 500 ms muestra el siguiente; con todo leído queda cerrado
+  [PASS] urgente con escritura rechazada: el original cierra el modal igual (y reaparece a los 500 ms); la opción keepUrgentModalOpenOnFailure lo deja abierto
+  [PASS] lecturas: nadie ha leído / todos leyeron / error de lectura de usuarios / usuarios vacíos
+announcements-controller (comunicados con base y DOM simulados): 27 passed, 0 failed.
+exit=0
+--- tests/controllers/app-router.test.mjs
+  [PASS] diferencial vs app.js: mismas operaciones y MISMO ORDEN (display y appendChild) para cada rol, con todos los elementos presentes
+  [PASS] diferencial: con elementos ausentes (cada id faltante por separado) el resultado sigue siendo idéntico
+  [PASS] adminNavGroup ausente: el original lanzaría TypeError al anexar Monitoreo; el nuevo lo omite sin lanzar (único cambio de comportamiento, a favor de la robustez)
+  [PASS] Admin vs Supervisor vs Gestor: Config. Gestores solo para Admin; Mis Tareas solo para Gestor
+  [PASS] el router NO toca el botón de Pausa de Turno (lo gobierna RiskOps.shiftController)
+  [PASS] diferencial alignAdministrativeControlsByRole: mismos estilos que el original para cada rol (y sin usuario)
+  [PASS] alignAdministrativeControlsByRole: Admin ve la sección de usuarios (display ""), Supervisor y Gestor no ("none")
+  [PASS] alignAdministrativeControlsByRole: sin elementos en la página no falla
+  [PASS] updateNavigation: refresca el botón de Pausa de Turno y luego reordena la barra
+app-router (navegación por rol: diferencial vs setupSidebar, alignAdministrativeControlsByRole, updateNavigation): 9 passed, 0 failed.
+exit=0
+--- tests/controllers/approvals-controller.test.mjs
+  [PASS] saveExtraTask: la llave empieza con "extra_" y el nombre con "[EXTRA] "
+  [PASS] saveExtraTask: durante el guardado el botón dice "Guardando..." y queda deshabilitado; al terminar se restaura
+  [PASS] preventDuplicates: claves distintas (otro permiso) no se bloquean entre sí
+  [PASS] enforcePolicy: un Supervisor no puede aprobar ni rechazar usuarios (aviso, sin tocar Firebase)
+  [PASS] escapeRole: escapa el rol en la insignia (apagado = idéntico a app.js)
+  [PASS] enforcePolicy: el Supervisor SÍ puede decidir permisos; un Gestor no
+  [PASS] enforcePolicy: sin usuario cargado se deniega; el Admin pasa
+  [PASS] preventDuplicates: libera la clave aunque falle la escritura (permite reintentar)
+  [PASS] un fallo al repintar la tabla tras aprobar queda registrado (no es una promesa huérfana)
+  [PASS] preventDuplicates: el doble clic en Aprobar usuario solo escribe una vez; luego se puede volver a aprobar
+  [PASS] showUserRejectBox con id inexistente lanza el mismo TypeError
+  [PASS] confirmException: sin opción seleccionada (selectedIndex -1) lanza el mismo TypeError
+  [PASS] openExceptionModal: sin el botón .btn-status.not-done lanza el mismo TypeError
+  [PASS] approveUser: el usuario cancela el confirm -> no escribe nada
+  [PASS] confirmRejectUser: motivo vacío -> "Debes escribir un motivo de rechazo." y no escribe
+  [PASS] confirmRejectUser: motivo solo espacios/saltos -> mismo aviso
+  [PASS] confirmRejectUser: sin el campo de motivo en el DOM lanza el mismo TypeError
+  [PASS] showUserRejectBox: oculta los botones y muestra la caja
+  [PASS] cancelRejectUser: vuelve a mostrar los botones y VACÍA el motivo
+  [PASS] confirmRejectPerm: motivo vacío -> aviso y sin escritura
+  [PASS] showPermApproveBox / cancelApprovePerm
+  [PASS] showPermRejectBox / cancelRejectPerm
+  [PASS] showPermApproveBox deja la caja visible (sin cancelar)
+  [PASS] showPermRejectBox deja la caja visible (sin cancelar)
+  [PASS] confirmException: sin razón -> "Por favor seleccione una razón principal."
+  [PASS] confirmException: razón sin detalle -> "Por favor detalle el problema obligatoriamente."
+  [PASS] confirmException: razón y detalle -> vuelca "Excepción: <razón> - <detalle>" y cierra el modal
+  [PASS] openExceptionModal: marca "No Realizada", limpia razón/detalle y abre el modal
+  [PASS] closeModal: quita "active"; un id inexistente no hace nada
+  [PASS] openExtraTaskModal: limpia el formulario (estado "Finalizada") y abre el modal
+  [PASS] openExtraTaskModal: sin el modal en el DOM no toca nada
+  [PASS] saveExtraTask: nombre vacío -> OBLIGATORIO nombre
+  [PASS] saveExtraTask: observación vacía -> OBLIGATORIO notas técnicas
+  [PASS] saveExtraTask: nombre y observación vacíos -> el aviso del nombre (se valida primero)
+  [PASS] saveExtraTask: sin sesión de Firebase -> "Tu sesión expiró..."
+  [PASS] saveExtraTask: sin sesión (undefined) -> "Tu sesión expiró..."
+  [PASS] saveExtraTask: usuario local distinto -> "No se pudo verificar tu identidad..."
+  [PASS] saveExtraTask: sin usuario local -> "No se pudo verificar tu identidad..."
+  [PASS] renderPendingUsers: sin nodo users muestra "No hay usuarios que coincidan"
+  [PASS] renderPendingUsers: lista pequeña (pendiente, aprobado, rechazado oculto, administradora oculta, id con comillas)
+  [PASS] renderPendingUsers: más de 5 sin filtros recorta a 5 y agrega el aviso tras 100 ms
+  [PASS] renderPendingUsers: con búsqueda "gestor 1" (sin recorte, quita el aviso)
+  [PASS] renderPendingUsers: filtro de estado Pendiente
+  [PASS] renderPendingUsers: filtro de estado Aprobado + búsqueda con acentos "ange"
+  [PASS] renderPendingUsers: filtros que no coinciden con nadie
+  [PASS] renderPendingUsers: sin controles de filtro en el DOM usa Todos y vacío
+  [PASS] renderPendingUsers: falla la lectura de Firebase -> registra el error y muestra la tabla vacía
+  [PASS] renderPendingUsers: usuarios sin nombre/rol/fechas y fecha inválida
+  [PASS] renderPendingUsers: sin el <tbody> no hace nada (ni lee Firebase)
+  [PASS] approveUser: confirma, escribe {approved:true, approvalDate}, avisa y recarga la tabla
+  [PASS] approveUser: falla Firebase -> "Error al contactar al servidor" y NO recarga
+  [PASS] approveUser: id con caracteres especiales
+  [PASS] confirmRejectUser: motivo válido (se recorta) -> {approved:"Rechazado", rejectionReason}
+  [PASS] confirmRejectUser: falla Firebase -> error genérico
+  [PASS] renderPendingPermissions: sin nodo permissions -> "No hay permisos pendientes de aprobación."
+  [PASS] renderPendingPermissions: pendientes + historial (con tabla de historial presente)
+  [PASS] renderPendingPermissions: sin tabla de historial (como index.html real) solo pinta pendientes
+  [PASS] renderPendingPermissions: más de 5 pendientes recorta y agrega aviso
+  [PASS] renderPendingPermissions: sin pendientes NO pinta el historial (comportamiento de app.js)
+  [PASS] renderPendingPermissions: falla la lectura -> registra el error y muestra la bandeja vacía
+  [PASS] updatePermissionStatus directo sin motivo: no escribe rejectionReason
+  [PASS] updatePermissionStatus con motivo vacío "" tampoco escribe rejectionReason
+  [PASS] updatePermissionStatus: tras el éxito recarga la bandeja y el historial (loadPermisos)
+  [PASS] saveExtraTask: éxito guarda en active_sessions/<uid>/tasks/extra_<ms>, respalda en localStorage y cierra el modal
+  [PASS] saveExtraTask: éxito sin botón en el DOM
+  [PASS] saveExtraTask: nombre y observación se recortan; el estado viaja tal cual
+  [PASS] saveExtraTask: PERMISSION_DENIED -> "No tienes permiso..." y el botón se restaura
+  [PASS] saveExtraTask: error genérico (sin código) -> "No se pudo guardar... respaldado localmente"
+  [PASS] saveExtraTask: error con mensaje "permission denied" (sin código) también se trata como permiso
+  [PASS] saveExtraTask: localStorage lleno no impide guardar (respaldo best-effort)
+  [PASS] confirmApprovePerm: sin observación guarda "Aprobado sin observaciones adicionales"
+  [PASS] confirmApprovePerm: observación con espacios se recorta
+  [PASS] confirmApprovePerm: solo espacios = sin observación
+  [PASS] confirmRejectPerm: motivo válido -> {status:"Rechazado", notified:false, rejectionReason}
+  [PASS] confirmRejectPerm: falla Firebase -> error genérico y no recarga
+  [PASS] doble clic en Aprobar usuario: igual que app.js (dos confirmaciones y dos escrituras)
+  [PASS] saveExtraTask: doble clic -> la segunda llamada se ignora mientras guarda
+  [PASS] renderPendingUsers: dos renders seguidos reemplazan el aviso (no lo duplican)
+  [PASS] renderPendingPermissions: dos renders seguidos no duplican el aviso
+  [PASS] doble clic en confirmar rechazo de permiso: igual que app.js (dos escrituras y dos alertas)
+  [PASS] saveExtraTask: tras un fallo, el reintento REUTILIZA la misma llave extra_<ms>
+  [PASS] saveExtraTask: tras un fallo, reabrir el modal arranca una tarea NUEVA (otra llave)
+  [PASS] renderPendingUsers: aleatorio con semilla (80 conjuntos de usuarios y filtros) idéntico al original
+  [PASS] renderPendingPermissions: aleatorio con semilla (80 conjuntos) idéntico al original
+approvals-controller.js (diferencial vs app.js 3975-4448 + opciones propias): 84 passed, 0 failed.
+exit=0
+--- tests/controllers/config-gestores-controller.test.mjs
+  [PASS] render sin tabla en la página no hace nada
+  [PASS] render: muestra solo gestores, ordenados por nombre, con el interruptor según hasSplitShift === true
+  [PASS] render: error de lectura (p. ej. un Gestor no puede leer users) muestra "Error al cargar datos."
+  [PASS] el flag escrito es un booleano estricto y la tabla lo lee con === true: "true" (texto) en la base se muestra como DESACTIVADO
+  [PASS] XSS (hallazgo): por fidelidad el nombre se inserta sin escapar; con options.escapeUserFields queda escapado
+  [PASS] toggle cancelado: no escribe nada y el interruptor vuelve a su estado previo (se repinta desde la base)
+  [PASS] FALLO DE ESCRITURA: un Supervisor (sin permiso por reglas) intenta cambiar el flag -> avisa y el interruptor regresa a su estado previo
+  [PASS] toggle (Admin): confirma, escribe el booleano en users/{uid}/hasSplitShift y repinta con el nuevo estado
+  [PASS] FALLO DE ESCRITURA: un Gestor tampoco puede activarse el flag a sí mismo (reglas); un Admin no aprobado tampoco
+  [PASS] diferencial: la tabla pintada por el controlador es idéntica a la de app.js (varios conjuntos, incluido vacío y sin gestores)
+  [PASS] diferencial: toggle (confirmar, cancelar, escritura rechazada) produce las mismas escrituras, avisos, mensajes y tabla final que app.js
+config-gestores-controller (interruptor de Pausa de Turno con base y DOM simulados): 11 passed, 0 failed.
+exit=0
+--- tests/controllers/incidents-controller.test.mjs
+  [PASS] renderTable: vacío muestra el mensaje; sin tabla en la página no falla; con XSS queda escapado
+  [PASS] enviar: crea la novedad en logs con el payload exacto, limpia el formulario y avisa
+  [PASS] enviar: tipo vacío -> "Novedad Operativa"; responsable vacío -> nombre del usuario
+  [PASS] enviar sin sesión local: avisa y no escribe; con título o detalle vacío: avisa y no escribe
+  [PASS] enviar: si la base lo rechaza (uid local distinto del de la sesión) avisa "Ocurrió un error..." y NO limpia el formulario
+  [PASS] enviar con usuario sin nombre: el SDK rechaza `undefined` (reportedBy) y se avisa (comportamiento original)
+  [PASS] enviar: usa el uid de la sesión de Firebase si el usuario local no lo trae; sin ninguno falla con aviso de error
+  [PASS] enviar: no se puede sobrescribir una novedad existente (la regla exige nodo nuevo) y cada envío crea una clave distinta
+  [PASS] listener: Supervisor ve en vivo las últimas 50 novedades, la más reciente primero; el gestor que envía no las recibe (regla de lectura)
+incidents-controller (novedades con base y DOM simulados): 9 passed, 0 failed.
+exit=0
+--- tests/controllers/monitoring-controller.test.mjs
+  [PASS] listener: guarda las sesiones y repinta; sin datos = {}; error se registra
+  [PASS] tarjeta: "En Pausa de Turno" con latido reciente se ve En Pausa de Turno ⏸️ y filtra como NO en línea
+  [PASS] tarjeta: avatar local con respaldo a ui-avatars si la imagen falla (una sola vez), alt con el nombre
+  [PASS] filtros: búsqueda sin tildes, supervisores excluidos y sin sesiones muestra el estado vacío; no se muta la sesión recibida
+  [PASS] sin monitoreoGrid en la página: no hace nada
+  [PASS] bitácora: abre el modal con el nombre y las filas; sesión inexistente o sin modal no hace nada
+  [PASS] bitácora: Inactividad en curso por pérdida de señal se agrega (el reloj es el inyectado)
+  [PASS] detalle de tareas: nombre, info, avatar con respaldo, tareas asignadas reconciliadas y extras
+  [PASS] detalle: sin tareas muestra el mensaje; sesión inexistente no abre nada
+  [PASS] desplegable de gestores: opción "Todos" y un <option> por gestor aprobado; sin el elemento no hace nada; errores se registran
+monitoring-controller (listener, tarjetas, bitácora, detalle y desplegable de gestores): 10 passed, 0 failed.
+exit=0
+--- tests/controllers/profile-notifications-controller.test.mjs
+  [PASS] openProfileModal: copia avatar, nombre y rol, limpia el campo y el mensaje y abre el modal
+  [PASS] openProfileModal: usuario sin nombre ni rol usa "Usuario" y "Rol"
+  [PASS] toggleProfilePassword: alterna password/text y el icono bx-show/bx-hide
+  [PASS] toggleNotifications: alterna block/none (vacío cuenta como cerrado)
+  [PASS] changePassword: campo en blanco muestra el aviso en rojo y no llama a Firebase
+  [PASS] changePassword: sin sesión de Auth
+  [PASS] changePassword: éxito, mensaje verde y cierra el modal a los 2000 ms; la contraseña llega solo a updatePassword
+  [PASS] markAllAsRead: sin usuario no consulta; con usuario delega; un error se registra y no se propaga
+  [PASS] changePassword: errores de Firebase, mensaje específico, color rojo, se registra el error y NUNCA la contraseña
+profile-controller / notifications-controller (perfil, contraseña y notificaciones): 9 passed, 0 failed.
+exit=0
+--- tests/controllers/shift-controller.test.mjs
+  [PASS] RN-1: gestor SIN flag no ve el botón (refresh/restore) y pulsarlo no inicia nada
+  [PASS] RN-1: Almuerzo y Desayuno funcionan igual sin flag
+  [PASS] RN-2: con flag el botón se ve, entra y sale de la pausa; efectos en el orden de app.js
+  [PASS] RN-2: no se puede iniciar la pausa con almuerzo/desayuno activo (mensaje original), ni al revés
+  [PASS] RN-3: flag revocado a mitad de la pausa: el botón sigue visible y Retomar funciona
+  [PASS] RN-3: recarga con la pausa en curso y sin flag: botón visible con estilo de pausa activa
+  [PASS] flag activado en vivo: el botón aparece y se refresca la barra lateral; mismo valor no hace nada
+  [PASS] solo el rol Gestor ve el botón aunque otro rol tenga el flag
+  [PASS] storage: otra pestaña inicia la pausa → se recarga el estado y se repintan botones y visibilidad
+  [PASS] storage: otras llaves se ignoran
+  [PASS] cierre: cierra pausas abiertas (incluida la Pausa de Turno sin flag) y acumula sus tiempos
+  [PASS] cierre: RN-4 con pausa de 180 min el cálculo da 6.50 h y el correo informa la pausa
+  [PASS] cierre: sin pausa el correo no trae el campo de pausa y el cálculo es el de siempre (7.50 h)
+  [PASS] flujo completo: pausa de 2 h con flag + cierre = horas efectivas sin esas 2 h
+  [PASS] latido: describeLiveSession trae estado y campos de la Pausa de Turno
+  [PASS] sin usuario: nada se ejecuta (guarda `if (!currentUser) return` de app.js)
+  [PASS] applyState solo recibe los 9 campos de pausas (no la línea de tiempo)
+  [PASS] los IDs de botón usados son los de index.html
+  [PASS] sync que lanza de forma síncrona también se contiene
+  [PASS] sincronización fallida: se avisa (setSyncWarning true) sin lanzar y se limpia al recuperarse
+shift-controller.js (RN-1..RN-4, deuda 2/4/5): 20 passed, 0 failed.
+exit=0
+--- tests/controllers/shift-reports-controller.test.mjs
+  [PASS] sin tabla en la página no hace nada
+  [PASS] renderShiftReports: pinta "cargando", carga de Firebase, arma el multiselect y filtra por defecto (últimos 2 días)
+  [PASS] error de Firebase: se registra y se muestran los datos que hubiera (lista vacía) sin lanzar
+  [PASS] modal "Ver Todo": rellena el cuerpo, ata el botón PDF al id y lo abre; id desconocido avisa
+  [PASS] exportShiftReport: reporte que solo existe en Firebase se exporta; si el motor falla avisa y registra (el contenedor queda, igual que el original)
+  [PASS] footer informativo: sin filtros se muestra a los 50 ms con el conteo; con filtros se retira
+  [PASS] sin resultados: mensaje según haya o no filtros explícitos
+  [PASS] segunda llamada con datos precargados filtra de inmediato (sin fila de "cargando")
+  [PASS] exportShiftReport: con el motor de PDF genera el archivo con las opciones del original y limpia el contenedor temporal
+  [PASS] exportShiftReport: sin motor de PDF avisa "Cargando motor..."; reporte no encontrado en memoria se busca en Firebase y si no existe avisa
+shift-reports-controller (historial de turnos: carga, filtros, modal y PDF): 10 passed, 0 failed.
+exit=0
+--- tests/controllers/task-controller.test.mjs
+  [PASS] latido: inyectando el estado de pausas, el payload agrega splitShiftStartTime/totalSplitShiftTimeMs (lo que ya hace el controlador de turno)
+  [PASS] updateClock del controlador: escribe HH:MM:SS en #liveClock y no falla sin el elemento
+  [PASS] recoverGestorTaskProgress: fusión + migración idéntica a app.js (caso base con remoto más nuevo, local más nuevo y ausentes)
+  [PASS] recoverGestorTaskProgress: lectura remota fallida → REMOTE_READ_FAILED, cero escrituras y caché local intacto
+  [PASS] recoverGestorTaskProgress: identidad distinta o sin sesión → IDENTITY_MISMATCH, fusión local pero cero escrituras remotas
+  [PASS] recoverGestorTaskProgress: fallos de migración se cuentan, no se ocultan, y el respaldo local queda conservado
+  [PASS] recoverGestorTaskProgress: localStorage roto no impide fusionar ni migrar
+  [PASS] recoverGestorTaskProgress: 250 escenarios aleatorios con semilla (carreras remoto más nuevo, red, identidad) — diferencial
+  [PASS] runStartupRecovery: avisa UNA vez, nunca lanza y no corre para quien no es Gestor con uid
+  [PASS] guardar progreso: camino feliz idéntico a app.js (respaldo local, Firebase, éxito visual, KPI, observación limpia)
+  [PASS] guardar progreso: cada validación avisa lo mismo que app.js y NO escribe nada (8 casos)
+  [PASS] guardar progreso: fallo de Firebase → respaldo local conservado, aviso y botón de error (permiso denegado y red)
+  [PASS] guardar progreso: estados No Realizada / En Proceso, sin elemento visual y doble clic (diferencial)
+  [PASS] latido: payload, contadores, bitácora y estado idénticos a app.js; NUNCA pisa las tareas guardadas
+  [PASS] latido: no corre para quien no es Gestor con uid; sesión cerrada en otra pestaña limpia y redirige (diferencial)
+  [PASS] latido: 300 escenarios aleatorios (idle nativo/DOM, pausas, estado local, bitácora, fallos de red) — diferencial
+  [PASS] selectTask: igual que app.js para Gestor (con caché, sin caché, estado desconocido), Admin/Supervisor y tarea inexistente
+  [PASS] runStartupDataSequence: orden de pasos, un fallo de horario/tareas no impide los siguientes y se registra
+task-controller.js (recuperación, latido, guardado, selección, arranque; diferencial vs app.js): 18 passed, 0 failed.
+exit=0
+--- tests/controllers/task-loaders-controller.test.mjs
+  [PASS] loadExcelTasks: Admin, Gestor con cronograma y tareas mock, y selección de Set — idéntico a app.js (150 escenarios con semilla)
+  [PASS] loadExcelTasks: la migración inicial de "En Proceso" no pisa una versión remota más nueva (carrera con otra pestaña)
+  [PASS] loadExcelTasks: errores (HTTP, Excel corrupto, red caída, sin contenedor ni selector) — mismo mensaje y mismo DOM que app.js
+  [PASS] loadSchedule: bloques, semana por defecto, selectores, tabla y efectos sobre el usuario — idéntico a app.js (120 escenarios con semilla)
+  [PASS] loadSchedule: hoja sin bloques válidos, falla de red y celda numérica de turno — mismo resultado que app.js
+  [PASS] loadTeletrabajo: bloques, selector, tabla y errores — idéntico a app.js (120 escenarios con semilla)
+  [PASS] loadPermisos: consulta por rol, filtro de privacidad, orden y HTML — idéntico a app.js (150 escenarios con semilla)
+  [PASS] openPermisoDetailModal: usa el historial cargado o lee de Firebase; avisa si no existe — idéntico a app.js
+task-loaders-controller.js (loadExcelTasks, loadSchedule, loadTeletrabajo, loadPermisos, detalle de permiso; diferencial vs app.js): 8 passed, 0 failed.
+exit=0
+--- tests/domain/active-session-payload.test.mjs
+  [PASS] diferencial vs app.js: las 32 combinaciones de pausas × inactividad dan el mismo estado
+  [PASS] prioridad: Pausa de Turno > Almuerzo > Desayuno > Inactivo > En Línea
+  [PASS] el estado del latido es reconocido por la vista del supervisor (contrato escritor→lector)
+  [PASS] en pausa: el latido lleva la hora de inicio y el acumulado
+  [PASS] sin pausa: la hora de inicio va en null (limpia el dato en Firebase) y el acumulado se conserva
+  [PASS] estado ausente o corrupto no produce undefined ni NaN (Firebase rechaza undefined)
+active-session-payload (latido: estado y campos de la Pausa de Turno): 6 passed, 0 failed.
+exit=0
+--- tests/domain/active-session-status.test.mjs
+  [PASS] REPRODUCCIÓN DEL BUG: el código actual muestra "En Línea" a un gestor en Pausa de Turno con latido reciente
+  [PASS] REPRODUCCIÓN DEL BUG: sin latido, el código actual rotula la Pausa de Turno como "Inactivo"
+  [PASS] CORREGIDO: Pausa de Turno con latido reciente se muestra como pausa y no cuenta como En Línea en el filtro
+  [PASS] CORREGIDO: Pausa de Turno sin latido por más de 2 min sigue siendo pausa (no "Inactivo")
+  [PASS] el resto de estados es IDÉNTICO al código actual (diferencial, 6 estados x 4 latidos)
+  [PASS] Inactivo con latido reciente se muestra Inactivo (la vista ya lo soportaba)
+active-session-status.js (bug: Pausa de Turno invisible al supervisor): 6 passed, 0 failed.
+exit=0
+--- tests/domain/announcement-service.test.mjs
+  [PASS] resolveReaderUid: usuario local > sesión de Firebase > "unknown" (app.js 6627)
+  [PASS] formatAnnouncementDate usa es-CO
+  [PASS] diferencial: orden por fecha desc/asc idéntico al sort original (fijo + 300 aleatorios)
+  [PASS] diferencial: insignia de no leídos (roles, uid local, sesión de Firebase, sin usuario) vs app.js (fijo + 300 aleatorios)
+  [PASS] "no leído": conteo, lectura por uid y estado vacío
+  [PASS] diferencial: siguiente comunicado urgente = el no leído más ANTIGUO, igual que app.js (fijo + 300 aleatorios)
+  [PASS] urgentes: tras leer el más antiguo, la cola avanza al siguiente y al leerlos todos queda vacía
+  [PASS] idempotencia de la lectura: registrar dos veces el mismo recibo no duplica al lector ni cambia el conteo
+  [PASS] buildReadReceipt: nombre del usuario y fecha ISO a partir de `now` (sin Date.now implícito)
+  [PASS] diferencial: lista del gestor idéntica byte a byte a app.js (fijo, vacío y 300 aleatorios)
+  [PASS] diferencial: tabla del administrador idéntica byte a byte (con y sin botón de eliminar; fijo y 300 aleatorios)
+  [PASS] el botón de eliminar solo aparece para Admin; Supervisor ve Leer y Lecturas
+  [PASS] XSS lista del gestor: título, autor y contenido malicioso no producen etiquetas ni manejadores activos
+  [PASS] XSS: la clave de Firebase con comillas queda codificada dentro del onclick (no rompe el atributo)
+  [PASS] XSS tabla del administrador: título y autor siempre escapados
+  [PASS] XSS modal de lectura/urgente: título y autor van como TEXTO; el cuerpo sale sanitizado
+  [PASS] los ayudantes son inyectables: app.js puede usar SU sanitizador (basado en DOM)
+  [PASS] diferencial: lecturas (quién leyó / quién falta) idénticas a app.js, con cuentas duplicadas, sin aprobar y no gestores
+  [PASS] diferencial aleatorio: lecturas (200 casos con semilla)
+  [PASS] isPendingReaderCandidate: aprobado === true y rol Gestor o sin rol
+  [PASS] autor: nombre > correo > rol > "Usuario"; nunca el nombre de otro rol (app.js 6606)
+  [PASS] formulario nuevo: recorta el título, sanitiza el contenido y exige ambos
+  [PASS] payload de publicación: forma exacta, fecha ISO de `now` y cumple la regla de creación del Supervisor
+  [PASS] permisos: se reexportan las funciones existentes (Admin/Supervisor publican y ven lecturas; solo Admin elimina)
+  [PASS] textos visibles de los alert() se conservan
+announcement-service (comunicados: lógica pura, diferencial vs app.js 6555-6965): 25 passed, 0 failed.
+exit=0
+--- tests/domain/approval-policy.test.mjs
+  [PASS] mensajes de la interfaz idénticos a los literales de app.js
+  [PASS] estados idénticos a los literales de app.js (PERMISSION_STATUS y rechazo de usuario)
+  [PASS] estado de la cuenta: pendiente=false, aprobada=true, rechazada="Rechazado"; nada más cuenta
+  [PASS] payload de aprobar usuario = { approved: true, approvalDate: <ISO> }
+  [PASS] payload de rechazar usuario = { approved: "Rechazado", rejectionReason }
+  [PASS] validateRejectionReason recorta y rechaza vacío, solo espacios, null y undefined
+  [PASS] canApproveUsers / canRejectUsers: solo Admin aprobado
+  [PASS] canManagePermissionApprovals: Admin o Supervisor aprobados
+  [PASS] visibilidad: la vista Aprobaciones es de Admin y Supervisor; la sección de usuarios solo de Admin
+  [PASS] canReadUsersList: Admin o Supervisor aprobados
+  [PASS] DESAJUSTE DOCUMENTADO: el Supervisor puede LEER users (reglas) pero no ve ni puede escribir la sección de usuarios
+  [PASS] reglas vs política (usuarios): Admin aprobado aprobar/rechazar users/$uid
+  [PASS] reglas vs política (permisos): Admin aprobado aprobar/rechazar permissions/$perm_id
+  [PASS] reglas vs política (lectura): Admin aprobado lee users
+  [PASS] reglas vs política (usuarios): Admin sin aprobar aprobar/rechazar users/$uid
+  [PASS] reglas vs política (permisos): Admin sin aprobar aprobar/rechazar permissions/$perm_id
+  [PASS] reglas vs política (lectura): Admin sin aprobar lee users
+  [PASS] reglas vs política (usuarios): Supervisor aprobado aprobar/rechazar users/$uid
+  [PASS] reglas vs política (permisos): Supervisor aprobado aprobar/rechazar permissions/$perm_id
+  [PASS] reglas vs política (lectura): Supervisor aprobado lee users
+  [PASS] reglas vs política (usuarios): Supervisor sin aprobar aprobar/rechazar users/$uid
+  [PASS] reglas vs política (permisos): Supervisor sin aprobar aprobar/rechazar permissions/$perm_id
+  [PASS] reglas vs política (lectura): Supervisor sin aprobar lee users
+  [PASS] reglas vs política (usuarios): Gestor aprobado aprobar/rechazar users/$uid
+  [PASS] reglas vs política (permisos): Gestor aprobado aprobar/rechazar permissions/$perm_id
+  [PASS] reglas vs política (lectura): Gestor aprobado lee users
+  [PASS] reglas: el gestor dueño NO puede cambiarse el status de su propio permiso (solo crear la solicitud)
+  [PASS] reglas: un Admin puede escribir approved con el texto "Rechazado" (el .validate de approved lo permite a Admin)
+  [PASS] reglas: un Supervisor puede aprobar SU PROPIA solicitud de permiso (no hay regla contra la autoaprobación)
+approval-policy.js (política de aprobaciones + contraste con database.rules.json): 29 passed, 0 failed.
+exit=0
+--- tests/domain/auth-service.test.mjs
+  [PASS] Admin: ve Monitoreo, Comunicados, Turnos, Aprobaciones dentro del grupo Admin, y Config. Gestores; oculta Mis Tareas y Tiempos
+  [PASS] Supervisor: ve Comunicados del gestor en la barra y NO ve Config. Gestores
+  [PASS] Gestor: Mis Tareas, Comunicados, Horario, Docs y Permisos en ese orden; Administración oculta; filtros de gestor ocultos
+  [PASS] rol desconocido (p. ej. "Auditor", que no existe en app.js), sin rol o sin usuario: cae en la rama Gestor, como el else del original
+  [PASS] botones de pausa de la barra lateral: solo el Gestor ve Almuerzo y Desayuno (la Pausa de Turno la gobierna el flag, no esta política)
+  [PASS] controles administrativos: la aprobación de usuarios solo la ve el Admin; "Gestión Comunicados" se oculta a quien no puede gestionarla
+  [PASS] contraseña: se rechaza vacía o en blanco; no se recorta (original: !newPass || newPass.trim() === "")
+  [PASS] errores de Firebase Auth mapeados a los textos del original
+  [PASS] alcance de notificaciones: Admin y Supervisor leen todas; el Gestor solo las suyas
+  [PASS] Admin/Supervisor: solo los permisos Pendiente con notified_admin === false pasan a true
+  [PASS] Gestor: solo los permisos ya respondidos con notified === false pasan a true
+  [PASS] changeUserPassword: contraseña en blanco no llama a la autenticación
+  [PASS] changeUserPassword: sin sesión de Firebase Auth informa el error y no cierra el modal
+  [PASS] changeUserPassword: si getAuthUser lanza, se trata como error (dentro del try del original)
+  [PASS] changeUserPassword: éxito llama a updatePassword con el valor recibido y pide cerrar el modal a los 2 s
+  [PASS] changeUserPassword: errores de Firebase (reautenticación, débil, otro) y el resultado NUNCA contiene la contraseña
+auth-service / notification-rules (política de navegación, controles administrativos, contraseña, notificaciones): 16 passed, 0 failed.
+exit=0
+--- tests/domain/break-state-ownership.test.mjs
+  [PASS] guardar incluye ownerUid y NO incluye shiftTimeline (vive en riskOps_timeline)
+  [PASS] guardar sin uid no agrega ownerUid
+  [PASS] el objeto guardado conserva los 9 campos que ya guardaba saveBreakState() de app.js
+  [PASS] ida y vuelta con el mismo usuario restaura la pausa y los acumulados
+  [PASS] otro usuario en el mismo navegador NO hereda pausas ni acumulados (hallazgo 2)
+  [PASS] estado antiguo SIN ownerUid (guardado por la versión actual de app.js) se acepta como LEGACY
+  [PASS] sin uid conocido se acepta el estado (no se puede comparar dueño)
+  [PASS] vacío, JSON inválido y valores no-objeto devuelven el estado por defecto
+  [PASS] acepta también un objeto ya parseado
+  [PASS] campos corruptos se normalizan (no numéricos → 0/null)
+break-state-ownership (estado de pausas por usuario): 10 passed, 0 failed.
+exit=0
+--- tests/domain/break-state-timeline-coherence.test.mjs
+  [PASS] A1. defaultState() incluye shiftTimeline: [] y los 9 campos de pausas en falso/0/null
+  [PASS] A2. normalizeState() sanea valores inválidos a los valores por defecto
+  [PASS] A3. normalizeState() copia shiftTimeline por valor, no por referencia
+  [PASS] A4. saveBreakState()/loadBreakState() hacen round-trip fiel, incluido shiftTimeline
+  [PASS] A5. loadBreakState() devuelve defaultState() si la llave no existe
+No se pudo cargar el estado de pausas: SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+    at JSON.parse (<anonymous>)
+    at loadBreakState (file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/services/storage/local-session-storage.js:29:49)
+    at file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs:181:22
+    at test (file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/test-harness.mjs:21:13)
+    at file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs:176:1
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+  [PASS] A6. loadBreakState() devuelve defaultState() ante JSON corrupto, sin lanzar
+No se pudo guardar el estado de pausas: Error: QuotaExceededError simulado
+    at Object.setItem (file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs:90:23)
+    at saveBreakState (file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/services/storage/local-session-storage.js:14:22)
+    at file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs:187:31
+    at getActual (node:assert:609:5)
+    at Function.doesNotThrow (node:assert:777:32)
+    at file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs:187:12
+    at test (file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/test-harness.mjs:21:13)
+    at file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs:184:1
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+  [PASS] A7. saveBreakState() contiene el error si localStorage.setItem lanza (p. ej. cuota excedida)
+  [PASS] B1 [RIESGO CRÍTICO]. loadBreakState() descarta en silencio una línea de tiempo real guardada por app.js
+  [PASS] B2 [RIESGO CRÍTICO]. saveBreakState() nunca lee ni escribe "riskOps_timeline"
+  [PASS] B3 [RIESGO CRÍTICO]. "riskOps_breakState" de producción jamás trae shiftTimeline (contrato documentado, no inferido)
+  [PASS] C1. pushTimelineEvent("start", ...) cierra eventos abiertos y abre uno nuevo
+  [PASS] C2. pushTimelineEvent("end", ...) cierra el último evento abierto de ese tipo
+break-state-timeline-coherence: 12 passed, 0 failed.
+exit=0
+--- tests/domain/break-transitions.test.mjs
+  [PASS] breakfast: iniciar marca activa, guarda hora de inicio y pide evento "Desayuno" start
+  [PASS] breakfast: terminar acumula el tiempo, limpia el inicio, pide evento end y updateActivity
+  [PASS] breakfast: iniciar queda bloqueado si hay otra pausa activa (sin efectos ni cambios)
+  [PASS] breakfast: dos pausas del mismo tipo suman sus tiempos
+  [PASS] lunch: iniciar marca activa, guarda hora de inicio y pide evento "Almuerzo" start
+  [PASS] lunch: terminar acumula el tiempo, limpia el inicio, pide evento end y updateActivity
+  [PASS] lunch: iniciar queda bloqueado si hay otra pausa activa (sin efectos ni cambios)
+  [PASS] lunch: dos pausas del mismo tipo suman sus tiempos
+  [PASS] split: iniciar marca activa, guarda hora de inicio y pide evento "Pausa de Turno" start
+  [PASS] split: terminar acumula el tiempo, limpia el inicio, pide evento end y updateActivity
+  [PASS] split: iniciar queda bloqueado si hay otra pausa activa (sin efectos ni cambios)
+  [PASS] split: dos pausas del mismo tipo suman sus tiempos
+  [PASS] característica heredada: terminar una pausa activa SIN hora de inicio no suma tiempo (estado restaurado incompleto)
+  [PASS] no muta el estado recibido
+  [PASS] un tipo de pausa desconocido lanza error
+  [PASS] RN-1: iniciar la Pausa de Turno SIN flag queda bloqueado con motivo SPLIT_SHIFT_NOT_ENABLED (sin efectos)
+  [PASS] RN-2: iniciar la Pausa de Turno CON flag (=== true) la inicia
+  [PASS] RN-3: retomar (terminar) la pausa SIEMPRE se permite, aunque el flag ya no esté (revocado a mitad de la pausa / recarga)
+  [PASS] Almuerzo y desayuno NO dependen del flag: se inician y terminan igual con o sin splitShiftEnabled
+  [PASS] con el flag y otra pausa activa el motivo es OTHER_BREAK_ACTIVE; sin flag y otra pausa activa gana SPLIT_SHIFT_NOT_ENABLED
+  [PASS] con la pausa de turno activa, almuerzo y desayuno siguen bloqueados (OTHER_BREAK_ACTIVE), con o sin flag
+  [PASS] bloqueo por flag no muta el estado recibido
+break-transitions.js: 22 passed, 0 failed.
+exit=0
+--- tests/domain/extra-task.test.mjs
+  [PASS] textos de la tarea extra idénticos a los literales de app.js
+  [PASS] textos de la justificación idénticos a app.js 4009 y 4014
+  [PASS] normalizeExtraTaskInput recorta nombre y observación; el estado pasa tal cual
+  [PASS] validateExtraTaskInput: primero el nombre, luego la observación
+  [PASS] validateExtraTaskIdentity: sin sesión, usuario local ausente o distinto, y coincidente
+  [PASS] llave y registro idénticos al original, con y sin llave pendiente (200 casos con semilla)
+  [PASS] la llave usa EXTRA_TASK_KEY_PREFIX ("extra_") y isExtraTaskKey la reconoce
+  [PASS] clasificación del error de guardado idéntica al original
+  [PASS] isKnownExtraTaskStatus acepta los 4 estados del selector (no se aplica en saveExtraTask: hallazgo)
+  [PASS] validateExceptionInput: primero la razón, luego el detalle (recortado)
+  [PASS] buildExceptionObservation idéntico al original
+extra-task.js + exception-justification.js (diferencial vs app.js 4001-4109): 11 passed, 0 failed.
+exit=0
+--- tests/domain/firebase-approvals-repository.test.mjs
+  [PASS] referencia: la ruta con llave vacía del original sería el nodo raíz (documenta el riesgo evitado)
+  [PASS] fetchUsers: lee users una vez y devuelve la lista con la llave en `id`
+  [PASS] fetchPermissions: lee permissions y devuelve la lista con la llave en `fb_id` (conserva `id`)
+  [PASS] approveUser: update en users/<id> con { approved: true, approvalDate }
+  [PASS] rejectUser: update en users/<id> con { approved: "Rechazado", rejectionReason }
+  [PASS] fetch sobre un nodo inexistente devuelve []
+  [PASS] updatePermissionStatus: con motivo -> { status, notified:false, rejectionReason }; sin motivo -> sin rejectionReason
+  [PASS] un fallo de lectura se propaga (el controlador decide qué hacer)
+  [PASS] un fallo de escritura se propaga con su código (para clasificarlo arriba)
+  [PASS] llave vacía o no textual: se rechaza ANTES de tocar Firebase (app.js escribiría el nodo raíz users)
+firebase-approvals-repository.js (rutas y payloads de app.js 4115-4441): 10 passed, 0 failed.
+exit=0
+--- tests/domain/firebase-shift-repository.test.mjs
+  [PASS] persistShiftClosureCore devuelve la llave del reporte
+  [PASS] persistShiftClosureCore hace UNA sola escritura multi-ruta con las 3 rutas esperadas
+  [PASS] persistShiftClosureCore exige UID
+  [PASS] persistShiftClosureCore exige loginLogId (sin escribir nada)
+  [PASS] persistShiftClosureCore falla si no se puede asignar la llave del reporte
+  [PASS] persistShiftClosureCore propaga el error de Firebase sin escrituras parciales
+  [PASS] restoreEndShiftButton restaura el HTML previo y rehabilita el botón
+  [PASS] restoreEndShiftButton usa el texto por defecto si no hay HTML previo
+  [PASS] restoreEndShiftButton no falla con botón nulo
+firebase-shift-repository.js + end-shift-button.js: 9 passed, 0 failed.
+exit=0
+--- tests/domain/gestor-config.test.mjs
+  [PASS] diferencial: selección, deduplicado por correo y orden alfabético idénticos a app.js (fijo)
+  [PASS] diferencial aleatorio: 300 conjuntos con duplicados, fechas rotas y campos ausentes
+  [PASS] selectConfigGestores no modifica las entradas de entrada (copias)
+  [PASS] diferencial: la fila (HTML) es idéntica a app.js para cada caso, incluido el flag (estricto === true)
+  [PASS] el interruptor conserva su texto y estilo: toggleGestorSplitShift(uid, this.checked), aria-label y colores
+  [PASS] XSS: aria-label siempre escapado; nombre/rol/correo SIN escapar por fidelidad (hallazgo) y escapados con escapeUserFields
+  [PASS] confirmación: texto exacto de habilitar y deshabilitar (app.js 6824)
+  [PASS] contrato estricto del flag: solo el booleano true cuenta
+  [PASS] isConfigGestorCandidate / canUseSplitShiftConfig
+  [PASS] reglas reales: users/$uid.write no define regla propia para hasSplitShift y solo un Admin aprobado puede escribirlo (más la alta propia)
+  [PASS] diferencial contra las REGLAS REALES: canWriteHasSplitShift coincide con la evaluación de users/$uid.write en 96 combinaciones
+  [PASS] política: Admin aprobado escribe el flag de cualquiera; Supervisor y Gestor NO; sin sesión NO
+  [PASS] HALLAZGO de reglas: un usuario cuyo nodo AÚN no existe puede crear su propio nodo con hasSplitShift:true (el campo no se valida)
+gestor-config (configuración de gestores y flag hasSplitShift; diferencial vs app.js 6757-6834): 13 passed, 0 failed.
+exit=0
+--- tests/domain/historial-repositories.test.mjs
+  [PASS] nombres de gestores aprobados: solo Gestor aprobado, recortados, sin repetir y ordenados (app.js 5648-5655)
+  [PASS] markAllAsRead Gestor: consulta solo sus permisos (orderByChild uid) y marca los ya respondidos
+  [PASS] markAllAsRead: sin permisos o sin nada por marcar no escribe
+  [PASS] monitoreo: escucha active_sessions (vacío = {}), propaga errores y permite dejar de escuchar
+  [PASS] markAllAsRead Gestor sin uid en el usuario usa el uid de Auth; sin ninguno no hace nada; sin usuario no hace nada
+  [PASS] markAllAsRead Admin/Supervisor: un solo update con los pendientes sin ver por el admin
+  [PASS] shift_reports: lista con fb_id y lectura por id (sin fb_id, como el original); vacío = []
+repositorios Firebase del corte historial/navegación (base inyectada, sin red): 7 passed, 0 failed.
+exit=0
+--- tests/domain/incident-service.test.mjs
+  [PASS] diferencial: la tabla es idéntica byte a byte (vacía, nula, cerrados/abiertos, campos ausentes, maliciosos; fijo + 300 aleatorios)
+  [PASS] XSS: tipo, título, detalle, responsable y reportante se escapan (<script>, onerror=, javascript:)
+  [PASS] el escapeHTML puede inyectarse (app.js usa el suyo)
+  [PASS] formatIncidentDate: N/A sin marca de tiempo; formato corto con ella
+  [PASS] formulario: tipo por omisión, recortes, responsable = nombre del usuario si queda vacío (app.js 8730-8733)
+  [PASS] payload: forma exacta, estado "Abierto", marca de tiempo de `now` y cumple la regla de creación de logs (uid === auth.uid)
+  [PASS] límite de 50 y textos de alert
+  [PASS] snapshotToIncidents: más reciente primero, con id; vacío y nulo dan lista vacía; diferencial vs app.js
+incident-service + incidents-view (novedades; diferencial vs app.js 8724-8815): 8 passed, 0 failed.
+exit=0
+--- tests/domain/kpi-data-sources.test.mjs
+  [PASS] detectLocalEnvironment: localhost, 127.0.0.1 y file:// son locales; el resto no; sin ventana, no
+  [PASS] fetchKpiOperativosData: pide los archivos esperados con el parámetro de caché ?v=<ms>
+  [PASS] firebase-kpi-repository: lee users y shift_reports; null si el nodo no existe
+  [PASS] diferencial vs app.js 5676-5701: archivo estándar con respuesta no OK: lanza "No se pudo cargar kpi_operativos_v2.json"
+  [PASS] diferencial vs app.js 5676-5701: producción: usa el archivo estándar y nunca pide la semilla
+  [PASS] diferencial vs app.js 5676-5701: producción con semilla disponible: la ignora (aislamiento de entornos)
+  [PASS] diferencial vs app.js 5676-5701: localhost con semilla válida: devuelve la semilla
+  [PASS] diferencial vs app.js 5676-5701: 127.0.0.1 con semilla válida
+  [PASS] diferencial vs app.js 5676-5701: localhost, semilla vacía y estándar no OK
+  [PASS] diferencial vs app.js 5676-5701: localhost sin semilla (404): cae al archivo estándar
+  [PASS] diferencial vs app.js 5676-5701: localhost con error al leer la semilla: advierte y usa el estándar
+  [PASS] diferencial vs app.js 5676-5701: localhost con semilla vacía {}: cae al archivo estándar
+kpi-data-sources (JSON operativo y lecturas de Firebase): 12 passed, 0 failed.
+exit=0
+--- tests/domain/kpi-metrics-calculator.test.mjs
+  [PASS] parseTime: "H:MM" con AM/PM en todas las variantes de escritura de es-CO y en-US
+  [PASS] parseTime: horas 12:xx (12 a. m. = 0, 12 p. m. = 12) y 1:xx p. m.
+  [PASS] parseTime: sin AM/PM se toma como 24 h; los segundos se descartan
+  [PASS] parseTime: la hora se aplica sobre el DÍA de la fecha base (no sobre hoy)
+  [PASS] parseTime: fechas completas se interpretan directamente (ISO, "m/d/aaaa, h:mm:ss PM", Date.toString)
+  [PASS] parseTime: vacíos y formatos inesperados devuelven NaN
+  [PASS] parseTime: particularidades heredadas (null -> 0, números tal cual, "5"/"12" son fechas del 2001)
+  [PASS] parseTime: horas fuera de rango no se validan (se desbordan al día siguiente), igual que el original
+  [PASS] parseTime: día>12 en "d/m/aaaa, HH:MM" cae a la rama manual y toma la fecha BASE (hallazgo)
+  [PASS] parseTime: variante "p.m" sin punto final no se reconoce como PM (el original tampoco): 2:15 p.m -> 02:15
+  [PASS] diferencial vs app.js 5910-5929: 12 x 4 x 10 combinaciones de hora, minuto y escritura de AM/PM
+  [PASS] diferencial vs app.js 5910-5929: entradas raras fijas
+  [PASS] diferencial vs app.js 5910-5929: 3000 cadenas aleatorias con semilla (hora/minuto/meridiano/ruido) y 3 fechas base
+  [PASS] equivalencia con parseTimeToMs de utils/date-time.js (misma lógica, copia independiente)
+  [PASS] comparación con parseClockTime: mismas horas del día cuando hay "H:MM" + meridiano estándar
+  [PASS] DIFERENCIAS documentadas parseTime vs parseClockTime (no se unifican)
+  [PASS] normalizeForMatch quita acentos y pasa a minúsculas
+  [PASS] matchesGestorSelection: sin selección coincide; exacta, por palabras y por nombre+apellido
+  [PASS] getLocalYYYYMMDD devuelve la fecha LOCAL aunque en UTC sea otro día
+  [PASS] resolveOperativoRanges: cortes de hoy/ayer/7/30/mes/mes anterior (incl. cambios de mes y de año)
+  [PASS] isFechaInRange: cada periodo y los bordes
+  [PASS] diferencial vs app.js 7486-7641: agregación completa, 7 fechas "ahora" x 9 periodos x 6 selecciones con datos aleatorios
+  [PASS] diferencial vs app.js 7486-7641: periodo "custom" con fechas vacías, invertidas y de un día
+  [PASS] agregación: JSON vacío, gestor sin días y días con campos faltantes no rompen y dan ceros
+  [PASS] agregación: un día con Retiros_Procesados>0 pero sin Dias_Laborados cuenta 1 día activo; Dias_Laborados manda si es >0
+  [PASS] agregación: los gestores no seleccionados quedan fuera de aggregatedData/dailyData pero SÍ en el global
+  [PASS] finalizeGestorMetrics: redondeos a 2 decimales y división segura entre cero
+  [PASS] summarizeOperativoRows: orden por aprobados, omite filas vacías, totales y avgArt
+  [PASS] summarizeOperativoRows: sin retiros avgArt es el número 0 (no "0.0") y sin filas todo en cero
+  [PASS] selectGlobalForCharts: excluye supervisores ("Sara Santamar" incluida) y filas vacías
+  [PASS] resolveSelectedGestorLabel: Todos / nombre / "N Gestores"
+metrics-calculator (KPIs y Control Operativo): 31 passed, 0 failed.
+exit=0
+--- tests/domain/kpi-operativo-analysis.test.mjs
+  [PASS] resolveFiltroGestor: Todos / nombre / Varios
+  [PASS] sin datos cargados: el original avisa con alert y no abre el modal
+  [PASS] borde: JSON sin gestores / sin datos en el periodo -> mensaje "No hay suficientes datos"
+  [PASS] borde: todos en cero (retiros procesados = 0 en todos) -> mensaje de sin datos
+  [PASS] un solo gestor (reporte individual): tabla, porcentajes y cada aviso de ART (alto >1200, estable, excelente <900)
+  [PASS] un solo gestor con ART promedio solo de los días con ART > 0
+  [PASS] equipo ("Todos"): volumen y ART con 1, 2 y 3+ gestores, y cuello de botella
+  [PASS] equipo: los supervisores se excluyen con "Todos" pero se incluyen si se seleccionan explícitamente
+  [PASS] HALLAZGO (comportamiento de producción): filtro "Varios" (2+ gestores seleccionados) -> TypeError, el modal no se abre
+  [PASS] CORRECCIÓN OPCIONAL corregirBugs:true: "Varios" -> resumen del equipo seleccionado; sin datos -> mensaje; nombre escapado
+  [PASS] HALLAZGO: "mes anterior" desborda cuando hoy es 31 (31-mar -> 3-mar) y cuenta marzo; corregirBugs:true usa febrero
+  [PASS] periodo personalizado: rango inclusivo; sin una de las fechas no filtra nada (igual que el original)
+  [PASS] isDateIncludedInAnalysis: today/yesterday/7/30 (sin tope superior)/thisMonth
+  [PASS] diferencial vs app.js 7025-7211: 25 conjuntos aleatorios x 8 periodos x 5 selecciones (HTML idéntico o mismo error)
+operativo-analysis (Análisis Textual del Control Operativo): 14 passed, 0 failed.
+exit=0
+--- tests/domain/kpi-service.test.mjs
+  [PASS] fusión: solo cuentan reportes de rol Gestor con nombre; un turno = un día laborado
+  [PASS] fusión: un gestor desconocido crea su propia llave; coincidencia por acentos/mayúsculas y por nombre+apellido
+  [PASS] fusión: tardanza (>5 min y <=240), fuera de horario (>240) y primer ingreso del día
+  [PASS] fusión: la inactividad se topa a 480 min por turno y a 10 h desde el ingreso; eventos abiertos corren hasta "ahora"
+  [PASS] HALLAZGO: la fecha del reporte se toma en UTC; con fechaLocal:true se usa la fecha local (corrección opcional)
+  [PASS] HALLAZGO: un timestamp inválido lanza RangeError y aborta el resto de reportes (igual que el original)
+  [PASS] selectKpiGestores: solo gestores aprobados de la lista fija, sin duplicados y ordenados
+  [PASS] HALLAZGO: un Gestor aprobado SIN nombre hace lanzar TypeError (el original lo captura y no pinta opciones)
+  [PASS] buildKpiUsersMap: email en minúsculas -> nombre sin espacios; ignora nulos
+  [PASS] diferencial vs app.js: acepta también un arreglo de reportes y un nodo vacío/null
+  [PASS] loadRetirosData (app.js 5704): publica en retirosGlobalData y controlOperativoRawData; ante error deja retirosGlobalData en null
+  [PASS] diferencial vs app.js 7292-7330: el mapa de usuarios de loadControlOperativoData coincide con buildKpiUsersMap
+  [PASS] diferencial vs app.js 7292-7479: un timestamp inválido en medio produce el MISMO estado parcial y el mismo log de error
+  [PASS] diferencial vs app.js 5704-5714: loadRetirosData original y nuevo dejan el mismo estado y logs (éxito y error)
+  [PASS] diferencial vs app.js 7312-7447: fusión de 60 reportes aleatorios sobre el JSON operativo (8 semillas)
+  [PASS] diferencial vs app.js 5716-5775: selectKpiGestores da las mismas opciones y el mismo mapa email->nombre
+kpi-service (fusión de reportes, gestores de KPIs, retiros): 16 passed, 0 failed.
+exit=0
+--- tests/domain/login-history.test.mjs
+  [PASS] diferencial: la unión de las tres fuentes (en vivo, historial, bitácoras) es idéntica a app.js (fijo)
+  [PASS] diferencial: las fuentes nulas (nodo inexistente) dan lista vacía; el orden es por loginTime descendente
+  [PASS] "En Línea": latido de menos de 2 min Y estado distinto de Almuerzo/Desayuno/Pausa de Turno/Inactivo
+  [PASS] sin Date.now() implícito: la hora actual solo entra por parámetro
+  [PASS] diferencial aleatorio: 300 conjuntos de las tres fuentes (con semilla), incluidos los que hacen lanzar al original
+  [PASS] diferencial: la tabla (HTML) es idéntica byte a byte a app.js: vacía, fija y 200 aleatorias con distintos turnos y horas
+  [PASS] puntualidad: A tiempo (<=5 min), tarde (+Nm), fuera de horario (>4 h), turno que cruza la medianoche y descanso
+  [PASS] diferencial: filtros por texto y fecha idénticos a app.js (todos los valores de fecha; consultas por nombre y correo)
+  [PASS] diferencial aleatorio: filtro con 300 listas y fechas de referencia distintas
+  [PASS] HALLAZGO: "Hoy" compara el día UTC, no el local (a las 19:00-23:59 de Colombia el registro de hoy ya no es "hoy")
+  [PASS] HALLAZGO: una fecha inválida hace lanzar al filtro por fecha (RangeError, igual que app.js); con tolerateInvalidDates se excluye
+  [PASS] XSS: nombre, correo, turno, estado y última actividad se escapan; HALLAZGO: un loginTime inválido se inserta SIN escapar (igual que app.js) y con escapeRawLoginTime queda escapado
+login-history (historial de accesos; diferencial vs app.js 8402-8628): 12 passed, 0 failed.
+exit=0
+--- tests/domain/monitoring-view.test.mjs
+  [PASS] diferencial vs app.js: insignia de retraso/puntualidad idéntica en 1500 ingresos con semilla (turnos am/pm, medianoche, +4 h, sin turno)
+  [PASS] retraso: límites exactos (5 min = A tiempo; 6 min = +6m Tarde; 240 min = tarde; 241 min = Fuera de Horario)
+  [PASS] diferencial vs app.js: filtro de sesiones (búsqueda, turno, estado, supervisores excluidos) idéntico en 1200 combinaciones con semilla
+  [PASS] filtro: una sesión "En Pausa de Turno" con latido reciente NO cuenta como en línea (corrección ya incorporada en el repo)
+  [PASS] filtro: supervisores excluidos por subcadena sin importar mayúsculas (incluye "Sara" y "Maria" sueltos: también excluye a "Mariana")
+  [PASS] diferencial vs app.js: avance de tareas (contadores, porcentajes y respaldo para sesiones antiguas) en 800 sesiones con semilla
+  [PASS] diferencial vs app.js: lista de tareas de la tarjeta (asignadas reconciliadas + extras, estados, escape de HTML) en 600 sesiones con semilla
+  [PASS] diferencial vs app.js: bitácora (glitches < 60 s, inactividad en curso por pérdida de señal, iconos por tipo, duraciones) en 800 sesiones con semilla
+  [PASS] bitácora: sin eventos se muestra el mensaje; con pausa de turno el icono es el de pausa; la Inactividad en curso no se duplica ni se agrega si está en pausa
+  [PASS] diferencial vs app.js: detalle de tareas del modal (asignadas, extras, respaldo directo, estados, observaciones) en 700 sesiones con semilla
+  [PASS] detalle: insignias por estado y observación vacía
+  [PASS] texto de información del modal y avatares
+  [PASS] tarjeta: modelo + HTML con estado de Pausa de Turno, escape de datos y botones con uid codificado
+  [PASS] tarjeta: sesión sin latido por más de 2 min y fuera de pausa se muestra Inactivo; en pausa se conserva aunque no haya latido
+monitoring-view (tarjetas de Monitoreo: filtros, estado, retraso, tareas, bitácora y detalle): 14 passed, 0 failed.
+exit=0
+--- tests/domain/permission-service.test.mjs
+  [PASS] preparePermissionsView idéntico al algoritmo original (300 listas aleatorias con semilla, incluidas fechas inválidas)
+  [PASS] preparePermissionsView: 7 pendientes -> 5 visibles, aviso "de 7 pendientes", total 7
+  [PASS] preparePermissionsView: exactamente 5 pendientes no recorta ni avisa
+  [PASS] preparePermissionsView: no modifica el arreglo de entrada (filtra copias)
+  [PASS] resolvePermissionCreatedTimeText idéntico al original (horaSolicitud, derivada de id, ausentes)
+  [PASS] payload de estado idéntico al original (con motivo, sin motivo, motivo vacío, null)
+  [PASS] el payload siempre lleva notified:false (el gestor recibe la notificación)
+  [PASS] mapSnapshotEntries idéntico al original; vacío/null -> []
+  [PASS] la llave de Firebase pisa un campo `id` del propio registro (como app.js)
+  [PASS] buildApproveDecision: sin observación usa el texto por defecto; con observación la recorta
+  [PASS] buildRejectDecision: el motivo es obligatorio; entradas vacías y solo espacios se rechazan
+  [PASS] mensaje de éxito: "Permiso <estado> exitosamente."
+permission-service.js (diferencial vs app.js 4267-4448): 12 passed, 0 failed.
+exit=0
+--- tests/domain/schedule-parser.test.mjs
+  [PASS] getShiftCategory devuelve "" con valores vacíos
+  [PASS] getShiftCategory reconoce "Mañana" con o sin tilde
+  [PASS] getShiftCategory reconoce "Tarde" por substring
+  [PASS] getShiftCategory reconoce "Noche" por substring
+  [PASS] getShiftCategory reconoce "Master" por substring, antes de intentar parsear hora
+  [PASS] getShiftCategory clasifica rangos de hora por la hora de inicio (am)
+  [PASS] getShiftCategory clasifica rangos de hora por la hora de inicio (pm, 12-13h)
+  [PASS] getShiftCategory clasifica rangos de hora por la hora de inicio (tarde, 14-21h)
+  [PASS] getShiftCategory clasifica como "Noche" cualquier hora de inicio fuera de Mañana/Tarde
+  [PASS] getShiftCategory normaliza "am"/"pm" al mediodía y medianoche (12am=0h, 12pm=12h)
+  [PASS] getShiftCategory devuelve "" si el texto no matchea ninguna palabra clave ni rango de hora
+schedule-parser.js: 11 passed, 0 failed.
+exit=0
+--- tests/domain/shift-closure-calculations.test.mjs
+  [PASS] calculateConnectivityPenalty coincide con el original en 200 combinaciones
+  [PASS] calculateConnectivityPenalty: caso fijo — 75 min de almuerzo, 20 de desayuno, 10 de inactividad = 30 de penalidad
+  [PASS] calculateEffectiveHours coincide con el original en 200 combinaciones (incluye el piso en 0)
+  [PASS] calculateEffectiveHours: caso fijo — turno de 8 h con 45 min de pausas y 15 de penalidad = 7.00 h
+  [PASS] calculateEffectiveHours: nunca devuelve negativo
+  [PASS] consolidateTimeline (3 tipos de pausa) coincide con el original en 300 líneas de tiempo aleatorias
+  [PASS] consolidateTimeline: línea de tiempo vacía o nula devuelve []
+  [PASS] consolidateTimeline: descarta inactividad < 30 s y la que cae dentro de una pausa
+shift-closure-calculations (diferencial vs app.js): 8 passed, 0 failed.
+exit=0
+--- tests/domain/shift-closure-rules.test.mjs
+  [PASS] hasRealSetOptions: false sin select o sin options
+  [PASS] hasRealSetOptions: ignora "", "Todos" y deshabilitadas
+  [PASS] hasRealSetOptions: true con al menos una opción real habilitada
+  [PASS] requiresSpecificSetSelection: exige elegir si hay opciones reales y el valor es "" o "Todos"
+  [PASS] requiresSpecificSetSelection: no exige nada si no hay opciones reales
+  [PASS] shouldValidateManagedTasks: solo Gestor con caché de tareas
+  [PASS] listUnmanagedTasks: con catálogo, acepta Finalizada y No Realizada en cualquier formato
+  [PASS] listUnmanagedTasks: nombre de respaldo = entry.name, luego el id canónico
+  [PASS] listUnmanagedTasks: las tareas extra pendientes se agregan al final
+  [PASS] listUnmanagedTasks: sin catálogo (allTasks no es arreglo) revisa el caché completo
+  [PASS] listUnmanagedTasks: todo gestionado devuelve arreglo vacío
+shift-closure-rules.js: 11 passed, 0 failed.
+exit=0
+--- tests/domain/shift-closure-times-split.test.mjs
+  [PASS] H1: sin pausa, 8 h con 30 min de almuerzo = 7.50 h (sin regresión)
+  [PASS] H2: sin pausa, excesos y penalidad iguales que antes (600-75-20-30 min = 7.92 h)
+  [PASS] H3: con pausa 180 min, 08:00-18:00 y almuerzo 30 = 6.50 h (antes 9.50 h)
+  [PASS] H4: cada minuto de pausa resta exactamente 1/60 h (90 min = 1.50 h)
+  [PASS] H5: la pausa NO altera la penalidad de conectividad
+  [PASS] H6: combinado (pausa + almuerzo con exceso + desayuno + inactividad) = 5.92 h
+  [PASS] H7: nunca negativo (pausa mayor que el turno = 0.00)
+  [PASS] H8: el correo informa Tiempo_Pausa_Turno_Descontado cuando hubo pausa
+  [PASS] H9: sin pausa el correo NO incluye el campo de pausa
+  [PASS] H10: campos del correo conservados y en el orden de app.js (la pausa va entre desayuno y penalidad)
+  [PASS] H11: coherencia con el panel de reportes cuando no hay penalidad (turno - almuerzo - desayuno - pausa)
+  [PASS] splitShiftMs omitido equivale a 0 (retrocompatible con el cálculo anterior)
+shift-closure-times-split (RN: la pausa no es tiempo trabajado): 12 passed, 0 failed.
+exit=0
+--- tests/domain/shift-effective-hours-split.test.mjs
+  [PASS] sin splitShiftMs (omitido) el resultado es IDÉNTICO al original en 200 combinaciones (retrocompatibilidad)
+  [PASS] con splitShiftMs coincide con la fórmula corregida de app.js en 300 combinaciones
+  [PASS] caso del informe: turno 08:00-18:00, almuerzo 30 min, pausa 180 min = 6.50 h (antes 9.50 h)
+  [PASS] la pausa resta 1 a 1: cada minuto de pausa baja las horas efectivas en 1/60 h
+  [PASS] la pausa NO genera penalidad por sí sola (la penalidad sigue viniendo de excesos e inactividad)
+  [PASS] nunca devuelve negativo aunque la pausa supere al turno
+  [PASS] splitShiftMs null o undefined se comporta como 0 (estado restaurado incompleto)
+shift-effective-hours-split (Pausa de Turno no es tiempo trabajado): 7 passed, 0 failed.
+exit=0
+--- tests/domain/shift-report-builder.test.mjs
+  [PASS] sumInactivityMinutes: suma solo "Inactividad" y cuenta los eventos abiertos hasta el límite
+  [PASS] sumInactivityMinutes: entrada inválida o vacía devuelve 0
+  [PASS] sumInactivityMinutes no redondea; sumCleanInactivityMinutes redondea a 1 decimal
+  [PASS] buildBitacoraText: sin eventos devuelve el mensaje fijo
+  [PASS] buildBitacoraText: una línea por evento, con salto de línea final
+  [PASS] buildBitacoraText: evento sin fin muestra "No regresó"
+  [PASS] buildBitacoraText: el formato por defecto es HH:MM en es-CO (dos dígitos)
+  [PASS] buildShiftReportObject: arma exactamente los 16 campos de shift_reports
+  [PASS] buildShiftReportObject: valores por defecto ("Por Asignar", "N/A", pausa de turno 0)
+  [PASS] buildShiftReportObject: un valor de SET "" se conserva (no se convierte en "N/A")
+shift-report-builder.js: 10 passed, 0 failed.
+exit=0
+--- tests/domain/shift-report-view.test.mjs
+  [PASS] diferencial vs app.js: filtrar por gestor/fecha/ventana por defecto da las mismas filas en el mismo orden (400 casos con semilla)
+  [PASS] ventana por defecto: desde las 00:00 de AYER (hora local); incluye ayer y hoy, excluye antier
+  [PASS] filtro de fecha: coincide por la fecha LOCAL del timestamp o porque horaInicio/horaFin contienen el texto
+  [PASS] filtro de gestor: sin tildes ni mayúsculas; con filtro explícito no se aplica la ventana de 2 días; orden descendente
+  [PASS] mensajes: vacío con/sin filtros y pie informativo (textos idénticos al original, incluida la palabra "complete")
+  [PASS] opciones del multiselect: gestores únicos recortados y ordenados (app.js 4602-4607)
+  [PASS] diferencial vs app.js: líneas de bitácora (recortadas, sin vacías, sin repetidas) en 200 textos con semilla
+  [PASS] nombre de archivo y opciones del PDF (app.js 4543-4554)
+  [PASS] diferencial vs app.js: tiempo efectivo del panel (variante por defecto) en 600 reportes con semilla
+  [PASS] parseShiftReportTime: fecha completa, "a. m./p. m." y hora suelta sobre el día base
+  [PASS] el panel RESTA la Pausa de Turno (regla confirmada): 08:00-18:00, almuerzo 30, pausa 180 => 390 min (6,50 h)
+  [PASS] reportes que no cuentan: sin horas, ilegibles, o duración fuera de (0, 1440]; nunca negativo
+  [PASS] HALLAZGO / decisión abierta: el panel NO resta la penalidad de conectividad y el correo de cierre SÍ; ambas variantes disponibles con parámetro explícito
+shift-report-view (filtros, bitácora, PDF y tiempo efectivo del panel de reportes): 13 passed, 0 failed.
+exit=0
+--- tests/domain/split-shift-policy.test.mjs
+  [PASS] isSplitShiftEnabled solo es true con hasSplitShift === true (estricto)
+  [PASS] RN-1: gestor SIN flag y sin pausa activa: no ve el botón y no puede iniciar la pausa
+  [PASS] RN-2: gestor CON flag: ve el botón y puede entrar y salir de la pausa
+  [PASS] RN-3: pausa activa y flag revocado: el botón sigue visible y retomar se permite
+  [PASS] el botón es solo para el rol Gestor, aunque otro rol tenga el flag
+  [PASS] sin usuario: nada visible ni permitido
+  [PASS] SPLIT_SHIFT_BLOCK_REASON expone los motivos y está congelado
+  [PASS] coherencia: canToggle(false→iniciar) coincide con lo que exige toggleBreak (splitShiftEnabled)
+split-shift-policy (RN-1..RN-3): 8 passed, 0 failed.
+exit=0
+--- tests/domain/task-pure-rules.test.mjs
+  [PASS] formatClockTime: igual que updateClock() de app.js en horas límite y 500 instantes aleatorios
+  [PASS] formatExcelDate: igual que app.js para seriales, cadenas de fecha, vacíos y basura (incluye 1000 seriales aleatorios)
+  [PASS] computeSyncPercentage y computeKpiFigures: igual que el código de app.js para TODAS las combinaciones 0..30
+  [PASS] HALLAZGO portado fiel: el % del supervisor y el de la tarjeta KPI pueden diferir en 1 punto por redondeo
+  [PASS] shouldSyncActiveSession: solo un Gestor con uid (igual que la guarda de app.js 2387-2389)
+  [PASS] isSessionClosedElsewhere / resolveLoginTime: sesión cerrada en otra pestaña y hora de login de respaldo
+  [PASS] resolveIsInactive: igual que app.js (detector nativo manda; sin él, el respaldo por DOM) en las 8 combinaciones
+  [PASS] decideInactivityTimelineAction: igual que app.js en todos los pares de estados
+  [PASS] buildSessionMetadata y buildSessionMetadataTail: mismo payload que app.js (diferencial; sin tasks)
+  [PASS] validateTaskSaveInput: cada regla devuelve su mensaje y el orden es el del original
+  [PASS] buildTaskRecord, resolveStatusClassForButton y describeTaskSaveError
+  [PASS] buildReviewerTaskDetailText: igual que app.js con y sin campos
+  [PASS] findCatalogTask: compara por id canónico (0 y "0" coinciden) y isTaskReviewerRole
+  [PASS] matchQuickDoc: igual que las DOS copias de app.js (renderQuickDocs y botón de ayuda) en todas las palabras clave
+  [PASS] getQuickDocIconMeta y stripDocExtension: ícono por tipo y nombre sin extensión
+  [PASS] app-init-rules: avatares, búsqueda, worker de ping y tema (diferencial contra los literales de initApp)
+  [PASS] createMockTaskIdGenerator: mismos ids que app.js, incluidas colisiones y rango 10000+
+  [PASS] reconcileGestorTaskCache: igual que el bloque de loadExcelTasks (purga de huérfanas, extra_ intactas, estado inicial)
+  [PASS] buildGestorTaskRows: filtra el maestro por cronograma y agrega tareas mock; sin asignaciones → []
+  [PASS] groupTasksBySet, selector de Set y utilidades de catálogo
+  [PASS] describeRecoveryAlert + shouldRecoverTaskProgress: mismas alertas que el primer bloque de initApp()
+reglas puras de tareas (reloj, progreso, latido, recuperación, guardado, selección, catálogo; diferencial vs app.js): 21 passed, 0 failed.
+exit=0
+--- tests/domain/task-repository.test.mjs
+  [PASS] resolveTaskTransaction: aborta solo si el remoto es ESTRICTAMENTE más nuevo (ambos numéricos)
+  [PASS] buildSessionMetadata: nunca incluye `tasks`, ni siquiera si el usuario local trae un campo tasks
+  [PASS] persistTaskToActiveSession: sin uid o sin taskId rechaza con el mismo error que app.js
+  [PASS] persistTaskToActiveSession: escribe SOLO tasks/{taskId} y no toca las demás tareas (diferencial)
+  [PASS] persistTaskToActiveSession: un fallo de Firebase se propaga con su código (nunca se vuelve éxito)
+  [PASS] fetchOwnActiveSessionTasks: datos, nodo vacío y sin uid (diferencial)
+  [PASS] fetchOwnActiveSessionTasks: un error de lectura NUNCA se disfraza de "no hay tareas" (ok:false)
+  [PASS] persistTaskIfNotNewerRemote: remoto más nuevo → committed:false y el remoto queda intacto (diferencial)
+  [PASS] persistTaskIfNotNewerRemote: otra pestaña escribe justo ANTES de la transacción → se conserva su versión
+  [PASS] persistTaskIfNotNewerRemote: la suposición inicial del SDK (valor local nulo) no decide el resultado
+  [PASS] persistTaskIfNotNewerRemote: sin uid o taskId rechaza; un fallo de red se propaga
+  [PASS] migrate: caso base (ausente en remoto, local más nuevo, remoto más nuevo, igual) — diferencial
+  [PASS] migrate: el respaldo local se guarda ANTES del intento remoto y sobrevive a un fallo de red
+  [PASS] migrate: al abrir cada transacción remota, el registro estampado YA está en el respaldo local
+  [PASS] migrate: un fallo individual NO aborta el resto de la migración
+  [PASS] migrate: localStorage roto no impide migrar (el respaldo local es best-effort)
+  [PASS] migrate: es idempotente (una segunda corrida con el remoto ya igual no escribe nada)
+  [PASS] migrate: sin uid o sin caché no hace nada (diferencial)
+  [PASS] migrate: 300 escenarios aleatorios con semilla (updatedAt mixtos, remoto que cambia durante la migración, fallos de red) — diferencial
+  [PASS] latido tras guardar una tarea: un latido con datos viejos no pisa la tarea recién guardada
+  [PASS] syncSessionMetadata: devuelve la Promise real (rechazada si falla) y registra el error
+firebase-task-repository.js (persistencia de tareas del gestor; diferencial vs app.js): 21 passed, 0 failed.
+exit=0
+--- tests/domain/user-approval-list.test.mjs
+  [PASS] prepareUsersApprovalList idéntico al algoritmo original (400 casos aleatorios con filtros)
+  [PASS] los rechazados NO aparecen en la lista (hallazgo: la rama "Rechazado" de la tabla es código muerto)
+  [PASS] la administradora protegida nunca aparece como aprobada, pero sí si estuviera pendiente
+  [PASS] pendientes y aprobados se ordenan juntos por fecha de registro, más reciente primero
+  [PASS] sin filtros y más de 5 filas: recorta a 5 y el aviso cuenta el total sin recortar; con filtro no recorta
+  [PASS] textos de fecha idénticos al original (con fecha, sin fecha, aprobado sin fecha, fecha inválida)
+  [PASS] formatDate inyectable (para formatos fijos en pruebas)
+user-approval-list.js (diferencial vs app.js 4111-4219): 7 passed, 0 failed.
+exit=0
+--- tests/ui/approvals-components.test.mjs
+  [PASS] fila vacía de usuarios: texto y estructura del original
+  [PASS] acciones de usuario: pendiente -> botones con los mismos manejadores y ids; aprobado/rechazado -> etiqueta
+  [PASS] el id con comillas/menor-que se escapa en el id y se codifica en el manejador (sin romper el atributo)
+  [PASS] insignia del rol: sin escapar por defecto (como app.js); con escapeRole se escapa
+  [PASS] filas vacías de permisos: textos del original
+  [PASS] permiso pendiente: manejadores y ids de las tres cajas (acciones, aprobar, rechazar)
+  [PASS] USER_REJECT: mostrar oculta los botones y muestra la caja; cancelar lo revierte y vacía el motivo
+  [PASS] PERMISSION_REJECT: mostrar oculta los botones y muestra la caja; cancelar lo revierte y vacía el motivo
+  [PASS] PERMISSION_APPROVE: mostrar oculta los botones y muestra la caja; cancelar lo revierte y vacía el motivo
+  [PASS] los tres tipos de caja usan los prefijos de id de app.js
+  [PASS] una caja inexistente lanza TypeError (como app.js: no se enmascara)
+  [PASS] showListNotice agrega el aviso con estilo e id al contenedor del contenedor de la tabla y lo reemplaza
+  [PASS] showListNotice con requireTable no hace nada si la tabla ya no existe; removeListNotice es idempotente
+  [PASS] ids de los avisos idénticos a app.js (pendingMostrandoMsg / pendingPermsMostrandoMsg)
+  [PASS] openModal / closeModal agregan y quitan "active"; un id inexistente no falla
+  [PASS] openExceptionModal: deja activo solo "No Realizada", limpia razón y detalle y abre el modal
+  [PASS] openExceptionModal sin el botón .not-done lanza TypeError; sin campos opcionales sigue (como app.js)
+  [PASS] openExtraTaskModal: limpia el formulario, fija el estado inicial y devuelve true; sin modal devuelve false y no toca nada
+  [PASS] fila de usuario pendiente: HTML idéntico al original
+  [PASS] fila de usuario aprobado (con y sin fecha de aprobación): HTML idéntico
+  [PASS] fila de historial: HTML idéntico al original (Aprobado y Rechazado)
+  [PASS] fila de permiso pendiente: HTML idéntico al original (con y sin horaSolicitud, campos faltantes)
+componentes de aprobaciones (HTML idéntico al de app.js 4111-4448 + cajas, modales y avisos): 22 passed, 0 failed.
+exit=0
+--- tests/ui/break-button.test.mjs
+  [PASS] breakfast: pausa en curso = texto, colores y sombra idénticos a app.js, sin btn-outline
+  [PASS] breakfast: sin pausa = texto por defecto, estilo limpio y btn-outline
+  [PASS] lunch: pausa en curso = texto, colores y sombra idénticos a app.js, sin btn-outline
+  [PASS] lunch: sin pausa = texto por defecto, estilo limpio y btn-outline
+  [PASS] split: pausa en curso = texto, colores y sombra idénticos a app.js, sin btn-outline
+  [PASS] split: sin pausa = texto por defecto, estilo limpio y btn-outline
+  [PASS] un botón inexistente (null) no lanza, igual que los `if (btn)` de app.js
+  [PASS] tipo de pausa desconocido lanza error
+  [PASS] IDs de botones = los de index.html
+break-button.js (puerto 1:1 de los estilos de app.js): 9 passed, 0 failed.
+exit=0
+--- tests/ui/kpi-chart-configs.test.mjs
+  [PASS] diferencial vs app.js 8033-8083 (drawChart): barras verticales y horizontales, con y sin ChartDataLabels
+  [PASS] diferencial vs app.js 8033-8083 (drawChart): extraOptions con datalabels propios, escalas, maxBarThickness y layout que pisa el de defecto
+  [PASS] drawChart: el formateador muestra "0 min" para 0, enteros sin decimales y decimales con 2 (es-CO)
+  [PASS] buildBarChartConfig no muta extraOptions (el original sí agregaba plugins.datalabels sobre el objeto recibido)
+  [PASS] diferencial vs app.js 7972-8031 (drawPunctualDatesChart): ignora dataArr y bgColors recibidos
+  [FAIL] diferencial vs app.js 8085-8150 (drawCombinedChart): barras apiladas por gestor + línea de tasa
+         drawCombinedChart(["chartEficiencia",["No existe"],{"Ana Pérez":{"Retiros_Aprobados":40,"Retiros_Rechazados":8,"Tasa_Aprobacion_Dia":5.33,): difiere del original
++ actual - expected
+
+  {
+    alerts: [],
+    calc: 0,
+    chartLog: [],
+    charts: [],
+    dom: {
+-     chartEficiencia: {
+-       children: [],
+-       className: '',
+-       classes: [],
+-       innerHTML: '',
+-       innerText: '',
+-       src: '',
+-       style: {},
+-       textContent: '',
+-       title: '',
+-       value: ''
+-     },
+      filtroFechaOperativo: {
+        children: [],
+        className: '',
+        classes: [],
+        innerHTML: '',
+
+  [PASS] diferencial vs app.js 8152-8216 (drawCombinedChartDaily): series por fecha de un gestor
+  [PASS] HALLAZGO: en drawCombinedChartDaily la serie "Aprobaciones del Día" repite exactamente los Aprobados
+  [PASS] diferencial vs app.js 8218-8328 (drawScatterMatriz): ranking global de % de rechazos
+  [PASS] drawScatterMatriz: colores por umbral (>5 rojo, >2 ámbar, resto verde) justo en los bordes
+  [PASS] diferencial vs app.js 8218-8328 (drawScatterMatriz): un gestor, con números, textos "%", NaN, ausente y sin gestores
+  [PASS] diferencial vs app.js 7003-7008 (destroyChart): destruye y retira del registro; id inexistente no hace nada
+  [PASS] redibujar una gráfica destruye la anterior antes de crear la nueva (igual que el original)
+  [PASS] diferencial vs app.js 7737-7970 (renderControlOperativoCharts): vista global con datos y con el equipo 100 % puntual
+  [PASS] diferencial vs app.js 7737-7970: un solo gestor (con llegadas tarde, sin ellas, sin conexiones a tiempo, nombre con acentos y desconocido)
+  [PASS] diferencial vs app.js 7737-7970: varias selecciones ("2 Gestores") y títulos ausentes en el DOM (los null-checks)
+  [PASS] diferencial vs app.js 7737-7970: 40 combinaciones aleatorias (periodo x selección) con datos sintéticos
+  [PASS] plan: orden de las gráficas, tipos y títulos con nombre escapado
+  [PASS] el normalizador ejercita las funciones de formato de la configuración (red de seguridad de las pruebas)
+operativo-chart-configs (gráficas del Control Operativo): 18 passed, 1 failed.
+exit=1
+--- tests/ui/shift-reports-view.test.mjs
+  [PASS] diferencial vs app.js: resaltado [ESTADO] de tabla, modal y PDF idéntico (incluye HTML malicioso escapado)
+  [PASS] diferencial vs app.js: desplegable de bitácora de la fila idéntico, con y sin bitácora
+  [PASS] diferencial vs app.js: bitácora del modal (app.js 4756-4764) y del PDF (4478-4484) idénticas
+  [PASS] fila de la tabla: escapa gestor/set/horas, codifica el id del botón y conserva los textos del original
+  [PASS] modal "Ver Todo": tiempos como en el correo (N/A cuando faltan), rol por defecto Gestor y bitácora
+  [PASS] PDF: fecha de generación con formato es-CO, cabecera RISK MANAGER y el mismo escape que la tabla
+  [PASS] filas auxiliares del historial: cargando y vacío (con escape del mensaje)
+shift-reports-view (HTML de la tabla, el modal "Ver Todo" y el PDF del historial de turnos): 7 passed, 0 failed.
+exit=0
+--- tests/ui/task-views.test.mjs
+  [PASS] renderTree: mismo DOM que app.js (200 escenarios aleatorios: 0..4 Sets, ids number/string, estados, caracteres especiales)
+  [PASS] renderTree: sin contenedor no hace nada; un Set se auto-expande y varios no
+  [PASS] getTaskStatusClass: Finalizada/En Proceso/No Realizada/otro → clase del indicador (igual que app.js)
+  [PASS] updateKPI: misma tarjeta que app.js para TODAS las combinaciones 0..12 y misma regla de latido (solo Gestor)
+  [PASS] updateKPI: sin .kpi-card igual no revienta y sigue sincronizando al Gestor
+  [PASS] renderQuickDocs: mismo HTML que app.js sin tarea, con cada palabra clave y con nombres sin coincidencia
+  [PASS] toggleTree: alterna open en el encabezado y show en su hermano, igual que app.js; sin hermano solo el encabezado
+  [PASS] notificaciones de Admin/Supervisor y de Gestor: mismo HTML y no leídos que los listeners de initApp (200 escenarios)
+  [PASS] historial de permisos: visibilidad por rol, orden, uid de consulta y HTML (diferencial con las plantillas de loadPermisos)
+  [PASS] detalle de permiso: mismo HTML que openPermisoDetailModal (estados, rango de fechas, motivo, rechazo)
+vistas de tareas y permisos (árbol, KPI, documentos rápidos, notificaciones; diferencial vs app.js): 10 passed, 0 failed.
+exit=0
+--- tests/utils/constants.test.mjs
+  [PASS] STORAGE_KEYS conserva las claves de localStorage usadas hoy en app.js
+  [PASS] los catálogos de estado quedan congelados (Object.freeze)
+  [PASS] intentar mutar un catálogo congelado no cambia su valor
+  [PASS] TASK_STATUS cubre los cuatro estados usados por el cierre de turno
+  [PASS] los umbrales de tiempo son números positivos y consistentes entre sí
+  [PASS] EXTRA_TASK_KEY_PREFIX mantiene el prefijo esperado
+constants.js: 6 passed, 0 failed.
+exit=0
+--- tests/utils/date-time.test.mjs
+  [PASS] normalizeMeridiem reconoce "p. m." y "AM" con puntos y mayúsculas
+  [PASS] normalizeMeridiem devuelve null para valores vacíos o irreconocibles
+  [PASS] to24Hour convierte mediodía y medianoche correctamente
+  [PASS] parseClockTime admite "8", "8:30" y "10:15 p. m."
+  [PASS] parseClockTime devuelve null con valores vacíos (incluido el 0 numérico)
+  [PASS] parseTimeFromLocaleString lee la hora de un string local con y sin meridiano
+  [PASS] parseShiftStart respeta un horario explícito "8:00 am - 5:00 pm"
+  [PASS] parseShiftStart usa las convenciones históricas de SET cuando no hay hora explícita
+  [PASS] parseShiftStart devuelve null para texto vacío o no reconocido
+  [PASS] parseShiftRange separa inicio y fin, y exige un fin parseable
+  [PASS] toMinutesOfDay convierte horas y minutos a minutos desde medianoche
+  [PASS] minutesBetweenWrappingMidnight suma un día cuando el fin es antes del inicio
+  [PASS] parseTimeToMs interpreta fechas completas directamente
+  [PASS] parseTimeToMs aplica "HH:MM AM/PM" sobre la fecha base cuando no hay fecha completa
+  [PASS] parseTimeToMs devuelve NaN cuando no puede interpretar el valor
+date-time.js: 15 passed, 0 failed.
+exit=0
+--- tests/utils/excel.test.mjs
+  [PASS] excelToJSDate convierte el serial 25569 exactamente al 1-ene-1970 (época Unix)
+  [PASS] excelToJSDate trata el serial 0 como vacío (0 es "falsy" en JS)
+  [PASS] excelToJSDate devuelve null con valores no numéricos o vacíos
+  [PASS] parseExcelDate interpreta fechas ISO (con guiones) directamente
+  [PASS] parseExcelDate con formato "DD/MM/YYYY" puede fallar si el día supera 12 (límite real conocido)
+  [PASS] parseExcelDate interpreta números como seriales de Excel
+  [PASS] parseExcelDate devuelve null para 0, vacío o texto no numérico
+  [PASS] readFirstSheetRows lee la primera hoja con el formato de filas (header:1)
+  [PASS] readFirstSheetRows usa {defval: ""} cuando se pide asObjects
+  [PASS] readFirstSheetRows devuelve null sin libro, sin hojas o sin la hoja referenciada
+  [PASS] hasMinimumRows exige al menos 3 filas por defecto y respeta el mínimo dado
+  [PASS] getCell devuelve el valor de la celda o el fallback si la fila/columna no existe
+  [PASS] isSameDate compara una fecha de Excel (UTC) con una fecha local de JS
+excel.js: 13 passed, 0 failed.
+exit=0
+--- tests/utils/normalize.test.mjs
+  [PASS] normalizeName quita acentos, espacios y pasa a minúsculas
+  [PASS] normalizeName devuelve "" con valores vacíos
+  [PASS] namesMatch acepta un nombre parcial contenido en el nombre completo
+  [PASS] namesMatch rechaza nombres distintos
+  [PASS] namesMatch aplica la excepción documentada "Daniel" vs "Josue"
+  [PASS] namesMatch devuelve false si algún nombre queda vacío tras filtrar tokens cortos
+  [PASS] cleanText quita tildes, puntuación y colapsa espacios
+  [PASS] cleanText devuelve "" con valores no-string o vacíos
+  [PASS] normalizeTaskName reconoce las variantes históricas de nombres de tarea
+  [PASS] normalizeTaskName deja igual (solo limpio) un nombre sin alias conocido
+  [PASS] taskNamesMatch reconoce coincidencia exacta tras normalizar
+  [PASS] taskNamesMatch aplica tolerancia difusa (longitud >= 15 y diferencia <= 6)
+  [PASS] taskNamesMatch rechaza nombres cortos y distintos, y valores vacíos
+  [PASS] setNamesMatch compara SETs por contención después de limpiar el texto
+normalize.js: 14 passed, 0 failed.
+exit=0
+--- tests/utils/result.test.mjs
+  [PASS] ok() construye un resultado exitoso congelado
+  [PASS] fail() construye un error con código, mensaje y causa
+  [PASS] fail() usa message="" y cause=null por defecto
+  [PASS] fail() devuelve un resultado y un error congelados
+  [PASS] ERROR_CODES incluye los códigos usados por adapters y controladores, y está congelado
+result.js: 5 passed, 0 failed.
+exit=0
+--- tests/utils/sanitization.test.mjs
+  [PASS] escapeHTML escapa las cinco entidades básicas
+  [PASS] escapeHTML devuelve "" para null y undefined
+  [PASS] encodeInlineHandlerArg codifica la cadena y además escapa comillas simples
+  [PASS] sanitizeAnnouncementHref acepta http(s) y mailto
+  [PASS] sanitizeAnnouncementHref rechaza esquemas peligrosos y rutas "//" (protocol-relative)
+  [PASS] sanitizeAnnouncementHref acepta una ruta relativa sin esquema
+  [PASS] sanitizeAnnouncementHref devuelve "" con valores vacíos
+  [PASS] sanitizeAnnouncementHTML conserva las etiquetas permitidas
+  [PASS] sanitizeAnnouncementHTML quita la etiqueta <script>, pero su texto interno queda como texto plano escapado (hallazgo real, no es un riesgo de XSS porque ya no está dentro de un <script> ejecutable)
+  [PASS] sanitizeAnnouncementHTML traduce alias de etiquetas (b→strong, i→em, div→p)
+  [PASS] sanitizeAnnouncementHTML desenvuelve etiquetas no permitidas pero conserva su texto
+  [PASS] sanitizeAnnouncementHTML quita un href peligroso pero conserva el enlace y su texto
+  [PASS] sanitizeAnnouncementHTML conserva un href legítimo
+  [PASS] sanitizeAnnouncementHTML devuelve "" con null o undefined
+sanitization.js: 14 passed, 0 failed.
+exit=0
+--- tests/utils/validation.test.mjs
+  [PASS] isNonEmptyString exige texto no vacío tras recortar espacios
+  [PASS] isFiniteNumber exige un número finito real (no texto, no Infinity, no NaN)
+  [PASS] isValidDate exige una instancia de Date válida (no un string de fecha)
+  [PASS] isOneOf acepta arreglos y Sets como lista de valores permitidos
+  [PASS] findMissingFields detecta undefined, null y "" como campos faltantes
+  [PASS] findMissingFields trata un origen null/undefined como objeto vacío
+  [PASS] findMissingFields devuelve un arreglo vacío cuando no falta nada
+validation.js: 7 passed, 0 failed.
+exit=0
+SUITES CON FALLAS: 1
+
+=== Integracion de laboratorio ===
+INTEGRADO /tmp/historial-integrado.js 41 pasos
+BUNDLE_OK /tmp/historial-bundle.js
+--- e2e propia: historial-navegacion-integrado.e2e.cjs
+=== PARIDAD ORIGINAL vs INTEGRADO — HISTORIAL, PERFIL, NAVEGACIÓN Y MONITOREO ===
+original: /mnt/user-data/uploads/riesgovirtualsoft/app.js
+integrado: /tmp/historial-integrado.js
+bundle: /tmp/historial-bundle.js
+2026-10-06T19:29:17.517Z
+  [PASS] Monitoreo: tarjetas (sin filtros, cronograma sin cargar)
+  [PASS] Monitoreo: tarjetas (sin filtros, cronograma cargado)
+  [PASS] Monitoreo: tarjetas (búsqueda "oscar", cronograma sin cargar)
+  [PASS] Monitoreo: tarjetas (búsqueda "oscar", cronograma cargado)
+  [PASS] Monitoreo: tarjetas (búsqueda por correo, cronograma sin cargar)
+  [PASS] Monitoreo: tarjetas (búsqueda por correo, cronograma cargado)
+  [PASS] Monitoreo: tarjetas (turno Tarde, cronograma sin cargar)
+  [PASS] Monitoreo: tarjetas (turno Tarde, cronograma cargado)
+  [PASS] Monitoreo: tarjetas (solo en línea, cronograma sin cargar)
+  [PASS] Monitoreo: tarjetas (solo en línea, cronograma cargado)
+  [PASS] Monitoreo: tarjetas (solo fuera de línea, cronograma sin cargar)
+  [PASS] Monitoreo: tarjetas (solo fuera de línea, cronograma cargado)
+  [PASS] Monitoreo: tarjetas (sin resultados, cronograma sin cargar)
+  [PASS] Monitoreo: tarjetas (sin resultados, cronograma cargado)
+  [PASS] Monitoreo: el listener de active_sessions guarda las sesiones y repinta (con datos, vacío y error)
+  [PASS] Monitoreo: bitácora de cada sesión (pausas, glitches, inactividad en curso, sesión inexistente)
+  [PASS] Monitoreo: detalle de tareas de cada sesión (asignadas, extras, directas, sin tareas)
+  [PASS] Monitoreo: desplegable de gestores (aprobados, sin nombre repetido) y fallo de lectura
+  [PASS] Historial de turnos: cargar, filtrar y abrir el modal (sin filtros)
+  [PASS] Historial de turnos: cargar, filtrar y abrir el modal (gestor Ana)
+  [PASS] Historial de turnos: cargar, filtrar y abrir el modal (fecha de hoy)
+  [PASS] Historial de turnos: cargar, filtrar y abrir el modal (gestor + fecha sin resultados)
+  [PASS] Historial de turnos: exportar a PDF (en memoria, solo en Firebase, inexistente, sin motor, motor que falla)
+  [PASS] Historial de turnos: error de lectura de Firebase se registra y no rompe
+  [PASS] Notificaciones: abrir/cerrar el desplegable
+  [PASS] Notificaciones: marcar todas como leídas (Admin)
+  [PASS] Notificaciones: marcar todas como leídas (Supervisor)
+  [PASS] Notificaciones: marcar todas como leídas (Gestor)
+  [PASS] Notificaciones: Gestor sin uid en el usuario usa el uid de Firebase Auth; sin ninguno no hace nada
+  [PASS] Notificaciones: Gestor sin ningún uid no consulta Firebase
+  [PASS] Perfil: abrir el modal, mostrar/ocultar contraseña
+  [PASS] Perfil: cambiar contraseña (campo vacío)
+  [PASS] Perfil: cambiar contraseña (éxito: cierra el modal a los 2 s)
+  [PASS] Perfil: cambiar contraseña (sin sesión de Auth)
+  [PASS] Perfil: cambiar contraseña (error auth/requires-recent-login)
+  [PASS] Perfil: cambiar contraseña (error auth/weak-password)
+  [PASS] Perfil: cambiar contraseña (error auth/otro)
+  [PASS] Barra lateral: setupSidebar completa — orden por rol y botones de pausa (Admin)
+  [PASS] Controles administrativos: alignAdministrativeControlsByRole (Admin)
+  [PASS] Barra lateral: setupSidebar completa — orden por rol y botones de pausa (Supervisor)
+  [PASS] Controles administrativos: alignAdministrativeControlsByRole (Supervisor)
+  [PASS] Barra lateral: setupSidebar completa — orden por rol y botones de pausa (Gestor)
+  [PASS] Controles administrativos: alignAdministrativeControlsByRole (Gestor)
+  [PASS] Barra lateral: setupSidebar completa — orden por rol y botones de pausa (Auditor)
+  [PASS] Controles administrativos: alignAdministrativeControlsByRole (Auditor)
+  [PASS] Barra lateral: sin usuario (currentUser null) cae en el orden del Gestor y alinea sin fallar
+  [PASS] el integrado delega con el bundle (marcadores y llamadas a RiskOps)
+  [PASS] no se tocó el bloque del botón de Pausa de Turno ni las anclas del controlador de turno
+  [PASS] el global allShiftReports y el cuerpo original del historial ya no están en el integrado
+
+=== RESUMEN ===
+Pasan: 49 | Fallan: 0 | Total: 49
+RESULTADO: PARIDAD COMPLETA
+exit=0
+--- split-shift-flag.unit.cjs (integrado, --strict)
+
+=== RESUMEN ===
+Pasan: 23 | Fallan: 0 | Brechas abiertas: 0 | Omitidas: 0 | Total: 23
+RESULTADO: TODO CUMPLIDO
+--- cierre-horas-efectivas.e2e.cjs (integrado, --strict)
+=== RESUMEN ===
+Pasan: 13 | Fallan: 0 | Brechas abiertas: 0 | Total: 13
+RESULTADO: TODO CUMPLIDO
+--- monitoreo-render.e2e.cjs (integrado)
+monitoreo-render: 7 passed, 0 failed.
+--- monitoreo-render.e2e.cjs (original)
+monitoreo-render: 7 passed, 0 failed.
+--- modales-permisos / tareas e2e (integrado completo)
+--- modales-permisos-integrado.e2e.cjs (integrado completo, con --original)
+  [PASS] E8 paridad con el original
+
+Resultado: 64 pasaron, 2 fallaron.
+--- tareas-integrado.e2e.cjs (integrado completo, con --original)
+  [PASS] G9 paridad con el original
+
+Resultado: 234 pasaron, 0 fallaron.

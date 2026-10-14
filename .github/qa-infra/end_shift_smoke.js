@@ -5,6 +5,9 @@ const path = require('node:path');
 const appPath = path.resolve(__dirname, '..', '..', 'app.js');
 const appSource = fs.readFileSync(appPath, 'utf8');
 
+const bundlePath = path.resolve(__dirname, '..', '..', 'dist', 'riskops.bundle.js');
+const bundleSource = fs.existsSync(bundlePath) ? fs.readFileSync(bundlePath, 'utf8') : null;
+
 function extractBetween(startMarker, endMarker) {
   const start = appSource.indexOf(startMarker);
   const end = appSource.indexOf(endMarker, start);
@@ -204,6 +207,15 @@ function testEndShiftValidatesOnlyAssignedTasksAndIgnoresOrphans() {
   assert.match(handlerSource, /statusNorm\s*===\s*'finalizada'\s*\|\|\s*statusNorm\s*===\s*'no realizada'/);
 }
 
+function testBundleIdleDetectorExports() {
+  if (!bundleSource) return; // bundle no disponible (entorno sin build previo)
+  assert.match(bundleSource, /initIdleDetector/, 'bundle: debe exportar initIdleDetector');
+  assert.match(bundleSource, /requestIdlePermissionManual/, 'bundle: debe exportar requestIdlePermissionManual');
+  assert.match(bundleSource, /shouldApplyDomIdleFallback/, 'bundle: debe exportar shouldApplyDomIdleFallback');
+  assert.match(bundleSource, /window\.idleDetectorGranted\s*=/, 'bundle: debe espejar idleDetectorGranted a window');
+  assert.match(bundleSource, /window\.idleDetectorStarted\s*=/, 'bundle: debe espejar idleDetectorStarted a window');
+}
+
 async function run() {
   await testIdlePermissionSuccessWaitsForDetectorStart();
   await testIdlePermissionStartFailureIsRecoverable();
@@ -213,6 +225,7 @@ async function run() {
   testEndShiftSafetyOrder();
   testPermissionIsNeverRequestedByTheEndShiftClick();
   testEndShiftValidatesOnlyAssignedTasksAndIgnoresOrphans();
+  testBundleIdleDetectorExports();
   console.log('END_SHIFT_SMOKE=PASS');
 }
 

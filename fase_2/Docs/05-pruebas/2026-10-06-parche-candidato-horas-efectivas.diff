@@ -1,0 +1,30 @@
+--- app.js (actual)
++++ app.js (candidato horas efectivas)
+@@ -3742,6 +3742,7 @@
+             // Calculo de tiempos tomados
+             const lunchMinutes = parseFloat((totalLunchTimeMs / (1000 * 60)).toFixed(1));
+             const breakfastMinutes = parseFloat((totalBreakfastTimeMs / (1000 * 60)).toFixed(1));
++            const splitShiftMinutes = parseFloat((totalSplitShiftTimeMs / (1000 * 60)).toFixed(1));
+             
+             // Calculo de penalidades (excesos)
+             const allowedLunch = 60;
+@@ -3764,8 +3765,9 @@
+ 
+             // Calculo de tiempo efectivo
+             const totalShiftMs = endDate.getTime() - loginDate.getTime();
+-            // Restamos TODAS las pausas, pero además la penalidad adicional sobre las horas efectivas
+-            const effectiveShiftMs = totalShiftMs - totalLunchTimeMs - totalBreakfastTimeMs - (penalidadConectividadMins * 60 * 1000);
++            // Restamos TODAS las pausas (almuerzo, desayuno y Pausa de Turno, que no cuenta como tiempo trabajado),
++            // pero además la penalidad adicional sobre las horas efectivas
++            const effectiveShiftMs = totalShiftMs - totalLunchTimeMs - totalBreakfastTimeMs - totalSplitShiftTimeMs - (penalidadConectividadMins * 60 * 1000);
+             const effectiveHours = Math.max(0, (effectiveShiftMs / (1000 * 60 * 60))).toFixed(2);
+             
+             formData.append("Usuario", localUser.name);
+@@ -3775,6 +3777,7 @@
+             formData.append("Hora_Fin_Turno", endDate.toLocaleString());
+             formData.append("Tiempo_Almuerzo_Descontado", lunchMinutes + " minutos");
+             formData.append("Tiempo_Desayuno_Descontado", breakfastMinutes + " minutos");
++            if (totalSplitShiftTimeMs > 0) formData.append("Tiempo_Pausa_Turno_Descontado", splitShiftMinutes + " minutos");
+             formData.append("Exceso_Pausas_Penalidad", penalidadConectividadMins + " minutos");
+             formData.append("Horas_Efectivas_Trabajadas", effectiveHours + " hrs");
+             

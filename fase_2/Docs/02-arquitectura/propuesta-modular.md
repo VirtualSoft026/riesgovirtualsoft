@@ -27,6 +27,7 @@ src/
 │   ├── shift.js                     # Turno, pausas, timeline y cierre
 │   ├── permission.js                # Solicitud y estado de permiso
 │   ├── announcement.js              # Comunicado y lectura
+│   ├── incident.js                  # Novedad/incidente operativo (ver nota 2026-10-03)
 │   ├── operational-report.js        # Reporte de turno normalizado
 │   └── kpi.js                       # Métricas operativas y retiros
 │
@@ -54,6 +55,8 @@ src/
 │   ├── announcements/
 │   │   ├── announcement-service.js # Publicar, leer y eliminar comunicados
 │   │   └── announcement-capabilities.js # Roles autorizados a publicar/ver/eliminar
+│   ├── incidents/                   # Novedades/incidentes operativos (ver nota 2026-10-03)
+│   │   └── incident-service.js      # Registrar y listar novedades (Firebase: logs)
 │   └── analytics/
 │       ├── kpi-service.js           # Orquestación de fuentes de KPI
 │       ├── metrics-calculator.js    # Cálculos puros de actividad y conectividad
@@ -67,6 +70,7 @@ src/
 │   │   ├── shift-repository.js      # Contrato de reportes/sesiones
 │   │   ├── permission-repository.js # Contrato de permisos
 │   │   ├── announcement-repository.js
+│   │   ├── incident-repository.js   # Contrato de novedades/incidentes (ver nota 2026-10-03)
 │   │   ├── schedule-provider.js     # Contrato de horarios y Excel
 │   │   ├── kpi-provider.js          # Contrato de datos operativos
 │   │   └── notification-provider.js # Contrato de correo/notificación
@@ -76,6 +80,7 @@ src/
 │   │   ├── firebase-shift-repository.js
 │   │   ├── firebase-permission-repository.js
 │   │   ├── firebase-announcement-repository.js
+│   │   ├── firebase-incident-repository.js # Lee/escribe el nodo "logs" (ver nota 2026-10-03)
 │   │   └── firebase-kpi-provider.js
 │   ├── files/
 │   │   ├── xlsx-schedule-adapter.js # SheetJS detrás del contrato de horarios
@@ -99,6 +104,7 @@ src/
 │   ├── schedule-controller.js        # Edición de horarios/cronogramas/teletrabajo por Supervisor
 │   ├── permission-controller.js
 │   ├── announcement-controller.js
+│   ├── incident-controller.js        # Traduce handleNewIncidentSubmit() y la UI de novedades
 │   ├── monitoring-controller.js
 │   └── analytics-controller.js
 │
@@ -117,6 +123,7 @@ src/
 │   │   ├── permissions-view.js
 │   │   ├── monitoring-view.js
 │   │   ├── announcements-view.js
+│   │   ├── incidents-view.js         # "Novedades, Incidentes y Soportes" (ver nota 2026-10-03)
 │   │   ├── operational-control-view.js
 │   │   └── time-control-view.js
 │   ├── dom/
@@ -161,6 +168,16 @@ src/
 - `tests/` debe poder ejecutar la mayor parte de dominio y utilidades sin navegador ni red.
 
 Durante la transición, `app.js` puede actuar como fachada de compatibilidad, delegando cada vez más en `controllers/`. Las funciones globales existentes se mantienen solo como adaptadores temporales y se eliminan cuando HTML y pruebas utilicen los controladores nuevos.
+
+### Nota de decisión (2026-10-03): taxonomía de "incidencias"
+
+`plan-maestro-ejecucion.md` §4 punto 4 dejó sin resolver dónde viven `handleNewIncidentSubmit()`, `startIncidentsRealtimeListener()` y `renderIncidentsTable()` (`app.js` líneas 8719-8804), porque no encajan limpiamente en `domain/announcements/`.
+
+Revisando el código real: estas tres funciones leen y escriben el nodo Firebase **`logs`** (no `comunicados`), con una forma de datos propia (`type`, `title`, `assignedTo`, `detail`, `reportedBy`, `reportedByEmail`, `timestamp`, `status: 'Abierto'|'Cerrado'`), sin relación con los comunicados (que tienen lecturas, urgencia y permisos de publicación distintos). `index.html` (líneas 959-1011) las aloja además en su **propia vista independiente**, "Novedades, Incidentes y Soportes" — no como una pestaña dentro de la vista de comunicados.
+
+**Decisión: carpeta propia, no una sub-sección de `announcements/`.** Se agregan a la estructura de carpetas (sección 1, arriba): `domain/incidents/incident-service.js`, `entities/incident.js`, `services/contracts/incident-repository.js`, `services/firebase/firebase-incident-repository.js`, `controllers/incident-controller.js` y `ui/views/incidents-view.js` — el mismo patrón de 6 piezas que ya existe para `announcements/`. Esto resuelve el punto 4 de los riesgos de `plan-maestro-ejecucion.md` §4; ver ese documento, sección 5, para la actualización de las 3 filas correspondientes de la tabla maestra.
+
+No se creó código en `fase_2/src/` para estas rutas — esta nota solo documenta la decisión de taxonomía y actualiza la estructura de carpetas propuesta. Las tres funciones siguen clasificadas "No iniciada".
 
 ## 2. Principios de Diseño
 
@@ -377,7 +394,7 @@ Antes de conectar `src/` de vuelta a `app.js` mediante `import`/`export` reales,
 - **(a) Módulos ES nativos + exportación manual a `window`.** El entrypoint se marca `type="module"`; `bootstrap.js` asigna explícitamente a `window` cada función que el HTML siga invocando por `onclick` inline, y esos handlers se migran a `addEventListener` de forma incremental (alineado con la Fase 3 de `hoja-de-ruta.md`: "Centralizar selectores... mantener temporalmente aliases para IDs que ya estén referenciados"). No introduce herramientas nuevas, pero exige mantener la lista de exports sincronizada mientras dure la transición.
 - **(b) Paso de build mínimo.** Un bundler ligero (p. ej. `esbuild`, sin dependencias de runtime) compila `src/` a un `app.bundle.js` clásico, sin `type="module"`, preservando compatibilidad total con `onclick` inline sin tocar el HTML. Cambia la restricción "sin build step" documentada en `README.md` y `arquitectura-actual.md`, por lo que requiere aprobación explícita del usuario antes de adoptarse.
 
-**Decisión (2026-09-23): opción (b), bundler mínimo con esbuild.** El usuario la eligió porque un script clásico conserva el orden de ejecución síncrono actual: el bundle se carga con un `<script>` normal **antes** de `app.js`, mientras que `type="module"` difiere la ejecución y cambiaría el arranque de la vigilancia de inactividad (`IdleDetector`) y de los listeners de presencia respecto a `js/tiempos.js`. La regla "sin build step" de `README.md` y `arquitectura-actual.md` queda reemplazada por: *el frontend se compila con un único paso `esbuild` (sin dependencias de runtime)*.
+**Decisión (2026-09-23): opción (b), bundler mínimo con esbuild.** Se eligió porque un script clásico conserva el orden de ejecución síncrono actual: el bundle se carga con un `<script>` normal **antes** de `app.js`, mientras que `type="module"` difiere la ejecución y cambiaría el arranque de la vigilancia de inactividad (`IdleDetector`) y de los listeners de presencia respecto a `js/tiempos.js`. La regla "sin build step" de `README.md` y `arquitectura-actual.md` queda reemplazada por: *el frontend se compila con un único paso `esbuild` (sin dependencias de runtime)*.
 
 Estado del prototipo (sandbox `fase_2/build/`, nada de producción tocado):
 

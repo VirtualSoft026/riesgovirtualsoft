@@ -5,6 +5,9 @@ const path = require('node:path');
 const appPath = path.resolve(__dirname, '..', '..', 'app.js');
 const appSource = fs.readFileSync(appPath, 'utf8');
 
+const bundlePath = path.resolve(__dirname, '..', '..', 'dist', 'riskops.bundle.js');
+const bundleSource = fs.existsSync(bundlePath) ? fs.readFileSync(bundlePath, 'utf8') : null;
+
 function extractBetween(startMarker, endMarker) {
   const start = appSource.indexOf(startMarker);
   const end = appSource.indexOf(endMarker, start);
@@ -70,6 +73,23 @@ function testInactivityUsesBrowserAwareSignals() {
     < startSource.indexOf('window.idleDetectorStarted = true;'));
   assert.match(appSource, /document\.addEventListener\('visibilitychange', updateActivity\);/);
   assert.match(appSource, /window\.addEventListener\('focus', updateActivity\);/);
+
+  // Bundle static checks — validan que las propiedades de seguridad del idle-detector
+  // están presentes en el bundle compilado. Son la red de seguridad principal una vez
+  // que app.js delegue en RiskOps.*.
+  if (bundleSource) {
+    assert.match(bundleSource, /shouldApplyDomIdleFallback/, 'bundle: shouldApplyDomIdleFallback debe estar en el bundle');
+    assert.match(bundleSource, /window\.idleDetectorGranted\s*=\s*granted/, 'bundle: idleDetectorGranted debe espejarse a window');
+    assert.match(bundleSource, /window\.idleDetectorStarted\s*=\s*started/, 'bundle: idleDetectorStarted debe espejarse a window');
+    const bundleStartFnIdx = bundleSource.indexOf('async function startIdleDetectorLogic(');
+    if (bundleStartFnIdx >= 0) {
+      const snippet = bundleSource.slice(bundleStartFnIdx, bundleStartFnIdx + 2000);
+      assert(
+        snippet.indexOf('await detector.start(') < snippet.indexOf('setDetectorStatus('),
+        'bundle: window.idleDetectorStarted solo debe fijarse tras await detector.start()',
+      );
+    }
+  }
 }
 
 function testStoredXssEscaping() {

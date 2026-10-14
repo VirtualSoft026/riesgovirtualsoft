@@ -139,6 +139,14 @@ Separar reglas de negocio y acceso a servicios de la interfaz, introduciendo ent
 - Cada servicio externo tiene un fake para pruebas y un adapter real para producción.
 - El modo nuevo puede desactivarse sin perder datos ni dejar listeners activos.
 
+### Nota de avance (2026-10-03): prueba de regresión crítica `riskOps_timeline` / `riskOps_breakState`
+
+Siguiendo `../03-plan-migracion/plan-maestro-ejecucion.md` §9 paso 2, se escribió y corrió `fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs` (12/12 pruebas, ver `../05-pruebas/2026-10-03-informe-pruebas-coherencia-breakstate-timeline.md`).
+
+La prueba confirma, con datos construidos exactamente como los escribe `app.js` hoy, el riesgo que el punto 4 de los Pasos de esta fase ya anticipaba ("Ningún controlador nuevo debe conocer claves literales como `riskOps_currentUser` o `riskOps_timeline`"): hoy, efectivamente, ningún archivo de `fase_2/src/` conoce `riskOps_timeline` — `local-session-storage.js` solo maneja `riskOps_breakState`, y anida `shiftTimeline` dentro de ese objeto en vez de tratarlo como la llave separada que es en producción. Si se conectara tal cual, `loadBreakState()` descartaría en silencio la línea de tiempo real de un turno en curso.
+
+**El riesgo queda documentado, no resuelto.** `local-session-storage.js` sigue sin conectarse a `app.js`. El informe (sección 8) deja dos opciones evaluadas para un adaptador de compatibilidad, pendientes de que el usuario decida y autorice una antes del paso operativo de conexión (sección 6/7 de `plan-maestro-ejecucion.md`).
+
 ## Fase 3: Reorganización de Archivos
 
 ### Propósito

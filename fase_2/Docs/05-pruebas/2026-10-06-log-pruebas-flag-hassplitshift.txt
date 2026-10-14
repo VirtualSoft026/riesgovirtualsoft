@@ -1,0 +1,137 @@
+LOG DE PRUEBAS — FLAG hasSplitShift + PAUSA DE TURNO
+Fecha: 2026-10-06T13:44:45Z | Node v22.22.2
+app.js actual (carpeta del usuario): 448018 bytes, sha256 ce37af2f403de478e3f95855e3e73065065eae5b18ea72aa3fb84f2d38c0d951
+app.js candidato (solo copia de trabajo, NO aplicado): sha256 ec1bf4fcb54088f5c7b13b387f2870017f75d53aadbacdeee62226aa1c8142d5
+
+############ A. app.js ACTUAL — modo informativo (las brechas se reportan, no fallan) ############
+$ node split-shift-flag.unit.cjs app.js --index index.html --rules database.rules.json
+=== FLAG hasSplitShift + PAUSA DE TURNO — PRUEBAS ===
+app.js: /mnt/user-data/uploads/riesgovirtualsoft/app.js | modo: informativo (las brechas se reportan aparte) | 2026-10-06T13:44:45.212Z
+
+--- Requisito 1: sin hasSplitShift NO se ve la opción
+  [PASS] R1.1 index.html: el botón nace oculto (display:none) para todos
+  [PASS] R1.2 Gestor sin el campo hasSplitShift: setupSidebar NO muestra el botón
+  [PASS] R1.3 Gestor con hasSplitShift=false: setupSidebar NO muestra el botón
+  [PASS] R1.4 Gestor con hasSplitShift="true" (texto, no booleano): setupSidebar NO muestra el botón
+  [PASS] R1.A Gestor sin flag: updateNavigation mantiene el botón oculto
+  [PASS] R1.B Gestor sin flag: la suscripción en vivo (valor null/false) lo mantiene oculto
+  [PASS] R1.C Admin y Supervisor nunca ven el botón (aunque tuvieran el campo en true)
+  [PASS] R1.D Reglas: el gestor NO puede escribir su propio hasSplitShift (users/$uid solo Admin o alta inicial)
+  [PASS] R1.E Solo el rol Admin ve 'Config. Gestores' (donde se activa el flag), y las reglas también lo exigen
+  [BRECHA] B1 [BRECHA] Sin flag, la función toggleSplitShiftBreak() NO debe iniciar una pausa (hoy solo el botón oculto lo impide)
+         -> isSplitShiftBreak tras invocar la función sin flag: esperado false, obtenido true
+
+--- Requisito 2: con hasSplitShift SÍ se ve y cambia el estado
+  [PASS] R2.1 Gestor con hasSplitShift=true: setupSidebar muestra el botón
+  [PASS] R2.2 Activación en vivo: el supervisor/admin enciende el flag y el botón aparece sin recargar
+  [PASS] R2.3 Desactivación en vivo (sin pausa activa): el botón desaparece
+  [PASS] R2.4 Con flag: Pausa de Turno cambia el estado a "En Pausa de Turno" en active_sessions
+  [PASS] R2.5 Con flag: "Retomar Turno" vuelve a "En Línea", cierra el evento y acumula el tiempo
+  [PASS] R2.6 El estado de pausa sobrevive a un refresco (riskOps_breakState) y el botón muestra "Retomar Turno" (6503)
+  [BRECHA] B2 [BRECHA] Si el flag se revoca MIENTRAS el gestor está en pausa, el botón "Retomar Turno" debe seguir visible
+         -> display del botón con la pausa activa y flag=false: esperado "flex", obtenido "none"
+  [BRECHA] B4 [BRECHA] Tras un refresco con pausa activa y flag revocado, el botón "Retomar Turno" debe estar visible
+         -> botón visible con pausa restaurada: esperado "flex", obtenido "none"
+
+--- Requisito 3: el supervisor lo refleja sin dañar Almuerzo/Desayuno
+  [PASS] R3.1 Cadena completa gestor → active_sessions → vista del supervisor: entrar y salir de Pausa de Turno
+  [PASS] R3.2 Almuerzo y Desayuno siguen reflejándose igual en la vista del supervisor
+  [PASS] R3.3 Exclusión mutua: en Pausa no se puede tomar Almuerzo ni Desayuno (y viceversa); el estado no se contamina
+  [PASS] R3.4 Secuencia Pausa → Almuerzo → Desayuno: 3 eventos cerrados, cada estado visible a su tiempo
+  [BRECHA] B3 [BRECHA] Flag revocado en plena pausa: el gestor no debe quedar bloqueado para Almuerzo/Desayuno
+         -> sin botón para retomar y con Almuerzo/Desayuno bloqueados
+
+=== RESUMEN ===
+Pasan: 19 | Fallan: 0 | Brechas abiertas: 4 | Omitidas: 0 | Total: 23
+RESULTADO: REQUISITOS CUMPLIDOS EN EL FLUJO NORMAL; HAY BRECHAS ABIERTAS (ver arriba)
+[código de salida: 0]
+
+############ B. app.js CANDIDATO — modo ESTRICTO (las brechas también deben pasar) ############
+$ node split-shift-flag.unit.cjs app.candidato.js --strict ...
+=== FLAG hasSplitShift + PAUSA DE TURNO — PRUEBAS ===
+app.js: /tmp/claude-0/-home-claude/56b76ec8-348b-576e-9ed1-3b5354375639/scratchpad/cand/app.candidato.js | modo: ESTRICTO (las brechas también fallan) | 2026-10-06T13:44:45.480Z
+
+--- Requisito 1: sin hasSplitShift NO se ve la opción
+  [PASS] R1.1 index.html: el botón nace oculto (display:none) para todos
+  [PASS] R1.2 Gestor sin el campo hasSplitShift: setupSidebar NO muestra el botón
+  [PASS] R1.3 Gestor con hasSplitShift=false: setupSidebar NO muestra el botón
+  [PASS] R1.4 Gestor con hasSplitShift="true" (texto, no booleano): setupSidebar NO muestra el botón
+  [PASS] R1.A Gestor sin flag: updateNavigation mantiene el botón oculto
+  [PASS] R1.B Gestor sin flag: la suscripción en vivo (valor null/false) lo mantiene oculto
+  [PASS] R1.C Admin y Supervisor nunca ven el botón (aunque tuvieran el campo en true)
+  [PASS] R1.D Reglas: el gestor NO puede escribir su propio hasSplitShift (users/$uid solo Admin o alta inicial)
+  [PASS] R1.E Solo el rol Admin ve 'Config. Gestores' (donde se activa el flag), y las reglas también lo exigen
+  [PASS] B1 [BRECHA] Sin flag, la función toggleSplitShiftBreak() NO debe iniciar una pausa (hoy solo el botón oculto lo impide)
+
+--- Requisito 2: con hasSplitShift SÍ se ve y cambia el estado
+  [PASS] R2.1 Gestor con hasSplitShift=true: setupSidebar muestra el botón
+  [PASS] R2.2 Activación en vivo: el supervisor/admin enciende el flag y el botón aparece sin recargar
+  [PASS] R2.3 Desactivación en vivo (sin pausa activa): el botón desaparece
+  [PASS] R2.4 Con flag: Pausa de Turno cambia el estado a "En Pausa de Turno" en active_sessions
+  [PASS] R2.5 Con flag: "Retomar Turno" vuelve a "En Línea", cierra el evento y acumula el tiempo
+  [PASS] R2.6 El estado de pausa sobrevive a un refresco (riskOps_breakState) y el botón muestra "Retomar Turno" (6503)
+  [PASS] B2 [BRECHA] Si el flag se revoca MIENTRAS el gestor está en pausa, el botón "Retomar Turno" debe seguir visible
+  [PASS] B4 [BRECHA] Tras un refresco con pausa activa y flag revocado, el botón "Retomar Turno" debe estar visible
+
+--- Requisito 3: el supervisor lo refleja sin dañar Almuerzo/Desayuno
+  [PASS] R3.1 Cadena completa gestor → active_sessions → vista del supervisor: entrar y salir de Pausa de Turno
+  [PASS] R3.2 Almuerzo y Desayuno siguen reflejándose igual en la vista del supervisor
+  [PASS] R3.3 Exclusión mutua: en Pausa no se puede tomar Almuerzo ni Desayuno (y viceversa); el estado no se contamina
+  [PASS] R3.4 Secuencia Pausa → Almuerzo → Desayuno: 3 eventos cerrados, cada estado visible a su tiempo
+  [PASS] B3 [BRECHA] Flag revocado en plena pausa: el gestor no debe quedar bloqueado para Almuerzo/Desayuno
+
+=== RESUMEN ===
+Pasan: 23 | Fallan: 0 | Brechas abiertas: 0 | Omitidas: 0 | Total: 23
+RESULTADO: TODO CUMPLIDO
+[código de salida: 0]
+
+############ C. REGRESIÓN sobre el candidato ############
+$ node parche-pausa-turno.unit.cjs app.candidato.js
+=== RESUMEN ===
+Integridad: 5/5
+Parchado:   21/21 pruebas pasan
+Original:   8 pruebas [BUG] fallan como se esperaba; 13 de control pasan -> coherente
+RESULTADO: PARCHE VERIFICADO
+$ node monitoreo-render.e2e.cjs app.candidato.js
+monitoreo-render: 7 passed, 0 failed.
+
+############ D. Diff del candidato ############
+--- app.js (actual, con parche Pausa de Turno)
++++ app.js (candidato hasSplitShift)
+@@ -686,7 +686,8 @@
+                     localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
+                     const toggleSplitShiftBtn = document.getElementById('toggleSplitShiftBtn');
+                     if (toggleSplitShiftBtn) {
+-                        toggleSplitShiftBtn.style.display = newVal ? 'flex' : 'none';
++                        // Si el flag se revoca con una pausa en curso, el botón "Retomar Turno" debe seguir visible
++                        toggleSplitShiftBtn.style.display = (newVal || isSplitShiftBreak) ? 'flex' : 'none';
+                     }
+                     if (typeof setupSidebar === 'function') {
+                         setupSidebar();
+@@ -3620,6 +3621,8 @@
+ // Lógica de Pausa Turno Partido
+ function toggleSplitShiftBreak() {
+     if (!currentUser) return;
++    // Solo se puede INICIAR una pausa con el flag hasSplitShift activo; retomar siempre está permitido
++    if (!isSplitShiftBreak && currentUser.hasSplitShift !== true) return;
+     const btn = document.getElementById('toggleSplitShiftBtn');
+     
+     if (!isSplitShiftBreak) {
+@@ -5121,7 +5124,7 @@
+         }
+ 
+         const toggleSplitShiftBtn = document.getElementById('toggleSplitShiftBtn');
+-        if (toggleSplitShiftBtn && currentUser.hasSplitShift === true) {
++        if (toggleSplitShiftBtn && (currentUser.hasSplitShift === true || isSplitShiftBreak)) {
+             toggleSplitShiftBtn.style.display = 'flex';
+         }
+     }
+@@ -5132,7 +5135,7 @@
+ function updateNavigation() {
+     const toggleSplitShiftBtn = document.getElementById('toggleSplitShiftBtn');
+     if (toggleSplitShiftBtn && typeof currentUser !== 'undefined' && currentUser) {
+-        toggleSplitShiftBtn.style.display = (currentUser.hasSplitShift === true) ? 'flex' : 'none';
++        toggleSplitShiftBtn.style.display = (currentUser.hasSplitShift === true || isSplitShiftBreak) ? 'flex' : 'none';
+     }
+     if (typeof setupSidebar === 'function') {
+         setupSidebar();

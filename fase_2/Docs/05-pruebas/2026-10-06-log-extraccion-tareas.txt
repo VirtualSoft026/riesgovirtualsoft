@@ -1,0 +1,629 @@
+LOG DE PRUEBAS - EXTRACCION DEL CORTE TAREAS (Risk Manager, fase 2)
+Fecha: 2026-10-06T19:22:09Z | Node v22.22.2 | cwd: fase_2
+Todas las salidas siguientes son reales (no editadas).
+
+################################################################################
+# 1. CINCO SUITES NUEVAS DEL CORTE (salida completa)
+################################################################################
+
+=== node src/tests/domain/task-pure-rules.test.mjs
+  [PASS] formatClockTime: igual que updateClock() de app.js en horas límite y 500 instantes aleatorios
+  [PASS] formatExcelDate: igual que app.js para seriales, cadenas de fecha, vacíos y basura (incluye 1000 seriales aleatorios)
+  [PASS] computeSyncPercentage y computeKpiFigures: igual que el código de app.js para TODAS las combinaciones 0..30
+  [PASS] HALLAZGO portado fiel: el % del supervisor y el de la tarjeta KPI pueden diferir en 1 punto por redondeo
+  [PASS] shouldSyncActiveSession: solo un Gestor con uid (igual que la guarda de app.js 2387-2389)
+  [PASS] isSessionClosedElsewhere / resolveLoginTime: sesión cerrada en otra pestaña y hora de login de respaldo
+  [PASS] resolveIsInactive: igual que app.js (detector nativo manda; sin él, el respaldo por DOM) en las 8 combinaciones
+  [PASS] decideInactivityTimelineAction: igual que app.js en todos los pares de estados
+  [PASS] buildSessionMetadata y buildSessionMetadataTail: mismo payload que app.js (diferencial; sin tasks)
+  [PASS] validateTaskSaveInput: cada regla devuelve su mensaje y el orden es el del original
+  [PASS] buildTaskRecord, resolveStatusClassForButton y describeTaskSaveError
+  [PASS] buildReviewerTaskDetailText: igual que app.js con y sin campos
+  [PASS] findCatalogTask: compara por id canónico (0 y "0" coinciden) y isTaskReviewerRole
+  [PASS] matchQuickDoc: igual que las DOS copias de app.js (renderQuickDocs y botón de ayuda) en todas las palabras clave
+  [PASS] getQuickDocIconMeta y stripDocExtension: ícono por tipo y nombre sin extensión
+  [PASS] app-init-rules: avatares, búsqueda, worker de ping y tema (diferencial contra los literales de initApp)
+  [PASS] createMockTaskIdGenerator: mismos ids que app.js, incluidas colisiones y rango 10000+
+  [PASS] reconcileGestorTaskCache: igual que el bloque de loadExcelTasks (purga de huérfanas, extra_ intactas, estado inicial)
+  [PASS] buildGestorTaskRows: filtra el maestro por cronograma y agrega tareas mock; sin asignaciones → []
+  [PASS] groupTasksBySet, selector de Set y utilidades de catálogo
+  [PASS] describeRecoveryAlert + shouldRecoverTaskProgress: mismas alertas que el primer bloque de initApp()
+reglas puras de tareas (reloj, progreso, latido, recuperación, guardado, selección, catálogo; diferencial vs app.js): 21 passed, 0 failed.
+[exit=0]
+
+=== node src/tests/domain/task-repository.test.mjs
+  [PASS] resolveTaskTransaction: aborta solo si el remoto es ESTRICTAMENTE más nuevo (ambos numéricos)
+  [PASS] buildSessionMetadata: nunca incluye `tasks`, ni siquiera si el usuario local trae un campo tasks
+  [PASS] persistTaskToActiveSession: sin uid o sin taskId rechaza con el mismo error que app.js
+  [PASS] persistTaskToActiveSession: escribe SOLO tasks/{taskId} y no toca las demás tareas (diferencial)
+  [PASS] persistTaskToActiveSession: un fallo de Firebase se propaga con su código (nunca se vuelve éxito)
+  [PASS] fetchOwnActiveSessionTasks: datos, nodo vacío y sin uid (diferencial)
+  [PASS] fetchOwnActiveSessionTasks: un error de lectura NUNCA se disfraza de "no hay tareas" (ok:false)
+  [PASS] persistTaskIfNotNewerRemote: remoto más nuevo → committed:false y el remoto queda intacto (diferencial)
+  [PASS] persistTaskIfNotNewerRemote: otra pestaña escribe justo ANTES de la transacción → se conserva su versión
+  [PASS] persistTaskIfNotNewerRemote: la suposición inicial del SDK (valor local nulo) no decide el resultado
+  [PASS] persistTaskIfNotNewerRemote: sin uid o taskId rechaza; un fallo de red se propaga
+  [PASS] migrate: caso base (ausente en remoto, local más nuevo, remoto más nuevo, igual) — diferencial
+  [PASS] migrate: el respaldo local se guarda ANTES del intento remoto y sobrevive a un fallo de red
+  [PASS] migrate: al abrir cada transacción remota, el registro estampado YA está en el respaldo local
+  [PASS] migrate: un fallo individual NO aborta el resto de la migración
+  [PASS] migrate: localStorage roto no impide migrar (el respaldo local es best-effort)
+  [PASS] migrate: es idempotente (una segunda corrida con el remoto ya igual no escribe nada)
+  [PASS] migrate: sin uid o sin caché no hace nada (diferencial)
+  [PASS] migrate: 300 escenarios aleatorios con semilla (updatedAt mixtos, remoto que cambia durante la migración, fallos de red) — diferencial
+  [PASS] latido tras guardar una tarea: un latido con datos viejos no pisa la tarea recién guardada
+  [PASS] syncSessionMetadata: devuelve la Promise real (rechazada si falla) y registra el error
+firebase-task-repository.js (persistencia de tareas del gestor; diferencial vs app.js): 21 passed, 0 failed.
+[exit=0]
+
+=== node src/tests/ui/task-views.test.mjs
+  [PASS] renderTree: mismo DOM que app.js (200 escenarios aleatorios: 0..4 Sets, ids number/string, estados, caracteres especiales)
+  [PASS] renderTree: sin contenedor no hace nada; un Set se auto-expande y varios no
+  [PASS] getTaskStatusClass: Finalizada/En Proceso/No Realizada/otro → clase del indicador (igual que app.js)
+  [PASS] updateKPI: misma tarjeta que app.js para TODAS las combinaciones 0..12 y misma regla de latido (solo Gestor)
+  [PASS] updateKPI: sin .kpi-card igual no revienta y sigue sincronizando al Gestor
+  [PASS] renderQuickDocs: mismo HTML que app.js sin tarea, con cada palabra clave y con nombres sin coincidencia
+  [PASS] toggleTree: alterna open en el encabezado y show en su hermano, igual que app.js; sin hermano solo el encabezado
+  [PASS] notificaciones de Admin/Supervisor y de Gestor: mismo HTML y no leídos que los listeners de initApp (200 escenarios)
+  [PASS] historial de permisos: visibilidad por rol, orden, uid de consulta y HTML (diferencial con las plantillas de loadPermisos)
+  [PASS] detalle de permiso: mismo HTML que openPermisoDetailModal (estados, rango de fechas, motivo, rechazo)
+vistas de tareas y permisos (árbol, KPI, documentos rápidos, notificaciones; diferencial vs app.js): 10 passed, 0 failed.
+[exit=0]
+
+=== node src/tests/controllers/task-controller.test.mjs
+  [PASS] latido: inyectando el estado de pausas, el payload agrega splitShiftStartTime/totalSplitShiftTimeMs (lo que ya hace el controlador de turno)
+  [PASS] updateClock del controlador: escribe HH:MM:SS en #liveClock y no falla sin el elemento
+  [PASS] recoverGestorTaskProgress: fusión + migración idéntica a app.js (caso base con remoto más nuevo, local más nuevo y ausentes)
+  [PASS] recoverGestorTaskProgress: lectura remota fallida → REMOTE_READ_FAILED, cero escrituras y caché local intacto
+  [PASS] recoverGestorTaskProgress: identidad distinta o sin sesión → IDENTITY_MISMATCH, fusión local pero cero escrituras remotas
+  [PASS] recoverGestorTaskProgress: fallos de migración se cuentan, no se ocultan, y el respaldo local queda conservado
+  [PASS] recoverGestorTaskProgress: localStorage roto no impide fusionar ni migrar
+  [PASS] recoverGestorTaskProgress: 250 escenarios aleatorios con semilla (carreras remoto más nuevo, red, identidad) — diferencial
+  [PASS] runStartupRecovery: avisa UNA vez, nunca lanza y no corre para quien no es Gestor con uid
+  [PASS] guardar progreso: camino feliz idéntico a app.js (respaldo local, Firebase, éxito visual, KPI, observación limpia)
+  [PASS] guardar progreso: cada validación avisa lo mismo que app.js y NO escribe nada (8 casos)
+  [PASS] guardar progreso: fallo de Firebase → respaldo local conservado, aviso y botón de error (permiso denegado y red)
+  [PASS] guardar progreso: estados No Realizada / En Proceso, sin elemento visual y doble clic (diferencial)
+  [PASS] latido: payload, contadores, bitácora y estado idénticos a app.js; NUNCA pisa las tareas guardadas
+  [PASS] latido: no corre para quien no es Gestor con uid; sesión cerrada en otra pestaña limpia y redirige (diferencial)
+  [PASS] latido: 300 escenarios aleatorios (idle nativo/DOM, pausas, estado local, bitácora, fallos de red) — diferencial
+  [PASS] selectTask: igual que app.js para Gestor (con caché, sin caché, estado desconocido), Admin/Supervisor y tarea inexistente
+  [PASS] runStartupDataSequence: orden de pasos, un fallo de horario/tareas no impide los siguientes y se registra
+task-controller.js (recuperación, latido, guardado, selección, arranque; diferencial vs app.js): 18 passed, 0 failed.
+[exit=0]
+
+=== node src/tests/controllers/task-loaders-controller.test.mjs
+  [PASS] loadExcelTasks: Admin, Gestor con cronograma y tareas mock, y selección de Set — idéntico a app.js (150 escenarios con semilla)
+  [PASS] loadExcelTasks: la migración inicial de "En Proceso" no pisa una versión remota más nueva (carrera con otra pestaña)
+  [PASS] loadExcelTasks: errores (HTTP, Excel corrupto, red caída, sin contenedor ni selector) — mismo mensaje y mismo DOM que app.js
+  [PASS] loadSchedule: bloques, semana por defecto, selectores, tabla y efectos sobre el usuario — idéntico a app.js (120 escenarios con semilla)
+  [PASS] loadSchedule: hoja sin bloques válidos, falla de red y celda numérica de turno — mismo resultado que app.js
+  [PASS] loadTeletrabajo: bloques, selector, tabla y errores — idéntico a app.js (120 escenarios con semilla)
+  [PASS] loadPermisos: consulta por rol, filtro de privacidad, orden y HTML — idéntico a app.js (150 escenarios con semilla)
+  [PASS] openPermisoDetailModal: usa el historial cargado o lee de Firebase; avisa si no existe — idéntico a app.js
+task-loaders-controller.js (loadExcelTasks, loadSchedule, loadTeletrabajo, loadPermisos, detalle de permiso; diferencial vs app.js): 8 passed, 0 failed.
+[exit=0]
+
+################################################################################
+# 2. REGRESION COMPLETA DE src/tests/{domain,utils,ui,controllers}/*.test.mjs (ultima linea de cada suite)
+################################################################################
+[exit=0] src/tests/domain/active-session-payload.test.mjs :: active-session-payload (latido: estado y campos de la Pausa de Turno): 6 passed, 0 failed.
+[exit=0] src/tests/domain/active-session-status.test.mjs :: active-session-status.js (bug: Pausa de Turno invisible al supervisor): 6 passed, 0 failed.
+[exit=0] src/tests/domain/announcement-service.test.mjs :: announcement-service (comunicados: lógica pura, diferencial vs app.js 6555-6965): 25 passed, 0 failed.
+[exit=0] src/tests/domain/approval-policy.test.mjs :: approval-policy.js (política de aprobaciones + contraste con database.rules.json): 29 passed, 0 failed.
+[exit=0] src/tests/domain/auth-service.test.mjs :: auth-service / notification-rules (política de navegación, controles administrativos, contraseña, notificaciones): 16 passed, 0 failed.
+[exit=0] src/tests/domain/break-state-ownership.test.mjs :: break-state-ownership (estado de pausas por usuario): 10 passed, 0 failed.
+[exit=0] src/tests/domain/break-state-timeline-coherence.test.mjs :: break-state-timeline-coherence: 12 passed, 0 failed.
+[exit=0] src/tests/domain/break-transitions.test.mjs :: break-transitions.js: 22 passed, 0 failed.
+[exit=0] src/tests/domain/extra-task.test.mjs :: extra-task.js + exception-justification.js (diferencial vs app.js 4001-4109): 11 passed, 0 failed.
+[exit=0] src/tests/domain/firebase-approvals-repository.test.mjs :: firebase-approvals-repository.js (rutas y payloads de app.js 4115-4441): 10 passed, 0 failed.
+[exit=0] src/tests/domain/firebase-shift-repository.test.mjs :: firebase-shift-repository.js + end-shift-button.js: 9 passed, 0 failed.
+[exit=0] src/tests/domain/gestor-config.test.mjs :: gestor-config (configuración de gestores y flag hasSplitShift; diferencial vs app.js 6757-6834): 13 passed, 0 failed.
+[exit=0] src/tests/domain/historial-repositories.test.mjs :: repositorios Firebase del corte historial/navegación (base inyectada, sin red): 7 passed, 0 failed.
+[exit=0] src/tests/domain/incident-service.test.mjs :: incident-service + incidents-view (novedades; diferencial vs app.js 8724-8815): 8 passed, 0 failed.
+[exit=0] src/tests/domain/kpi-data-sources.test.mjs :: kpi-data-sources (JSON operativo y lecturas de Firebase): 12 passed, 0 failed.
+[exit=0] src/tests/domain/kpi-metrics-calculator.test.mjs :: metrics-calculator (KPIs y Control Operativo): 31 passed, 0 failed.
+[exit=0] src/tests/domain/kpi-operativo-analysis.test.mjs :: operativo-analysis (Análisis Textual del Control Operativo): 14 passed, 0 failed.
+[exit=0] src/tests/domain/kpi-service.test.mjs :: kpi-service (fusión de reportes, gestores de KPIs, retiros): 16 passed, 0 failed.
+[exit=0] src/tests/domain/login-history.test.mjs :: login-history (historial de accesos; diferencial vs app.js 8402-8628): 12 passed, 0 failed.
+[exit=0] src/tests/domain/monitoring-view.test.mjs :: monitoring-view (tarjetas de Monitoreo: filtros, estado, retraso, tareas, bitácora y detalle): 14 passed, 0 failed.
+[exit=0] src/tests/domain/permission-service.test.mjs :: permission-service.js (diferencial vs app.js 4267-4448): 12 passed, 0 failed.
+[exit=0] src/tests/domain/schedule-parser.test.mjs :: schedule-parser.js: 11 passed, 0 failed.
+[exit=0] src/tests/domain/shift-closure-calculations.test.mjs :: shift-closure-calculations (diferencial vs app.js): 8 passed, 0 failed.
+[exit=0] src/tests/domain/shift-closure-rules.test.mjs :: shift-closure-rules.js: 11 passed, 0 failed.
+[exit=0] src/tests/domain/shift-closure-times-split.test.mjs :: shift-closure-times-split (RN: la pausa no es tiempo trabajado): 12 passed, 0 failed.
+[exit=0] src/tests/domain/shift-effective-hours-split.test.mjs :: shift-effective-hours-split (Pausa de Turno no es tiempo trabajado): 7 passed, 0 failed.
+[exit=0] src/tests/domain/shift-report-builder.test.mjs :: shift-report-builder.js: 10 passed, 0 failed.
+[exit=0] src/tests/domain/shift-report-view.test.mjs :: shift-report-view (filtros, bitácora, PDF y tiempo efectivo del panel de reportes): 13 passed, 0 failed.
+[exit=0] src/tests/domain/split-shift-policy.test.mjs :: split-shift-policy (RN-1..RN-3): 8 passed, 0 failed.
+[exit=0] src/tests/domain/task-pure-rules.test.mjs :: reglas puras de tareas (reloj, progreso, latido, recuperación, guardado, selección, catálogo; diferencial vs app.js): 21 passed, 0 failed.
+[exit=0] src/tests/domain/task-repository.test.mjs :: firebase-task-repository.js (persistencia de tareas del gestor; diferencial vs app.js): 21 passed, 0 failed.
+[exit=0] src/tests/domain/user-approval-list.test.mjs :: user-approval-list.js (diferencial vs app.js 4111-4219): 7 passed, 0 failed.
+[exit=0] src/tests/utils/constants.test.mjs :: constants.js: 6 passed, 0 failed.
+[exit=0] src/tests/utils/date-time.test.mjs :: date-time.js: 15 passed, 0 failed.
+[exit=0] src/tests/utils/excel.test.mjs :: excel.js: 13 passed, 0 failed.
+[exit=0] src/tests/utils/normalize.test.mjs :: normalize.js: 14 passed, 0 failed.
+[exit=0] src/tests/utils/result.test.mjs :: result.js: 5 passed, 0 failed.
+[exit=0] src/tests/utils/sanitization.test.mjs :: sanitization.js: 14 passed, 0 failed.
+[exit=0] src/tests/utils/validation.test.mjs :: validation.js: 7 passed, 0 failed.
+[exit=0] src/tests/ui/approvals-components.test.mjs :: componentes de aprobaciones (HTML idéntico al de app.js 4111-4448 + cajas, modales y avisos): 22 passed, 0 failed.
+[exit=0] src/tests/ui/break-button.test.mjs :: break-button.js (puerto 1:1 de los estilos de app.js): 9 passed, 0 failed.
+[exit=1] src/tests/ui/kpi-chart-configs.test.mjs :: operativo-chart-configs (gráficas del Control Operativo): 18 passed, 1 failed.
+[exit=0] src/tests/ui/shift-reports-view.test.mjs :: shift-reports-view (HTML de la tabla, el modal "Ver Todo" y el PDF del historial de turnos): 7 passed, 0 failed.
+[exit=0] src/tests/ui/task-views.test.mjs :: vistas de tareas y permisos (árbol, KPI, documentos rápidos, notificaciones; diferencial vs app.js): 10 passed, 0 failed.
+[exit=0] src/tests/controllers/announcements-controller.test.mjs :: announcements-controller (comunicados con base y DOM simulados): 27 passed, 0 failed.
+[exit=0] src/tests/controllers/app-router.test.mjs :: app-router (navegación por rol: diferencial vs setupSidebar, alignAdministrativeControlsByRole, updateNavigation): 9 passed, 0 failed.
+[exit=0] src/tests/controllers/approvals-controller.test.mjs :: approvals-controller.js (diferencial vs app.js 3975-4448 + opciones propias): 84 passed, 0 failed.
+[exit=0] src/tests/controllers/config-gestores-controller.test.mjs :: config-gestores-controller (interruptor de Pausa de Turno con base y DOM simulados): 11 passed, 0 failed.
+[exit=0] src/tests/controllers/incidents-controller.test.mjs :: incidents-controller (novedades con base y DOM simulados): 9 passed, 0 failed.
+[exit=1] src/tests/controllers/monitoring-controller.test.mjs :: monitoring-controller (listener, tarjetas, bitácora, detalle y desplegable de gestores): 6 passed, 4 failed.
+[exit=0] src/tests/controllers/profile-notifications-controller.test.mjs :: profile-controller / notifications-controller (perfil, contraseña y notificaciones): 9 passed, 0 failed.
+[exit=0] src/tests/controllers/shift-controller.test.mjs :: shift-controller.js (RN-1..RN-4, deuda 2/4/5): 20 passed, 0 failed.
+[exit=0] src/tests/controllers/shift-reports-controller.test.mjs :: shift-reports-controller (historial de turnos: carga, filtros, modal y PDF): 10 passed, 0 failed.
+[exit=0] src/tests/controllers/task-controller.test.mjs :: task-controller.js (recuperación, latido, guardado, selección, arranque; diferencial vs app.js): 18 passed, 0 failed.
+[exit=0] src/tests/controllers/task-loaders-controller.test.mjs :: task-loaders-controller.js (loadExcelTasks, loadSchedule, loadTeletrabajo, loadPermisos, detalle de permiso; diferencial vs app.js): 8 passed, 0 failed.
+TOTAL: 55 suites; 53 con exit 0; 2 con fallos
+
+--- Detalle de las suites con fallos (no pertenecen al corte tareas: no importan ningun modulo de este corte) ---
+=== node src/tests/ui/kpi-chart-configs.test.mjs (solo lineas FAIL)
+  [FAIL] diferencial vs app.js 8085-8150 (drawCombinedChart): barras apiladas por gestor + línea de tasa
+=== node src/tests/controllers/monitoring-controller.test.mjs (solo lineas FAIL)
+  [FAIL] listener: guarda las sesiones y repinta; sin datos = {}; error se registra
+  [FAIL] tarjeta: "En Pausa de Turno" con latido reciente se ve En Pausa de Turno ⏸️ y filtra como NO en línea
+  [FAIL] filtros: búsqueda sin tildes, supervisores excluidos y sin sesiones muestra el estado vacío; no se muta la sesión recibida
+  [FAIL] detalle de tareas: nombre, info, avatar con respaldo, tareas asignadas reconciliadas y extras
+
+################################################################################
+# 3. BUNDLE REAL E INTEGRACION DE LABORATORIO (controlador de turno + pasos/*.mjs)
+################################################################################
+$ node /tmp/riskops-bundle.mjs /tmp/tareas-bundle.js
+BUNDLE_OK /tmp/tareas-bundle.js
+$ node /tmp/riskops-integrate.mjs /tmp/tareas-integrado.js
+INTEGRADO /tmp/tareas-integrado.js 33 pasos
+Marcas [LAB-INTEGRACION] del app.js integrado: 42 lineas; pasos del corte tareas: 18
+Diferencia de tamano: original 8841 lineas -> integrado 7265 lineas
+
+################################################################################
+# 4. E2E tareas-integrado.e2e.cjs
+################################################################################
+
+=== 4a. contra el app.js ORIGINAL (comportamiento esperado de cada funcion real)
+$ node src/tests/e2e/tareas-integrado.e2e.cjs /mnt/user-data/uploads/riesgovirtualsoft/app.js
+=== TAREAS, PERSISTENCIA Y CICLO DE APLICACIÓN: app.js ORIGINAL ===
+app.js: /mnt/user-data/uploads/riesgovirtualsoft/app.js | 2026-10-06T19:22:18.386Z
+  [PASS] C1 updateClock: hora local HH:MM:SS en #liveClock
+  [PASS] C2 updateClock: sin #liveClock no falla
+  [PASS] R1 persistTaskToActiveSession escribe SOLO active_sessions/<uid>/tasks/<id> con update() y conserva las demás tareas
+  [PASS] R2 persistTaskToActiveSession: sin uid o sin taskId rechaza ANTES de tocar Firebase
+  [PASS] R3 persistTaskToActiveSession: el fallo remoto se propaga (jamás se convierte en éxito)
+  [PASS] F1 fetchOwnActiveSessionTasks: devuelve {ok:true, tasks}
+  [PASS] F2 fetchOwnActiveSessionTasks: nodo vacío -> {ok:true, tasks:{}}
+  [PASS] F3 fetchOwnActiveSessionTasks: un fallo de lectura NUNCA se disfraza de remoto vacío ({ok:false}) y se registra
+  [PASS] F4 fetchOwnActiveSessionTasks: sin uid -> {ok:false} sin leer
+  [PASS] N1 persistTaskIfNotNewerRemote: aborta si el remoto es ESTRICTAMENTE más reciente y conserva su valor
+  [PASS] N2 persistTaskIfNotNewerRemote: remoto más nuevo se conserva intacto
+  [PASS] N3 persistTaskIfNotNewerRemote: sin uid o taskId rechaza
+  [PASS] M1 migrateLocalTasksToActiveSession: respalda en localStorage ANTES de cada intento remoto y migra lo pendiente
+  [PASS] M2 migrateLocalTasksToActiveSession: un fallo individual no aborta el resto ni se reporta como éxito
+  [PASS] M3 migrateLocalTasksToActiveSession: si otra pestaña escribió algo más nuevo, queda en "skipped" y el remoto no se pisa
+  [PASS] M4 migrateLocalTasksToActiveSession: localStorage lleno no impide la migración remota
+  [PASS] M5 migrateLocalTasksToActiveSession: sin uid o sin caché no hace nada
+  [PASS] V1 recoverGestorTaskProgress: fusiona (gana el updatedAt mayor), respalda y migra lo solo-local
+  [PASS] V2 recoverGestorTaskProgress: lectura remota fallida -> REMOTE_READ_FAILED, CERO escrituras (ni Firebase ni localStorage) y caché intacto
+  [PASS] V3 recoverGestorTaskProgress: identidad distinta -> IDENTITY_MISMATCH, CERO escrituras remotas
+  [PASS] V4 recoverGestorTaskProgress: sin usuario autenticado -> IDENTITY_MISMATCH
+  [PASS] V5 recoverGestorTaskProgress: migraciones fallidas se cuentan
+  [PASS] V6 recoverGestorTaskProgress: localStorage lleno no impide fusionar ni migrar
+  [PASS] V7 recoverGestorTaskProgress: otra pestaña escribe algo más nuevo durante la migración -> no se pisa
+  [PASS] S1 latido: contadores y porcentaje del DOM; solo metadatos con update() (NUNCA "tasks")
+  [PASS] S2 latido: porcentaje del supervisor redondea finalizadas/total (1+1 de 3 = 67)
+  [PASS] S3 latido: sin tareas -> porcentaje 0
+  [PASS] S4 latido: usuario que no es Gestor, o sin uid, no escribe
+  [PASS] S5 latido: sesión cerrada en otra pestaña -> currentUser=null, redirige a login y no escribe
+  [PASS] S6 latido: inactividad por IdleDetector abre y cierra el evento en la bitácora (una sola vez cada uno)
+  [PASS] S7 latido: respaldo por DOM (sin IdleDetector) marca Inactivo
+  [PASS] S8 latido: fallo de Firebase -> la Promise real se rechaza y se registra el error
+  [PASS] S9 latido: bitácora nula -> [] y sin loginTime usa la hora actual
+  [PASS] S10 latido: con bitácora y Pausa de Turno en curso el estado y los contadores coinciden con el original
+  [PASS] K1 updateKPI (Gestor, 7 tareas: 3 realizadas, 2 no realizadas): tarjeta y latido
+  [PASS] K2 updateKPI (Admin): pinta la tarjeta y NO sincroniza
+  [PASS] K3 updateKPI: sin .kpi-card un Gestor igual sincroniza
+  [PASS] K4 updateKPI: sin tareas -> 0 %
+  [PASS] K5 updateKPI: redondeo del KPI (1 + 1 de 3 = 33 % + 33 %) distinto del latido (67 %)
+  [PASS] K6 updateKPI: Gestor con latido que falla no lanza (el error ya se registra)
+  [PASS] T1 toggleTree alterna "open" y el hermano "show"; sin hermano no falla
+  [PASS] D1 renderQuickDocs: sin tarea lista todos los documentos; con palabra clave destaca el sugerido
+  [PASS] D2 renderQuickDocs: sin #quickDocsList no falla
+  [PASS] A1 renderTree: orden de Sets, escape de nombres, estado desde el caché, KPI y latido
+  [PASS] A2 renderTree: un solo Set se expande solo
+  [PASS] A3 renderTree: sin contenedor no hace nada (ni KPI)
+  [PASS] A4 renderTree: sin Sets deja el contenedor vacío y actualiza el KPI
+  [PASS] X1 selectTask (Gestor, tarea con progreso): título, nota, botón activo y documento sugerido
+  [PASS] X2 selectTask (Gestor, sin progreso): limpia la nota y marca "Pendiente"
+  [PASS] X3 selectTask (Gestor, estado guardado desconocido): cae en "Pendiente"
+  [PASS] X4 selectTask (Admin / Supervisor): muestra detalle e instrucciones y no toca los botones
+  [PASS] X5 selectTask: id inexistente limpia la selección
+  [PASS] X6 selectTask: id de texto y sin evento ni elementos opcionales
+  [PASS] L1 loadExcelTasks: Admin, árbol y selector de Set (cambio de selector)
+  [PASS] L2.1 loadExcelTasks: Gestor con cronograma (semilla 100): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.2 loadExcelTasks: Gestor con cronograma (semilla 101): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.3 loadExcelTasks: Gestor con cronograma (semilla 102): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.4 loadExcelTasks: Gestor con cronograma (semilla 103): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.5 loadExcelTasks: Gestor con cronograma (semilla 104): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.6 loadExcelTasks: Gestor con cronograma (semilla 105): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.7 loadExcelTasks: Gestor con cronograma (semilla 106): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.8 loadExcelTasks: Gestor con cronograma (semilla 107): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.9 loadExcelTasks: Gestor con cronograma (semilla 108): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.10 loadExcelTasks: Gestor con cronograma (semilla 109): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.11 loadExcelTasks: Gestor con cronograma (semilla 110): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.12 loadExcelTasks: Gestor con cronograma (semilla 111): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L3 loadExcelTasks: errores (HTTP, Excel corrupto, red caída) muestran el mismo mensaje
+  [PASS] L4 loadExcelTasks: Excel corrupto
+  [PASS] L5 loadExcelTasks: red caída
+  [PASS] L6 loadExcelTasks: sin contenedor ni selector no falla
+  [PASS] H1 loadSchedule (semilla 300): bloques, semana por defecto, selectores, tabla y efectos sobre el usuario
+  [PASS] H2 loadSchedule (semilla 301): bloques, semana por defecto, selectores, tabla y efectos sobre el usuario
+  [PASS] H3 loadSchedule (semilla 302): bloques, semana por defecto, selectores, tabla y efectos sobre el usuario
+  [PASS] H4 loadSchedule (semilla 303): bloques, semana por defecto, selectores, tabla y efectos sobre el usuario
+  [PASS] H5 loadSchedule (semilla 304): bloques, semana por defecto, selectores, tabla y efectos sobre el usuario
+  [PASS] H6 loadSchedule (semilla 305): bloques, semana por defecto, selectores, tabla y efectos sobre el usuario
+  [PASS] H7 loadSchedule (semilla 306): bloques, semana por defecto, selectores, tabla y efectos sobre el usuario
+  [PASS] H8 loadSchedule (semilla 307): bloques, semana por defecto, selectores, tabla y efectos sobre el usuario
+  [PASS] H9 loadSchedule (semilla 308): bloques, semana por defecto, selectores, tabla y efectos sobre el usuario
+  [PASS] H10 loadSchedule (semilla 309): bloques, semana por defecto, selectores, tabla y efectos sobre el usuario
+  [PASS] H11 loadSchedule: hoja sin bloques y falla de red
+  [PASS] H12 loadSchedule: error HTTP
+  [PASS] W1 loadTeletrabajo (semilla 500): bloques, selector y tabla
+  [PASS] W2 loadTeletrabajo (semilla 501): bloques, selector y tabla
+  [PASS] W3 loadTeletrabajo (semilla 502): bloques, selector y tabla
+  [PASS] W4 loadTeletrabajo (semilla 503): bloques, selector y tabla
+  [PASS] W5 loadTeletrabajo (semilla 504): bloques, selector y tabla
+  [PASS] W6 loadTeletrabajo (semilla 505): bloques, selector y tabla
+  [PASS] W7 loadTeletrabajo (semilla 506): bloques, selector y tabla
+  [PASS] W8 loadTeletrabajo (semilla 507): bloques, selector y tabla
+  [PASS] W9 loadTeletrabajo: error HTTP muestra la fila de error
+  [PASS] P1 loadPermisos (semilla 700): consulta por rol, filtro de privacidad, orden y HTML
+  [PASS] P2 loadPermisos (semilla 701): consulta por rol, filtro de privacidad, orden y HTML
+  [PASS] P3 loadPermisos (semilla 702): consulta por rol, filtro de privacidad, orden y HTML
+  [PASS] P4 loadPermisos (semilla 703): consulta por rol, filtro de privacidad, orden y HTML
+  [PASS] P5 loadPermisos (semilla 704): consulta por rol, filtro de privacidad, orden y HTML
+  [PASS] P6 loadPermisos (semilla 705): consulta por rol, filtro de privacidad, orden y HTML
+  [PASS] P7 loadPermisos (semilla 706): consulta por rol, filtro de privacidad, orden y HTML
+  [PASS] P8 loadPermisos (semilla 707): consulta por rol, filtro de privacidad, orden y HTML
+  [PASS] P9 openPermisoDetailModal: usa la lista cargada por loadPermisos (detalle completo y modal activo)
+  [PASS] I1 initApp (inicio): Gestor con lectura remota fallida -> UNA alerta de "no se pudo verificar", luego horario, tareas, teletrabajo, permisos y documentos EN ESE ORDEN
+  [PASS] I2 initApp (inicio): Gestor con migración que falla -> alerta con el número de tareas sin sincronizar
+  [PASS] I3 initApp (inicio): Gestor con recuperación correcta -> sin alertas
+  [PASS] I4 initApp (inicio): Admin no recupera progreso (cero lecturas de tareas remotas)
+  [PASS] I5 initApp (inicio): un fallo inesperado en la recuperación se registra y el arranque continúa
+  [PASS] I6 initApp (inicio): Gestor sin uid no recupera
+  [PASS] G1 guardar progreso: éxito -> respaldo local, update por tarea, botón "Guardado", observación limpia, estado visual y KPI
+  [PASS] G2 guardar progreso: permiso denegado -> aviso de permiso, respaldo local conservado, botón de error
+  [PASS] G3 guardar progreso: error de red -> aviso genérico con respaldo local
+  [PASS] G4 guardar progreso: validaciones en orden (sin tarea, sin sesión, identidad distinta, id inválido, selección no resuelta)
+  [PASS] G5 guardar progreso: sin estado seleccionado y sin sesión de Firebase
+  [PASS] G6 guardar progreso: sin sesión de Firebase
+  [PASS] G7 guardar progreso: doble clic -> la segunda pulsación se ignora mientras guarda
+  [PASS] G8 guardar progreso: localStorage lleno no impide guardar en Firebase
+  [PASS] G9 guardar progreso: No Realizada y En Proceso marcan su clase visual
+
+Resultado: 115 pasaron, 0 fallaron.
+[exit=0]
+
+=== 4b. contra el app.js INTEGRADO con el bundle real, con paridad contra el original
+$ node src/tests/e2e/tareas-integrado.e2e.cjs /tmp/tareas-integrado.js --riskops /tmp/tareas-bundle.js --original /mnt/user-data/uploads/riesgovirtualsoft/app.js
+=== TAREAS, PERSISTENCIA Y CICLO DE APLICACIÓN: app.js INTEGRADO (RiskOps.taskController / taskRepository / taskLoadersController) ===
+app.js: /tmp/tareas-integrado.js | paridad contra el original | 2026-10-06T19:22:18.769Z
+  [PASS] integración: las funciones siguen siendo globales con el mismo nombre (los onclick del HTML generado y de index.html las resuelven)
+  [PASS] integración: app.js ya no escribe tareas en Firebase por su cuenta (delega en RiskOps.taskRepository)
+  [PASS] integración: el latido sigue enviando SOLO metadatos con update() (sin "tasks")
+  [PASS] integración: los reemplazos del corte llevan la marca [LAB-INTEGRACION]
+  [PASS] C1 updateClock: hora local HH:MM:SS en #liveClock
+  [PASS] C1 paridad con el original
+  [PASS] C2 updateClock: sin #liveClock no falla
+  [PASS] C2 paridad con el original
+  [PASS] R1 persistTaskToActiveSession escribe SOLO active_sessions/<uid>/tasks/<id> con update() y conserva las demás tareas
+  [PASS] R1 paridad con el original
+  [PASS] R2 persistTaskToActiveSession: sin uid o sin taskId rechaza ANTES de tocar Firebase
+  [PASS] R2 paridad con el original
+  [PASS] R3 persistTaskToActiveSession: el fallo remoto se propaga (jamás se convierte en éxito)
+  [PASS] R3 paridad con el original
+  [PASS] F1 fetchOwnActiveSessionTasks: devuelve {ok:true, tasks}
+  [PASS] F1 paridad con el original
+  [PASS] F2 fetchOwnActiveSessionTasks: nodo vacío -> {ok:true, tasks:{}}
+  [PASS] F2 paridad con el original
+  [PASS] F3 fetchOwnActiveSessionTasks: un fallo de lectura NUNCA se disfraza de remoto vacío ({ok:false}) y se registra
+  [PASS] F3 paridad con el original
+  [PASS] F4 fetchOwnActiveSessionTasks: sin uid -> {ok:false} sin leer
+  [PASS] F4 paridad con el original
+  [PASS] N1 persistTaskIfNotNewerRemote: aborta si el remoto es ESTRICTAMENTE más reciente y conserva su valor
+  [PASS] N1 paridad con el original
+  [PASS] N2 persistTaskIfNotNewerRemote: remoto más nuevo se conserva intacto
+  [PASS] N2 paridad con el original
+  [PASS] N3 persistTaskIfNotNewerRemote: sin uid o taskId rechaza
+  [PASS] N3 paridad con el original
+  [PASS] M1 migrateLocalTasksToActiveSession: respalda en localStorage ANTES de cada intento remoto y migra lo pendiente
+  [PASS] M1 paridad con el original
+  [PASS] M2 migrateLocalTasksToActiveSession: un fallo individual no aborta el resto ni se reporta como éxito
+  [PASS] M2 paridad con el original
+  [PASS] M3 migrateLocalTasksToActiveSession: si otra pestaña escribió algo más nuevo, queda en "skipped" y el remoto no se pisa
+  [PASS] M3 paridad con el original
+  [PASS] M4 migrateLocalTasksToActiveSession: localStorage lleno no impide la migración remota
+  [PASS] M4 paridad con el original
+  [PASS] M5 migrateLocalTasksToActiveSession: sin uid o sin caché no hace nada
+  [PASS] M5 paridad con el original
+  [PASS] V1 recoverGestorTaskProgress: fusiona (gana el updatedAt mayor), respalda y migra lo solo-local
+  [PASS] V1 paridad con el original
+  [PASS] V2 recoverGestorTaskProgress: lectura remota fallida -> REMOTE_READ_FAILED, CERO escrituras (ni Firebase ni localStorage) y caché intacto
+  [PASS] V2 paridad con el original
+  [PASS] V3 recoverGestorTaskProgress: identidad distinta -> IDENTITY_MISMATCH, CERO escrituras remotas
+  [PASS] V3 paridad con el original
+  [PASS] V4 recoverGestorTaskProgress: sin usuario autenticado -> IDENTITY_MISMATCH
+  [PASS] V4 paridad con el original
+  [PASS] V5 recoverGestorTaskProgress: migraciones fallidas se cuentan
+  [PASS] V5 paridad con el original
+  [PASS] V6 recoverGestorTaskProgress: localStorage lleno no impide fusionar ni migrar
+  [PASS] V6 paridad con el original
+  [PASS] V7 recoverGestorTaskProgress: otra pestaña escribe algo más nuevo durante la migración -> no se pisa
+  [PASS] V7 paridad con el original
+  [PASS] S1 latido: contadores y porcentaje del DOM; solo metadatos con update() (NUNCA "tasks")
+  [PASS] S1 paridad con el original
+  [PASS] S2 latido: porcentaje del supervisor redondea finalizadas/total (1+1 de 3 = 67)
+  [PASS] S2 paridad con el original
+  [PASS] S3 latido: sin tareas -> porcentaje 0
+  [PASS] S3 paridad con el original
+  [PASS] S4 latido: usuario que no es Gestor, o sin uid, no escribe
+  [PASS] S4 paridad con el original
+  [PASS] S5 latido: sesión cerrada en otra pestaña -> currentUser=null, redirige a login y no escribe
+  [PASS] S5 paridad con el original
+  [PASS] S6 latido: inactividad por IdleDetector abre y cierra el evento en la bitácora (una sola vez cada uno)
+  [PASS] S6 paridad con el original
+  [PASS] S7 latido: respaldo por DOM (sin IdleDetector) marca Inactivo
+  [PASS] S7 paridad con el original
+  [PASS] S8 latido: fallo de Firebase -> la Promise real se rechaza y se registra el error
+  [PASS] S8 paridad con el original
+  [PASS] S9 latido: bitácora nula -> [] y sin loginTime usa la hora actual
+  [PASS] S9 paridad con el original
+  [PASS] S10 latido: con bitácora y Pausa de Turno en curso el estado y los contadores coinciden con el original
+  [PASS] S10 paridad con el original
+  [PASS] K1 updateKPI (Gestor, 7 tareas: 3 realizadas, 2 no realizadas): tarjeta y latido
+  [PASS] K1 paridad con el original
+  [PASS] K2 updateKPI (Admin): pinta la tarjeta y NO sincroniza
+  [PASS] K2 paridad con el original
+  [PASS] K3 updateKPI: sin .kpi-card un Gestor igual sincroniza
+  [PASS] K3 paridad con el original
+  [PASS] K4 updateKPI: sin tareas -> 0 %
+  [PASS] K4 paridad con el original
+  [PASS] K5 updateKPI: redondeo del KPI (1 + 1 de 3 = 33 % + 33 %) distinto del latido (67 %)
+  [PASS] K5 paridad con el original
+  [PASS] K6 updateKPI: Gestor con latido que falla no lanza (el error ya se registra)
+  [PASS] K6 paridad con el original
+  [PASS] T1 toggleTree alterna "open" y el hermano "show"; sin hermano no falla
+  [PASS] T1 paridad con el original
+  [PASS] D1 renderQuickDocs: sin tarea lista todos los documentos; con palabra clave destaca el sugerido
+  [PASS] D1 paridad con el original
+  [PASS] D2 renderQuickDocs: sin #quickDocsList no falla
+  [PASS] D2 paridad con el original
+  [PASS] A1 renderTree: orden de Sets, escape de nombres, estado desde el caché, KPI y latido
+  [PASS] A1 paridad con el original
+  [PASS] A2 renderTree: un solo Set se expande solo
+  [PASS] A2 paridad con el original
+  [PASS] A3 renderTree: sin contenedor no hace nada (ni KPI)
+  [PASS] A3 paridad con el original
+  [PASS] A4 renderTree: sin Sets deja el contenedor vacío y actualiza el KPI
+  [PASS] A4 paridad con el original
+  [PASS] X1 selectTask (Gestor, tarea con progreso): título, nota, botón activo y documento sugerido
+  [PASS] X1 paridad con el original
+  [PASS] X2 selectTask (Gestor, sin progreso): limpia la nota y marca "Pendiente"
+  [PASS] X2 paridad con el original
+  [PASS] X3 selectTask (Gestor, estado guardado desconocido): cae en "Pendiente"
+  [PASS] X3 paridad con el original
+  [PASS] X4 selectTask (Admin / Supervisor): muestra detalle e instrucciones y no toca los botones
+  [PASS] X4 paridad con el original
+  [PASS] X5 selectTask: id inexistente limpia la selección
+  [PASS] X5 paridad con el original
+  [PASS] X6 selectTask: id de texto y sin evento ni elementos opcionales
+  [PASS] X6 paridad con el original
+  [PASS] L1 loadExcelTasks: Admin, árbol y selector de Set (cambio de selector)
+  [PASS] L1 paridad con el original
+  [PASS] L2.1 loadExcelTasks: Gestor con cronograma (semilla 100): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.1 paridad con el original
+  [PASS] L2.2 loadExcelTasks: Gestor con cronograma (semilla 101): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.2 paridad con el original
+  [PASS] L2.3 loadExcelTasks: Gestor con cronograma (semilla 102): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.3 paridad con el original
+  [PASS] L2.4 loadExcelTasks: Gestor con cronograma (semilla 103): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.4 paridad con el original
+  [PASS] L2.5 loadExcelTasks: Gestor con cronograma (semilla 104): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.5 paridad con el original
+  [PASS] L2.6 loadExcelTasks: Gestor con cronograma (semilla 105): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.6 paridad con el original
+  [PASS] L2.7 loadExcelTasks: Gestor con cronograma (semilla 106): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.7 paridad con el original
+  [PASS] L2.8 loadExcelTasks: Gestor con cronograma (semilla 107): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.8 paridad con el original
+  [PASS] L2.9 loadExcelTasks: Gestor con cronograma (semilla 108): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.9 paridad con el original
+  [PASS] L2.10 loadExcelTasks: Gestor con cronograma (semilla 109): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.10 paridad con el original
+  [PASS] L2.11 loadExcelTasks: Gestor con cronograma (semilla 110): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.11 paridad con el original
+  [PASS] L2.12 loadExcelTasks: Gestor con cronograma (semilla 111): filtra, genera tareas del cronograma, purga huérfanas y migra "En Proceso"
+  [PASS] L2.12 paridad con el original
+  [PASS] L3 loadExcelTasks: errores (HTTP, Excel corrupto, red caída) muestran el mismo mensaje
+  [PASS] L3 paridad con el original
+  [PASS] L4 loadExcelTasks: Excel corrupto
+  [PASS] L4 paridad con el original
+  [PASS] L5 loadExcelTasks: red caída
+  [PASS] L5 paridad con el original
+  [PASS] L6 loadExcelTasks: sin contenedor ni selector no falla
+  [PASS] L6 paridad con el original
+  [PASS] H1 loadSchedule (semilla 300): bloques, semana por defecto, selectores, tabla y efectos sobre el usuario
+  [PASS] H1 paridad con el original
+  [PASS] H2 loadSchedule (semilla 301): bloques, semana por defecto, selectores, tabla y efectos sobre el usuario
+  [PASS] H2 paridad con el original
+  [PASS] H3 loadSchedule (semilla 302): bloques, semana por defecto, selectores, tabla y efectos sobre el usuario
+  [PASS] H3 paridad con el original
+  [PASS] H4 loadSchedule (semilla 303): bloques, semana por defecto, selectores, tabla y efectos sobre el usuario
+  [PASS] H4 paridad con el original
+  [PASS] H5 loadSchedule (semilla 304): bloques, semana por defecto, selectores, tabla y efectos sobre el usuario
+  [PASS] H5 paridad con el original
+  [PASS] H6 loadSchedule (semilla 305): bloques, semana por defecto, selectores, tabla y efectos sobre el usuario
+  [PASS] H6 paridad con el original
+  [PASS] H7 loadSchedule (semilla 306): bloques, semana por defecto, selectores, tabla y efectos sobre el usuario
+  [PASS] H7 paridad con el original
+  [PASS] H8 loadSchedule (semilla 307): bloques, semana por defecto, selectores, tabla y efectos sobre el usuario
+  [PASS] H8 paridad con el original
+  [PASS] H9 loadSchedule (semilla 308): bloques, semana por defecto, selectores, tabla y efectos sobre el usuario
+  [PASS] H9 paridad con el original
+  [PASS] H10 loadSchedule (semilla 309): bloques, semana por defecto, selectores, tabla y efectos sobre el usuario
+  [PASS] H10 paridad con el original
+  [PASS] H11 loadSchedule: hoja sin bloques y falla de red
+  [PASS] H11 paridad con el original
+  [PASS] H12 loadSchedule: error HTTP
+  [PASS] H12 paridad con el original
+  [PASS] W1 loadTeletrabajo (semilla 500): bloques, selector y tabla
+  [PASS] W1 paridad con el original
+  [PASS] W2 loadTeletrabajo (semilla 501): bloques, selector y tabla
+  [PASS] W2 paridad con el original
+  [PASS] W3 loadTeletrabajo (semilla 502): bloques, selector y tabla
+  [PASS] W3 paridad con el original
+  [PASS] W4 loadTeletrabajo (semilla 503): bloques, selector y tabla
+  [PASS] W4 paridad con el original
+  [PASS] W5 loadTeletrabajo (semilla 504): bloques, selector y tabla
+  [PASS] W5 paridad con el original
+  [PASS] W6 loadTeletrabajo (semilla 505): bloques, selector y tabla
+  [PASS] W6 paridad con el original
+  [PASS] W7 loadTeletrabajo (semilla 506): bloques, selector y tabla
+  [PASS] W7 paridad con el original
+  [PASS] W8 loadTeletrabajo (semilla 507): bloques, selector y tabla
+  [PASS] W8 paridad con el original
+  [PASS] W9 loadTeletrabajo: error HTTP muestra la fila de error
+  [PASS] W9 paridad con el original
+  [PASS] P1 loadPermisos (semilla 700): consulta por rol, filtro de privacidad, orden y HTML
+  [PASS] P1 paridad con el original
+  [PASS] P2 loadPermisos (semilla 701): consulta por rol, filtro de privacidad, orden y HTML
+  [PASS] P2 paridad con el original
+  [PASS] P3 loadPermisos (semilla 702): consulta por rol, filtro de privacidad, orden y HTML
+  [PASS] P3 paridad con el original
+  [PASS] P4 loadPermisos (semilla 703): consulta por rol, filtro de privacidad, orden y HTML
+  [PASS] P4 paridad con el original
+  [PASS] P5 loadPermisos (semilla 704): consulta por rol, filtro de privacidad, orden y HTML
+  [PASS] P5 paridad con el original
+  [PASS] P6 loadPermisos (semilla 705): consulta por rol, filtro de privacidad, orden y HTML
+  [PASS] P6 paridad con el original
+  [PASS] P7 loadPermisos (semilla 706): consulta por rol, filtro de privacidad, orden y HTML
+  [PASS] P7 paridad con el original
+  [PASS] P8 loadPermisos (semilla 707): consulta por rol, filtro de privacidad, orden y HTML
+  [PASS] P8 paridad con el original
+  [PASS] P9 openPermisoDetailModal: usa la lista cargada por loadPermisos (detalle completo y modal activo)
+  [PASS] P9 paridad con el original
+  [PASS] I1 initApp (inicio): Gestor con lectura remota fallida -> UNA alerta de "no se pudo verificar", luego horario, tareas, teletrabajo, permisos y documentos EN ESE ORDEN
+  [PASS] I1 paridad con el original
+  [PASS] I2 initApp (inicio): Gestor con migración que falla -> alerta con el número de tareas sin sincronizar
+  [PASS] I2 paridad con el original
+  [PASS] I3 initApp (inicio): Gestor con recuperación correcta -> sin alertas
+  [PASS] I3 paridad con el original
+  [PASS] I4 initApp (inicio): Admin no recupera progreso (cero lecturas de tareas remotas)
+  [PASS] I4 paridad con el original
+  [PASS] I5 initApp (inicio): un fallo inesperado en la recuperación se registra y el arranque continúa
+  [PASS] I5 paridad con el original
+  [PASS] I6 initApp (inicio): Gestor sin uid no recupera
+  [PASS] I6 paridad con el original
+  [PASS] G1 guardar progreso: éxito -> respaldo local, update por tarea, botón "Guardado", observación limpia, estado visual y KPI
+  [PASS] G1 paridad con el original
+  [PASS] G2 guardar progreso: permiso denegado -> aviso de permiso, respaldo local conservado, botón de error
+  [PASS] G2 paridad con el original
+  [PASS] G3 guardar progreso: error de red -> aviso genérico con respaldo local
+  [PASS] G3 paridad con el original
+  [PASS] G4 guardar progreso: validaciones en orden (sin tarea, sin sesión, identidad distinta, id inválido, selección no resuelta)
+  [PASS] G4 paridad con el original
+  [PASS] G5 guardar progreso: sin estado seleccionado y sin sesión de Firebase
+  [PASS] G5 paridad con el original
+  [PASS] G6 guardar progreso: sin sesión de Firebase
+  [PASS] G6 paridad con el original
+  [PASS] G7 guardar progreso: doble clic -> la segunda pulsación se ignora mientras guarda
+  [PASS] G7 paridad con el original
+  [PASS] G8 guardar progreso: localStorage lleno no impide guardar en Firebase
+  [PASS] G8 paridad con el original
+  [PASS] G9 guardar progreso: No Realizada y En Proceso marcan su clase visual
+  [PASS] G9 paridad con el original
+
+Resultado: 234 pasaron, 0 fallaron.
+[exit=0]
+
+################################################################################
+# 5. SENSIBILIDAD DEL E2E (mutaciones deliberadas del app.js integrado; el e2e DEBE fallar)
+################################################################################
+mutacion mut1 (la recuperacion deja de respaldar el cache en localStorage): 9 verificaciones en FAIL
+mutacion mut2 (el latido envia tasks (pisaria tareas con datos viejos)): 25 verificaciones en FAIL
+mutacion mut3 (la recuperacion deja de verificar la identidad autenticada): 7 verificaciones en FAIL
+
+################################################################################
+# 6. OTRAS PRUEBAS E2E / UNITARIAS SOBRE EL app.js INTEGRADO (no regresion de los otros cortes)
+################################################################################
+
+=== node cierre-horas-efectivas.e2e.cjs /tmp/tareas-integrado.js --riskops /tmp/tareas-bundle.js
+=== CIERRE DE TURNO — HORAS EFECTIVAS CON PAUSA DE TURNO ===
+app.js: /tmp/tareas-integrado.js | modo: informativo (las brechas se reportan aparte) | 2026-10-06T19:22:22.387Z
+
+=== RESUMEN ===
+Pasan: 13 | Fallan: 0 | Brechas abiertas: 0 | Total: 13
+RESULTADO: TODO CUMPLIDO
+[exit=0]
+
+=== node split-shift-flag.unit.cjs /tmp/tareas-integrado.js --riskops /tmp/tareas-bundle.js
+
+--- Requisito 1: sin hasSplitShift NO se ve la opción
+  [SKIP] R1.1 index.html: el botón nace oculto (display:none) para todos (OMITIDA (falta --index))
+  [SKIP] R1.D Reglas: el gestor NO puede escribir su propio hasSplitShift (users/$uid solo Admin o alta inicial) (OMITIDA (falta --rules))
+
+--- Requisito 2: con hasSplitShift SÍ se ve y cambia el estado
+
+--- Requisito 3: el supervisor lo refleja sin dañar Almuerzo/Desayuno
+
+=== RESUMEN ===
+Pasan: 21 | Fallan: 0 | Brechas abiertas: 0 | Omitidas: 2 | Total: 23
+RESULTADO: TODO CUMPLIDO
+[exit=0]
+
+=== node monitoreo-render.e2e.cjs /tmp/tareas-integrado.js
+monitoreo-render: 7 passed, 0 failed.
+[exit=0]
+
+=== node parche-pausa-turno.unit.cjs /mnt/user-data/uploads/riesgovirtualsoft/app.js
+  [OK ] E1 [BUG] original FALLA -> falta el ícono de pausa
+  [OK ] E2       original pasa
+  [OK ] E3       original pasa
+  [OK ] F1 [BUG] original FALLA -> isOnline: esperado false, obtenido true
+  [OK ] F2       original pasa
+  [OK ] F3       original pasa
+
+=== RESUMEN ===
+Integridad: 5/5
+Parchado:   21/21 pruebas pasan
+Original:   8 pruebas [BUG] fallan como se esperaba; 13 de control pasan -> coherente
+RESULTADO: PARCHE VERIFICADO
+[exit=0]
+
+=== node modales-permisos-integrado.e2e.cjs /tmp/tareas-integrado.js --riskops /tmp/tareas-bundle.js --original /mnt/user-data/uploads/riesgovirtualsoft/app.js
+=== MODALES, TAREA EXTRA, USUARIOS Y PERMISOS: app.js INTEGRADO (RiskOps.approvalsController) ===
+app.js: /tmp/tareas-integrado.js | paridad contra el original | 2026-10-06T19:22:23.064Z
+  [FAIL] U5 approveUser: confirma, escribe {approved:true, approvalDate}, avisa y recarga
+         debía leer users para recargar la tabla: esperado 2, obtenido 1
+  [FAIL] P9 cajas de permiso: aprobar y rechazar (mostrar/cancelar)
+         distinto: esperado "a", obtenido ""
+
+Resultado: 64 pasaron, 2 fallaron.
+[exit=1]
+
+=== node modales-permisos-integrado.e2e.cjs /mnt/user-data/uploads/riesgovirtualsoft/app.js
+=== MODALES, TAREA EXTRA, USUARIOS Y PERMISOS: app.js ORIGINAL ===
+app.js: /mnt/user-data/uploads/riesgovirtualsoft/app.js | 2026-10-06T19:22:23.407Z
+  [FAIL] U5 approveUser: confirma, escribe {approved:true, approvalDate}, avisa y recarga
+         debía leer users para recargar la tabla: esperado 2, obtenido 1
+  [FAIL] P9 cajas de permiso: aprobar y rechazar (mostrar/cancelar)
+         distinto: esperado "a", obtenido ""
+
+Resultado: 30 pasaron, 2 fallaron.
+[exit=1]

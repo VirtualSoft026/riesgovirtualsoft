@@ -1,0 +1,150 @@
+Log de pruebas — controlador de turno + corrección de la Pausa de Turno (integración solo-laboratorio)
+Generado: 2026-10-06T15:41:36Z | Node v22.22.2
+Comandos: cd fase_2/src ; node tests/<carpeta>/<suite>.test.mjs ; node tests/e2e/<suite>.cjs <app.js> [--strict] [--riskops <bundle>]
+
+##### PARTE 1 — Suites de fase_2/src #####
+
+--- tests/controllers/shift-controller.test.mjs ---
+shift-controller.js (RN-1..RN-4, deuda 2/4/5): 20 passed, 0 failed.
+exit=0
+
+--- tests/domain/active-session-payload.test.mjs ---
+active-session-payload (latido: estado y campos de la Pausa de Turno): 6 passed, 0 failed.
+exit=0
+
+--- tests/domain/active-session-status.test.mjs ---
+active-session-status.js (bug: Pausa de Turno invisible al supervisor): 6 passed, 0 failed.
+exit=0
+
+--- tests/domain/break-state-ownership.test.mjs ---
+break-state-ownership (estado de pausas por usuario): 10 passed, 0 failed.
+exit=0
+
+--- tests/domain/break-state-timeline-coherence.test.mjs ---
+No se pudo cargar el estado de pausas: SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+    at JSON.parse (<anonymous>)
+    at loadBreakState (file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/services/storage/local-session-storage.js:29:49)
+    at file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs:181:22
+    at test (file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/test-harness.mjs:21:13)
+    at file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs:176:1
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+No se pudo guardar el estado de pausas: Error: QuotaExceededError simulado
+    at Object.setItem (file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs:90:23)
+    at saveBreakState (file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/services/storage/local-session-storage.js:14:22)
+    at file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs:187:31
+    at getActual (node:assert:609:5)
+    at Function.doesNotThrow (node:assert:777:32)
+    at file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs:187:12
+    at test (file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/test-harness.mjs:21:13)
+    at file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs:184:1
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+break-state-timeline-coherence: 12 passed, 0 failed.
+exit=0
+
+--- tests/domain/break-transitions.test.mjs ---
+break-transitions.js: 22 passed, 0 failed.
+exit=0
+
+--- tests/domain/firebase-shift-repository.test.mjs ---
+firebase-shift-repository.js + end-shift-button.js: 9 passed, 0 failed.
+exit=0
+
+--- tests/domain/schedule-parser.test.mjs ---
+schedule-parser.js: 11 passed, 0 failed.
+exit=0
+
+--- tests/domain/shift-closure-calculations.test.mjs ---
+shift-closure-calculations (diferencial vs app.js): 8 passed, 0 failed.
+exit=0
+
+--- tests/domain/shift-closure-rules.test.mjs ---
+shift-closure-rules.js: 11 passed, 0 failed.
+exit=0
+
+--- tests/domain/shift-closure-times-split.test.mjs ---
+shift-closure-times-split (RN: la pausa no es tiempo trabajado): 12 passed, 0 failed.
+exit=0
+
+--- tests/domain/shift-effective-hours-split.test.mjs ---
+shift-effective-hours-split (Pausa de Turno no es tiempo trabajado): 7 passed, 0 failed.
+exit=0
+
+--- tests/domain/shift-report-builder.test.mjs ---
+shift-report-builder.js: 10 passed, 0 failed.
+exit=0
+
+--- tests/domain/split-shift-policy.test.mjs ---
+split-shift-policy (RN-1..RN-3): 8 passed, 0 failed.
+exit=0
+
+--- tests/ui/break-button.test.mjs ---
+break-button.js (puerto 1:1 de los estilos de app.js): 9 passed, 0 failed.
+exit=0
+
+--- tests/utils/constants.test.mjs ---
+constants.js: 6 passed, 0 failed.
+exit=0
+
+--- tests/utils/date-time.test.mjs ---
+date-time.js: 15 passed, 0 failed.
+exit=0
+
+--- tests/utils/excel.test.mjs ---
+excel.js: 13 passed, 0 failed.
+exit=0
+
+--- tests/utils/normalize.test.mjs ---
+normalize.js: 14 passed, 0 failed.
+exit=0
+
+--- tests/utils/result.test.mjs ---
+result.js: 5 passed, 0 failed.
+exit=0
+
+--- tests/utils/sanitization.test.mjs ---
+sanitization.js: 14 passed, 0 failed.
+exit=0
+
+--- tests/utils/validation.test.mjs ---
+validation.js: 7 passed, 0 failed.
+exit=0
+
+##### PARTE 2 — app.js ACTUAL del repo (con solo el parche de monitoreo): el defecto sigue, informativo #####
+         -> sin botón para retomar y con Almuerzo/Desayuno bloqueados
+
+=== RESUMEN ===
+Pasan: 19 | Fallan: 0 | Brechas abiertas: 4 | Omitidas: 0 | Total: 23
+RESULTADO: REQUISITOS CUMPLIDOS EN EL FLUJO NORMAL; HAY BRECHAS ABIERTAS (ver arriba)
+
+=== RESUMEN ===
+Pasan: 7 | Fallan: 0 | Brechas abiertas: 6 | Total: 13
+RESULTADO: SIN REGRESIONES; LA BRECHA DE HORAS EFECTIVAS SIGUE ABIERTA
+
+##### PARTE 3 — app.js INTEGRADO del laboratorio (stage.mjs) + bundle real, modo --strict #####
+Integración aplicada con fase_2/lab/integracion/aplicar-integracion.mjs sobre una copia; el repo no se modifica.
+=== FLAG hasSplitShift + PAUSA DE TURNO — PRUEBAS ===
+app.js: /tmp/app.integrado.js | modo: ESTRICTO (las brechas también fallan) | 2026-10-06T15:41:38.213Z
+
+--- Requisito 1: sin hasSplitShift NO se ve la opción
+
+--- Requisito 2: con hasSplitShift SÍ se ve y cambia el estado
+
+--- Requisito 3: el supervisor lo refleja sin dañar Almuerzo/Desayuno
+
+=== RESUMEN ===
+Pasan: 23 | Fallan: 0 | Brechas abiertas: 0 | Omitidas: 0 | Total: 23
+RESULTADO: TODO CUMPLIDO
+=== CIERRE DE TURNO — HORAS EFECTIVAS CON PAUSA DE TURNO ===
+app.js: /tmp/app.integrado.js | modo: ESTRICTO | 2026-10-06T15:41:38.361Z
+
+=== RESUMEN ===
+Pasan: 13 | Fallan: 0 | Brechas abiertas: 0 | Total: 13
+RESULTADO: TODO CUMPLIDO
+  [PASS] En Línea, sin latido 5 min: Inactivo 💤
+monitoreo-render: 7 passed, 0 failed.
+
+##### PARTE 4 — Bundle (esbuild) y su verificación #####
+BUNDLE_VERIFY=PASS (70 comprobaciones, 105.6 KB)

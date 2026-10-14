@@ -1,0 +1,9 @@
+$ node fase_2/src/tests/domain/active-session-status.test.mjs
+  [PASS] REPRODUCCIÓN DEL BUG: el código actual muestra "En Línea" a un gestor en Pausa de Turno con latido reciente
+  [PASS] REPRODUCCIÓN DEL BUG: sin latido, el código actual rotula la Pausa de Turno como "Inactivo"
+  [PASS] CORREGIDO: Pausa de Turno con latido reciente se muestra como pausa y no cuenta como En Línea en el filtro
+  [PASS] CORREGIDO: Pausa de Turno sin latido por más de 2 min sigue siendo pausa (no "Inactivo")
+  [PASS] el resto de estados es IDÉNTICO al código actual (diferencial, 6 estados x 4 latidos)
+  [PASS] Inactivo con latido reciente se muestra Inactivo (la vista ya lo soportaba)
+active-session-status.js (bug: Pausa de Turno invisible al supervisor): 6 passed, 0 failed.
+exit code: 0

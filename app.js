@@ -2448,21 +2448,31 @@ function syncActiveSessionToFirebase() {
     // responsabilidad exclusiva de persistTaskToActiveSession(), que escribe
     // por taskId de forma explícita. Así un ping periódico con un snapshot
     // desactualizado nunca puede pisar una tarea recién guardada.
-    const sessionMetadata = {
-        name: currentUser.name,
-        email: currentUser.email,
-        shift: currentUser.shift || 'Por Asignar',
-        loginTime: loginTime,
-        lastActive: newLastActive,
-        status: currentStatus,
-        totalTasks: totalTasks,
-        finalizedTasks: finalized,
-        completedTasks: completedTasks,
-        notDoneTasks: notDoneTasks,
-        percentage: percentage,
-        timeline: shiftTimeline || [],
-        appVersion: 'v104'
-    };
+    // [Fase 2] Delegado a taskSessionSync.buildSessionMetadata; fallback inline si el bundle no está cargado.
+    const sessionMetadata = (window.RiskOps && window.RiskOps.taskSessionSync)
+        ? window.RiskOps.taskSessionSync.buildSessionMetadata({
+            user: currentUser,
+            loginTime,
+            lastActive: newLastActive,
+            status: currentStatus,
+            counters: { totalTasks, finalized, completedTasks, notDoneTasks, percentage },
+            timeline: shiftTimeline
+          })
+        : {
+            name: currentUser.name,
+            email: currentUser.email,
+            shift: currentUser.shift || 'Por Asignar',
+            loginTime: loginTime,
+            lastActive: newLastActive,
+            status: currentStatus,
+            totalTasks: totalTasks,
+            finalizedTasks: finalized,
+            completedTasks: completedTasks,
+            notDoneTasks: notDoneTasks,
+            percentage: percentage,
+            timeline: shiftTimeline || [],
+            appVersion: 'v104'
+          };
 
     // No se atrapa el error de forma que oculte el fallo: se devuelve la
     // Promise real (rechazada si falla) y, aparte, se registra en consola.
@@ -2767,16 +2777,18 @@ async function initApp() {
     // Theme logic
     const themeToggleBtn = document.getElementById('themeToggleBtn');
     if (themeToggleBtn) {
-        const savedTheme = localStorage.getItem('riskOps_theme') || 'dark';
+        // [Fase 2] resolveSavedTheme / themeIconHTML / nextTheme → appInitRules
+        const _aIR = window.RiskOps && window.RiskOps.appInitRules;
+        const savedTheme = _aIR ? _aIR.resolveSavedTheme(localStorage.getItem('riskOps_theme')) : (localStorage.getItem('riskOps_theme') || 'dark');
         document.body.setAttribute('data-theme', savedTheme);
-        themeToggleBtn.innerHTML = savedTheme === 'dark' ? "<i class='bx bx-moon'></i>" : "<i class='bx bx-sun'></i>";
-        
+        themeToggleBtn.innerHTML = _aIR ? _aIR.themeIconHTML(savedTheme) : (savedTheme === 'dark' ? "<i class='bx bx-moon'></i>" : "<i class='bx bx-sun'></i>");
+
         themeToggleBtn.addEventListener('click', () => {
             const currentTheme = document.body.getAttribute('data-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            const newTheme = _aIR ? _aIR.nextTheme(currentTheme) : (currentTheme === 'dark' ? 'light' : 'dark');
             document.body.setAttribute('data-theme', newTheme);
             localStorage.setItem('riskOps_theme', newTheme);
-            themeToggleBtn.innerHTML = newTheme === 'dark' ? "<i class='bx bx-moon'></i>" : "<i class='bx bx-sun'></i>";
+            themeToggleBtn.innerHTML = _aIR ? _aIR.themeIconHTML(newTheme) : (newTheme === 'dark' ? "<i class='bx bx-moon'></i>" : "<i class='bx bx-sun'></i>");
         });
     }
 
@@ -2792,37 +2804,32 @@ async function initApp() {
         
         const avatarEl = document.querySelector('.avatar');
         if (avatarEl && currentUser.name) {
-            const availableAvatars = [
-                "Alexander Villada.png",
-                "Camilo Espinosa.png",
-                "Daniel Benavides.png",
-                "Josue Alvarez.png",
-                "Juan Jose Diaz.png",
-                "Luis Fuentes.png",
-                "Maria Sanchez.png",
-                "Marilyn Jimenez.png",
-                "Oriana Borja.png",
-                "Samuel Cruz.png",
-                "Sara Santamaria.png",
-                "Sebastian Arango.png",
-                "Sebastian Hincapie.png",
-                "Yefferson Giraldo.png"
-            ];
-            
+            // [Fase 2] findAvatarFile / buildAvatarSrc → appInitRules
+            const _aIR2 = window.RiskOps && window.RiskOps.appInitRules;
             const fullName = currentUser.name.trim();
-            // Buscar una imagen que coincida con el nombre registrado
-            let matchedAvatar = availableAvatars.find(img => namesMatch(fullName, img.replace('.png', '')));
+            let matchedAvatar;
+            if (_aIR2) {
+                matchedAvatar = _aIR2.findAvatarFile(fullName, namesMatch);
+            } else {
+                const availableAvatars = [
+                    "Alexander Villada.png","Camilo Espinosa.png","Daniel Benavides.png",
+                    "Josue Alvarez.png","Juan Jose Diaz.png","Luis Fuentes.png",
+                    "Maria Sanchez.png","Marilyn Jimenez.png","Oriana Borja.png",
+                    "Samuel Cruz.png","Sara Santamaria.png","Sebastian Arango.png",
+                    "Sebastian Hincapie.png","Yefferson Giraldo.png"
+                ];
+                matchedAvatar = availableAvatars.find(img => namesMatch(fullName, img.replace('.png', '')));
+            }
             console.log("DEBUG_AVATAR: fullName =", fullName, "matchedAvatar =", matchedAvatar);
-            
+
+            avatarEl.src = _aIR2
+                ? _aIR2.buildAvatarSrc(matchedAvatar, fullName)
+                : (matchedAvatar ? `assets/src/img/${matchedAvatar}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0D8ABC&color=fff`);
             if (matchedAvatar) {
-                avatarEl.src = `assets/src/img/${matchedAvatar}`;
-                // Fallback por si la imagen se borra o falla
                 avatarEl.onerror = function() {
                     this.onerror = null;
                     this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0D8ABC&color=fff`;
                 };
-            } else {
-                avatarEl.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0D8ABC&color=fff`;
             }
         }
 
@@ -3773,10 +3780,20 @@ async function handleEndShift() {
             formData.append("Reporte", "CIERRE DE TURNO Y RESUMEN DE TAREAS");
             formData.append("Hora_Inicio_Turno", loginDate.toLocaleString());
             formData.append("Hora_Fin_Turno", endDate.toLocaleString());
-            formData.append("Tiempo_Almuerzo_Descontado", lunchMinutes + " minutos");
-            formData.append("Tiempo_Desayuno_Descontado", breakfastMinutes + " minutos");
-            formData.append("Exceso_Pausas_Penalidad", penalidadConectividadMins + " minutos");
-            formData.append("Horas_Efectivas_Trabajadas", effectiveHours + " hrs");
+            // [Fase 2] Delegado a shiftReportBuilder.buildClosureEmailTimeFields
+            const _splitMins = totalSplitShiftTimeMs ? parseFloat((totalSplitShiftTimeMs / 60000).toFixed(1)) : 0;
+            const _emailFields = (window.RiskOps && window.RiskOps.shiftReportBuilder)
+                ? window.RiskOps.shiftReportBuilder.buildClosureEmailTimeFields(
+                    { lunchMinutes, breakfastMinutes, splitShiftMinutes: _splitMins, penaltyMins: penalidadConectividadMins, effectiveHours },
+                    totalSplitShiftTimeMs || 0
+                  )
+                : [
+                    ['Tiempo_Almuerzo_Descontado', lunchMinutes + " minutos"],
+                    ['Tiempo_Desayuno_Descontado', breakfastMinutes + " minutos"],
+                    ['Exceso_Pausas_Penalidad', penalidadConectividadMins + " minutos"],
+                    ['Horas_Efectivas_Trabajadas', effectiveHours + " hrs"]
+                  ];
+            _emailFields.forEach(([k, v]) => formData.append(k, v));
             
             // Consolidar eventos duplicados o superpuestos en shiftTimeline antes de armar la bitácora
             let cleanTimeline = [];
@@ -3828,17 +3845,19 @@ async function handleEndShift() {
                 });
             }
 
-            // Construir reporte de bitácora
-            let bitacoraTexto = "";
-            if (cleanTimeline.length > 0) {
-                cleanTimeline.forEach(ev => {
-                    const s = new Date(ev.start).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'});
-                    const eTime = ev.end ? new Date(ev.end).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'}) : "No regresó";
-                    bitacoraTexto += `- ${ev.type}: inicio ${s} fin ${eTime}\n`;
-                });
-            } else {
-                bitacoraTexto = "No se registraron pausas o inactividades.";
-            }
+            // [Fase 2] Delegado a shiftReportBuilder.buildBitacoraText
+            const bitacoraTexto = (window.RiskOps && window.RiskOps.shiftReportBuilder)
+                ? window.RiskOps.shiftReportBuilder.buildBitacoraText(cleanTimeline)
+                : (() => {
+                    if (cleanTimeline.length === 0) return "No se registraron pausas o inactividades.";
+                    let t = "";
+                    cleanTimeline.forEach(ev => {
+                        const s = new Date(ev.start).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'});
+                        const eTime = ev.end ? new Date(ev.end).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'}) : "No regresó";
+                        t += `- ${ev.type}: inicio ${s} fin ${eTime}\n`;
+                    });
+                    return t;
+                  })();
             formData.append("Bitacora_de_Tiempos", bitacoraTexto);
             
             if(setSelect) {
@@ -3868,24 +3887,41 @@ async function handleEndShift() {
 
             // --- RESPALDO SEGURO EN FIREBASE ---
             const reportUid = localUser.uid || (currentUser && currentUser.uid) || (firebase.auth().currentUser ? firebase.auth().currentUser.uid : null);
-            const shiftReportObject = {
-                uid: reportUid,
-                gestor: localUser.name,
-                rol: localUser.role,
-                horaInicio: loginDate.toLocaleString(),
-                horaFin: new Date().toLocaleString(),
-                turnoProgramado: localUser.shift || 'Por Asignar',
-                setTrabajado: setSelect ? setSelect.value : 'N/A',
-                reporte: report,
-                tasks: taskStateCache,
-                timeline: cleanTimeline,
-                penalidadConectividadMins: penalidadConectividadMins,
-                inactividadTotalMins: inactividadMinsLimpia,
-                tiempoAlmuerzoMins: lunchMinutes,
-                tiempoDesayunoMins: breakfastMinutes,
-                tiempoPausaTurnoMins: totalSplitShiftTimeMs ? parseFloat((totalSplitShiftTimeMs / 60000).toFixed(1)) : 0,
-                timestamp: Date.now()
-            };
+            // [Fase 2] Delegado a shiftReportBuilder.buildShiftReportObject
+            const shiftReportObject = (window.RiskOps && window.RiskOps.shiftReportBuilder)
+                ? window.RiskOps.shiftReportBuilder.buildShiftReportObject({
+                    uid: reportUid,
+                    localUser,
+                    loginDate,
+                    now: endDate,
+                    setSelectValue: setSelect ? setSelect.value : null,
+                    report,
+                    tasks: taskStateCache,
+                    cleanTimeline,
+                    penaltyMins: penalidadConectividadMins,
+                    cleanInactivityMins: inactividadMinsLimpia,
+                    lunchMinutes,
+                    breakfastMinutes,
+                    totalSplitShiftTimeMs: totalSplitShiftTimeMs || 0
+                  })
+                : {
+                    uid: reportUid,
+                    gestor: localUser.name,
+                    rol: localUser.role,
+                    horaInicio: loginDate.toLocaleString(),
+                    horaFin: endDate.toLocaleString(),
+                    turnoProgramado: localUser.shift || 'Por Asignar',
+                    setTrabajado: setSelect ? setSelect.value : 'N/A',
+                    reporte: report,
+                    tasks: taskStateCache,
+                    timeline: cleanTimeline,
+                    penalidadConectividadMins: penalidadConectividadMins,
+                    inactividadTotalMins: inactividadMinsLimpia,
+                    tiempoAlmuerzoMins: lunchMinutes,
+                    tiempoDesayunoMins: breakfastMinutes,
+                    tiempoPausaTurnoMins: totalSplitShiftTimeMs ? parseFloat((totalSplitShiftTimeMs / 60000).toFixed(1)) : 0,
+                    timestamp: Date.now()
+                  };
 
             // Persistencia central atómica: reporte, cierre de sesión activa y logoutTime.
             // Si cualquiera falla, no se limpia la sesión local ni se intenta enviar correo.

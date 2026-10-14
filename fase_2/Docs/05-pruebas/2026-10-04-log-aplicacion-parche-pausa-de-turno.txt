@@ -1,0 +1,55 @@
+=== 1) Prueba extremo a extremo de renderActiveSessionsDashboard() — app.js PARCHADO ===
+  [PASS] En Pausa de Turno, latido reciente: En Pausa de Turno ⏸️
+  [PASS] En Pausa de Turno, sin latido 5 min: En Pausa de Turno ⏸️
+  [PASS] En Almuerzo, latido reciente: En Almuerzo/Cena 🍽️
+  [PASS] En Desayuno, latido reciente: En Desayuno ☕
+  [PASS] Inactivo, latido reciente: Inactivo 💤
+  [PASS] En Línea, latido reciente: En Línea
+  [PASS] En Línea, sin latido 5 min: Inactivo 💤
+monitoreo-render: 7 passed, 0 failed.
+exit code: 0
+
+=== 2) Misma prueba contra el app.js ORIGINAL (esperado: 2 fallas, el bug) ===
+  [FAIL] En Pausa de Turno, latido reciente: En Línea
+  [FAIL] En Pausa de Turno, sin latido 5 min: Inactivo 💤
+monitoreo-render: 5 passed, 2 failed.
+
+=== 3) Infra QA del repositorio (.github/qa-infra) — original vs parchado ===
+--- base ---
+migration_rehearsal.test.js -> exit 0 | pass-lines=1 fail-lines=0
+frontend_security_smoke.js -> exit 0 | pass-lines=27 fail-lines=1
+cronograma_cross_month.test.js -> exit 0 | pass-lines=5 fail-lines=0
+end_shift_smoke.js -> exit 0 | pass-lines=1 fail-lines=0
+inactivity_timeline.test.js -> exit 0 | pass-lines=0 fail-lines=0
+--- new ---
+migration_rehearsal.test.js -> exit 0 | pass-lines=1 fail-lines=0
+frontend_security_smoke.js -> exit 0 | pass-lines=27 fail-lines=1
+cronograma_cross_month.test.js -> exit 0 | pass-lines=5 fail-lines=0
+end_shift_smoke.js -> exit 0 | pass-lines=1 fail-lines=0
+inactivity_timeline.test.js -> exit 0 | pass-lines=0 fail-lines=0
+
+=== 4) node --check app.js parchado ===
+SYNTAX_OK
+
+=== 5) Regresión de las suites de fase_2/src ===
+constants.js: 6 passed, 0 failed.
+date-time.js: 15 passed, 0 failed.
+excel.js: 13 passed, 0 failed.
+normalize.js: 14 passed, 0 failed.
+result.js: 5 passed, 0 failed.
+sanitization.js: 14 passed, 0 failed.
+validation.js: 7 passed, 0 failed.
+Resultado: todas las suites pasaron.
+active-session-status.js (bug: Pausa de Turno invisible al supervisor): 6 passed, 0 failed.
+break-state-timeline-coherence: 12 passed, 0 failed.
+break-transitions.js: 15 passed, 0 failed.
+firebase-shift-repository.js + end-shift-button.js: 9 passed, 0 failed.
+schedule-parser.js: 11 passed, 0 failed.
+shift-closure-calculations (diferencial vs app.js): 8 passed, 0 failed.
+shift-closure-rules.js: 11 passed, 0 failed.
+shift-report-builder.js: 10 passed, 0 failed.
+
+=== Notas de lectura del log ===
+- "fail-lines=1" en frontend_security_smoke.js es la etiqueta REMOTE_READ_FAILURE_PRODUCES_ZERO_WRITES=PASS (contiene la palabra FAIL pero es un PASS). Las trazas que imprime esa prueba son errores simulados a propósito.
+- Comparando original vs parchado, las salidas de la infra QA son idénticas salvo rutas de archivos y marcas de tiempo.
+- La infra QA se ejecutó sobre una copia temporal (app.js, index.html, login.js, database.rules.json, firebase.json y .github/qa-infra); no se pudo correr `npm run check` completo porque no se instalaron dependencias.

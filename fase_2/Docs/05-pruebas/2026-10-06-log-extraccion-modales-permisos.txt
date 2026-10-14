@@ -1,0 +1,453 @@
+=== LOG DE EXTRACCION: CORTE MODALES, TAREAS EXTRA, USUARIOS Y PERMISOS (2026-10-06) ===
+Node v22.22.2 | TZ=America/Bogota | 2026-10-06T19:42:46Z
+
+##### 1. SUITE NUEVA DEL CORTE (node <archivo>, desde fase_2/) #####
+--- src/tests/domain/approval-policy.test.mjs ---
+  [PASS] mensajes de la interfaz idénticos a los literales de app.js
+  [PASS] estados idénticos a los literales de app.js (PERMISSION_STATUS y rechazo de usuario)
+  [PASS] estado de la cuenta: pendiente=false, aprobada=true, rechazada="Rechazado"; nada más cuenta
+  [PASS] payload de aprobar usuario = { approved: true, approvalDate: <ISO> }
+  [PASS] payload de rechazar usuario = { approved: "Rechazado", rejectionReason }
+  [PASS] validateRejectionReason recorta y rechaza vacío, solo espacios, null y undefined
+  [PASS] canApproveUsers / canRejectUsers: solo Admin aprobado
+  [PASS] canManagePermissionApprovals: Admin o Supervisor aprobados
+  [PASS] visibilidad: la vista Aprobaciones es de Admin y Supervisor; la sección de usuarios solo de Admin
+  [PASS] canReadUsersList: Admin o Supervisor aprobados
+  [PASS] DESAJUSTE DOCUMENTADO: el Supervisor puede LEER users (reglas) pero no ve ni puede escribir la sección de usuarios
+  [PASS] reglas vs política (usuarios): Admin aprobado aprobar/rechazar users/$uid
+  [PASS] reglas vs política (permisos): Admin aprobado aprobar/rechazar permissions/$perm_id
+  [PASS] reglas vs política (lectura): Admin aprobado lee users
+  [PASS] reglas vs política (usuarios): Admin sin aprobar aprobar/rechazar users/$uid
+  [PASS] reglas vs política (permisos): Admin sin aprobar aprobar/rechazar permissions/$perm_id
+  [PASS] reglas vs política (lectura): Admin sin aprobar lee users
+  [PASS] reglas vs política (usuarios): Supervisor aprobado aprobar/rechazar users/$uid
+  [PASS] reglas vs política (permisos): Supervisor aprobado aprobar/rechazar permissions/$perm_id
+  [PASS] reglas vs política (lectura): Supervisor aprobado lee users
+  [PASS] reglas vs política (usuarios): Supervisor sin aprobar aprobar/rechazar users/$uid
+  [PASS] reglas vs política (permisos): Supervisor sin aprobar aprobar/rechazar permissions/$perm_id
+  [PASS] reglas vs política (lectura): Supervisor sin aprobar lee users
+  [PASS] reglas vs política (usuarios): Gestor aprobado aprobar/rechazar users/$uid
+  [PASS] reglas vs política (permisos): Gestor aprobado aprobar/rechazar permissions/$perm_id
+  [PASS] reglas vs política (lectura): Gestor aprobado lee users
+  [PASS] reglas: el gestor dueño NO puede cambiarse el status de su propio permiso (solo crear la solicitud)
+  [PASS] reglas: un Admin puede escribir approved con el texto "Rechazado" (el .validate de approved lo permite a Admin)
+  [PASS] reglas: un Supervisor puede aprobar SU PROPIA solicitud de permiso (no hay regla contra la autoaprobación)
+approval-policy.js (política de aprobaciones + contraste con database.rules.json): 29 passed, 0 failed.
+exit=0
+--- src/tests/domain/permission-service.test.mjs ---
+  [PASS] preparePermissionsView idéntico al algoritmo original (300 listas aleatorias con semilla, incluidas fechas inválidas)
+  [PASS] preparePermissionsView: 7 pendientes -> 5 visibles, aviso "de 7 pendientes", total 7
+  [PASS] preparePermissionsView: exactamente 5 pendientes no recorta ni avisa
+  [PASS] preparePermissionsView: no modifica el arreglo de entrada (filtra copias)
+  [PASS] resolvePermissionCreatedTimeText idéntico al original (horaSolicitud, derivada de id, ausentes)
+  [PASS] payload de estado idéntico al original (con motivo, sin motivo, motivo vacío, null)
+  [PASS] el payload siempre lleva notified:false (el gestor recibe la notificación)
+  [PASS] mapSnapshotEntries idéntico al original; vacío/null -> []
+  [PASS] la llave de Firebase pisa un campo `id` del propio registro (como app.js)
+  [PASS] buildApproveDecision: sin observación usa el texto por defecto; con observación la recorta
+  [PASS] buildRejectDecision: el motivo es obligatorio; entradas vacías y solo espacios se rechazan
+  [PASS] mensaje de éxito: "Permiso <estado> exitosamente."
+permission-service.js (diferencial vs app.js 4267-4448): 12 passed, 0 failed.
+exit=0
+--- src/tests/domain/user-approval-list.test.mjs ---
+  [PASS] prepareUsersApprovalList idéntico al algoritmo original (400 casos aleatorios con filtros)
+  [PASS] los rechazados NO aparecen en la lista (hallazgo: la rama "Rechazado" de la tabla es código muerto)
+  [PASS] la administradora protegida nunca aparece como aprobada, pero sí si estuviera pendiente
+  [PASS] pendientes y aprobados se ordenan juntos por fecha de registro, más reciente primero
+  [PASS] sin filtros y más de 5 filas: recorta a 5 y el aviso cuenta el total sin recortar; con filtro no recorta
+  [PASS] textos de fecha idénticos al original (con fecha, sin fecha, aprobado sin fecha, fecha inválida)
+  [PASS] formatDate inyectable (para formatos fijos en pruebas)
+user-approval-list.js (diferencial vs app.js 4111-4219): 7 passed, 0 failed.
+exit=0
+--- src/tests/domain/extra-task.test.mjs ---
+  [PASS] textos de la tarea extra idénticos a los literales de app.js
+  [PASS] textos de la justificación idénticos a app.js 4009 y 4014
+  [PASS] normalizeExtraTaskInput recorta nombre y observación; el estado pasa tal cual
+  [PASS] validateExtraTaskInput: primero el nombre, luego la observación
+  [PASS] validateExtraTaskIdentity: sin sesión, usuario local ausente o distinto, y coincidente
+  [PASS] llave y registro idénticos al original, con y sin llave pendiente (200 casos con semilla)
+  [PASS] la llave usa EXTRA_TASK_KEY_PREFIX ("extra_") y isExtraTaskKey la reconoce
+  [PASS] clasificación del error de guardado idéntica al original
+  [PASS] isKnownExtraTaskStatus acepta los 4 estados del selector (no se aplica en saveExtraTask: hallazgo)
+  [PASS] validateExceptionInput: primero la razón, luego el detalle (recortado)
+  [PASS] buildExceptionObservation idéntico al original
+extra-task.js + exception-justification.js (diferencial vs app.js 4001-4109): 11 passed, 0 failed.
+exit=0
+--- src/tests/domain/firebase-approvals-repository.test.mjs ---
+  [PASS] referencia: la ruta con llave vacía del original sería el nodo raíz (documenta el riesgo evitado)
+  [PASS] fetchUsers: lee users una vez y devuelve la lista con la llave en `id`
+  [PASS] fetchPermissions: lee permissions y devuelve la lista con la llave en `fb_id` (conserva `id`)
+  [PASS] approveUser: update en users/<id> con { approved: true, approvalDate }
+  [PASS] rejectUser: update en users/<id> con { approved: "Rechazado", rejectionReason }
+  [PASS] fetch sobre un nodo inexistente devuelve []
+  [PASS] updatePermissionStatus: con motivo -> { status, notified:false, rejectionReason }; sin motivo -> sin rejectionReason
+  [PASS] un fallo de lectura se propaga (el controlador decide qué hacer)
+  [PASS] un fallo de escritura se propaga con su código (para clasificarlo arriba)
+  [PASS] llave vacía o no textual: se rechaza ANTES de tocar Firebase (app.js escribiría el nodo raíz users)
+firebase-approvals-repository.js (rutas y payloads de app.js 4115-4441): 10 passed, 0 failed.
+exit=0
+--- src/tests/controllers/approvals-controller.test.mjs ---
+  [PASS] saveExtraTask: la llave empieza con "extra_" y el nombre con "[EXTRA] "
+  [PASS] saveExtraTask: durante el guardado el botón dice "Guardando..." y queda deshabilitado; al terminar se restaura
+  [PASS] preventDuplicates: claves distintas (otro permiso) no se bloquean entre sí
+  [PASS] enforcePolicy: un Supervisor no puede aprobar ni rechazar usuarios (aviso, sin tocar Firebase)
+  [PASS] escapeRole: escapa el rol en la insignia (apagado = idéntico a app.js)
+  [PASS] enforcePolicy: el Supervisor SÍ puede decidir permisos; un Gestor no
+  [PASS] enforcePolicy: sin usuario cargado se deniega; el Admin pasa
+  [PASS] preventDuplicates: libera la clave aunque falle la escritura (permite reintentar)
+  [PASS] un fallo al repintar la tabla tras aprobar queda registrado (no es una promesa huérfana)
+  [PASS] preventDuplicates: el doble clic en Aprobar usuario solo escribe una vez; luego se puede volver a aprobar
+  [PASS] showUserRejectBox con id inexistente lanza el mismo TypeError
+  [PASS] confirmException: sin opción seleccionada (selectedIndex -1) lanza el mismo TypeError
+  [PASS] openExceptionModal: sin el botón .btn-status.not-done lanza el mismo TypeError
+  [PASS] approveUser: el usuario cancela el confirm -> no escribe nada
+  [PASS] confirmRejectUser: motivo vacío -> "Debes escribir un motivo de rechazo." y no escribe
+  [PASS] confirmRejectUser: motivo solo espacios/saltos -> mismo aviso
+  [PASS] confirmRejectUser: sin el campo de motivo en el DOM lanza el mismo TypeError
+  [PASS] showUserRejectBox: oculta los botones y muestra la caja
+  [PASS] cancelRejectUser: vuelve a mostrar los botones y VACÍA el motivo
+  [PASS] confirmRejectPerm: motivo vacío -> aviso y sin escritura
+  [PASS] showPermApproveBox / cancelApprovePerm
+  [PASS] showPermRejectBox / cancelRejectPerm
+  [PASS] showPermApproveBox deja la caja visible (sin cancelar)
+  [PASS] showPermRejectBox deja la caja visible (sin cancelar)
+  [PASS] confirmException: sin razón -> "Por favor seleccione una razón principal."
+  [PASS] confirmException: razón sin detalle -> "Por favor detalle el problema obligatoriamente."
+  [PASS] confirmException: razón y detalle -> vuelca "Excepción: <razón> - <detalle>" y cierra el modal
+  [PASS] openExceptionModal: marca "No Realizada", limpia razón/detalle y abre el modal
+  [PASS] closeModal: quita "active"; un id inexistente no hace nada
+  [PASS] openExtraTaskModal: limpia el formulario (estado "Finalizada") y abre el modal
+  [PASS] openExtraTaskModal: sin el modal en el DOM no toca nada
+  [PASS] saveExtraTask: nombre vacío -> OBLIGATORIO nombre
+  [PASS] saveExtraTask: observación vacía -> OBLIGATORIO notas técnicas
+  [PASS] saveExtraTask: nombre y observación vacíos -> el aviso del nombre (se valida primero)
+  [PASS] saveExtraTask: sin sesión de Firebase -> "Tu sesión expiró..."
+  [PASS] saveExtraTask: sin sesión (undefined) -> "Tu sesión expiró..."
+  [PASS] saveExtraTask: usuario local distinto -> "No se pudo verificar tu identidad..."
+  [PASS] saveExtraTask: sin usuario local -> "No se pudo verificar tu identidad..."
+  [PASS] renderPendingUsers: sin nodo users muestra "No hay usuarios que coincidan"
+  [PASS] renderPendingUsers: lista pequeña (pendiente, aprobado, rechazado oculto, administradora oculta, id con comillas)
+  [PASS] renderPendingUsers: más de 5 sin filtros recorta a 5 y agrega el aviso tras 100 ms
+  [PASS] renderPendingUsers: con búsqueda "gestor 1" (sin recorte, quita el aviso)
+  [PASS] renderPendingUsers: filtro de estado Pendiente
+  [PASS] renderPendingUsers: filtro de estado Aprobado + búsqueda con acentos "ange"
+  [PASS] renderPendingUsers: filtros que no coinciden con nadie
+  [PASS] renderPendingUsers: sin controles de filtro en el DOM usa Todos y vacío
+  [PASS] renderPendingUsers: falla la lectura de Firebase -> registra el error y muestra la tabla vacía
+  [PASS] renderPendingUsers: usuarios sin nombre/rol/fechas y fecha inválida
+  [PASS] renderPendingUsers: sin el <tbody> no hace nada (ni lee Firebase)
+  [PASS] approveUser: confirma, escribe {approved:true, approvalDate}, avisa y recarga la tabla
+  [PASS] approveUser: falla Firebase -> "Error al contactar al servidor" y NO recarga
+  [PASS] approveUser: id con caracteres especiales
+  [PASS] confirmRejectUser: motivo válido (se recorta) -> {approved:"Rechazado", rejectionReason}
+  [PASS] confirmRejectUser: falla Firebase -> error genérico
+  [PASS] renderPendingPermissions: sin nodo permissions -> "No hay permisos pendientes de aprobación."
+  [PASS] renderPendingPermissions: pendientes + historial (con tabla de historial presente)
+  [PASS] renderPendingPermissions: sin tabla de historial (como index.html real) solo pinta pendientes
+  [PASS] renderPendingPermissions: más de 5 pendientes recorta y agrega aviso
+  [PASS] renderPendingPermissions: sin pendientes NO pinta el historial (comportamiento de app.js)
+  [PASS] renderPendingPermissions: falla la lectura -> registra el error y muestra la bandeja vacía
+  [PASS] updatePermissionStatus directo sin motivo: no escribe rejectionReason
+  [PASS] updatePermissionStatus con motivo vacío "" tampoco escribe rejectionReason
+  [PASS] updatePermissionStatus: tras el éxito recarga la bandeja y el historial (loadPermisos)
+  [PASS] saveExtraTask: éxito guarda en active_sessions/<uid>/tasks/extra_<ms>, respalda en localStorage y cierra el modal
+  [PASS] saveExtraTask: éxito sin botón en el DOM
+  [PASS] saveExtraTask: nombre y observación se recortan; el estado viaja tal cual
+  [PASS] saveExtraTask: PERMISSION_DENIED -> "No tienes permiso..." y el botón se restaura
+  [PASS] saveExtraTask: error genérico (sin código) -> "No se pudo guardar... respaldado localmente"
+  [PASS] saveExtraTask: error con mensaje "permission denied" (sin código) también se trata como permiso
+  [PASS] saveExtraTask: localStorage lleno no impide guardar (respaldo best-effort)
+  [PASS] confirmApprovePerm: sin observación guarda "Aprobado sin observaciones adicionales"
+  [PASS] confirmApprovePerm: observación con espacios se recorta
+  [PASS] confirmApprovePerm: solo espacios = sin observación
+  [PASS] confirmRejectPerm: motivo válido -> {status:"Rechazado", notified:false, rejectionReason}
+  [PASS] confirmRejectPerm: falla Firebase -> error genérico y no recarga
+  [PASS] doble clic en Aprobar usuario: igual que app.js (dos confirmaciones y dos escrituras)
+  [PASS] saveExtraTask: doble clic -> la segunda llamada se ignora mientras guarda
+  [PASS] renderPendingUsers: dos renders seguidos reemplazan el aviso (no lo duplican)
+  [PASS] renderPendingPermissions: dos renders seguidos no duplican el aviso
+  [PASS] doble clic en confirmar rechazo de permiso: igual que app.js (dos escrituras y dos alertas)
+  [PASS] saveExtraTask: tras un fallo, el reintento REUTILIZA la misma llave extra_<ms>
+  [PASS] saveExtraTask: tras un fallo, reabrir el modal arranca una tarea NUEVA (otra llave)
+  [PASS] renderPendingUsers: aleatorio con semilla (80 conjuntos de usuarios y filtros) idéntico al original
+  [PASS] renderPendingPermissions: aleatorio con semilla (80 conjuntos) idéntico al original
+approvals-controller.js (diferencial vs app.js 3975-4448 + opciones propias): 84 passed, 0 failed.
+exit=0
+--- src/tests/ui/approvals-components.test.mjs ---
+  [PASS] fila vacía de usuarios: texto y estructura del original
+  [PASS] acciones de usuario: pendiente -> botones con los mismos manejadores y ids; aprobado/rechazado -> etiqueta
+  [PASS] el id con comillas/menor-que se escapa en el id y se codifica en el manejador (sin romper el atributo)
+  [PASS] insignia del rol: sin escapar por defecto (como app.js); con escapeRole se escapa
+  [PASS] filas vacías de permisos: textos del original
+  [PASS] permiso pendiente: manejadores y ids de las tres cajas (acciones, aprobar, rechazar)
+  [PASS] USER_REJECT: mostrar oculta los botones y muestra la caja; cancelar lo revierte y vacía el motivo
+  [PASS] PERMISSION_REJECT: mostrar oculta los botones y muestra la caja; cancelar lo revierte y vacía el motivo
+  [PASS] PERMISSION_APPROVE: mostrar oculta los botones y muestra la caja; cancelar lo revierte y vacía el motivo
+  [PASS] los tres tipos de caja usan los prefijos de id de app.js
+  [PASS] una caja inexistente lanza TypeError (como app.js: no se enmascara)
+  [PASS] showListNotice agrega el aviso con estilo e id al contenedor del contenedor de la tabla y lo reemplaza
+  [PASS] showListNotice con requireTable no hace nada si la tabla ya no existe; removeListNotice es idempotente
+  [PASS] ids de los avisos idénticos a app.js (pendingMostrandoMsg / pendingPermsMostrandoMsg)
+  [PASS] openModal / closeModal agregan y quitan "active"; un id inexistente no falla
+  [PASS] openExceptionModal: deja activo solo "No Realizada", limpia razón y detalle y abre el modal
+  [PASS] openExceptionModal sin el botón .not-done lanza TypeError; sin campos opcionales sigue (como app.js)
+  [PASS] openExtraTaskModal: limpia el formulario, fija el estado inicial y devuelve true; sin modal devuelve false y no toca nada
+  [PASS] fila de usuario pendiente: HTML idéntico al original
+  [PASS] fila de usuario aprobado (con y sin fecha de aprobación): HTML idéntico
+  [PASS] fila de historial: HTML idéntico al original (Aprobado y Rechazado)
+  [PASS] fila de permiso pendiente: HTML idéntico al original (con y sin horaSolicitud, campos faltantes)
+componentes de aprobaciones (HTML idéntico al de app.js 4111-4448 + cajas, modales y avisos): 22 passed, 0 failed.
+exit=0
+
+##### 2. REGRESION COMPLETA DE src/tests/{domain,utils,ui,controllers} #####
+--- src/tests/controllers/announcements-controller.test.mjs ---
+announcements-controller (comunicados con base y DOM simulados): 27 passed, 0 failed.
+--- src/tests/controllers/app-router.test.mjs ---
+app-router (navegación por rol: diferencial vs setupSidebar, alignAdministrativeControlsByRole, updateNavigation): 9 passed, 0 failed.
+--- src/tests/controllers/approvals-controller.test.mjs ---
+approvals-controller.js (diferencial vs app.js 3975-4448 + opciones propias): 84 passed, 0 failed.
+--- src/tests/controllers/config-gestores-controller.test.mjs ---
+config-gestores-controller (interruptor de Pausa de Turno con base y DOM simulados): 11 passed, 0 failed.
+--- src/tests/controllers/incidents-controller.test.mjs ---
+incidents-controller (novedades con base y DOM simulados): 9 passed, 0 failed.
+--- src/tests/controllers/login-history-controller.test.mjs ---
+login-history-controller (modal de accesos con base y DOM simulados): 6 passed, 0 failed.
+--- src/tests/controllers/monitoring-controller.test.mjs ---
+monitoring-controller (listener, tarjetas, bitácora, detalle y desplegable de gestores): 10 passed, 0 failed.
+--- src/tests/controllers/profile-notifications-controller.test.mjs ---
+profile-controller / notifications-controller (perfil, contraseña y notificaciones): 9 passed, 0 failed.
+--- src/tests/controllers/shift-controller.test.mjs ---
+shift-controller.js (RN-1..RN-4, deuda 2/4/5): 20 passed, 0 failed.
+--- src/tests/controllers/shift-reports-controller.test.mjs ---
+shift-reports-controller (historial de turnos: carga, filtros, modal y PDF): 10 passed, 0 failed.
+--- src/tests/controllers/task-controller.test.mjs ---
+task-controller.js (recuperación, latido, guardado, selección, arranque; diferencial vs app.js): 18 passed, 0 failed.
+--- src/tests/controllers/task-loaders-controller.test.mjs ---
+task-loaders-controller.js (loadExcelTasks, loadSchedule, loadTeletrabajo, loadPermisos, detalle de permiso; diferencial vs app.js): 8 passed, 0 failed.
+--- src/tests/domain/active-session-payload.test.mjs ---
+active-session-payload (latido: estado y campos de la Pausa de Turno): 6 passed, 0 failed.
+--- src/tests/domain/active-session-status.test.mjs ---
+active-session-status.js (bug: Pausa de Turno invisible al supervisor): 6 passed, 0 failed.
+--- src/tests/domain/active-supervisors.test.mjs ---
+active-supervisors (insignia de supervisor activo; diferencial vs app.js 8329-8396): 7 passed, 0 failed.
+--- src/tests/domain/announcement-service.test.mjs ---
+announcement-service (comunicados: lógica pura, diferencial vs app.js 6555-6965): 25 passed, 0 failed.
+--- src/tests/domain/approval-policy.test.mjs ---
+approval-policy.js (política de aprobaciones + contraste con database.rules.json): 29 passed, 0 failed.
+--- src/tests/domain/auth-service.test.mjs ---
+auth-service / notification-rules (política de navegación, controles administrativos, contraseña, notificaciones): 16 passed, 0 failed.
+--- src/tests/domain/break-state-ownership.test.mjs ---
+break-state-ownership (estado de pausas por usuario): 10 passed, 0 failed.
+--- src/tests/domain/break-state-timeline-coherence.test.mjs ---
+break-state-timeline-coherence: 12 passed, 0 failed.
+--- src/tests/domain/break-transitions.test.mjs ---
+break-transitions.js: 22 passed, 0 failed.
+--- src/tests/domain/extra-task.test.mjs ---
+extra-task.js + exception-justification.js (diferencial vs app.js 4001-4109): 11 passed, 0 failed.
+--- src/tests/domain/firebase-approvals-repository.test.mjs ---
+firebase-approvals-repository.js (rutas y payloads de app.js 4115-4441): 10 passed, 0 failed.
+--- src/tests/domain/firebase-shift-repository.test.mjs ---
+firebase-shift-repository.js + end-shift-button.js: 9 passed, 0 failed.
+--- src/tests/domain/gestor-config.test.mjs ---
+gestor-config (configuración de gestores y flag hasSplitShift; diferencial vs app.js 6757-6834): 13 passed, 0 failed.
+--- src/tests/domain/historial-repositories.test.mjs ---
+repositorios Firebase del corte historial/navegación (base inyectada, sin red): 7 passed, 0 failed.
+--- src/tests/domain/incident-service.test.mjs ---
+incident-service + incidents-view (novedades; diferencial vs app.js 8724-8815): 8 passed, 0 failed.
+--- src/tests/domain/kpi-data-sources.test.mjs ---
+kpi-data-sources (JSON operativo y lecturas de Firebase): 12 passed, 0 failed.
+--- src/tests/domain/kpi-metrics-calculator.test.mjs ---
+metrics-calculator (KPIs y Control Operativo): 31 passed, 0 failed.
+--- src/tests/domain/kpi-operativo-analysis.test.mjs ---
+operativo-analysis (Análisis Textual del Control Operativo): 14 passed, 0 failed.
+--- src/tests/domain/kpi-service.test.mjs ---
+kpi-service (fusión de reportes, gestores de KPIs, retiros): 16 passed, 0 failed.
+--- src/tests/domain/login-history.test.mjs ---
+login-history (historial de accesos; diferencial vs app.js 8402-8628): 12 passed, 0 failed.
+--- src/tests/domain/monitoring-view.test.mjs ---
+monitoring-view (tarjetas de Monitoreo: filtros, estado, retraso, tareas, bitácora y detalle): 14 passed, 0 failed.
+--- src/tests/domain/permission-service.test.mjs ---
+permission-service.js (diferencial vs app.js 4267-4448): 12 passed, 0 failed.
+--- src/tests/domain/presence-and-counter.test.mjs ---
+presence-service + approved-counter (base simulada con transacciones y desconexiones; diferencial vs app.js 8654-8721): 16 passed, 0 failed.
+--- src/tests/domain/schedule-parser.test.mjs ---
+schedule-parser.js: 11 passed, 0 failed.
+--- src/tests/domain/shift-closure-calculations.test.mjs ---
+shift-closure-calculations (diferencial vs app.js): 8 passed, 0 failed.
+--- src/tests/domain/shift-closure-rules.test.mjs ---
+shift-closure-rules.js: 11 passed, 0 failed.
+--- src/tests/domain/shift-closure-times-split.test.mjs ---
+shift-closure-times-split (RN: la pausa no es tiempo trabajado): 12 passed, 0 failed.
+--- src/tests/domain/shift-effective-hours-split.test.mjs ---
+shift-effective-hours-split (Pausa de Turno no es tiempo trabajado): 7 passed, 0 failed.
+--- src/tests/domain/shift-report-builder.test.mjs ---
+shift-report-builder.js: 10 passed, 0 failed.
+--- src/tests/domain/shift-report-view.test.mjs ---
+shift-report-view (filtros, bitácora, PDF y tiempo efectivo del panel de reportes): 13 passed, 0 failed.
+--- src/tests/domain/split-shift-policy.test.mjs ---
+split-shift-policy (RN-1..RN-3): 8 passed, 0 failed.
+--- src/tests/domain/task-pure-rules.test.mjs ---
+reglas puras de tareas (reloj, progreso, latido, recuperación, guardado, selección, catálogo; diferencial vs app.js): 21 passed, 0 failed.
+--- src/tests/domain/task-repository.test.mjs ---
+firebase-task-repository.js (persistencia de tareas del gestor; diferencial vs app.js): 21 passed, 0 failed.
+--- src/tests/domain/user-approval-list.test.mjs ---
+user-approval-list.js (diferencial vs app.js 4111-4219): 7 passed, 0 failed.
+--- src/tests/ui/approvals-components.test.mjs ---
+componentes de aprobaciones (HTML idéntico al de app.js 4111-4448 + cajas, modales y avisos): 22 passed, 0 failed.
+--- src/tests/ui/break-button.test.mjs ---
+break-button.js (puerto 1:1 de los estilos de app.js): 9 passed, 0 failed.
+--- src/tests/ui/kpi-chart-configs.test.mjs ---
+operativo-chart-configs (gráficas del Control Operativo): 19 passed, 0 failed.
+--- src/tests/ui/shift-reports-view.test.mjs ---
+shift-reports-view (HTML de la tabla, el modal "Ver Todo" y el PDF del historial de turnos): 7 passed, 0 failed.
+--- src/tests/ui/task-views.test.mjs ---
+vistas de tareas y permisos (árbol, KPI, documentos rápidos, notificaciones; diferencial vs app.js): 10 passed, 0 failed.
+--- src/tests/utils/constants.test.mjs ---
+constants.js: 6 passed, 0 failed.
+--- src/tests/utils/date-time.test.mjs ---
+date-time.js: 15 passed, 0 failed.
+--- src/tests/utils/excel.test.mjs ---
+excel.js: 13 passed, 0 failed.
+--- src/tests/utils/normalize.test.mjs ---
+normalize.js: 14 passed, 0 failed.
+--- src/tests/utils/result.test.mjs ---
+result.js: 5 passed, 0 failed.
+--- src/tests/utils/sanitization.test.mjs ---
+sanitization.js: 14 passed, 0 failed.
+--- src/tests/utils/validation.test.mjs ---
+validation.js: 7 passed, 0 failed.
+REGRESION TOTAL: pasan=809 fallan=0 suites_con_error=[]
+
+##### 3. BUNDLE Y APP.JS INTEGRADO #####
+BUNDLE_OK /tmp/mp-bundle.js
+INTEGRADO /tmp/mp-integrado.js 47 pasos
+
+##### 4. E2E DEL CORTE contra el ORIGINAL (solo escenarios) #####
+=== MODALES, TAREA EXTRA, USUARIOS Y PERMISOS: app.js ORIGINAL ===
+app.js: /mnt/user-data/uploads/riesgovirtualsoft/app.js | 2026-10-06T19:42:55.653Z
+  [PASS] U1 renderPendingUsers: lista pequeña (oculta rechazados y a la administradora; escapa el nombre)
+  [PASS] U2 renderPendingUsers: más de 5 sin filtros recorta a 5 y el aviso aparece tras 100 ms
+  [PASS] U3 renderPendingUsers: con búsqueda no recorta y retira el aviso
+  [PASS] U4 renderPendingUsers: sin datos o con fallo de lectura muestra "No hay usuarios que coincidan"
+  [PASS] U5 approveUser: confirma, escribe {approved:true, approvalDate}, avisa y recarga
+  [PASS] U6 approveUser: si se cancela el confirm no escribe
+  [PASS] U7 approveUser: fallo de Firebase -> "Error al contactar al servidor" y no recarga
+  [PASS] U8 confirmRejectUser: motivo vacío (o solo espacios) -> aviso y sin escritura
+  [PASS] U9 confirmRejectUser: motivo válido -> {approved:"Rechazado", rejectionReason} y mensaje de éxito
+  [PASS] U10 confirmRejectUser: fallo de Firebase -> error genérico
+  [PASS] U11 cajas de usuario: mostrar y cancelar (cancelar vacía el motivo)
+  [PASS] U12 doble clic en Aprobar usuario: igual que el original (dos confirmaciones y dos escrituras)
+  [PASS] P1 renderPendingPermissions: pendientes recientes primero, sin historial si no existe la tabla
+  [PASS] P2 renderPendingPermissions: con tabla de historial pinta los procesados
+  [PASS] P3 renderPendingPermissions: más de 5 recorta y avisa "de 8 pendientes"
+  [PASS] P4 renderPendingPermissions: sin pendientes -> mensaje (y el historial NO se pinta)
+  [PASS] P5 confirmApprovePerm: sin observación guarda "Aprobado sin observaciones adicionales"
+  [PASS] P6 confirmRejectPerm: motivo vacío -> aviso; válido -> {status:"Rechazado", notified:false, rejectionReason}
+  [PASS] P7 updatePermissionStatus: fallo de Firebase -> error genérico y sin recargas
+  [PASS] P8 updatePermissionStatus: sin motivo no escribe rejectionReason
+  [PASS] P9 cajas de permiso: aprobar y rechazar (mostrar/cancelar)
+  [PASS] P10 doble clic en confirmar rechazo de permiso: igual que el original (dos escrituras y dos alertas)
+  [PASS] M1 confirmException: sin razón / sin detalle / completo (vuelca el texto y cierra el modal)
+  [PASS] M2 openExceptionModal abre el modal, marca "No Realizada" y limpia; closeModal lo cierra (id inexistente no falla)
+  [PASS] E1 openExtraTaskModal limpia el formulario y fija "Finalizada"
+  [PASS] E2 saveExtraTask: nombre vacío, observación vacía y sin sesión
+  [PASS] E3 saveExtraTask: identidad distinta -> "No se pudo verificar tu identidad"
+  [PASS] E4 saveExtraTask: éxito guarda en active_sessions/<uid>/tasks/extra_<ms>, respalda en localStorage, actualiza KPI y cierra
+  [PASS] E5 saveExtraTask: permiso denegado -> mensaje de permiso, botón restaurado, modal abierto
+  [PASS] E6 saveExtraTask: el reintento tras un fallo REUTILIZA la llave; reabrir el modal genera otra
+  [PASS] E7 saveExtraTask: doble clic -> la segunda llamada se ignora mientras guarda; localStorage lleno no impide guardar
+  [PASS] E8 saveExtraTask: error genérico -> "No se pudo guardar... respaldado localmente"
+
+Resultado: 32 pasaron, 0 fallaron.
+exit=0
+
+##### 5. E2E DEL CORTE: app.js INTEGRADO + bundle real, con paridad contra el original #####
+=== MODALES, TAREA EXTRA, USUARIOS Y PERMISOS: app.js INTEGRADO (RiskOps.approvalsController) ===
+app.js: /tmp/mp-integrado.js | paridad contra el original | 2026-10-06T19:42:55.780Z
+  [PASS] integración: las 18 funciones siguen siendo globales (los onclick de index.html y del HTML generado las resuelven)
+  [PASS] integración: el original ya no escribe en Firebase por su cuenta (delega en el bundle)
+  [PASS] U1 renderPendingUsers: lista pequeña (oculta rechazados y a la administradora; escapa el nombre)
+  [PASS] U1 paridad con el original
+  [PASS] U2 renderPendingUsers: más de 5 sin filtros recorta a 5 y el aviso aparece tras 100 ms
+  [PASS] U2 paridad con el original
+  [PASS] U3 renderPendingUsers: con búsqueda no recorta y retira el aviso
+  [PASS] U3 paridad con el original
+  [PASS] U4 renderPendingUsers: sin datos o con fallo de lectura muestra "No hay usuarios que coincidan"
+  [PASS] U4 paridad con el original
+  [PASS] U5 approveUser: confirma, escribe {approved:true, approvalDate}, avisa y recarga
+  [PASS] U5 paridad con el original
+  [PASS] U6 approveUser: si se cancela el confirm no escribe
+  [PASS] U6 paridad con el original
+  [PASS] U7 approveUser: fallo de Firebase -> "Error al contactar al servidor" y no recarga
+  [PASS] U7 paridad con el original
+  [PASS] U8 confirmRejectUser: motivo vacío (o solo espacios) -> aviso y sin escritura
+  [PASS] U8 paridad con el original
+  [PASS] U9 confirmRejectUser: motivo válido -> {approved:"Rechazado", rejectionReason} y mensaje de éxito
+  [PASS] U9 paridad con el original
+  [PASS] U10 confirmRejectUser: fallo de Firebase -> error genérico
+  [PASS] U10 paridad con el original
+  [PASS] U11 cajas de usuario: mostrar y cancelar (cancelar vacía el motivo)
+  [PASS] U11 paridad con el original
+  [PASS] U12 doble clic en Aprobar usuario: igual que el original (dos confirmaciones y dos escrituras)
+  [PASS] U12 paridad con el original
+  [PASS] P1 renderPendingPermissions: pendientes recientes primero, sin historial si no existe la tabla
+  [PASS] P1 paridad con el original
+  [PASS] P2 renderPendingPermissions: con tabla de historial pinta los procesados
+  [PASS] P2 paridad con el original
+  [PASS] P3 renderPendingPermissions: más de 5 recorta y avisa "de 8 pendientes"
+  [PASS] P3 paridad con el original
+  [PASS] P4 renderPendingPermissions: sin pendientes -> mensaje (y el historial NO se pinta)
+  [PASS] P4 paridad con el original
+  [PASS] P5 confirmApprovePerm: sin observación guarda "Aprobado sin observaciones adicionales"
+  [PASS] P5 paridad con el original
+  [PASS] P6 confirmRejectPerm: motivo vacío -> aviso; válido -> {status:"Rechazado", notified:false, rejectionReason}
+  [PASS] P6 paridad con el original
+  [PASS] P7 updatePermissionStatus: fallo de Firebase -> error genérico y sin recargas
+  [PASS] P7 paridad con el original
+  [PASS] P8 updatePermissionStatus: sin motivo no escribe rejectionReason
+  [PASS] P8 paridad con el original
+  [PASS] P9 cajas de permiso: aprobar y rechazar (mostrar/cancelar)
+  [PASS] P9 paridad con el original
+  [PASS] P10 doble clic en confirmar rechazo de permiso: igual que el original (dos escrituras y dos alertas)
+  [PASS] P10 paridad con el original
+  [PASS] M1 confirmException: sin razón / sin detalle / completo (vuelca el texto y cierra el modal)
+  [PASS] M1 paridad con el original
+  [PASS] M2 openExceptionModal abre el modal, marca "No Realizada" y limpia; closeModal lo cierra (id inexistente no falla)
+  [PASS] M2 paridad con el original
+  [PASS] E1 openExtraTaskModal limpia el formulario y fija "Finalizada"
+  [PASS] E1 paridad con el original
+  [PASS] E2 saveExtraTask: nombre vacío, observación vacía y sin sesión
+  [PASS] E2 paridad con el original
+  [PASS] E3 saveExtraTask: identidad distinta -> "No se pudo verificar tu identidad"
+  [PASS] E3 paridad con el original
+  [PASS] E4 saveExtraTask: éxito guarda en active_sessions/<uid>/tasks/extra_<ms>, respalda en localStorage, actualiza KPI y cierra
+  [PASS] E4 paridad con el original
+  [PASS] E5 saveExtraTask: permiso denegado -> mensaje de permiso, botón restaurado, modal abierto
+  [PASS] E5 paridad con el original
+  [PASS] E6 saveExtraTask: el reintento tras un fallo REUTILIZA la llave; reabrir el modal genera otra
+  [PASS] E6 paridad con el original
+  [PASS] E7 saveExtraTask: doble clic -> la segunda llamada se ignora mientras guarda; localStorage lleno no impide guardar
+  [PASS] E7 paridad con el original
+  [PASS] E8 saveExtraTask: error genérico -> "No se pudo guardar... respaldado localmente"
+  [PASS] E8 paridad con el original
+
+Resultado: 66 pasaron, 0 fallaron.
+exit=0
+##### 6. SUITES E2E DEL CONTROLADOR DE TURNO CONTRA EL APP.JS INTEGRADO CON ESTE CORTE (sin solape de anclas ni regresion) #####
+--- split-shift-flag.unit.cjs --strict ---
+  [PASS] R3.4 Secuencia Pausa → Almuerzo → Desayuno: 3 eventos cerrados, cada estado visible a su tiempo
+  [PASS] B3 [BRECHA] Flag revocado en plena pausa: el gestor no debe quedar bloqueado para Almuerzo/Desayuno
+
+=== RESUMEN ===
+Pasan: 21 | Fallan: 0 | Brechas abiertas: 0 | Omitidas: 2 | Total: 23
+RESULTADO: TODO CUMPLIDO
+--- cierre-horas-efectivas.e2e.cjs --strict ---
+  [PASS] H13 El reporte guardado en Firebase conserva tiempoPausaTurnoMins (para el panel de reportes)
+
+=== RESUMEN ===
+Pasan: 13 | Fallan: 0 | Brechas abiertas: 0 | Total: 13
+RESULTADO: TODO CUMPLIDO
+--- monitoreo-render.e2e.cjs ---
+  [PASS] En Línea, latido reciente: En Línea
+  [PASS] En Línea, sin latido 5 min: Inactivo 💤
+monitoreo-render: 7 passed, 0 failed.

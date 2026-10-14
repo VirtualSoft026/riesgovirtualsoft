@@ -61,7 +61,7 @@ esta fase busca evitar es doble:
 Dicho de otra forma: estas pruebas no buscan demostrar que el código es perfecto — varias de
 ellas documentan explícitamente límites reales del código actual (el `0` tratado como vacío, el
 formato `DD/MM/YYYY` que puede fallar). Buscan dejar un registro verificable de **qué hace** cada
-función hoy, para que cualquier cambio futuro — propio o de otra sesión de Claude — se pueda
+función hoy, para que cualquier cambio futuro se pueda
 comparar contra algo concreto en vez de against la intención original.
 
 ## 3. Metodología

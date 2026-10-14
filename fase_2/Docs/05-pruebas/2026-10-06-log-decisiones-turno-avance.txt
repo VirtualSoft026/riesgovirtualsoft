@@ -1,0 +1,413 @@
+LOG — Implementación de las decisiones D1 y D8 (grupo "turno-avance"), 2026-10-06
+==================================================================================
+
+D1  Horas efectivas: UNA fórmula para correo y panel.
+    Efectivas = duración − almuerzo − desayuno − Pausa de Turno − inactividad (nunca negativo).
+    Penalidad (exceso almuerzo + exceso desayuno + inactividad) se calcula igual y es INFORMATIVA.
+    Módulo nuevo: src/domain/shifts/effective-time.js (computeEffectiveMinutes, formatEffectiveHours,
+    resolveReportInactivityMinutes, computeSavedReportEffectiveMinutes). Lo consumen:
+      - correo/cierre: shift-calculator.calculateShiftClosureTimes -> shift-controller.computeShiftClosure ->
+        buildClosureEmailTimeFields; en el lab, aplicar-integracion.mjs pasa la inactividad CONSOLIDADA
+        (= inactividadTotalMins del reporte) como cleanInactivityMins.
+      - panel: shift-report-view.computeReportEffectiveMinutes (por defecto) y, en el lab, el paso PROPUESTO
+        lab/integracion/turno-avance-paso-panel-d1.mjs (fuera de pasos/: pertenece al corte KPIs).
+    Reportes antiguos sin inactividadTotalMins: inactividad = penalidad − max(0, almuerzo−60) − max(0, desayuno−15).
+
+D8  Porcentaje de avance: formatProgress(current, total) = Math.round(current/total*100), 0 si total<=0/no finito.
+    src/domain/tasks/task-progress.js; latido (computeSyncPercentage) y tarjeta KPI del gestor
+    (computeKpiFigures.totalPercentage) lo usan. Legacy solo con computeKpiFigures(c, { legacy: true }) /
+    createTaskWorkspaceController({ legacyProgress: true }) para las pruebas diferenciales.
+
+NOTA: las fallas de la sección 2 y 5 (kpi-*, monitoring-*, announcements, kpis/historial/comunicados e2e) son de
+cambios EN CURSO de otros agentes (mensajes "decisión D9b: excludedNames ya no se admite", D4 comunicados); no tocan
+archivos de esta zona. Salida REAL a continuación.
+
+=== LOG DECISIONES D1 y D8 — grupo turno-avance — 2026-10-06T17:20:32-05:00 ===
+node v22.22.2
+
+############ 1. SUITES DE MI ZONA (salida completa) ############
+
+--- node tests/domain/shift-effective-time-d1.test.mjs
+  [PASS] computeEffectiveMinutes: turno − almuerzo − desayuno − pausa − inactividad
+  [PASS] computeEffectiveMinutes: nunca negativo; null/undefined/NaN/texto no numérico cuentan como 0; texto numérico se interpreta
+  [PASS] formatEffectiveHours: 2 decimales, piso en 0
+  [PASS] resolveReportInactivityMinutes: usa inactividadTotalMins cuando existe (aunque haya penalidad)
+  [PASS] resolveReportInactivityMinutes: reporte antiguo -> penalidad − exceso de almuerzo (>60) − exceso de desayuno (>15), piso 0, 1 decimal
+  [PASS] resolveReportInactivityMinutes: sin inactividad ni penalidad -> 0 (sin-dato); valores no numéricos se ignoran
+  [PASS] computeSavedReportEffectiveMinutes: campos del reporte con la fórmula única
+  [PASS] cierre: ejemplo del plan — 08:00-18:00, almuerzo 30, pausa 180, sin inactividad = 6.50 h (correo y panel)
+  [PASS] cierre: el exceso de almuerzo NO se resta dos veces (10 h con 75 min de almuerzo = 525 min = 8.75 h; antes 8.50 h)
+  [PASS] cierre: el exceso de desayuno NO se resta dos veces (8 h con 25 min de desayuno = 455 min = 7.58 h; antes 7.42 h)
+  [PASS] cierre: la inactividad SÍ se resta (una vez): 10 h con 30 min de inactividad = 9.50 h
+  [PASS] cierre: la Pausa de Turno no genera penalidad (RN-4) y se resta de las horas
+  [PASS] cierre: inactividad dentro del almuerzo cuenta en la penalidad (como antes) pero NO se resta otra vez de las horas
+  [PASS] cierre: sin effectiveInactivityMins se resta inactivityMins (compatibilidad del parámetro)
+  [PASS] cierre: nunca negativo
+  [PASS] el correo conserva los mismos campos y el mismo orden (la penalidad sigue apareciendo)
+  [PASS] el reporte guardado trae todo lo que el panel necesita (inactividadTotalMins ya se guarda; no hace falta campo nuevo)
+  [PASS] COHERENCIA: correo y panel dan las mismas horas en 400 cierres aleatorios (pausas, excesos, inactividad dentro y fuera de pausas)
+shift-effective-time-d1 (fórmula única de horas efectivas: correo = panel): 18 passed, 0 failed.
+
+--- node tests/domain/shift-closure-times-split.test.mjs
+  [PASS] H1: sin pausa, 8 h con 30 min de almuerzo = 7.50 h (sin regresión)
+  [PASS] H2 (D1): sin pausa, la penalidad se informa igual (30 min) pero no se resta: 600-75-20-10 min = 8.25 h (antes 7.92 h)
+  [PASS] H3: con pausa 180 min, 08:00-18:00 y almuerzo 30 = 6.50 h (antes 9.50 h)
+  [PASS] H4: cada minuto de pausa resta exactamente 1/60 h (90 min = 1.50 h)
+  [PASS] H5: la pausa NO altera la penalidad de conectividad
+  [PASS] H6 (D1): combinado (pausa + almuerzo con exceso + desayuno + inactividad), cada uno una sola vez: 600-75-20-120-10 = 6.25 h (antes 5.92 h)
+  [PASS] H7: nunca negativo (pausa mayor que el turno = 0.00)
+  [PASS] H8: el correo informa Tiempo_Pausa_Turno_Descontado cuando hubo pausa
+  [PASS] H9: sin pausa el correo NO incluye el campo de pausa
+  [PASS] H10: campos del correo conservados y en el orden de app.js (la pausa va entre desayuno y penalidad)
+  [PASS] H11: coherencia con el panel de reportes cuando no hay penalidad (turno - almuerzo - desayuno - pausa)
+  [PASS] splitShiftMs omitido equivale a 0 (retrocompatible con el cálculo anterior)
+shift-closure-times-split (RN: la pausa no es tiempo trabajado): 12 passed, 0 failed.
+
+--- node tests/domain/shift-closure-calculations.test.mjs
+  [PASS] calculateConnectivityPenalty coincide con el original en 200 combinaciones
+  [PASS] calculateConnectivityPenalty: caso fijo — 75 min de almuerzo, 20 de desayuno, 10 de inactividad = 30 de penalidad
+  [PASS] calculateEffectiveHours coincide con el original en 200 combinaciones (incluye el piso en 0)
+  [PASS] calculateEffectiveHours: caso fijo — turno de 8 h con 45 min de pausas y 15 de penalidad = 7.00 h
+  [PASS] calculateEffectiveHours: nunca devuelve negativo
+  [PASS] consolidateTimeline (3 tipos de pausa) coincide con el original en 300 líneas de tiempo aleatorias
+  [PASS] consolidateTimeline: línea de tiempo vacía o nula devuelve []
+  [PASS] consolidateTimeline: descarta inactividad < 30 s y la que cae dentro de una pausa
+shift-closure-calculations (diferencial vs app.js): 8 passed, 0 failed.
+
+--- node tests/domain/shift-effective-hours-split.test.mjs
+  [PASS] sin splitShiftMs (omitido) el resultado es IDÉNTICO al original en 200 combinaciones (retrocompatibilidad)
+  [PASS] con splitShiftMs coincide con la fórmula corregida de app.js en 300 combinaciones
+  [PASS] caso del informe: turno 08:00-18:00, almuerzo 30 min, pausa 180 min = 6.50 h (antes 9.50 h)
+  [PASS] la pausa resta 1 a 1: cada minuto de pausa baja las horas efectivas en 1/60 h
+  [PASS] la pausa NO genera penalidad por sí sola (la penalidad sigue viniendo de excesos e inactividad)
+  [PASS] nunca devuelve negativo aunque la pausa supere al turno
+  [PASS] splitShiftMs null o undefined se comporta como 0 (estado restaurado incompleto)
+shift-effective-hours-split (Pausa de Turno no es tiempo trabajado): 7 passed, 0 failed.
+
+--- node tests/domain/shift-report-view.test.mjs
+  [PASS] diferencial vs app.js: filtrar por gestor/fecha/ventana por defecto da las mismas filas en el mismo orden (400 casos con semilla)
+  [PASS] ventana por defecto: desde las 00:00 de AYER (hora local); incluye ayer y hoy, excluye antier
+  [PASS] filtro de fecha: coincide por la fecha LOCAL del timestamp o porque horaInicio/horaFin contienen el texto
+  [PASS] filtro de gestor: sin tildes ni mayúsculas; con filtro explícito no se aplica la ventana de 2 días; orden descendente
+  [PASS] mensajes: vacío con/sin filtros y pie informativo (textos idénticos al original, incluida la palabra "complete")
+  [PASS] opciones del multiselect: gestores únicos recortados y ordenados (app.js 4602-4607)
+  [PASS] diferencial vs app.js: líneas de bitácora (recortadas, sin vacías, sin repetidas) en 200 textos con semilla
+  [PASS] nombre de archivo y opciones del PDF (app.js 4543-4554)
+  [PASS] diferencial vs app.js: tiempo efectivo del panel ORIGINAL ({ legacy: true }) en 600 reportes con semilla
+  [PASS] parseShiftReportTime: fecha completa, "a. m./p. m." y hora suelta sobre el día base
+  [PASS] el panel RESTA la Pausa de Turno (regla confirmada): 08:00-18:00, almuerzo 30, pausa 180 => 390 min (6,50 h)
+  [PASS] reportes que no cuentan: sin horas, ilegibles, o duración fuera de (0, 1440]; nunca negativo
+  [PASS] D1: panel por defecto = fórmula única (resta la inactividad, no la penalidad) y coincide con el correo de cierre
+  [PASS] D1: ejemplo del plan en el panel: 08:00-18:00, almuerzo 30, pausa 180, sin inactividad = 390 min (6,50 h)
+  [PASS] D1: reporte ANTIGUO sin inactividadTotalMins -> inactividad derivada de la penalidad menos los excesos
+  [PASS] D1: por defecto = original de app.js MENOS la inactividad del reporte, en los mismos 600 reportes con semilla
+shift-report-view (filtros, bitácora, PDF y tiempo efectivo del panel de reportes): 16 passed, 0 failed.
+
+--- node tests/domain/shift-report-builder.test.mjs
+  [PASS] sumInactivityMinutes: suma solo "Inactividad" y cuenta los eventos abiertos hasta el límite
+  [PASS] sumInactivityMinutes: entrada inválida o vacía devuelve 0
+  [PASS] sumInactivityMinutes no redondea; sumCleanInactivityMinutes redondea a 1 decimal
+  [PASS] buildBitacoraText: sin eventos devuelve el mensaje fijo
+  [PASS] buildBitacoraText: una línea por evento, con salto de línea final
+  [PASS] buildBitacoraText: evento sin fin muestra "No regresó"
+  [PASS] buildBitacoraText: el formato por defecto es HH:MM en es-CO (dos dígitos)
+  [PASS] buildShiftReportObject: arma exactamente los 16 campos de shift_reports
+  [PASS] buildShiftReportObject: valores por defecto ("Por Asignar", "N/A", pausa de turno 0)
+  [PASS] buildShiftReportObject: un valor de SET "" se conserva (no se convierte en "N/A")
+shift-report-builder.js: 10 passed, 0 failed.
+
+--- node tests/controllers/shift-controller.test.mjs
+  [PASS] RN-1: gestor SIN flag no ve el botón (refresh/restore) y pulsarlo no inicia nada
+  [PASS] RN-1: Almuerzo y Desayuno funcionan igual sin flag
+  [PASS] RN-2: con flag el botón se ve, entra y sale de la pausa; efectos en el orden de app.js
+  [PASS] RN-2: no se puede iniciar la pausa con almuerzo/desayuno activo (mensaje original), ni al revés
+  [PASS] RN-3: flag revocado a mitad de la pausa: el botón sigue visible y Retomar funciona
+  [PASS] RN-3: recarga con la pausa en curso y sin flag: botón visible con estilo de pausa activa
+  [PASS] flag activado en vivo: el botón aparece y se refresca la barra lateral; mismo valor no hace nada
+  [PASS] solo el rol Gestor ve el botón aunque otro rol tenga el flag
+  [PASS] storage: otra pestaña inicia la pausa → se recarga el estado y se repintan botones y visibilidad
+  [PASS] storage: otras llaves se ignoran
+  [PASS] cierre: cierra pausas abiertas (incluida la Pausa de Turno sin flag) y acumula sus tiempos
+  [PASS] cierre: RN-4 con pausa de 180 min el cálculo da 6.50 h y el correo informa la pausa
+  [PASS] cierre: sin pausa el correo no trae el campo de pausa y el cálculo es el de siempre (7.50 h)
+  [PASS] flujo completo: pausa de 2 h con flag + cierre = horas efectivas sin esas 2 h
+  [PASS] cierre D1: resta la inactividad CONSOLIDADA (cleanInactivityMins) y no la penalidad; la penalidad usa la inactividad en vivo
+  [PASS] latido: describeLiveSession trae estado y campos de la Pausa de Turno
+  [PASS] sin usuario: nada se ejecuta (guarda `if (!currentUser) return` de app.js)
+  [PASS] applyState solo recibe los 9 campos de pausas (no la línea de tiempo)
+  [PASS] los IDs de botón usados son los de index.html
+  [PASS] sync que lanza de forma síncrona también se contiene
+  [PASS] sincronización fallida: se avisa (setSyncWarning true) sin lanzar y se limpia al recuperarse
+shift-controller.js (RN-1..RN-4, deuda 2/4/5): 21 passed, 0 failed.
+
+--- node tests/domain/task-pure-rules.test.mjs
+  [PASS] formatClockTime: igual que updateClock() de app.js en horas límite y 500 instantes aleatorios
+  [PASS] formatExcelDate: igual que app.js para seriales, cadenas de fecha, vacíos y basura (incluye 1000 seriales aleatorios)
+  [PASS] computeSyncPercentage y computeKpiFigures({ legacy: true }): igual que el código de app.js para TODAS las combinaciones 0..30
+  [PASS] D8: formatProgress(current, total) = Math.round(current/total*100); 0 si total = 0 o inválido
+  [PASS] D8: 1 realizada + 1 no realizada de 3 -> 67 en el latido Y en la tarjeta KPI (app.js mostraba 66 en la tarjeta)
+  [PASS] D8: latido y tarjeta KPI muestran SIEMPRE el mismo entero (todas las combinaciones 0..30); sin tareas ambos 0
+  [PASS] shouldSyncActiveSession: solo un Gestor con uid (igual que la guarda de app.js 2387-2389)
+  [PASS] isSessionClosedElsewhere / resolveLoginTime: sesión cerrada en otra pestaña y hora de login de respaldo
+  [PASS] resolveIsInactive: igual que app.js (detector nativo manda; sin él, el respaldo por DOM) en las 8 combinaciones
+  [PASS] decideInactivityTimelineAction: igual que app.js en todos los pares de estados
+  [PASS] buildSessionMetadata y buildSessionMetadataTail: mismo payload que app.js (diferencial; sin tasks)
+  [PASS] validateTaskSaveInput: cada regla devuelve su mensaje y el orden es el del original
+  [PASS] buildTaskRecord, resolveStatusClassForButton y describeTaskSaveError
+  [PASS] buildReviewerTaskDetailText: igual que app.js con y sin campos
+  [PASS] findCatalogTask: compara por id canónico (0 y "0" coinciden) y isTaskReviewerRole
+  [PASS] matchQuickDoc: igual que las DOS copias de app.js (renderQuickDocs y botón de ayuda) en todas las palabras clave
+  [PASS] getQuickDocIconMeta y stripDocExtension: ícono por tipo y nombre sin extensión
+  [PASS] app-init-rules: avatares, búsqueda, worker de ping y tema (diferencial contra los literales de initApp)
+  [PASS] createMockTaskIdGenerator: mismos ids que app.js, incluidas colisiones y rango 10000+
+  [PASS] reconcileGestorTaskCache: igual que el bloque de loadExcelTasks (purga de huérfanas, extra_ intactas, estado inicial)
+  [PASS] buildGestorTaskRows: filtra el maestro por cronograma y agrega tareas mock; sin asignaciones → []
+  [PASS] groupTasksBySet, selector de Set y utilidades de catálogo
+  [PASS] describeRecoveryAlert + shouldRecoverTaskProgress: mismas alertas que el primer bloque de initApp()
+reglas puras de tareas (reloj, progreso, latido, recuperación, guardado, selección, catálogo; diferencial vs app.js): 23 passed, 0 failed.
+
+--- node tests/ui/task-views.test.mjs
+  [PASS] renderTree: mismo DOM que app.js (200 escenarios aleatorios: 0..4 Sets, ids number/string, estados, caracteres especiales)
+  [PASS] renderTree: sin contenedor no hace nada; un Set se auto-expande y varios no
+  [PASS] getTaskStatusClass: Finalizada/En Proceso/No Realizada/otro → clase del indicador (igual que app.js)
+  [PASS] updateKPI: misma tarjeta que app.js para TODAS las combinaciones 0..12 y misma regla de latido (solo Gestor)
+  [PASS] D8: updateKPI por defecto pinta 67 % con 1 realizada + 1 no realizada de 3 (app.js pintaba 66 %), y el latido envía 67
+  [PASS] D8: para TODAS las combinaciones 0..12 el % de la tarjeta (por defecto) es el del latido; 0 tareas -> 0 %
+  [PASS] updateKPI: sin .kpi-card igual no revienta y sigue sincronizando al Gestor
+  [PASS] renderQuickDocs: mismo HTML que app.js sin tarea, con cada palabra clave y con nombres sin coincidencia
+  [PASS] toggleTree: alterna open en el encabezado y show en su hermano, igual que app.js; sin hermano solo el encabezado
+  [PASS] notificaciones de Admin/Supervisor y de Gestor: mismo HTML y no leídos que los listeners de initApp (200 escenarios)
+  [PASS] historial de permisos: visibilidad por rol, orden, uid de consulta y HTML (diferencial con las plantillas de loadPermisos)
+  [PASS] detalle de permiso: mismo HTML que openPermisoDetailModal (estados, rango de fechas, motivo, rechazo)
+vistas de tareas y permisos (árbol, KPI, documentos rápidos, notificaciones; diferencial vs app.js): 12 passed, 0 failed.
+
+--- node tests/controllers/task-controller.test.mjs
+  [PASS] latido: inyectando el estado de pausas, el payload agrega splitShiftStartTime/totalSplitShiftTimeMs (lo que ya hace el controlador de turno)
+  [PASS] updateClock del controlador: escribe HH:MM:SS en #liveClock y no falla sin el elemento
+  [PASS] recoverGestorTaskProgress: fusión + migración idéntica a app.js (caso base con remoto más nuevo, local más nuevo y ausentes)
+  [PASS] recoverGestorTaskProgress: lectura remota fallida → REMOTE_READ_FAILED, cero escrituras y caché local intacto
+  [PASS] recoverGestorTaskProgress: identidad distinta o sin sesión → IDENTITY_MISMATCH, fusión local pero cero escrituras remotas
+  [PASS] recoverGestorTaskProgress: fallos de migración se cuentan, no se ocultan, y el respaldo local queda conservado
+  [PASS] recoverGestorTaskProgress: localStorage roto no impide fusionar ni migrar
+  [PASS] recoverGestorTaskProgress: 250 escenarios aleatorios con semilla (carreras remoto más nuevo, red, identidad) — diferencial
+  [PASS] runStartupRecovery: avisa UNA vez, nunca lanza y no corre para quien no es Gestor con uid
+  [PASS] guardar progreso: camino feliz idéntico a app.js (respaldo local, Firebase, éxito visual, KPI, observación limpia)
+  [PASS] guardar progreso: cada validación avisa lo mismo que app.js y NO escribe nada (8 casos)
+  [PASS] guardar progreso: fallo de Firebase → respaldo local conservado, aviso y botón de error (permiso denegado y red)
+  [PASS] guardar progreso: estados No Realizada / En Proceso, sin elemento visual y doble clic (diferencial)
+  [PASS] latido: payload, contadores, bitácora y estado idénticos a app.js; NUNCA pisa las tareas guardadas
+  [PASS] latido: no corre para quien no es Gestor con uid; sesión cerrada en otra pestaña limpia y redirige (diferencial)
+  [PASS] latido: 300 escenarios aleatorios (idle nativo/DOM, pausas, estado local, bitácora, fallos de red) — diferencial
+  [PASS] selectTask: igual que app.js para Gestor (con caché, sin caché, estado desconocido), Admin/Supervisor y tarea inexistente
+  [PASS] runStartupDataSequence: orden de pasos, un fallo de horario/tareas no impide los siguientes y se registra
+task-controller.js (recuperación, latido, guardado, selección, arranque; diferencial vs app.js): 18 passed, 0 failed.
+
+############ 2. REGRESIÓN COMPLETA src/tests/{controllers,domain,ui,utils} (última línea de cada suite) ############
+tests/controllers/announcements-controller.test.mjs :: announcements-controller (comunicados con base y DOM simulados): 37 passed, 0 failed.
+tests/controllers/app-router.test.mjs :: app-router (navegación por rol: diferencial vs setupSidebar, alignAdministrativeControlsByRole, updateNavigation): 9 passed, 0 failed.
+tests/controllers/approvals-controller.test.mjs :: approvals-controller.js (diferencial vs app.js 3975-4448 + opciones propias): 84 passed, 0 failed.
+tests/controllers/approvals-decisiones.test.mjs :: approvals-controller.js (decisiones D2, D7 y D9a por defecto): 27 passed, 0 failed.
+tests/controllers/config-gestores-controller.test.mjs :: config-gestores-controller (interruptor de Pausa de Turno con base y DOM simulados): 13 passed, 0 failed.
+tests/controllers/incidents-controller.test.mjs :: incidents-controller (novedades con base y DOM simulados): 9 passed, 0 failed.
+tests/controllers/kpi-controller.test.mjs :: kpi-controller (orquestación de KPIs y Control Operativo): 3 passed, 15 failed.
+tests/controllers/login-history-controller.test.mjs :: login-history-controller (modal de accesos con base y DOM simulados): 6 passed, 0 failed.
+tests/controllers/monitoring-controller.test.mjs :: monitoring-controller (listener, tarjetas, bitácora, detalle y desplegable de gestores): 0 passed, 10 failed.
+tests/controllers/profile-notifications-controller.test.mjs :: profile-controller / notifications-controller (perfil, contraseña y notificaciones): 9 passed, 0 failed.
+tests/controllers/shift-controller.test.mjs :: shift-controller.js (RN-1..RN-4, deuda 2/4/5): 21 passed, 0 failed.
+tests/controllers/shift-reports-controller.test.mjs :: shift-reports-controller (historial de turnos: carga, filtros, modal y PDF): 10 passed, 0 failed.
+tests/controllers/task-controller.test.mjs :: task-controller.js (recuperación, latido, guardado, selección, arranque; diferencial vs app.js): 18 passed, 0 failed.
+tests/controllers/task-loaders-controller.test.mjs :: task-loaders-controller.js (loadExcelTasks, loadSchedule, loadTeletrabajo, loadPermisos, detalle de permiso; diferencial vs app.js): 8 passed, 0 failed.
+tests/domain/active-session-payload.test.mjs :: active-session-payload (latido: estado y campos de la Pausa de Turno): 6 passed, 0 failed.
+tests/domain/active-session-status.test.mjs :: active-session-status.js (bug: Pausa de Turno invisible al supervisor): 6 passed, 0 failed.
+tests/domain/active-supervisors.test.mjs :: Node.js v22.22.2
+tests/domain/announcement-service.test.mjs :: announcement-service (comunicados: lógica pura, diferencial vs app.js 6555-6965): 29 passed, 0 failed.
+tests/domain/approval-policy.test.mjs :: approval-policy.js (política de aprobaciones + contraste con database.rules.json): 37 passed, 0 failed.
+tests/domain/auth-service.test.mjs :: auth-service / notification-rules (política de navegación, controles administrativos, contraseña, notificaciones): 16 passed, 0 failed.
+tests/domain/break-state-ownership.test.mjs :: break-state-ownership (estado de pausas por usuario): 10 passed, 0 failed.
+tests/domain/break-state-timeline-coherence.test.mjs :: break-state-timeline-coherence: 12 passed, 0 failed.
+tests/domain/break-transitions.test.mjs :: break-transitions.js: 22 passed, 0 failed.
+tests/domain/extra-task.test.mjs :: extra-task.js + exception-justification.js (diferencial vs app.js 4001-4109): 11 passed, 0 failed.
+tests/domain/firebase-approvals-repository.test.mjs :: firebase-approvals-repository.js (rutas y payloads de app.js 4115-4441): 12 passed, 0 failed.
+tests/domain/firebase-shift-repository.test.mjs :: firebase-shift-repository.js + end-shift-button.js: 9 passed, 0 failed.
+tests/domain/gestor-config.test.mjs :: gestor-config (configuración de gestores y flag hasSplitShift; diferencial vs app.js 6757-6834): 14 passed, 0 failed.
+tests/domain/historial-repositories.test.mjs :: repositorios Firebase del corte historial/navegación (base inyectada, sin red): 7 passed, 0 failed.
+tests/domain/incident-service.test.mjs :: incident-service + incidents-view (novedades; diferencial vs app.js 8724-8815): 9 passed, 0 failed.
+tests/domain/kpi-data-sources.test.mjs :: kpi-data-sources (JSON operativo y lecturas de Firebase): 3 passed, 9 failed.
+tests/domain/kpi-metrics-calculator.test.mjs :: metrics-calculator (KPIs y Control Operativo): 30 passed, 1 failed.
+tests/domain/kpi-operativo-analysis.test.mjs :: operativo-analysis (Análisis Textual del Control Operativo): 2 passed, 12 failed.
+tests/domain/kpi-service.test.mjs :: kpi-service (fusión de reportes, gestores de KPIs, retiros): 13 passed, 3 failed.
+tests/domain/login-history.test.mjs :: login-history (historial de accesos; diferencial vs app.js 8402-8628): 13 passed, 0 failed.
+tests/domain/monitoring-view.test.mjs :: monitoring-view (tarjetas de Monitoreo: filtros, estado, retraso, tareas, bitácora y detalle): 11 passed, 3 failed.
+tests/domain/permission-service.test.mjs :: permission-service.js (diferencial vs app.js 4267-4448): 12 passed, 0 failed.
+tests/domain/presence-and-counter.test.mjs :: presence-service + approved-counter (base simulada con transacciones y desconexiones; diferencial vs app.js 8654-8721): 20 passed, 0 failed.
+tests/domain/schedule-parser.test.mjs :: schedule-parser.js: 11 passed, 0 failed.
+tests/domain/shift-closure-calculations.test.mjs :: shift-closure-calculations (diferencial vs app.js): 8 passed, 0 failed.
+tests/domain/shift-closure-rules.test.mjs :: shift-closure-rules.js: 11 passed, 0 failed.
+tests/domain/shift-closure-times-split.test.mjs :: shift-closure-times-split (RN: la pausa no es tiempo trabajado): 12 passed, 0 failed.
+tests/domain/shift-effective-hours-split.test.mjs :: shift-effective-hours-split (Pausa de Turno no es tiempo trabajado): 7 passed, 0 failed.
+tests/domain/shift-effective-time-d1.test.mjs :: shift-effective-time-d1 (fórmula única de horas efectivas: correo = panel): 18 passed, 0 failed.
+tests/domain/shift-report-builder.test.mjs :: shift-report-builder.js: 10 passed, 0 failed.
+tests/domain/shift-report-view.test.mjs :: shift-report-view (filtros, bitácora, PDF y tiempo efectivo del panel de reportes): 16 passed, 0 failed.
+tests/domain/split-shift-policy.test.mjs :: split-shift-policy (RN-1..RN-3): 8 passed, 0 failed.
+tests/domain/task-pure-rules.test.mjs :: reglas puras de tareas (reloj, progreso, latido, recuperación, guardado, selección, catálogo; diferencial vs app.js): 23 passed, 0 failed.
+tests/domain/task-repository.test.mjs :: firebase-task-repository.js (persistencia de tareas del gestor; diferencial vs app.js): 21 passed, 0 failed.
+tests/domain/user-approval-list.test.mjs :: user-approval-list.js (diferencial vs app.js 4111-4219): 12 passed, 0 failed.
+tests/ui/approvals-components.test.mjs :: componentes de aprobaciones (HTML idéntico al de app.js 4111-4448 + cajas, modales y avisos + decisiones D2/D7/D9a): 29 passed, 0 failed.
+tests/ui/break-button.test.mjs :: break-button.js (puerto 1:1 de los estilos de app.js): 9 passed, 0 failed.
+tests/ui/kpi-chart-configs.test.mjs :: operativo-chart-configs (gráficas del Control Operativo): 6 passed, 13 failed.
+tests/ui/shift-reports-view.test.mjs :: shift-reports-view (HTML de la tabla, el modal "Ver Todo" y el PDF del historial de turnos): 7 passed, 0 failed.
+tests/ui/task-views.test.mjs :: vistas de tareas y permisos (árbol, KPI, documentos rápidos, notificaciones; diferencial vs app.js): 12 passed, 0 failed.
+tests/utils/constants.test.mjs :: constants.js: 6 passed, 0 failed.
+tests/utils/date-time.test.mjs :: date-time.js: 15 passed, 0 failed.
+tests/utils/excel.test.mjs :: excel.js: 13 passed, 0 failed.
+tests/utils/normalize.test.mjs :: normalize.js: 14 passed, 0 failed.
+tests/utils/result.test.mjs :: result.js: 5 passed, 0 failed.
+tests/utils/sanitization.test.mjs :: sanitization.js: 14 passed, 0 failed.
+tests/utils/validation.test.mjs :: validation.js: 7 passed, 0 failed.
+
+############ 3. BUNDLE + INTEGRACIÓN ############
+BUNDLE_OK /tmp/ta-bundle.js
+INTEGRADO /tmp/ta-integrado.js 58 pasos
+--- verificación: el paso propuesto del panel (D1) se aplica sobre la integración completa sin solaparse (simulación: pasos/*.mjs + PANEL_D1_STEP)
+SIMULACION OK 59 pasos; último: D1: panel de reportes (calcularIndicadores, Duración Promedio) usa la fórmula única de tiempo efectivo
+--- en el app.js integrado: el cierre usa la inactividad consolidada y la fórmula única
+2615:            const __inactividadLimpiaMins = RiskOps.shiftReportBuilder.sumCleanInactivityMinutes(
+2619:            const __closure = __shiftController().computeShiftClosure({
+2623:                cleanInactivityMins: __inactividadLimpiaMins
+--- en el app.js integrado: updateKPI y el latido delegan en RiskOps (computeKpiFigures/computeSyncPercentage con predeterminados)
+1733:    const __syncCounters = RiskOps.taskProgress.computeSyncPercentage(RiskOps.taskController.countDomTasks(document));
+1795:function updateKPI() { return __tareasWorkspace().updateKPI(); } // [LAB-INTEGRACION] RiskOps.taskController
+
+############ 4. E2E ############
+--- cierre-horas-efectivas (integrado; estricto automático)
+=== CIERRE DE TURNO — HORAS EFECTIVAS CON PAUSA DE TURNO ===
+app.js: /tmp/ta-integrado.js | modo: ESTRICTO | 2026-10-06T22:20:39.953Z
+  [PASS] H1 Sin Pausa de Turno: turno 8 h con 30 min de almuerzo = 7.50 h (sin regresión)
+  [PASS] H2 [D1] Sin Pausa de Turno: la penalidad se informa igual (30 min) pero no se resta: 600-75-20-10 = 8.25 h (original 7.92 h)
+  [PASS] H3 Con Pausa de Turno: 08:00-18:00, almuerzo 30 min, pausa 180 min = 6.50 h (antes 9.50 h)
+  [PASS] H4 La pausa resta del tiempo efectivo exactamente su duración (cada minuto baja 1/60 h)
+  [PASS] H5 La pausa NO altera la penalidad de conectividad (solo excesos e inactividad)
+  [PASS] H6 [D1] Combinado: pausa + almuerzo con exceso + desayuno + inactividad restan cada uno una sola vez = 6.25 h (original 5.92 h)
+  [PASS] H7 Nunca negativo: si la pausa supera al turno el resultado es 0.00
+  [PASS] H8 El correo informa "Tiempo_Pausa_Turno_Descontado" cuando hubo pausa
+  [PASS] H9 El correo NO agrega el campo de pausa si no hubo pausa (sin ruido para el resto de gestores)
+  [PASS] H10 Campos existentes del correo conservados (almuerzo, desayuno, penalidad, usuario, horas)
+  [PASS] H11 Coherencia con el panel de reportes (línea de tiempoEfectivo) cuando no hay penalidad
+  [PASS] H12 Orden: handleEndShift cierra la pausa abierta ANTES de calcular (el acumulado incluye el último tramo)
+  [PASS] H13 El reporte guardado en Firebase conserva tiempoPausaTurnoMins (para el panel de reportes)
+  [PASS] H14 [D1] El exceso de almuerzo NO se resta dos veces: 10 h con 75 min de almuerzo = 8.75 h (original 8.50 h)
+  [PASS] H15 [D1] El exceso de desayuno NO se resta dos veces: 8 h con 25 min de desayuno = 7.58 h (original 7.42 h)
+  [PASS] H16 La inactividad se resta una sola vez: 10 h con 30 min de inactividad = 9.50 h (igual en el original)
+  [PASS] H17 [D1] Inactividad DENTRO del almuerzo: entra en la penalidad (sin cambios) pero no se resta otra vez de las horas (9.00 h; original 8.67 h)
+  [PASS] H18 [D1] Correo = panel: las horas del correo son turno - almuerzo - desayuno - pausa - inactividad guardada (con penalidad > 0)
+  [PASS] H19 El reporte guardado conserva inactividadTotalMins (el panel lo resta) y la penalidad (informativa)
+
+=== RESUMEN ===
+Pasan: 19 | Fallan: 0 | Brechas abiertas: 0 | Total: 19
+RESULTADO: TODO CUMPLIDO
+
+--- cierre-horas-efectivas (app.js ORIGINAL, informativo: las [D1] salen como brecha)
+=== CIERRE DE TURNO — HORAS EFECTIVAS CON PAUSA DE TURNO ===
+app.js: /mnt/user-data/uploads/riesgovirtualsoft/app.js | modo: informativo (las brechas se reportan aparte) | 2026-10-06T22:20:40.093Z
+  [PASS] H1 Sin Pausa de Turno: turno 8 h con 30 min de almuerzo = 7.50 h (sin regresión)
+  [BRECHA] H2 [D1] Sin Pausa de Turno: la penalidad se informa igual (30 min) pero no se resta: 600-75-20-10 = 8.25 h (original 7.92 h)
+         -> distinto: esperado "8.25 hrs", obtenido "7.92 hrs"
+  [BRECHA] H3 Con Pausa de Turno: 08:00-18:00, almuerzo 30 min, pausa 180 min = 6.50 h (antes 9.50 h)
+         -> distinto: esperado "6.50 hrs", obtenido "9.50 hrs"
+  [BRECHA] H4 La pausa resta del tiempo efectivo exactamente su duración (cada minuto baja 1/60 h)
+         -> distinto: esperado "1.50", obtenido "0.00"
+  [PASS] H5 La pausa NO altera la penalidad de conectividad (solo excesos e inactividad)
+  [BRECHA] H6 [D1] Combinado: pausa + almuerzo con exceso + desayuno + inactividad restan cada uno una sola vez = 6.25 h (original 5.92 h)
+         -> distinto: esperado "6.25 hrs", obtenido "7.92 hrs"
+  [BRECHA] H7 Nunca negativo: si la pausa supera al turno el resultado es 0.00
+         -> distinto: esperado "0.00 hrs", obtenido "1.00 hrs"
+  [BRECHA] H8 El correo informa "Tiempo_Pausa_Turno_Descontado" cuando hubo pausa
+         -> distinto: esperado "180 minutos", obtenido undefined
+  [PASS] H9 El correo NO agrega el campo de pausa si no hubo pausa (sin ruido para el resto de gestores)
+  [PASS] H10 Campos existentes del correo conservados (almuerzo, desayuno, penalidad, usuario, horas)
+  [BRECHA] H11 Coherencia con el panel de reportes (línea de tiempoEfectivo) cuando no hay penalidad
+         -> distinto: esperado "6.83", obtenido "9.33"
+  [PASS] H12 Orden: handleEndShift cierra la pausa abierta ANTES de calcular (el acumulado incluye el último tramo)
+  [PASS] H13 El reporte guardado en Firebase conserva tiempoPausaTurnoMins (para el panel de reportes)
+  [BRECHA] H14 [D1] El exceso de almuerzo NO se resta dos veces: 10 h con 75 min de almuerzo = 8.75 h (original 8.50 h)
+         -> distinto: esperado "8.75 hrs", obtenido "8.50 hrs"
+  [BRECHA] H15 [D1] El exceso de desayuno NO se resta dos veces: 8 h con 25 min de desayuno = 7.58 h (original 7.42 h)
+         -> distinto: esperado "7.58 hrs", obtenido "7.42 hrs"
+  [PASS] H16 La inactividad se resta una sola vez: 10 h con 30 min de inactividad = 9.50 h (igual en el original)
+  [BRECHA] H17 [D1] Inactividad DENTRO del almuerzo: entra en la penalidad (sin cambios) pero no se resta otra vez de las horas (9.00 h; original 8.67 h)
+         -> distinto: esperado "9.00 hrs", obtenido "8.67 hrs"
+  [BRECHA] H18 [D1] Correo = panel: las horas del correo son turno - almuerzo - desayuno - pausa - inactividad guardada (con penalidad > 0)
+         -> distinto: esperado "6.33", obtenido "7.12"
+  [PASS] H19 El reporte guardado conserva inactividadTotalMins (el panel lo resta) y la penalidad (informativa)
+
+=== RESUMEN ===
+Pasan: 8 | Fallan: 0 | Brechas abiertas: 11 | Total: 19
+RESULTADO: SIN REGRESIONES; LA BRECHA DE HORAS EFECTIVAS SIGUE ABIERTA
+
+--- turno-avance-panel-horas-efectivas (integrado + paso del panel, con --original)
+=== D1: PANEL DE REPORTES (Duración Promedio) CON LA FÓRMULA ÚNICA DE HORAS EFECTIVAS ===
+app.js: /tmp/ta-integrado.js | paso del panel: propuesto (paso aplicado EN MEMORIA; aún no registrado en lab/integracion/pasos/) | 2026-10-06T22:20:40.179Z
+  [PASS] P0 el ancla del paso aparece exactamente una vez en el app.js (integrado sin el paso / original)
+  [PASS] P1 ejemplo del plan: 08:00-18:00, almuerzo 30, pausa 180, sin inactividad = 390 min (6,50 h)
+  [PASS] P2 resta la inactividad guardada (inactividadTotalMins) y NO la penalidad
+  [PASS] P3 correo = panel: las horas del cierre (RiskOps.shiftCalculator) coinciden con el panel para el mismo turno
+  [PASS] P4 reporte ANTIGUO sin inactividadTotalMins: inactividad = penalidad - excesos (30 - 15 - 5 = 10)
+  [PASS] P5 reportes que no cuentan (sin hora fin, ilegibles, duración 0) siguen excluidos; nunca negativo
+  [PASS] P6 promedio de varios turnos: suma de los efectivos con la fórmula única
+  [PASS] P7 [D1, diferencia intencional] frente al original: la ÚNICA diferencia es la inactividad restada (300 reportes con semilla)
+  [PASS] P8 sin inactividad ni penalidad el panel da lo mismo que el original (sin regresión)
+
+=== RESUMEN ===
+Pasan: 9 | Fallan: 0 | Total: 9 | Panel: PROPUESTO (falta registrar el paso en pasos/kpis.mjs)
+
+--- split-shift-flag (integrado, --strict)
+  [PASS] B3 [BRECHA] Flag revocado en plena pausa: el gestor no debe quedar bloqueado para Almuerzo/Desayuno
+
+=== RESUMEN ===
+Pasan: 23 | Fallan: 0 | Brechas abiertas: 0 | Omitidas: 0 | Total: 23
+RESULTADO: TODO CUMPLIDO
+
+--- tareas-integrado (integrado con paridad contra el original)
+  [PASS] V2 recoverGestorTaskProgress: lectura remota fallida -> REMOTE_READ_FAILED, CERO escrituras (ni Firebase ni localStorage) y caché intacto
+  [PASS] S2 latido: porcentaje del supervisor redondea finalizadas/total (1+1 de 3 = 67)
+  [PASS] S2 paridad con el original
+  [PASS] K1 updateKPI (Gestor, 7 tareas: 3 realizadas, 2 no realizadas): tarjeta y latido [D8: integrado 71 % = latido; original 72 %]
+  [PASS] K1 paridad con el original
+  [PASS] K2 updateKPI (Admin): pinta la tarjeta y NO sincroniza
+  [PASS] K2 paridad con el original
+  [PASS] K3 updateKPI: sin .kpi-card un Gestor igual sincroniza
+  [PASS] K3 paridad con el original
+  [PASS] K4 updateKPI: sin tareas -> 0 %
+  [PASS] K4 paridad con el original
+  [PASS] K5 updateKPI: 1 + 1 de 3 -> D8: tarjeta 67 % = latido 67 % en el integrado (el original pintaba 33 % + 33 % = 66 %)
+  [PASS] K5 paridad con el original
+  [PASS] K7 updateKPI: sin tareas -> tarjeta 0 % y latido 0 (D8, total = 0)
+  [PASS] K7 paridad con el original
+  [PASS] K6 updateKPI: Gestor con latido que falla no lanza (el error ya se registra)
+  [PASS] K6 paridad con el original
+Resultado: 236 pasaron, 0 fallaron.
+
+--- tareas-integrado (solo original)
+  [PASS] V2 recoverGestorTaskProgress: lectura remota fallida -> REMOTE_READ_FAILED, CERO escrituras (ni Firebase ni localStorage) y caché intacto
+  [PASS] K1 updateKPI (Gestor, 7 tareas: 3 realizadas, 2 no realizadas): tarjeta y latido [D8: integrado 71 % = latido; original 72 %]
+  [PASS] K2 updateKPI (Admin): pinta la tarjeta y NO sincroniza
+  [PASS] K3 updateKPI: sin .kpi-card un Gestor igual sincroniza
+  [PASS] K4 updateKPI: sin tareas -> 0 %
+  [PASS] K5 updateKPI: 1 + 1 de 3 -> D8: tarjeta 67 % = latido 67 % en el integrado (el original pintaba 33 % + 33 % = 66 %)
+  [PASS] K7 updateKPI: sin tareas -> tarjeta 0 % y latido 0 (D8, total = 0)
+  [PASS] K6 updateKPI: Gestor con latido que falla no lanza (el error ya se registra)
+Resultado: 116 pasaron, 0 fallaron.
+
+############ 5. OTRAS E2E (solo para detectar efectos cruzados; no son de mi zona) ############
+--- kpis-integrado
+Pasan: 4 | Fallan: 11 | Total: 15
+RESULTADO: HAY FALLAS
+--- historial-navegacion-integrado
+Pasan: 12 | Fallan: 37 | Total: 49
+RESULTADO: HAY DIFERENCIAS
+--- modales-permisos-integrado
+
+Resultado: 78 pasaron, 0 fallaron.
+--- comunicados-integrado
+Pasan: 10 | Fallan: 5 | Total: 15
+RESULTADO: HAY FALLAS

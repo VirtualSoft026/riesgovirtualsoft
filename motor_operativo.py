@@ -71,8 +71,8 @@ def get_firebase_gestores():
         print("Error obteniendo gestores de Firebase:", e)
         return {}
 
-GESTORES_PERMITIDOS = get_firebase_gestores()
-print(f"Gestores permitidos cargados dinámicamente desde Firebase: {len(set(GESTORES_PERMITIDOS.values()))} usuarios únicos.")
+# H-P4 (corregido 2026-10-14): la llamada HTTP a Firebase se movió al método run()
+# de MotorOperativo para evitar I/O de red en tiempo de importación del módulo.
 
 
 OUTPUT_JSON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "kpi_operativos_v2.json")
@@ -142,7 +142,7 @@ class MicroStrategyConnector:
         else:
             all_rows.append(current_row)
 
-    def fetch_retiros_data(self):
+    def fetch_retiros_data(self, gestores_permitidos):
         print(f"Obteniendo datos del reporte {MSTR_REPORT_ID} desde MicroStrategy...")
         all_rows = []
         if self.auth_token and self.project_id and MSTR_REPORT_ID:
@@ -194,17 +194,31 @@ class MicroStrategyConnector:
             except Exception as e:
                 print(f"Error descargando el reporte de MicroStrategy: {e}")
 
+        # H-P3 (corregido 2026-10-14): índices posicionales sustituidos por constantes
+        # nombradas para que un cambio en el esquema MSTR sea localizable en una sola
+        # línea, y se añade guardia de longitud mínima para evitar IndexError silencioso.
+        _COL_USER_ID        = 2
+        _COL_ESTADO         = 4
+        _COL_FECHA_CAMBIO   = 6
+        _COL_FECHA_CREACION = 8
+        _COL_AGENT_ID       = 14
+        _COL_BANCO          = 19
+        _MIN_COLS_REQUIRED  = 15  # agent_id está en índice 14 → mínimo 15 columnas
+
         parsed_retiros = []
-        # Mapping index from attributes
-        # 2: Id Usuario, 4: Estado Retiro Creado, 6: Fecha Cambio Time, 8: Fecha Creacion Retiro Time, 14: Nombre Usuario Cambio
         for row in all_rows:
             try:
-                user_id = row[2]
-                estado_mstr = row[4].strip()
-                fecha_cambio = row[6]
-                fecha_creacion = row[8]
-                agent_id = row[14].strip()
-                
+                # Guardia: fila demasiado corta → esquema MSTR cambió, registrar y saltar
+                if len(row) < _MIN_COLS_REQUIRED:
+                    print(f"AVISO H-P3: fila con {len(row)} columnas (mínimo esperado {_MIN_COLS_REQUIRED}); se omite: {row}")
+                    continue
+
+                user_id       = row[_COL_USER_ID]
+                estado_mstr   = row[_COL_ESTADO].strip()
+                fecha_cambio  = row[_COL_FECHA_CAMBIO]
+                fecha_creacion = row[_COL_FECHA_CREACION]
+                agent_id      = row[_COL_AGENT_ID].strip()
+
                 # We need to calculate elapsed seconds
                 fmt = "%m/%d/%Y %I:%M:%S %p"
                 try:
@@ -219,8 +233,8 @@ class MicroStrategyConnector:
 
                 # Normalizar estado
                 estado_mstr_lower = estado_mstr.lower()
-                banco = str(row[19]).strip() if len(row) > 19 else ""
-                
+                banco = str(row[_COL_BANCO]).strip() if len(row) > _COL_BANCO else ""
+
                 if "rechazado" in estado_mstr_lower or "cancelado" in estado_mstr_lower:
                     estado = "rechazado"
                 elif "eliminado" in estado_mstr_lower and banco != "":
@@ -229,11 +243,11 @@ class MicroStrategyConnector:
                     estado = "ignorar"
                 else:
                     estado = "aprobado"
-                
+
                 # Filtrar y normalizar el nombre del gestor
                 agent_lower = agent_id.lower().strip()
-                if agent_lower in GESTORES_PERMITIDOS:
-                    agent_name_clean = GESTORES_PERMITIDOS[agent_lower]
+                if agent_lower in gestores_permitidos:
+                    agent_name_clean = gestores_permitidos[agent_lower]
                 else:
                     # Skip any gestores not registered
                     continue
@@ -305,7 +319,10 @@ class MotorOperativo:
                 else:
                     d["ART_Desde_Creacion_Minutos"] = 0
                     
-                if d["Retiros_Aprobados"] > 0:
+                # H-P2 (corregido 2026-10-14): condición original `Retiros_Aprobados > 0`
+                # era incorrecta — gestores con N rechazados y 0 aprobados mostraban 0%.
+                # La condición correcta es sobre Retiros_Procesados (aprobados + rechazados).
+                if d["Retiros_Procesados"] > 0:
                     d["Porcentaje_Rechazos"] = round((d["Retiros_Rechazados"] / d["Retiros_Procesados"]) * 100, 2)
                 else:
                     d["Porcentaje_Rechazos"] = 0
@@ -319,8 +336,12 @@ class MotorOperativo:
 
 
     def run(self):
+        # H-P4: la carga de gestores ocurre aquí (tiempo de ejecución), no en importación
+        gestores_permitidos = get_firebase_gestores()
+        print(f"Gestores permitidos cargados desde Firebase: {len(set(gestores_permitidos.values()))} usuarios únicos.")
+
         self.mstr.authenticate()
-        retiros_data = self.mstr.fetch_retiros_data()
+        retiros_data = self.mstr.fetch_retiros_data(gestores_permitidos)
             
         self.procesar_retiros_mstr(retiros_data)
         self.integrar_datos_firebase()

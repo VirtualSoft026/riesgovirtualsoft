@@ -1,0 +1,39 @@
+--- app.js (actual, con parche Pausa de Turno)
++++ app.js (candidato hasSplitShift)
+@@ -686,7 +686,8 @@
+                     localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
+                     const toggleSplitShiftBtn = document.getElementById('toggleSplitShiftBtn');
+                     if (toggleSplitShiftBtn) {
+-                        toggleSplitShiftBtn.style.display = newVal ? 'flex' : 'none';
++                        // Si el flag se revoca con una pausa en curso, el botón "Retomar Turno" debe seguir visible
++                        toggleSplitShiftBtn.style.display = (newVal || isSplitShiftBreak) ? 'flex' : 'none';
+                     }
+                     if (typeof setupSidebar === 'function') {
+                         setupSidebar();
+@@ -3620,6 +3621,8 @@
+ // Lógica de Pausa Turno Partido
+ function toggleSplitShiftBreak() {
+     if (!currentUser) return;
++    // Solo se puede INICIAR una pausa con el flag hasSplitShift activo; retomar siempre está permitido
++    if (!isSplitShiftBreak && currentUser.hasSplitShift !== true) return;
+     const btn = document.getElementById('toggleSplitShiftBtn');
+     
+     if (!isSplitShiftBreak) {
+@@ -5121,7 +5124,7 @@
+         }
+ 
+         const toggleSplitShiftBtn = document.getElementById('toggleSplitShiftBtn');
+-        if (toggleSplitShiftBtn && currentUser.hasSplitShift === true) {
++        if (toggleSplitShiftBtn && (currentUser.hasSplitShift === true || isSplitShiftBreak)) {
+             toggleSplitShiftBtn.style.display = 'flex';
+         }
+     }
+@@ -5132,7 +5135,7 @@
+ function updateNavigation() {
+     const toggleSplitShiftBtn = document.getElementById('toggleSplitShiftBtn');
+     if (toggleSplitShiftBtn && typeof currentUser !== 'undefined' && currentUser) {
+-        toggleSplitShiftBtn.style.display = (currentUser.hasSplitShift === true) ? 'flex' : 'none';
++        toggleSplitShiftBtn.style.display = (currentUser.hasSplitShift === true || isSplitShiftBreak) ? 'flex' : 'none';
+     }
+     if (typeof setupSidebar === 'function') {
+         setupSidebar();

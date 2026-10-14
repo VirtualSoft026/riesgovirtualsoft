@@ -1,0 +1,87 @@
+$ node fase_2/src/tests/domain/break-transitions.test.mjs
+  [PASS] breakfast: iniciar marca activa, guarda hora de inicio y pide evento "Desayuno" start
+  [PASS] breakfast: terminar acumula el tiempo, limpia el inicio, pide evento end y updateActivity
+  [PASS] breakfast: iniciar queda bloqueado si hay otra pausa activa (sin efectos ni cambios)
+  [PASS] breakfast: dos pausas del mismo tipo suman sus tiempos
+  [PASS] lunch: iniciar marca activa, guarda hora de inicio y pide evento "Almuerzo" start
+  [PASS] lunch: terminar acumula el tiempo, limpia el inicio, pide evento end y updateActivity
+  [PASS] lunch: iniciar queda bloqueado si hay otra pausa activa (sin efectos ni cambios)
+  [PASS] lunch: dos pausas del mismo tipo suman sus tiempos
+  [PASS] split: iniciar marca activa, guarda hora de inicio y pide evento "Pausa de Turno" start
+  [PASS] split: terminar acumula el tiempo, limpia el inicio, pide evento end y updateActivity
+  [PASS] split: iniciar queda bloqueado si hay otra pausa activa (sin efectos ni cambios)
+  [PASS] split: dos pausas del mismo tipo suman sus tiempos
+  [PASS] característica heredada: terminar una pausa activa SIN hora de inicio no suma tiempo (estado restaurado incompleto)
+  [PASS] no muta el estado recibido
+  [PASS] un tipo de pausa desconocido lanza error
+break-transitions.js: 15 passed, 0 failed.
+exit code: 0
+
+$ node fase_2/src/tests/domain/shift-closure-rules.test.mjs
+  [PASS] hasRealSetOptions: false sin select o sin options
+  [PASS] hasRealSetOptions: ignora "", "Todos" y deshabilitadas
+  [PASS] hasRealSetOptions: true con al menos una opción real habilitada
+  [PASS] requiresSpecificSetSelection: exige elegir si hay opciones reales y el valor es "" o "Todos"
+  [PASS] requiresSpecificSetSelection: no exige nada si no hay opciones reales
+  [PASS] shouldValidateManagedTasks: solo Gestor con caché de tareas
+  [PASS] listUnmanagedTasks: con catálogo, acepta Finalizada y No Realizada en cualquier formato
+  [PASS] listUnmanagedTasks: nombre de respaldo = entry.name, luego el id canónico
+  [PASS] listUnmanagedTasks: las tareas extra pendientes se agregan al final
+  [PASS] listUnmanagedTasks: sin catálogo (allTasks no es arreglo) revisa el caché completo
+  [PASS] listUnmanagedTasks: todo gestionado devuelve arreglo vacío
+shift-closure-rules.js: 11 passed, 0 failed.
+exit code: 0
+
+$ node fase_2/src/tests/domain/shift-report-builder.test.mjs
+  [PASS] sumInactivityMinutes: suma solo "Inactividad" y cuenta los eventos abiertos hasta el límite
+  [PASS] sumInactivityMinutes: entrada inválida o vacía devuelve 0
+  [PASS] sumInactivityMinutes no redondea; sumCleanInactivityMinutes redondea a 1 decimal
+  [PASS] buildBitacoraText: sin eventos devuelve el mensaje fijo
+  [PASS] buildBitacoraText: una línea por evento, con salto de línea final
+  [PASS] buildBitacoraText: evento sin fin muestra "No regresó"
+  [PASS] buildBitacoraText: el formato por defecto es HH:MM en es-CO (dos dígitos)
+  [PASS] buildShiftReportObject: arma exactamente los 16 campos de shift_reports
+  [PASS] buildShiftReportObject: valores por defecto ("Por Asignar", "N/A", pausa de turno 0)
+  [PASS] buildShiftReportObject: un valor de SET "" se conserva (no se convierte en "N/A")
+shift-report-builder.js: 10 passed, 0 failed.
+exit code: 0
+
+$ node fase_2/src/tests/domain/firebase-shift-repository.test.mjs
+  [PASS] persistShiftClosureCore devuelve la llave del reporte
+  [PASS] persistShiftClosureCore hace UNA sola escritura multi-ruta con las 3 rutas esperadas
+  [PASS] persistShiftClosureCore exige UID
+  [PASS] persistShiftClosureCore exige loginLogId (sin escribir nada)
+  [PASS] persistShiftClosureCore falla si no se puede asignar la llave del reporte
+  [PASS] persistShiftClosureCore propaga el error de Firebase sin escrituras parciales
+  [PASS] restoreEndShiftButton restaura el HTML previo y rehabilita el botón
+  [PASS] restoreEndShiftButton usa el texto por defecto si no hay HTML previo
+  [PASS] restoreEndShiftButton no falla con botón nulo
+firebase-shift-repository.js + end-shift-button.js: 9 passed, 0 failed.
+exit code: 0
+
+$ node fase_2/src/tests/domain/shift-closure-calculations.test.mjs
+  [PASS] calculateConnectivityPenalty coincide con el original en 200 combinaciones
+  [PASS] calculateConnectivityPenalty: caso fijo — 75 min de almuerzo, 20 de desayuno, 10 de inactividad = 30 de penalidad
+  [PASS] calculateEffectiveHours coincide con el original en 200 combinaciones (incluye el piso en 0)
+  [PASS] calculateEffectiveHours: caso fijo — turno de 8 h con 45 min de pausas y 15 de penalidad = 7.00 h
+  [PASS] calculateEffectiveHours: nunca devuelve negativo
+  [PASS] consolidateTimeline (3 tipos de pausa) coincide con el original en 300 líneas de tiempo aleatorias
+  [PASS] consolidateTimeline: línea de tiempo vacía o nula devuelve []
+  [PASS] consolidateTimeline: descarta inactividad < 30 s y la que cae dentro de una pausa
+shift-closure-calculations (diferencial vs app.js): 8 passed, 0 failed.
+exit code: 0
+
+=== Regresión: suites previas ===
+$ node fase_2/src/tests/run-utils-tests.mjs
+constants.js: 6 passed, 0 failed.
+date-time.js: 15 passed, 0 failed.
+excel.js: 13 passed, 0 failed.
+normalize.js: 14 passed, 0 failed.
+result.js: 5 passed, 0 failed.
+sanitization.js: 14 passed, 0 failed.
+validation.js: 7 passed, 0 failed.
+Resultado: todas las suites pasaron.
+$ node fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs
+break-state-timeline-coherence: 12 passed, 0 failed.
+$ node fase_2/src/tests/domain/schedule-parser.test.mjs
+schedule-parser.js: 11 passed, 0 failed.

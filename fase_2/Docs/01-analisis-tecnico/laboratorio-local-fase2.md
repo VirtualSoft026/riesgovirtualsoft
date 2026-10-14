@@ -1,9 +1,9 @@
 # Laboratorio Local — Arquitectura Fase 2
 
 **Fecha:** 2026-09-24
-**Base:** el laboratorio anterior descrito en `DOCUMENTACION_TECNICA_LABORATORIO.md` (copia espejo: `C:\Users\Luis Alfredo Fuentes\Lucho\riesgovirtualsoft-feature-Fase_2 (1)\fase_2\Docs\01-analisis-tecnico\`) y su `Iniciar_Laboratorio_Local.bat`. Se conservan sus componentes, puertos y comportamiento de persistencia; se añade la compilación del bundle, una copia de *staging* del sitio y comprobaciones previas.
+**Base:** el laboratorio anterior descrito en `DOCUMENTACION_TECNICA_LABORATORIO.md` (copia espejo en una carpeta personal local, fuera del repositorio) y su `Iniciar_Laboratorio_Local.bat`. Se conservan sus componentes, puertos y comportamiento de persistencia; se añade la compilación del bundle, una copia de *staging* del sitio y comprobaciones previas.
 
-Ubicación de los archivos: `fase_2/lab/` (`Iniciar_Laboratorio_Fase2.bat`, `stage.mjs`, `preflight.mjs`). *(Nota 2026-10-03: `fase_2/` se movió de `.github/fase_2/` a la raíz del repositorio; ver la nota en `hoja-de-ruta.md` sección 0.)* No modifica ningún archivo de producción: todo lo que arma vive fuera del repositorio, en la carpeta de trabajo del laboratorio.
+Ubicación de los archivos: `fase_2/lab/` (`Iniciar_Laboratorio_Fase2.bat`, `stage.mjs`, `preflight.mjs`, y desde 2026-10-14 `suite_pruebas.bat` con su carpeta `suite/`, ver §8). *(Nota 2026-10-03: `fase_2/` se movió de `.github/fase_2/` a la raíz del repositorio; ver la nota en `hoja-de-ruta.md` sección 0.)* No modifica ningún archivo de producción: todo lo que arma vive fuera del repositorio, en la carpeta de trabajo del laboratorio.
 
 ---
 
@@ -42,15 +42,17 @@ La ruta real del repositorio contiene un `&` (`...VIRTUALSOFT SERVICIOS & SOFTWA
 
 ## 3. Datos semilla
 
+*(Nota 2026-10-03: los correos de esta sección y el nombre completo en la ruta de la sección "Base" (arriba) se enmascararon — `gxxxxxx@xxxxx.xxx`, `Lxxx Axxxxx Fxxxxxx` — antes de subir `fase_2/` a GitHub como respaldo. Los correos son cuentas semilla del emulador local, no credenciales de producción, pero se enmascaran igual por tratarse de direcciones reales del dominio de la empresa. El código fuente de `fase_2/src/` no se tocó: la constante `FORM_SUBMIT_CC` de `services/external/formsubmit-notification-adapter.js` debe seguir siendo idéntica a la de `app.js` para que la comparación de snapshots de la Fase 1 siga siendo válida.)*
+
 La semilla actual (`emulator_data/`, ignorada por git) contiene:
 
 | Rol en DB | Correo (Auth) | Aprobado |
 |---|---|---|
-| Gestor (`luis gestor`) | `gestor@virtualsoft.tech` | sí |
-| Supervisor (`luis admin`) | `admin@virtualsoft.tech` | sí |
+| Gestor (`luis gestor`) | `gxxxxxx@xxxxx.xxx` | sí |
+| Supervisor (`luis admin`) | `axxxxxx@xxxxx.xxx` | sí |
 | Gestor (`oriana borja`, semilla sin cuenta Auth) | — | sí |
 
-Además incluye 15 reportes de turno, 32 registros de acceso, 1 comunicado y 1 sesión activa. El laboratorio anterior documentaba otros usuarios (`admin.lab@` y `gestor.lab@virtualsoft.tech`, UID `LAB_*`); si se necesitan, se crean desde la Emulator UI o el registro de la app.
+Además incluye 15 reportes de turno, 32 registros de acceso, 1 comunicado y 1 sesión activa. El laboratorio anterior documentaba otros usuarios (`axxxxxx@xxxxx.xxx` y `gxxxxxx@xxxxx.xxx`, UID `LAB_*`); si se necesitan, se crean desde la Emulator UI o el registro de la app.
 
 Regla de seguridad que ya causó errores: `approved` debe ser el booleano `true` en `/users/{uid}/approved`; un texto como `"Aprobado"` hace que `database.rules.json` responda `PERMISSION_DENIED`.
 
@@ -86,3 +88,94 @@ Sin verificar:
 ## 7. Reversión
 
 Borrar `C:\riskops-lab-fase2` elimina todo el laboratorio; el repositorio no se ve afectado. `stage.mjs` solo regenera `site/` en cada arranque y conserva `emulator_data/`.
+
+## 8. Suite de pruebas automatizada (`suite_pruebas.bat`, 2026-10-14)
+
+`Iniciar_Laboratorio_Fase2.bat` arranca la app para la prueba **manual** en Chrome. `suite_pruebas.bat` es su pareja **automática**: corre todas las pruebas sobre el código actual de la rama, sin emuladores ni navegador, y dice qué tan lejos está el cierre del refactor. El flujo de trabajo queda así:
+
+```
+editar local  →  Iniciar_Laboratorio_Fase2.bat (corre la suite + muestra el plan + arranca el lab)  →  prueba manual  →  commit/push a la rama refactor
+```
+
+Desde 2026-10-14 `Iniciar_Laboratorio_Fase2.bat` corre la suite **en cada inicio** y muestra el plan de prueba manual antes de arrancar los emuladores (pasos 2 y 3 de 6, ver abajo). `suite_pruebas.bat` sigue existiendo para correr solo la suite, sin levantar el laboratorio.
+
+### Integración con `Iniciar_Laboratorio_Fase2.bat`
+
+| Paso | Qué hace |
+|---|---|
+| 1/6 | Compila el bundle (igual que antes). |
+| 2/6 | Corre la suite completa (`suite/suite-pruebas.mjs`) sobre el código actual de la rama y muestra el resultado. Prepara antes el Python aislado con `suite/preparar-python.cmd`. Si hay fallas **no** bloquea el arranque: avisa. |
+| 3/6 | `suite/plan-prueba-manual.mjs` cruza el resultado con las 11 áreas funcionales (arranque, sesión y roles, tareas, pausas, monitoreo, aprobaciones, reportes, KPIs, comunicados, cierre de turno, motor operativo) y lista qué probar a mano, **ordenado por prioridad** (primero FALLA y OMITIDA). También lista las líneas de `app.js` marcadas `[Fase 2]` (código delegado al bundle) para recorrerlas en Chrome. Si la integración falló, avisa que `stage.mjs` se detendrá y ofrece `RISKOPS_LAB_INTEGRATE=0`. Espera una tecla antes de seguir. |
+| 4/6 a 6/6 | `stage.mjs`, `preflight.mjs` y emuladores (igual que antes). |
+
+El plan queda en `C:\riskops-lab-fase2\pruebas\plan-prueba-manual.txt` para tenerlo abierto mientras se prueba. Variables: `RISKOPS_LAB_SUITE=0` omite la suite (el plan sale sin datos automáticos) y `RISKOPS_LAB_PAUSA_PLAN=0` no espera tecla.
+
+### Archivos
+
+| Archivo | Función |
+|---|---|
+| `fase_2/lab/suite_pruebas.bat` | Punto de entrada (doble clic). Compila el bundle, prepara Python aislado y lanza la suite. |
+| `fase_2/lab/suite/suite-pruebas.mjs` | Orquestador: ejecuta cada grupo, resume y guarda el log. |
+| `fase_2/lab/suite/bloqueo-red.cjs` | Se precarga en cada proceso de Node (`--require`): cualquier conexión de red falla con `ERIESGO_RED`. |
+| `fase_2/lab/suite/motor_operativo_aislado.py` | Corre `test_motor_operativo.py` (raíz del repo) en entorno hermético y agrega un contrato de seguridad del motor. |
+| `fase_2/lab/suite/preparar-python.cmd` | Crea/reutiliza `C:\riskops-lab-fase2\venv-motor` y define `RISKOPS_PYTHON` (lo usan los dos `.bat`). |
+| `fase_2/lab/suite/plan-prueba-manual.mjs` | Genera el plan de prueba manual de cada inicio a partir del último resultado. |
+
+### Qué ejecuta
+
+| Paso | Contenido | Equivale a |
+|---|---|---|
+| 1. Bundle | `build/verify-bundle.mjs` (71 comprobaciones de `window.RiskOps`) | `npm run verify` |
+| 2. Unitarias | Todos los `*.test.mjs` de `fase_2/src/tests` salvo `e2e/` y `helpers/` (78 archivos al 2026-10-14) | `src/tests/README.md` |
+| 3. Integración | Aplica `integracion/aplicar-integracion.mjs` + `integracion/pasos/` al `app.js` de la rama y escribe `app.integrado.js` **fuera del repo** | lo que hace `stage.mjs` |
+| 4. E2E | Las 9 pruebas de `src/tests/e2e` contra el `app.js` original e integrado con el bundle real (`--strict` donde aplica) | log del paso 6 |
+| 5. Motor operativo | `test_motor_operativo.py` + 3 pruebas de seguridad (import sin red H-P4, credenciales del `.env` no se cargan, `authenticate()` sin credenciales no sale a la red) | `hoja-de-ruta.md` §0 paso 3 |
+
+Nota: la prueba del motor operativo es el script `test_motor_operativo.py` (unittest). No existe un cuaderno Jupyter del motor en el repositorio; el único rastro de Jupyter en el laboratorio es el kernel que ocupó el puerto 9000 (§5).
+
+### Controles de seguridad
+
+- **No escribe en el repositorio.** Resultados, `app.integrado.js` y el entorno de Python quedan en `%RISKOPS_LAB_ROOT%` (por defecto `C:\riskops-lab-fase2\pruebas` y `...\venv-motor`). La suite se niega a correr si `RISKOPS_LAB_ROOT` apunta dentro del repo.
+- **Red bloqueada** en cada proceso de prueba (Node y Python). Un intento de conexión hace fallar la prueba y se cuenta en el resumen.
+- **Sin secretos en el entorno de las pruebas.** Se eliminan variables con `PASSWORD`, `TOKEN`, `SECRET`, `API_KEY`, `MSTR_*`, `FIREBASE_*`, `GITHUB_*`, etc. En Python, las `MSTR_*` se fuerzan a vacío antes de importar el motor: `load_dotenv()` no sobrescribe variables existentes, así que las credenciales del `.env` real no llegan a la prueba (verificado con un `.env` falso con contraseña).
+- **Sin shell ni bytecode.** Los procesos se lanzan con `spawnSync` sin `shell` (rutas con espacios o `&` no se interpretan), con tiempo límite (180 s por archivo) y Python en modo `-I` sin `__pycache__`.
+
+### Uso
+
+```bat
+fase_2\lab\suite_pruebas.bat                    &rem todo
+fase_2\lab\suite_pruebas.bat --solo-unitarias   &rem solo bundle + unitarias
+fase_2\lab\suite_pruebas.bat --sin-motor        &rem sin la parte de Python
+```
+
+La primera vez crea `C:\riskops-lab-fase2\venv-motor` e instala `requirements.txt` (necesita internet solo esa vez). Para usar otro Python: `set RISKOPS_PYTHON=C:\ruta\python.exe`. Código de salida: `0` todo en verde, `1` hay fallas, `2` la suite no pudo prepararse.
+
+Salida: resumen en consola y `C:\riskops-lab-fase2\pruebas\ultimo-resultado.txt` (+ `.json` y un `resultado-<fecha>.txt` por corrida).
+
+### Primera corrida de referencia (2026-10-14, código de la rama con las 6 delegaciones de ese día)
+
+| Grupo | Archivos OK / total | Pruebas OK | Pruebas falla |
+|---|---|---|---|
+| Bundle | 1 / 1 | 71 | 0 |
+| Unitarias | 75 / 78 | 1274 | 5 |
+| Integración | 0 / 1 | — | 1 |
+| E2E | 0 / 9 (omitidas por la integración) | — | — |
+| Motor operativo | 1 / 1 | 4 | 0 |
+
+Fallas encontradas (pendientes de corregir antes del cierre):
+
+1. ~~**Integración rota por la delegación de `syncActiveSessionToFirebase()`**~~ — **corregido el 2026-10-14** en `integracion/aplicar-integracion.mjs`: el paso `latido: payload con splitShiftStartTime y total` ahora agrega los dos campos al objeto `sessionMetadata` ya construido (cubre la ruta delegada y la de respaldo), y el paso `cierre: campos de tiempos del correo` sustituye el bloque `[Fase 2]` de `buildClosureEmailTimeFields` por `__closure.emailFields`. La integración aplica 62 pasos y `stage.mjs` vuelve a funcionar.
+2. `domain/presence-and-counter.test.mjs` — D6 aislamiento estático: `src/app/bootstrap.js` crea los servicios de presencia/contador, y la regla D6 dice que solo el bundle los expone.
+3. `controllers/announcements-controller.test.mjs` — 3 casos D4 (duplicidad de lectura con reglas reales y `PERMISSION_DENIED`).
+4. `controllers/shift-activity-controller.test.mjs` — `onIdleChange(false)`: la pausa no debe bloquear la restauración a Activo.
+
+Las fallas 2–4 se reproducen igual sin el bloqueo de red: son del código, no de la suite.
+
+### Corrida tras corregir la integración (2026-10-14)
+
+Integración 62/62 pasos. E2E: 4 de 9 en verde (`cierre-horas-efectivas` 19/19, `modales-permisos-integrado` 78/78, `kpis-integrado` 20/20, `turno-avance-panel-horas-efectivas` 9/9). Las otras 5 fallan por causas **ajenas** a la corrección del paso:
+
+5. **`app.js` perdió el parche de la Pausa de Turno del 2026-10-04** (`renderActiveSessionsDashboard`, `viewTimelineInMonitoreo`, `openLoginHistoryModal`): `parche-pausa-turno.unit.cjs` da `Integridad 2/5` y `monitoreo-render.e2e.cjs` falla incluso contra el `app.js` del repo sin integrar. El 2026-10-06 el mismo archivo daba `PARCHE VERIFICADO`. El reflog de git muestra un `reset: moving to HEAD~1` el 2026-10-13 y la rama activa es `backup/fase2-refactor-2026-10-03`. Arrastra `split-shift-flag` R3.1/R3.4 y las tarjetas de Monitoreo de `historial-navegacion-integrado`.
+6. **Paso `integracion/pasos/inactividad-shift-activity.mjs` (2026-10-09)**: usa `__shiftActivityController`, que los arneses de `split-shift-flag.unit.cjs` no definen (`__shiftActivityController is not defined` en R2.5, R3.2, R3.3). Sin ese paso esas 3 pruebas pasan.
+7. `tareas-integrado` S6 (inactividad por IdleDetector: el integrado reporta `En Línea` donde el original reporta `Inactivo`) y `comunicados-integrado` C1b (D4) — pendientes de diagnóstico.
+

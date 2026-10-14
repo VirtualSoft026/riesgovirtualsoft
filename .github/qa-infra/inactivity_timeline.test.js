@@ -20,6 +20,9 @@ const path = require('node:path');
 const appPath = path.resolve(__dirname, '..', '..', 'app.js');
 const appSource = fs.readFileSync(appPath, 'utf8');
 
+const bundlePath = path.resolve(__dirname, '..', '..', 'dist', 'riskops.bundle.js');
+const bundleSource = fs.existsSync(bundlePath) ? fs.readFileSync(bundlePath, 'utf8') : null;
+
 function extractBetween(startMarker, endMarker) {
   const start = appSource.indexOf(startMarker);
   const end = appSource.indexOf(endMarker, start);
@@ -293,6 +296,14 @@ function testNoDuplicateTimelineEvents() {
 }
 
 // ============================================================================
+// TEST 10 (bundle): shouldApplyDomIdleFallback compilada en el bundle
+// ============================================================================
+function testBundleContainsShouldApplyDomIdleFallback() {
+  if (!bundleSource) return;
+  assert.match(bundleSource, /shouldApplyDomIdleFallback/, 'bundle: shouldApplyDomIdleFallback debe estar compilado en el bundle');
+}
+
+// ============================================================================
 // Runner
 // ============================================================================
 const tests = [
@@ -305,6 +316,7 @@ const tests = [
   ['Browser-aware: visibilitychange does not backfill hidden time', testVisibilityChangeDoesNotBackfillHiddenTime],
   ['Structural: all mechanisms record in timeline', testAllMechanismsRecordInTimeline],
   ['Safety: no duplicate timeline events', testNoDuplicateTimelineEvents],
+  ['Bundle: shouldApplyDomIdleFallback en bundle compilado', testBundleContainsShouldApplyDomIdleFallback],
 ];
 
 let passed = 0;

@@ -1,0 +1,147 @@
+LOG DE PRUEBAS — PARCHE 'PAUSA DE TURNO' EN app.js
+Fecha de ejecución: 2026-10-05T16:56:32Z
+Node: v22.22.2
+app.js bajo prueba: copia exacta de la carpeta del usuario (OneDrive\...\Fase2\riesgovirtualsoft\app.js)
+  tamaño: 448018 bytes | líneas: 8841 | sha256: ce37af2f403de478e3f95855e3e73065065eae5b18ea72aa3fb84f2d38c0d951
+Idéntico a la copia parchada de trabajo: SI
+
+################ 1. PRUEBAS UNITARIAS DEL PARCHE (21 + 5 de integridad) ################
+$ node fase_2/src/tests/e2e/parche-pausa-turno.unit.cjs app.js
+=== PARCHE "PAUSA DE TURNO" — PRUEBAS UNITARIAS ===
+Archivo: /mnt/user-data/uploads/riesgovirtualsoft/app.js | 2026-10-05T16:56:32.516Z
+
+--- 1. Integridad del archivo
+  [PASS] Sintaxis válida (equivale a node --check)
+  [PASS] 'En Pausa de Turno' aparece 7 veces (1 escritura previa + 6 del parche)
+  [PASS] Todas las líneas terminan en CRLF (no hay LF sueltos; app.js es CRLF)
+  [PASS] El original reconstruido difiere del parchado y es sintácticamente válido
+  [PASS] Cobertura: todo sitio que compara 'En Desayuno' contra el estado también contempla 'En Pausa de Turno'
+
+--- 2. Funciones reales de app.js PARCHADO (todas deben pasar)
+  [PASS] (a) A1 Filtro 'En línea' EXCLUYE a quien está en Pausa de Turno (igual que Almuerzo)
+  [PASS] (a) A2 Filtro 'Fuera de línea' INCLUYE a quien está en Pausa de Turno
+  [PASS] (a) A3 Filtro 'En línea' sigue incluyendo a 'En Línea' con latido reciente (sin regresión)
+  [PASS] (a) A4 Sin filtro, la Pausa de Turno aparece en el listado
+  [PASS] (b) B1 Pausa de Turno sin latido por 5 min NO se degrada a 'Inactivo'
+  [PASS] (b) B2 Control: 'En Línea' sin latido por 5 min SÍ se degrada a 'Inactivo' (regla original intacta)
+  [PASS] (b) B3 Control: Almuerzo y Desayuno sin latido conservan su estado
+  [PASS] (c) C1 Texto de estado 'En Pausa de Turno ⏸️' con latido reciente
+  [PASS] (c) C2 Texto de estado 'En Pausa de Turno ⏸️' aun sin latido (el gestor no pinguea en pausa larga)
+  [PASS] (c) C3 Paridad con Almuerzo: el indicador de la tarjeta usa la misma clase CSS que los otros descansos
+  [PASS] (c) C4 Sin regresión de texto: Almuerzo, Desayuno, Inactivo y En Línea
+  [PASS] (c) C5 Sin regresión de HTML: las tarjetas de los estados que no son Pausa son idénticas al original
+  [PASS] (d) D1 Timeline de un gestor en Pausa (5 min sin latido) NO muestra 'Inactividad' en curso
+  [PASS] (d) D2 Control: gestor 'En Línea' con 5 min sin latido SÍ muestra 'Inactividad' en curso
+  [PASS] (d) D3 Control: Almuerzo y Desayuno sin latido no inyectan 'Inactividad'
+  [PASS] (e) E1 Evento 'Pausa de Turno' se dibuja con ícono bx-pause-circle morado
+  [PASS] (e) E2 Sin regresión: los eventos Almuerzo, Desayuno e Inactividad conservan su ícono
+  [PASS] (e) E3 El modal se abre
+  [PASS] (f) F1 Historial: sesión en Pausa de Turno queda isOnline=false y conserva su estado
+  [PASS] (f) F2 Historial: control — sesión 'En Línea' reciente queda isOnline=true
+  [PASS] (f) F3 Historial: control — Almuerzo, Desayuno e Inactivo quedan isOnline=false
+
+--- 3. Mismas pruebas sobre el app.js ORIGINAL (verifica que las pruebas detectan el bug)
+     Esperado: las marcadas [BUG] FALLAN; las demás PASAN (no hay regresión).
+  [OK ] A1 [BUG] original FALLA -> Pausa de Turno no debe aparecer como 'en línea': esperado false, obtenido true
+  [OK ] A2 [BUG] original FALLA -> valor distinto: esperado true, obtenido false
+  [OK ] A3       original pasa
+  [OK ] A4       original pasa
+  [OK ] B1 [BUG] original FALLA -> estado tras renderizar: esperado "En Pausa de Turno", obtenido "Inactivo"
+  [OK ] B2       original pasa
+  [OK ] B3       original pasa
+  [OK ] C1 [BUG] original FALLA -> valor distinto: esperado "En Pausa de Turno ⏸️", obtenido "En Línea"
+  [OK ] C2 [BUG] original FALLA -> valor distinto: esperado "En Pausa de Turno ⏸️", obtenido "Inactivo 💤"
+  [OK ] C3       original pasa
+  [OK ] C4       original pasa
+  [OK ] C5       original pasa
+  [OK ] D1 [BUG] original FALLA -> se inyectó una Inactividad falsa
+  [OK ] D2       original pasa
+  [OK ] D3       original pasa
+  [OK ] E1 [BUG] original FALLA -> falta el ícono de pausa
+  [OK ] E2       original pasa
+  [OK ] E3       original pasa
+  [OK ] F1 [BUG] original FALLA -> isOnline: esperado false, obtenido true
+  [OK ] F2       original pasa
+  [OK ] F3       original pasa
+
+=== RESUMEN ===
+Integridad: 5/5
+Parchado:   21/21 pruebas pasan
+Original:   8 pruebas [BUG] fallan como se esperaba; 13 de control pasan -> coherente
+RESULTADO: PARCHE VERIFICADO
+[código de salida: 0]
+
+################ 2. EXTREMO A EXTREMO: renderActiveSessionsDashboard() REAL ################
+$ node fase_2/src/tests/e2e/monitoreo-render.e2e.cjs app.js
+  [PASS] En Pausa de Turno, latido reciente: En Pausa de Turno ⏸️
+  [PASS] En Pausa de Turno, sin latido 5 min: En Pausa de Turno ⏸️
+  [PASS] En Almuerzo, latido reciente: En Almuerzo/Cena 🍽️
+  [PASS] En Desayuno, latido reciente: En Desayuno ☕
+  [PASS] Inactivo, latido reciente: Inactivo 💤
+  [PASS] En Línea, latido reciente: En Línea
+  [PASS] En Línea, sin latido 5 min: Inactivo 💤
+monitoreo-render: 7 passed, 0 failed.
+[código de salida: 0]
+
+################ 3. MÓDULO DE REGLAS PURAS active-session-status.js ################
+$ node fase_2/src/tests/domain/active-session-status.test.mjs
+  [PASS] REPRODUCCIÓN DEL BUG: el código actual muestra "En Línea" a un gestor en Pausa de Turno con latido reciente
+  [PASS] REPRODUCCIÓN DEL BUG: sin latido, el código actual rotula la Pausa de Turno como "Inactivo"
+  [PASS] CORREGIDO: Pausa de Turno con latido reciente se muestra como pausa y no cuenta como En Línea en el filtro
+  [PASS] CORREGIDO: Pausa de Turno sin latido por más de 2 min sigue siendo pausa (no "Inactivo")
+  [PASS] el resto de estados es IDÉNTICO al código actual (diferencial, 6 estados x 4 latidos)
+  [PASS] Inactivo con latido reciente se muestra Inactivo (la vista ya lo soportaba)
+active-session-status.js (bug: Pausa de Turno invisible al supervisor): 6 passed, 0 failed.
+[código de salida: 0]
+
+################ 4. REGRESIÓN: RESTO DE SUITES DE fase_2/src ################
+--- $ node fase_2/src/tests/run-utils-tests.mjs
+validation.js: 7 passed, 0 failed.
+
+==============================
+Resultado: todas las suites pasaron.
+[código de salida: 0]
+--- $ node fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs
+  [PASS] B3 [RIESGO CRÍTICO]. "riskOps_breakState" de producción jamás trae shiftTimeline (contrato documentado, no inferido)
+  [PASS] C1. pushTimelineEvent("start", ...) cierra eventos abiertos y abre uno nuevo
+  [PASS] C2. pushTimelineEvent("end", ...) cierra el último evento abierto de ese tipo
+break-state-timeline-coherence: 12 passed, 0 failed.
+[código de salida: 0]
+--- $ node fase_2/src/tests/domain/schedule-parser.test.mjs
+  [PASS] getShiftCategory clasifica como "Noche" cualquier hora de inicio fuera de Mañana/Tarde
+  [PASS] getShiftCategory normaliza "am"/"pm" al mediodía y medianoche (12am=0h, 12pm=12h)
+  [PASS] getShiftCategory devuelve "" si el texto no matchea ninguna palabra clave ni rango de hora
+schedule-parser.js: 11 passed, 0 failed.
+[código de salida: 0]
+--- $ node fase_2/src/tests/domain/break-transitions.test.mjs
+  [PASS] característica heredada: terminar una pausa activa SIN hora de inicio no suma tiempo (estado restaurado incompleto)
+  [PASS] no muta el estado recibido
+  [PASS] un tipo de pausa desconocido lanza error
+break-transitions.js: 15 passed, 0 failed.
+[código de salida: 0]
+--- $ node fase_2/src/tests/domain/shift-closure-rules.test.mjs
+  [PASS] listUnmanagedTasks: las tareas extra pendientes se agregan al final
+  [PASS] listUnmanagedTasks: sin catálogo (allTasks no es arreglo) revisa el caché completo
+  [PASS] listUnmanagedTasks: todo gestionado devuelve arreglo vacío
+shift-closure-rules.js: 11 passed, 0 failed.
+[código de salida: 0]
+--- $ node fase_2/src/tests/domain/shift-report-builder.test.mjs
+  [PASS] buildShiftReportObject: arma exactamente los 16 campos de shift_reports
+  [PASS] buildShiftReportObject: valores por defecto ("Por Asignar", "N/A", pausa de turno 0)
+  [PASS] buildShiftReportObject: un valor de SET "" se conserva (no se convierte en "N/A")
+shift-report-builder.js: 10 passed, 0 failed.
+[código de salida: 0]
+--- $ node fase_2/src/tests/domain/firebase-shift-repository.test.mjs
+  [PASS] restoreEndShiftButton restaura el HTML previo y rehabilita el botón
+  [PASS] restoreEndShiftButton usa el texto por defecto si no hay HTML previo
+  [PASS] restoreEndShiftButton no falla con botón nulo
+firebase-shift-repository.js + end-shift-button.js: 9 passed, 0 failed.
+[código de salida: 0]
+--- $ node fase_2/src/tests/domain/shift-closure-calculations.test.mjs
+  [PASS] consolidateTimeline (3 tipos de pausa) coincide con el original en 300 líneas de tiempo aleatorias
+  [PASS] consolidateTimeline: línea de tiempo vacía o nula devuelve []
+  [PASS] consolidateTimeline: descarta inactividad < 30 s y la que cae dentro de una pausa
+shift-closure-calculations (diferencial vs app.js): 8 passed, 0 failed.
+[código de salida: 0]
+
+Suites de regresión con fallas: 0

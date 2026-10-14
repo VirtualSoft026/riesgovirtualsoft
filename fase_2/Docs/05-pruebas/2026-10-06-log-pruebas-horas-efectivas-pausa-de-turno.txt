@@ -1,0 +1,176 @@
+LOG DE PRUEBAS — HORAS EFECTIVAS AL CIERRE CON PAUSA DE TURNO (candidato, NO aplicado)
+Fecha: 2026-10-06T14:40:01Z | Node v22.22.2
+Regla de negocio confirmada por el responsable: la Pausa de Turno NO cuenta como tiempo trabajado.
+app.js actual:    sha256 ce37af2f403de478e3f95855e3e73065065eae5b18ea72aa3fb84f2d38c0d951
+app.js candidato: sha256 a461f0014c01d44eb63ba338bde92d903c6115dd1352d6aedd40d2f641654659  (solo copia de trabajo)
+app.js candidato COMBINADO (hasSplitShift + horas): sha256 938b916da6eab4ac0f779b156377f07d3e0e72fc429ed4b7741c0d6911fa4c42
+
+############ A. app.js ACTUAL (informativo: las brechas se reportan, no fallan) ############
+=== CIERRE DE TURNO — HORAS EFECTIVAS CON PAUSA DE TURNO ===
+app.js: /mnt/user-data/uploads/riesgovirtualsoft/app.js | modo: informativo (las brechas se reportan aparte) | 2026-10-06T14:40:01.201Z
+  [PASS] H1 Sin Pausa de Turno: turno 8 h con 30 min de almuerzo = 7.50 h (sin regresión)
+  [PASS] H2 Sin Pausa de Turno: almuerzo y desayuno con excesos y penalidad se calculan igual que antes
+  [BRECHA] H3 Con Pausa de Turno: 08:00-18:00, almuerzo 30 min, pausa 180 min = 6.50 h (antes 9.50 h)
+         -> distinto: esperado "6.50 hrs", obtenido "9.50 hrs"
+  [BRECHA] H4 La pausa resta del tiempo efectivo exactamente su duración (cada minuto baja 1/60 h)
+         -> distinto: esperado "1.50", obtenido "0.00"
+  [PASS] H5 La pausa NO altera la penalidad de conectividad (solo excesos e inactividad)
+  [BRECHA] H6 Combinado: pausa + almuerzo con exceso + desayuno + inactividad restan cada uno una sola vez
+         -> distinto: esperado "5.92 hrs", obtenido "7.92 hrs"
+  [BRECHA] H7 Nunca negativo: si la pausa supera al turno el resultado es 0.00
+         -> distinto: esperado "0.00 hrs", obtenido "1.00 hrs"
+  [BRECHA] H8 El correo informa "Tiempo_Pausa_Turno_Descontado" cuando hubo pausa
+         -> distinto: esperado "180 minutos", obtenido undefined
+  [PASS] H9 El correo NO agrega el campo de pausa si no hubo pausa (sin ruido para el resto de gestores)
+  [PASS] H10 Campos existentes del correo conservados (almuerzo, desayuno, penalidad, usuario, horas)
+  [BRECHA] H11 Coherencia con el panel de reportes (línea de tiempoEfectivo) cuando no hay penalidad
+         -> distinto: esperado "6.83", obtenido "9.33"
+  [PASS] H12 Orden: handleEndShift cierra la pausa abierta ANTES de calcular (el acumulado incluye el último tramo)
+  [PASS] H13 El reporte guardado en Firebase conserva tiempoPausaTurnoMins (para el panel de reportes)
+
+=== RESUMEN ===
+Pasan: 7 | Fallan: 0 | Brechas abiertas: 6 | Total: 13
+RESULTADO: SIN REGRESIONES; LA BRECHA DE HORAS EFECTIVAS SIGUE ABIERTA
+[código de salida: 0]
+
+############ B. app.js CANDIDATO DE HORAS (estricto) ############
+=== CIERRE DE TURNO — HORAS EFECTIVAS CON PAUSA DE TURNO ===
+app.js: /tmp/claude-0/-home-claude/56b76ec8-348b-576e-9ed1-3b5354375639/scratchpad/cand/app.candidato-horas.js | modo: ESTRICTO | 2026-10-06T14:40:01.274Z
+  [PASS] H1 Sin Pausa de Turno: turno 8 h con 30 min de almuerzo = 7.50 h (sin regresión)
+  [PASS] H2 Sin Pausa de Turno: almuerzo y desayuno con excesos y penalidad se calculan igual que antes
+  [PASS] H3 Con Pausa de Turno: 08:00-18:00, almuerzo 30 min, pausa 180 min = 6.50 h (antes 9.50 h)
+  [PASS] H4 La pausa resta del tiempo efectivo exactamente su duración (cada minuto baja 1/60 h)
+  [PASS] H5 La pausa NO altera la penalidad de conectividad (solo excesos e inactividad)
+  [PASS] H6 Combinado: pausa + almuerzo con exceso + desayuno + inactividad restan cada uno una sola vez
+  [PASS] H7 Nunca negativo: si la pausa supera al turno el resultado es 0.00
+  [PASS] H8 El correo informa "Tiempo_Pausa_Turno_Descontado" cuando hubo pausa
+  [PASS] H9 El correo NO agrega el campo de pausa si no hubo pausa (sin ruido para el resto de gestores)
+  [PASS] H10 Campos existentes del correo conservados (almuerzo, desayuno, penalidad, usuario, horas)
+  [PASS] H11 Coherencia con el panel de reportes (línea de tiempoEfectivo) cuando no hay penalidad
+  [PASS] H12 Orden: handleEndShift cierra la pausa abierta ANTES de calcular (el acumulado incluye el último tramo)
+  [PASS] H13 El reporte guardado en Firebase conserva tiempoPausaTurnoMins (para el panel de reportes)
+
+=== RESUMEN ===
+Pasan: 13 | Fallan: 0 | Brechas abiertas: 0 | Total: 13
+RESULTADO: TODO CUMPLIDO
+[código de salida: 0]
+
+############ C. CANDIDATO COMBINADO (hasSplitShift + horas): todas las suites que ejecutan app.js ############
+--- $ node split-shift-flag.unit.cjs app.candidato-ambos.js --strict --index index.html --rules database.rules.json
+  [PASS] R3.4 Secuencia Pausa → Almuerzo → Desayuno: 3 eventos cerrados, cada estado visible a su tiempo
+  [PASS] B3 [BRECHA] Flag revocado en plena pausa: el gestor no debe quedar bloqueado para Almuerzo/Desayuno
+
+=== RESUMEN ===
+Pasan: 23 | Fallan: 0 | Brechas abiertas: 0 | Omitidas: 0 | Total: 23
+RESULTADO: TODO CUMPLIDO
+[código de salida: 0]
+--- $ node cierre-horas-efectivas.e2e.cjs app.candidato-ambos.js --strict
+  [PASS] H12 Orden: handleEndShift cierra la pausa abierta ANTES de calcular (el acumulado incluye el último tramo)
+  [PASS] H13 El reporte guardado en Firebase conserva tiempoPausaTurnoMins (para el panel de reportes)
+
+=== RESUMEN ===
+Pasan: 13 | Fallan: 0 | Brechas abiertas: 0 | Total: 13
+RESULTADO: TODO CUMPLIDO
+[código de salida: 0]
+--- $ node parche-pausa-turno.unit.cjs app.candidato-ambos.js 
+
+=== RESUMEN ===
+Integridad: 5/5
+Parchado:   21/21 pruebas pasan
+Original:   8 pruebas [BUG] fallan como se esperaba; 13 de control pasan -> coherente
+RESULTADO: PARCHE VERIFICADO
+[código de salida: 0]
+--- $ node monitoreo-render.e2e.cjs app.candidato-ambos.js 
+  [PASS] En Almuerzo, latido reciente: En Almuerzo/Cena 🍽️
+  [PASS] En Desayuno, latido reciente: En Desayuno ☕
+  [PASS] Inactivo, latido reciente: Inactivo 💤
+  [PASS] En Línea, latido reciente: En Línea
+  [PASS] En Línea, sin latido 5 min: Inactivo 💤
+monitoreo-render: 7 passed, 0 failed.
+[código de salida: 0]
+
+############ D. MÓDULO fase_2/src: pruebas nuevas y regresión ############
+--- $ node fase_2/src/tests/domain/shift-effective-hours-split.test.mjs
+  [PASS] nunca devuelve negativo aunque la pausa supere al turno
+  [PASS] splitShiftMs null o undefined se comporta como 0 (estado restaurado incompleto)
+shift-effective-hours-split (Pausa de Turno no es tiempo trabajado): 7 passed, 0 failed.
+[código de salida: 0]
+--- $ node fase_2/src/tests/domain/shift-closure-calculations.test.mjs
+  [PASS] consolidateTimeline: línea de tiempo vacía o nula devuelve []
+  [PASS] consolidateTimeline: descarta inactividad < 30 s y la que cae dentro de una pausa
+shift-closure-calculations (diferencial vs app.js): 8 passed, 0 failed.
+[código de salida: 0]
+--- $ node fase_2/src/tests/run-utils-tests.mjs
+
+==============================
+Resultado: todas las suites pasaron.
+[código de salida: 0]
+--- $ node fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs
+  [PASS] C1. pushTimelineEvent("start", ...) cierra eventos abiertos y abre uno nuevo
+  [PASS] C2. pushTimelineEvent("end", ...) cierra el último evento abierto de ese tipo
+break-state-timeline-coherence: 12 passed, 0 failed.
+[código de salida: 0]
+--- $ node fase_2/src/tests/domain/schedule-parser.test.mjs
+  [PASS] getShiftCategory normaliza "am"/"pm" al mediodía y medianoche (12am=0h, 12pm=12h)
+  [PASS] getShiftCategory devuelve "" si el texto no matchea ninguna palabra clave ni rango de hora
+schedule-parser.js: 11 passed, 0 failed.
+[código de salida: 0]
+--- $ node fase_2/src/tests/domain/break-transitions.test.mjs
+  [PASS] no muta el estado recibido
+  [PASS] un tipo de pausa desconocido lanza error
+break-transitions.js: 15 passed, 0 failed.
+[código de salida: 0]
+--- $ node fase_2/src/tests/domain/shift-closure-rules.test.mjs
+  [PASS] listUnmanagedTasks: sin catálogo (allTasks no es arreglo) revisa el caché completo
+  [PASS] listUnmanagedTasks: todo gestionado devuelve arreglo vacío
+shift-closure-rules.js: 11 passed, 0 failed.
+[código de salida: 0]
+--- $ node fase_2/src/tests/domain/shift-report-builder.test.mjs
+  [PASS] buildShiftReportObject: valores por defecto ("Por Asignar", "N/A", pausa de turno 0)
+  [PASS] buildShiftReportObject: un valor de SET "" se conserva (no se convierte en "N/A")
+shift-report-builder.js: 10 passed, 0 failed.
+[código de salida: 0]
+--- $ node fase_2/src/tests/domain/firebase-shift-repository.test.mjs
+  [PASS] restoreEndShiftButton usa el texto por defecto si no hay HTML previo
+  [PASS] restoreEndShiftButton no falla con botón nulo
+firebase-shift-repository.js + end-shift-button.js: 9 passed, 0 failed.
+[código de salida: 0]
+--- $ node fase_2/src/tests/domain/active-session-status.test.mjs
+  [PASS] el resto de estados es IDÉNTICO al código actual (diferencial, 6 estados x 4 latidos)
+  [PASS] Inactivo con latido reciente se muestra Inactivo (la vista ya lo soportaba)
+active-session-status.js (bug: Pausa de Turno invisible al supervisor): 6 passed, 0 failed.
+[código de salida: 0]
+
+Suites de fase_2/src con fallas: 0
+
+############ E. DIFF DEL CANDIDATO DE HORAS ############
+--- app.js (actual)
++++ app.js (candidato horas efectivas)
+@@ -3742,6 +3742,7 @@
+             // Calculo de tiempos tomados
+             const lunchMinutes = parseFloat((totalLunchTimeMs / (1000 * 60)).toFixed(1));
+             const breakfastMinutes = parseFloat((totalBreakfastTimeMs / (1000 * 60)).toFixed(1));
++            const splitShiftMinutes = parseFloat((totalSplitShiftTimeMs / (1000 * 60)).toFixed(1));
+             
+             // Calculo de penalidades (excesos)
+             const allowedLunch = 60;
+@@ -3764,8 +3765,9 @@
+ 
+             // Calculo de tiempo efectivo
+             const totalShiftMs = endDate.getTime() - loginDate.getTime();
+-            // Restamos TODAS las pausas, pero además la penalidad adicional sobre las horas efectivas
+-            const effectiveShiftMs = totalShiftMs - totalLunchTimeMs - totalBreakfastTimeMs - (penalidadConectividadMins * 60 * 1000);
++            // Restamos TODAS las pausas (almuerzo, desayuno y Pausa de Turno, que no cuenta como tiempo trabajado),
++            // pero además la penalidad adicional sobre las horas efectivas
++            const effectiveShiftMs = totalShiftMs - totalLunchTimeMs - totalBreakfastTimeMs - totalSplitShiftTimeMs - (penalidadConectividadMins * 60 * 1000);
+             const effectiveHours = Math.max(0, (effectiveShiftMs / (1000 * 60 * 60))).toFixed(2);
+             
+             formData.append("Usuario", localUser.name);
+@@ -3775,6 +3777,7 @@
+             formData.append("Hora_Fin_Turno", endDate.toLocaleString());
+             formData.append("Tiempo_Almuerzo_Descontado", lunchMinutes + " minutos");
+             formData.append("Tiempo_Desayuno_Descontado", breakfastMinutes + " minutos");
++            if (totalSplitShiftTimeMs > 0) formData.append("Tiempo_Pausa_Turno_Descontado", splitShiftMinutes + " minutos");
+             formData.append("Exceso_Pausas_Penalidad", penalidadConectividadMins + " minutos");
+             formData.append("Horas_Efectivas_Trabajadas", effectiveHours + " hrs");
+             

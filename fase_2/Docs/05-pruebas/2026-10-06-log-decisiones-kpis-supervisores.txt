@@ -1,0 +1,559 @@
+LOG DE DECISIONES — grupo "kpis-supervisores" (D5 y D9b del plan maestro §4 ter)
+Fecha: 2026-10-06. Árbol de trabajo: fase_2/ (producción —app.js, index.html, login.js, database.rules.json— SIN tocar).
+Todo lo de abajo de la línea "SALIDAS REALES" es la salida literal de los comandos indicados.
+
+RESUMEN
+-------
+D5 (KPIs dinámicos desde el historial, rango de fechas, zona horaria)
+  - corregirBugs ENCENDIDO por defecto: domain/analytics/operativo-analysis.js (computeAnalysisStats, isDateIncludedInAnalysis)
+    y ui/views/operativo-analysis-view.js (buildAnalysisHtml).
+      * 2+ gestores ("Varios"): ya no lanza TypeError; resumen del equipo SELECCIONADO; búsqueda solo en llaves propias.
+      * Rango de fechas del análisis = el MISMO de la tabla (resolveOperativoRanges + isFechaInRange): "mes anterior" = mes
+        calendario previo completo (29/30/31-mar -> 1..28-feb; 2028 bisiesto -> incluye 29-feb; 31-ene -> diciembre del año
+        anterior); "7"/"30" cerrados hasta hoy; personalizado sin ambas fechas = nada.
+  - fechaLocal ENCENDIDO por defecto: domain/analytics/kpi-service.js (mergeShiftReportsIntoOperativoData). Nuevo
+    resolveOperativeDayKey: día operativo LOCAL = fecha local de INICIO del turno (loginTime > horaInicio [d/m o m/d,
+    desambiguado contra el cierre] > timestamp de cierre > ahora). Motivo: shift_reports.timestamp es el CIERRE
+    (app.js 3887), así que un 22:00-06:00 caía al día siguiente incluso en hora local. toLocalDateKey(date, timeZone?) permite
+    fijar la zona (Intl) sin depender del proceso. Se conserva H-4 (timestamp inválido -> RangeError).
+  - Comportamiento original solo con opciones EXPLÍCITAS: corregirBugs:false, fechaLocal:false (pruebas diferenciales).
+  - Cómo se fija la zona en las pruebas: (a) inyectando timeZone:'America/Bogota' (kpi-service.test, kpi-controller.test);
+    (b) proceso hijo con process.env.TZ='America/Bogota' y 'America/Lima' (spawnSync en kpi-service.test, comprueba
+    getTimezoneOffset()===300); (c) la e2e kpis-integrado fija process.env.TZ='America/Bogota' en su primera línea.
+
+  DE DÓNDE SE LEEN HOY LOS DATOS DE KPIs (verificado en código y con prueba)
+    1. JSON operativo de retiros (historial por gestor y día, generado fuera de la app por motor_operativo.py desde
+       MicroStrategy): services/external/kpi-operativos-source.js -> kpi_operativos_v2.json?v=<ms> (semilla solo en
+       localhost). Prueba: kpi-data-sources.test (12) y e2e K1.
+    2. Firebase shift_reports (historial de turnos: inactividad, tardanza, días laborados) fusionado por gestor/día:
+       services/firebase/firebase-kpi-repository.js readShiftReports + kpi-service.mergeShiftReportsIntoOperativoData.
+    3. Firebase users: mapa email->nombre y, desde D9b, el directorio de supervisores (MISMA lectura).
+    4. Filtro por rango y gestores: se aplica en cada pintado sobre ese historial (aggregateOperativoData,
+       computeAnalysisStats; y calcularIndicadores en app.js para los anillos/tarjetas, no extraído).
+       Prueba nueva (kpi-controller.test "D5: los KPIs salen del historial FILTRADO..."): 4 rangos x 3 selecciones, las
+       tarjetas Total/Aprobados/Rechazados = suma directa del JSON filtrado; y "D9b a través del controlador": las únicas
+       lecturas de Firebase son ['users','shift_reports'] (ningún contador).
+    5. ÚNICO contador global estático encontrado: metrics/approvedCount (initAtomicApprovedCounterListener ->
+       updateApprovedCountUI pinta #metric-approved-count, la tarjeta "Retiros Aprobados (Global)", cuando no hay filtro
+       de gestor, IGNORANDO el rango de fechas). Hoy no opera (sin regla `metrics` -> PERMISSION_DENIED) y D6 lo dejó
+       inactivo (approved-counter-service enabled:false). No hay datos en el historial que lo reemplacen "en vivo" y no
+       está en mi zona: PUNTO ABIERTO (ver abajo). La tarjeta ya se deriva del historial filtrado en calcularIndicadores.
+
+D9b (supervisores por ROL, sin lista fija)
+  - Campo y valores reales (leídos de database.rules.json, login.js y config/roles.js): users/{uid}/role ===
+    'Supervisor' | 'Admin' (comparación exacta, como las reglas). Nuevo módulo domain/schedules/supervisor-directory.js
+    (registrado como RiskOps.kpiSupervisorDirectory en entry-kpis.js).
+  - Identificación: con uid decide SOLO el uid; sin uid (llaves del JSON operativo) nombre completo EXACTO normalizado
+    (minúsculas, sin acentos, espacios colapsados); nunca subcadena. Sin directorio no se oculta a nadie.
+  - Consumidores cambiados: metrics-calculator.selectGlobalForCharts, operativo-analysis.computeAnalysisStats,
+    monitoring-view.filterActiveSessionUids (por UID de active_sessions/{uid}), kpi-controller (directorio de la misma
+    lectura de users), monitoring-controller (+ firebase-monitoring-repository.fetchSupervisorUsers: consultas
+    orderByChild('role').equalTo('Supervisor'|'Admin'), índice ya declarado), active-supervisors (buildBadgeSupervisors;
+    computeActiveSupervisors exige la lista; consulta el cronograma con el NOMBRE COMPLETO) y supervisor-badge-controller
+    (getSupervisorUsers). `excludedNames` se RECHAZA con TypeError; el original solo con legacyExcludedNames /
+    legacySupervisors:true explícitos.
+  - "Mariana" ya no queda oculta: probado en supervisor-directory, metrics-calculator, operativo-analysis, monitoring-view,
+    monitoring-controller, kpi-controller, active-supervisors y en las e2e (K14/K15-D9b y Monitoreo D9b).
+  - Laboratorio: pasos/kpis.mjs y pasos/historial-navegacion.mjs ya NO pasan SUPERVISORES_NOMBRES (solo se tocó esa
+    línea en historial-navegacion.mjs). app.js no tiene una lista de usuarios/roles en memoria en ese punto: el KPI usa la
+    lectura de users que ya hacía; Monitoreo consulta users por rol (solo Supervisor/Admin abren ambos paneles y las reglas
+    se lo permiten).
+
+PUNTOS ABIERTOS
+  1. Insignia "Sup:" para Gestores: database.rules.json NO deja a un Gestor leer `users` (.read solo Admin/Supervisor),
+     así que no puede derivar los supervisores por rol. Con getSupervisorUsers -> null la insignia no se toca (no se
+     afirma "Ninguna"). Requiere decisión de producción: p. ej. nodo público de solo lectura `supervisors_public/{uid}:
+     {name}` escrito por Admin, o regla de lectura acotada. Mientras tanto el paso comunicados.mjs (fuera de mi zona)
+     sigue sin inyectar getSupervisorUsers y el controlador usa la lista fija en MODO TRANSITORIO documentado.
+  2. Consecuencia de D9b a confirmar con datos reales: en emulator_data "oriana borja" tiene role 'Gestor' y figura en
+     KPI_TARGET_GESTORES; con D9b deja de ocultarse en Monitoreo/rankings (antes la ocultaba SUPERVISORES_NOMBRES). Si
+     es supervisora, su rol en users debe corregirse (Admin).
+  3. Contador global metrics/approvedCount (D6, inactivo): al reactivarlo no debe pisar la tarjeta #metric-approved-count
+     (que ya sale del historial filtrado), o debe limitarse a "Todas las fechas" sin gestores.
+  4. calcularIndicadores() (app.js, corte time-metrics, NO extraído ni de mi zona) filtra shift_reports por
+     `timestamp || loginTime` (el CIERRE primero) con ventanas móviles de 7*24 h / 30*24 h: un turno 22:00-06:00 cierra al
+     día siguiente y "hoy/ayer" lo cuentan en ese día. Para cumplir D5 debería usar el día operativo
+     (RiskOps.kpiService.resolveOperativeDayKey) y los rangos de calendario de RiskOps.kpiMetrics (resolveOperativeRanges/isFechaInRange).
+  5. Análisis textual y tabla: la tabla "Resumen de Retiros por Gestor" con "Todos" sigue listando a los supervisores
+     (heredado; solo rankings y análisis los excluyen). No se cambió por no estar decidido.
+
+CAMBIOS FUERA DE MI ZONA QUE SE NECESITAN (no hechos)
+  a) lab/integracion/pasos/comunicados.mjs, bloque SUPERVISOR_BADGE: pasar al crear el controlador
+       getSupervisorUsers: () => (currentUser && ['Admin','Supervisor'].includes(currentUser.role))
+           ? database.ref('users').once('value').then((s) => s.val()) : null,
+     (o legacySupervisors: true para conservar la lista fija de forma EXPLÍCITA mientras se decide el punto abierto 1),
+     y actualizar el escenario C7 de comunicados-integrado.e2e.cjs (hoy afirma paridad con la lista fija).
+  b) calcularIndicadores (punto abierto 4) cuando se extraiga el corte time-metrics.
+  c) Aviso: tests/e2e/turno-avance-panel-horas-efectivas.e2e.cjs (grupo turno-avance) dice "falta registrar el paso en
+     pasos/kpis.mjs"; ese paso (lab/integracion/turno-avance-paso-panel-d1.mjs) NO lo registré (no es D5/D9b).
+
+ARCHIVOS
+  Nuevos: src/domain/schedules/supervisor-directory.js, src/tests/domain/kpi-supervisor-directory.test.mjs.
+  Modificados: src/domain/analytics/{kpi-service,metrics-calculator,operativo-analysis,monitoring-view}.js,
+    src/domain/schedules/active-supervisors.js, src/controllers/{kpi,monitoring,supervisor-badge}-controller.js,
+    src/services/firebase/firebase-monitoring-repository.js, src/ui/views/operativo-analysis-view.js, src/entry-kpis.js,
+    lab/integracion/pasos/{kpis,historial-navegacion}.mjs (este último: solo la línea excludedNames),
+    src/tests/helpers/kpi-harness.mjs, src/tests/domain/{kpi-operativo-analysis,kpi-service,kpi-metrics-calculator,
+    monitoring-view,active-supervisors}.test.mjs, src/tests/controllers/{kpi,monitoring}-controller.test.mjs,
+    src/tests/ui/kpi-chart-configs.test.mjs, src/tests/e2e/{kpis-integrado,historial-navegacion-integrado}.e2e.cjs.
+
+================================================================================
+SALIDAS REALES
+================================================================================
+================================================================================
+1. SUITES DEL GRUPO kpis-supervisores (salida completa)   [2026-10-06T17:30:05-05:00]  TZ del proceso: America/Bogota (America/Bogota)
+================================================================================
+
+$ cd fase_2/src && node tests/domain/kpi-supervisor-directory.test.mjs
+  [PASS] campo y valores reales: users/{uid}/role con "Supervisor" o "Admin" (config/roles.js, database.rules.json, login.js)
+  [PASS] normalizeFullName: minúsculas, sin acentos, espacios recortados y colapsados
+  [PASS] buildSupervisorDirectory: uids y nombres SOLO de los roles exactos; lista ordenada; ignora nulos y roles mal escritos
+  [PASS] isSupervisorEntry: con uid decide SOLO el uid (homónimos con otro uid no se ocultan); sin uid, nombre completo EXACTO
+  [PASS] "Mariana" ya NO queda oculta por coincidir con parte del nombre de una supervisora (antes: subcadena "Maria")
+  [PASS] assertSupervisorDirectory: acepta directorio o null; rechaza la lista fija (arreglo) y objetos sueltos con un error claro
+supervisor-directory (D9b: supervisores por rol en users, sin lista fija): 6 passed, 0 failed.
+
+$ cd fase_2/src && node tests/domain/kpi-operativo-analysis.test.mjs
+  [PASS] resolveFiltroGestor: Todos / nombre / Varios
+  [PASS] sin datos cargados: el original avisa con alert y no abre el modal
+  [PASS] borde: JSON sin gestores / sin datos en el periodo -> mensaje "No hay suficientes datos"
+  [PASS] borde: todos en cero (retiros procesados = 0 en todos) -> mensaje de sin datos
+  [PASS] un solo gestor (reporte individual): tabla, porcentajes y cada aviso de ART (alto >1200, estable, excelente <900)
+  [PASS] un solo gestor con ART promedio solo de los días con ART > 0
+  [PASS] equipo ("Todos"): volumen y ART con 1, 2 y 3+ gestores, y cuello de botella
+  [PASS] equipo: los supervisores se excluyen con "Todos" pero se incluyen si se seleccionan explícitamente
+  [PASS] HALLAZGO (comportamiento de producción): filtro "Varios" (2+ gestores seleccionados) -> TypeError, el modal no se abre
+  [PASS] D5 (predeterminado): 2+ gestores ("Varios") -> resumen del equipo SELECCIONADO, sin TypeError; sin datos -> mensaje; nombre escapado
+  [PASS] D5: 2, 3 y todos los gestores seleccionados + rango de fechas: cada métrica sale del historial filtrado (nada estático)
+  [PASS] D5: "mes anterior" = mes calendario previo completo los días 29, 30 y 31 (y años bisiestos); el original desbordaba
+  [PASS] D9b (predeterminado): con "Todos" se excluye por ROL (nombre completo exacto); "Mariana" ya no queda oculta
+  [PASS] HALLAZGO conservado SOLO con corregirBugs:false: "mes anterior" desborda el 31 (31-mar -> 3-mar) y cuenta marzo; diferencial
+  [PASS] periodo personalizado: rango inclusivo; sin una de las fechas no filtra nada (igual que el original)
+  [PASS] isDateIncludedInAnalysis (original, corregirBugs:false): today/yesterday/7/30 (sin tope superior)/thisMonth
+  [PASS] D5: isDateIncludedInAnalysis usa el MISMO rango que la tabla (cerrado hasta hoy; personalizado incompleto = nada)
+  [PASS] diferencial vs app.js 7025-7211: 25 conjuntos aleatorios x 8 periodos x 5 selecciones (HTML idéntico o mismo error)
+operativo-analysis (Análisis Textual del Control Operativo): 18 passed, 0 failed.
+
+$ cd fase_2/src && node tests/domain/kpi-service.test.mjs
+  [PASS] fusión: solo cuentan reportes de rol Gestor con nombre; un turno = un día laborado
+  [PASS] fusión: un gestor desconocido crea su propia llave; coincidencia por acentos/mayúsculas y por nombre+apellido
+  [PASS] fusión: tardanza (>5 min y <=240), fuera de horario (>240) y primer ingreso del día
+  [PASS] fusión: la inactividad se topa a 480 min por turno y a 10 h desde el ingreso; eventos abiertos corren hasta "ahora"
+  [PASS] ORIGINAL explícito (fechaLocal:false): la fecha del reporte es la UTC del cierre; por defecto (D5) es la local
+  [PASS] D5: turno nocturno 22:00-06:00 en UTC-5 (zona inyectada) queda en el día en que EMPEZÓ; el original lo pasaba al siguiente
+  [PASS] D5: turno de día y cambios de mes/año en hora local; la zona inyectada manda sobre la del proceso
+  [PASS] D5: resolveOperativeDayKey: precedencia loginTime > horaInicio > cierre > ahora; textos ambiguos o inválidos
+  [PASS] D5: con la zona del PROCESO fijada en UTC-5 (process.env.TZ en un proceso hijo, sin timeZone inyectado) el turno nocturno no salta de día
+  [PASS] HALLAZGO: un timestamp inválido lanza RangeError y aborta el resto de reportes (igual que el original)
+  [PASS] selectKpiGestores: solo gestores aprobados de la lista fija, sin duplicados y ordenados
+  [PASS] HALLAZGO: un Gestor aprobado SIN nombre hace lanzar TypeError (el original lo captura y no pinta opciones)
+  [PASS] buildKpiUsersMap: email en minúsculas -> nombre sin espacios; ignora nulos
+  [PASS] diferencial vs app.js: acepta también un arreglo de reportes y un nodo vacío/null
+  [PASS] loadRetirosData (app.js 5704): publica en retirosGlobalData y controlOperativoRawData; ante error deja retirosGlobalData en null
+  [PASS] diferencial vs app.js 7292-7330: el mapa de usuarios de loadControlOperativoData coincide con buildKpiUsersMap
+  [PASS] diferencial vs app.js 7292-7479: un timestamp inválido en medio produce el MISMO estado parcial y el mismo log de error
+  [PASS] diferencial vs app.js 5704-5714: loadRetirosData original y nuevo dejan el mismo estado y logs (éxito y error)
+  [PASS] diferencial vs app.js 7312-7447: fusión de 60 reportes aleatorios sobre el JSON operativo (8 semillas)
+  [PASS] diferencial vs app.js 5716-5775: selectKpiGestores da las mismas opciones y el mismo mapa email->nombre
+kpi-service (fusión de reportes, gestores de KPIs, retiros): 20 passed, 0 failed.
+
+$ cd fase_2/src && node tests/domain/kpi-metrics-calculator.test.mjs
+  [PASS] parseTime: "H:MM" con AM/PM en todas las variantes de escritura de es-CO y en-US
+  [PASS] parseTime: horas 12:xx (12 a. m. = 0, 12 p. m. = 12) y 1:xx p. m.
+  [PASS] parseTime: sin AM/PM se toma como 24 h; los segundos se descartan
+  [PASS] parseTime: la hora se aplica sobre el DÍA de la fecha base (no sobre hoy)
+  [PASS] parseTime: fechas completas se interpretan directamente (ISO, "m/d/aaaa, h:mm:ss PM", Date.toString)
+  [PASS] parseTime: vacíos y formatos inesperados devuelven NaN
+  [PASS] parseTime: particularidades heredadas (null -> 0, números tal cual, "5"/"12" son fechas del 2001)
+  [PASS] parseTime: horas fuera de rango no se validan (se desbordan al día siguiente), igual que el original
+  [PASS] parseTime: día>12 en "d/m/aaaa, HH:MM" cae a la rama manual y toma la fecha BASE (hallazgo)
+  [PASS] parseTime: variante "p.m" sin punto final no se reconoce como PM (el original tampoco): 2:15 p.m -> 02:15
+  [PASS] diferencial vs app.js 5910-5929: 12 x 4 x 10 combinaciones de hora, minuto y escritura de AM/PM
+  [PASS] diferencial vs app.js 5910-5929: entradas raras fijas
+  [PASS] diferencial vs app.js 5910-5929: 3000 cadenas aleatorias con semilla (hora/minuto/meridiano/ruido) y 3 fechas base
+  [PASS] equivalencia con parseTimeToMs de utils/date-time.js (misma lógica, copia independiente)
+  [PASS] comparación con parseClockTime: mismas horas del día cuando hay "H:MM" + meridiano estándar
+  [PASS] DIFERENCIAS documentadas parseTime vs parseClockTime (no se unifican)
+  [PASS] normalizeForMatch quita acentos y pasa a minúsculas
+  [PASS] matchesGestorSelection: sin selección coincide; exacta, por palabras y por nombre+apellido
+  [PASS] getLocalYYYYMMDD devuelve la fecha LOCAL aunque en UTC sea otro día
+  [PASS] resolveOperativoRanges: cortes de hoy/ayer/7/30/mes/mes anterior (incl. cambios de mes y de año)
+  [PASS] isFechaInRange: cada periodo y los bordes
+  [PASS] diferencial vs app.js 7486-7641: agregación completa, 7 fechas "ahora" x 9 periodos x 6 selecciones con datos aleatorios
+  [PASS] diferencial vs app.js 7486-7641: periodo "custom" con fechas vacías, invertidas y de un día
+  [PASS] agregación: JSON vacío, gestor sin días y días con campos faltantes no rompen y dan ceros
+  [PASS] agregación: un día con Retiros_Procesados>0 pero sin Dias_Laborados cuenta 1 día activo; Dias_Laborados manda si es >0
+  [PASS] agregación: los gestores no seleccionados quedan fuera de aggregatedData/dailyData pero SÍ en el global
+  [PASS] finalizeGestorMetrics: redondeos a 2 decimales y división segura entre cero
+  [PASS] summarizeOperativoRows: orden por aprobados, omite filas vacías, totales y avgArt
+  [PASS] summarizeOperativoRows: sin retiros avgArt es el número 0 (no "0.0") y sin filas todo en cero
+  [PASS] ORIGINAL explícito (legacyExcludedNames): selectGlobalForCharts excluye por subcadena ("Sara Santamar" incluida) y filas vacías
+  [PASS] D9b (predeterminado): selectGlobalForCharts excluye por ROL (nombre completo exacto); "Mariana" ya no se oculta
+  [PASS] resolveSelectedGestorLabel: Todos / nombre / "N Gestores"
+metrics-calculator (KPIs y Control Operativo): 32 passed, 0 failed.
+
+$ cd fase_2/src && node tests/domain/kpi-data-sources.test.mjs
+  [PASS] detectLocalEnvironment: localhost, 127.0.0.1 y file:// son locales; el resto no; sin ventana, no
+  [PASS] fetchKpiOperativosData: pide los archivos esperados con el parámetro de caché ?v=<ms>
+  [PASS] firebase-kpi-repository: lee users y shift_reports; null si el nodo no existe
+  [PASS] diferencial vs app.js 5676-5701: archivo estándar con respuesta no OK: lanza "No se pudo cargar kpi_operativos_v2.json"
+  [PASS] diferencial vs app.js 5676-5701: producción: usa el archivo estándar y nunca pide la semilla
+  [PASS] diferencial vs app.js 5676-5701: producción con semilla disponible: la ignora (aislamiento de entornos)
+  [PASS] diferencial vs app.js 5676-5701: localhost con semilla válida: devuelve la semilla
+  [PASS] diferencial vs app.js 5676-5701: 127.0.0.1 con semilla válida
+  [PASS] diferencial vs app.js 5676-5701: localhost, semilla vacía y estándar no OK
+  [PASS] diferencial vs app.js 5676-5701: localhost sin semilla (404): cae al archivo estándar
+  [PASS] diferencial vs app.js 5676-5701: localhost con error al leer la semilla: advierte y usa el estándar
+  [PASS] diferencial vs app.js 5676-5701: localhost con semilla vacía {}: cae al archivo estándar
+kpi-data-sources (JSON operativo y lecturas de Firebase): 12 passed, 0 failed.
+
+$ cd fase_2/src && node tests/domain/monitoring-view.test.mjs
+  [PASS] diferencial vs app.js: insignia de retraso/puntualidad idéntica en 1500 ingresos con semilla (turnos am/pm, medianoche, +4 h, sin turno)
+  [PASS] retraso: límites exactos (5 min = A tiempo; 6 min = +6m Tarde; 240 min = tarde; 241 min = Fuera de Horario)
+  [PASS] diferencial vs app.js: filtro de sesiones (búsqueda, turno, estado, supervisores excluidos) idéntico en 1200 combinaciones con semilla
+  [PASS] filtro: una sesión "En Pausa de Turno" con latido reciente NO cuenta como en línea (corrección ya incorporada en el repo)
+  [PASS] ORIGINAL explícito (legacyExcludedNames): supervisores excluidos por subcadena sin importar mayúsculas (también excluye a "Mariana")
+  [PASS] D9b (predeterminado): se oculta por UID con rol Supervisor/Admin en users; "Mariana" y los homónimos con otro uid se ven
+  [PASS] diferencial vs app.js: avance de tareas (contadores, porcentajes y respaldo para sesiones antiguas) en 800 sesiones con semilla
+  [PASS] diferencial vs app.js: lista de tareas de la tarjeta (asignadas reconciliadas + extras, estados, escape de HTML) en 600 sesiones con semilla
+  [PASS] diferencial vs app.js: bitácora (glitches < 60 s, inactividad en curso por pérdida de señal, iconos por tipo, duraciones) en 800 sesiones con semilla
+  [PASS] bitácora: sin eventos se muestra el mensaje; con pausa de turno el icono es el de pausa; la Inactividad en curso no se duplica ni se agrega si está en pausa
+  [PASS] diferencial vs app.js: detalle de tareas del modal (asignadas, extras, respaldo directo, estados, observaciones) en 700 sesiones con semilla
+  [PASS] detalle: insignias por estado y observación vacía
+  [PASS] texto de información del modal y avatares
+  [PASS] tarjeta: modelo + HTML con estado de Pausa de Turno, escape de datos y botones con uid codificado
+  [PASS] tarjeta: sesión sin latido por más de 2 min y fuera de pausa se muestra Inactivo; en pausa se conserva aunque no haya latido
+monitoring-view (tarjetas de Monitoreo: filtros, estado, retraso, tareas, bitácora y detalle): 15 passed, 0 failed.
+
+$ cd fase_2/src && node tests/domain/active-supervisors.test.mjs
+  [PASS] diferencial (lista fija EXPLÍCITA legacySupervisors:true): la insignia es idéntica a app.js para 600 combinaciones de turnos y horas (con semilla)
+  [PASS] guardas: sin cronograma cargado o sin elemento no hace nada (el badge queda como estaba)
+  [PASS] sin función getShiftForDate (no disponible) equivale a "Ninguna"
+  [PASS] reglas del turno: dentro, fuera, cruce de medianoche, 12am/12pm, "turno" sin horas, no laborables
+  [PASS] texto de la insignia: una, dos y tres personas; ninguna
+  [PASS] lista fija ORIGINAL (solo modo heredado): Maria, Sara, Oriana (HALLAZGO: Camilo no está)
+  [PASS] integración con getShiftForDate real del módulo schedule-service (sin cronograma: "Por Asignar" => Ninguna)
+  [PASS] D9b: buildBadgeSupervisors toma SOLO rol exacto Supervisor/Admin de users, en orden alfabético; muestra el primer nombre
+  [PASS] D9b: el turno se busca con el NOMBRE COMPLETO; "Maria Fernanda" (gestora) ya no se confunde con "Maria Sanchez"
+  [PASS] D9b: controlador con getSupervisorUsers (síncrono, Promesa, null) y modo heredado explícito
+active-supervisors (insignia de supervisor activo; diferencial vs app.js 8329-8396): 10 passed, 0 failed.
+
+$ cd fase_2/src && node tests/controllers/kpi-controller.test.mjs
+  [PASS] kpi-task-details: cabecera por tipo (null si es desconocido) y lista vacía
+  [PASS] operativo-table-view: fila y widget de ART
+  [PASS] executive-report: textos y plan de gráficas
+  [PASS] diferencial vs app.js 7695-7716: hover de la fila cambia el fondo
+  [PASS] D5 a través del controlador: 2+ gestores abre el análisis (antes TypeError) con el resumen de los seleccionados
+  [PASS] D5: los KPIs salen del historial FILTRADO por rango y gestores (tabla, tarjetas y análisis); nada sale de un contador global
+  [PASS] diferencial vs app.js 7481-7735 (renderControlOperativoFiltered): sin datos cargados no hace nada
+  [PASS] diferencial vs app.js 7660-7690: clic en una fila filtra por ese gestor; un segundo clic quita el filtro; ambos hacen scroll
+  [PASS] diferencial vs app.js 7216-7290: periodo personalizado sin fechas ("Inicio a Fin"), gestores seleccionados y gráficas ausentes
+  [PASS] diferencial vs app.js 7216-7290: falta alguna imagen de impresión (ids ausentes del DOM)
+  [PASS] diferencial vs app.js 7216-7290 (generarReporteEjecutivoPDF): informe con todas las gráficas, impresión a los 800 ms
+  [PASS] loadGestoresForKPIs: sin el desplegable en el DOM no hace nada y resuelve (app.js 5717-5718)
+  [PASS] diferencial vs app.js 7012-7016 (toggleOperativoCustomDates): custom muestra el contenedor, el resto lo oculta
+  [PASS] diferencial vs app.js 7025-7211 (generarAnalisisTextual) a través del controlador: sin datos, global, un gestor, custom
+  [PASS] D5 a través del controlador: el turno nocturno (22:00-06:00, UTC-5) se agrupa en su día operativo local
+  [PASS] diferencial vs app.js 7292-7479 (loadControlOperativoData): éxito con usuarios y reportes de turno
+  [PASS] diferencial vs app.js 5704-5714 (loadRetirosData): éxito y error a través del controlador
+  [PASS] D9b a través del controlador: el directorio sale de la MISMA lectura de users; los rankings excluyen por rol y "Mariana" se ve
+  [PASS] diferencial vs app.js 6419-6473 (openKpiTaskDetails) y 6475 (closeKpiTaskDetails): cada tipo, tipo desconocido y sin listas
+  [PASS] diferencial vs app.js 7292-7479: sin base de datos, sin usuarios/reportes, usuarios ya cargados y fallos
+  [PASS] diferencial vs app.js 7481-7735: periodos x selecciones (tabla, widgets, gráficas y anillos)
+  [PASS] D9b: loadGestoresForKPIs también deriva el directorio; con kpiUsersData ya cargado se lee users solo para el directorio
+  [PASS] diferencial vs app.js 5716-5775 (loadGestoresForKPIs): llena el desplegable una vez, no recarga y tolera fallos
+kpi-controller (orquestación de KPIs y Control Operativo): 23 passed, 0 failed.
+
+$ cd fase_2/src && node tests/controllers/monitoring-controller.test.mjs
+  [PASS] listener: guarda las sesiones y repinta; sin datos = {}; error se registra
+  [PASS] tarjeta: "En Pausa de Turno" con latido reciente se ve En Pausa de Turno ⏸️ y filtra como NO en línea
+  [PASS] tarjeta: avatar local con respaldo a ui-avatars si la imagen falla (una sola vez), alt con el nombre
+  [PASS] filtros: búsqueda sin tildes, supervisores excluidos y sin sesiones muestra el estado vacío; no se muta la sesión recibida
+  [PASS] sin monitoreoGrid en la página: no hace nada
+  [PASS] bitácora: abre el modal con el nombre y las filas; sesión inexistente o sin modal no hace nada
+  [PASS] bitácora: Inactividad en curso por pérdida de señal se agrega (el reloj es el inyectado)
+  [PASS] detalle de tareas: nombre, info, avatar con respaldo, tareas asignadas reconciliadas y extras
+  [PASS] detalle: sin tareas muestra el mensaje; sesión inexistente no abre nada
+  [PASS] D9b: excludedNames (lista fija) se rechaza; legacyExcludedNames reproduce el original (oculta a "Mariana")
+  [PASS] desplegable de gestores: opción "Todos" y un <option> por gestor aprobado; sin el elemento no hace nada; errores se registran
+  [PASS] D9b: sin directorio inyectado lo carga UNA vez del repositorio (solo Supervisor/Admin) y repinta; "Mariana" y "Sara" (Gestor) se ven
+  [PASS] D9b: si la lectura del directorio falla se registra, no se oculta a nadie y no se reintenta en cada pintado (sí al reiniciar el listener)
+monitoring-controller (listener, tarjetas, bitácora, detalle y desplegable de gestores): 13 passed, 0 failed.
+
+$ cd fase_2/src && node tests/ui/kpi-chart-configs.test.mjs
+  [PASS] diferencial vs app.js 8033-8083 (drawChart): barras verticales y horizontales, con y sin ChartDataLabels
+  [PASS] diferencial vs app.js 8033-8083 (drawChart): extraOptions con datalabels propios, escalas, maxBarThickness y layout que pisa el de defecto
+  [PASS] drawChart: el formateador muestra "0 min" para 0, enteros sin decimales y decimales con 2 (es-CO)
+  [PASS] buildBarChartConfig no muta extraOptions (el original sí agregaba plugins.datalabels sobre el objeto recibido)
+  [PASS] diferencial vs app.js 7972-8031 (drawPunctualDatesChart): ignora dataArr y bgColors recibidos
+  [PASS] diferencial vs app.js 8085-8150 (drawCombinedChart): barras apiladas por gestor + línea de tasa
+  [PASS] diferencial vs app.js 8152-8216 (drawCombinedChartDaily): series por fecha de un gestor
+  [PASS] HALLAZGO: en drawCombinedChartDaily la serie "Aprobaciones del Día" repite exactamente los Aprobados
+  [PASS] diferencial vs app.js 8218-8328 (drawScatterMatriz): ranking global de % de rechazos
+  [PASS] drawScatterMatriz: colores por umbral (>5 rojo, >2 ámbar, resto verde) justo en los bordes
+  [PASS] diferencial vs app.js 8218-8328 (drawScatterMatriz): un gestor, con números, textos "%", NaN, ausente y sin gestores
+  [PASS] diferencial vs app.js 7003-7008 (destroyChart): destruye y retira del registro; id inexistente no hace nada
+  [PASS] redibujar una gráfica destruye la anterior antes de crear la nueva (igual que el original)
+  [PASS] diferencial vs app.js 7737-7970 (renderControlOperativoCharts): vista global con datos y con el equipo 100 % puntual
+  [PASS] diferencial vs app.js 7737-7970: un solo gestor (con llegadas tarde, sin ellas, sin conexiones a tiempo, nombre con acentos y desconocido)
+  [PASS] diferencial vs app.js 7737-7970: varias selecciones ("2 Gestores") y títulos ausentes en el DOM (los null-checks)
+  [PASS] diferencial vs app.js 7737-7970: 40 combinaciones aleatorias (periodo x selección) con datos sintéticos
+  [PASS] plan: orden de las gráficas, tipos y títulos con nombre escapado
+  [PASS] el normalizador ejercita las funciones de formato de la configuración (red de seguridad de las pruebas)
+operativo-chart-configs (gráficas del Control Operativo): 19 passed, 0 failed.
+
+--- kpi-metrics-calculator con otras zonas del proceso (las pruebas no dependen de la zona) ---
+$ TZ=UTC node tests/domain/kpi-metrics-calculator.test.mjs | tail -1
+metrics-calculator (KPIs y Control Operativo): 32 passed, 0 failed.
+$ TZ=UTC node tests/domain/kpi-operativo-analysis.test.mjs | tail -1
+operativo-analysis (Análisis Textual del Control Operativo): 18 passed, 0 failed.
+$ TZ=UTC node tests/domain/kpi-service.test.mjs | tail -1
+kpi-service (fusión de reportes, gestores de KPIs, retiros): 20 passed, 0 failed.
+$ TZ=America/New_York node tests/domain/kpi-metrics-calculator.test.mjs | tail -1
+metrics-calculator (KPIs y Control Operativo): 32 passed, 0 failed.
+$ TZ=America/New_York node tests/domain/kpi-operativo-analysis.test.mjs | tail -1
+operativo-analysis (Análisis Textual del Control Operativo): 18 passed, 0 failed.
+$ TZ=America/New_York node tests/domain/kpi-service.test.mjs | tail -1
+kpi-service (fusión de reportes, gestores de KPIs, retiros): 20 passed, 0 failed.
+$ TZ=Asia/Tokyo node tests/domain/kpi-metrics-calculator.test.mjs | tail -1
+metrics-calculator (KPIs y Control Operativo): 32 passed, 0 failed.
+$ TZ=Asia/Tokyo node tests/domain/kpi-operativo-analysis.test.mjs | tail -1
+operativo-analysis (Análisis Textual del Control Operativo): 18 passed, 0 failed.
+$ TZ=Asia/Tokyo node tests/domain/kpi-service.test.mjs | tail -1
+kpi-service (fusión de reportes, gestores de KPIs, retiros): 20 passed, 0 failed.
+
+================================================================================
+2. REGRESIÓN COMPLETA de src/tests/{controllers,domain,ui,utils} (una suite por proceso)
+================================================================================
+$ cd fase_2/src && for f in tests/{controllers,domain,ui,utils}/*.test.mjs; do node $f | tail -1; done
+tests/controllers/announcements-controller.test.mjs :: announcements-controller (comunicados con base y DOM simulados): 37 passed, 0 failed.
+tests/controllers/app-router.test.mjs :: app-router (navegación por rol: diferencial vs setupSidebar, alignAdministrativeControlsByRole, updateNavigation): 9 passed, 0 failed.
+tests/controllers/approvals-controller.test.mjs :: approvals-controller.js (diferencial vs app.js 3975-4448 + opciones propias): 84 passed, 0 failed.
+tests/controllers/approvals-decisiones.test.mjs :: approvals-controller.js (decisiones D2, D7 y D9a por defecto): 27 passed, 0 failed.
+tests/controllers/config-gestores-controller.test.mjs :: config-gestores-controller (interruptor de Pausa de Turno con base y DOM simulados): 13 passed, 0 failed.
+tests/controllers/incidents-controller.test.mjs :: incidents-controller (novedades con base y DOM simulados): 9 passed, 0 failed.
+tests/controllers/kpi-controller.test.mjs :: kpi-controller (orquestación de KPIs y Control Operativo): 23 passed, 0 failed.
+tests/controllers/login-history-controller.test.mjs :: login-history-controller (modal de accesos con base y DOM simulados): 6 passed, 0 failed.
+tests/controllers/monitoring-controller.test.mjs :: monitoring-controller (listener, tarjetas, bitácora, detalle y desplegable de gestores): 13 passed, 0 failed.
+tests/controllers/profile-notifications-controller.test.mjs :: profile-controller / notifications-controller (perfil, contraseña y notificaciones): 9 passed, 0 failed.
+tests/controllers/shift-controller.test.mjs :: shift-controller.js (RN-1..RN-4, deuda 2/4/5): 21 passed, 0 failed.
+tests/controllers/shift-reports-controller.test.mjs :: shift-reports-controller (historial de turnos: carga, filtros, modal y PDF): 10 passed, 0 failed.
+tests/controllers/task-controller.test.mjs :: task-controller.js (recuperación, latido, guardado, selección, arranque; diferencial vs app.js): 18 passed, 0 failed.
+tests/controllers/task-loaders-controller.test.mjs :: task-loaders-controller.js (loadExcelTasks, loadSchedule, loadTeletrabajo, loadPermisos, detalle de permiso; diferencial vs app.js): 8 passed, 0 failed.
+tests/domain/active-session-payload.test.mjs :: active-session-payload (latido: estado y campos de la Pausa de Turno): 6 passed, 0 failed.
+tests/domain/active-session-status.test.mjs :: active-session-status.js (bug: Pausa de Turno invisible al supervisor): 6 passed, 0 failed.
+tests/domain/active-supervisors.test.mjs :: active-supervisors (insignia de supervisor activo; diferencial vs app.js 8329-8396): 10 passed, 0 failed.
+tests/domain/announcement-service.test.mjs :: announcement-service (comunicados: lógica pura, diferencial vs app.js 6555-6965): 29 passed, 0 failed.
+tests/domain/approval-policy.test.mjs :: approval-policy.js (política de aprobaciones + contraste con database.rules.json): 37 passed, 0 failed.
+tests/domain/auth-service.test.mjs :: auth-service / notification-rules (política de navegación, controles administrativos, contraseña, notificaciones): 16 passed, 0 failed.
+tests/domain/break-state-ownership.test.mjs :: break-state-ownership (estado de pausas por usuario): 10 passed, 0 failed.
+tests/domain/break-state-timeline-coherence.test.mjs :: break-state-timeline-coherence: 12 passed, 0 failed.
+tests/domain/break-transitions.test.mjs :: break-transitions.js: 22 passed, 0 failed.
+tests/domain/extra-task.test.mjs :: extra-task.js + exception-justification.js (diferencial vs app.js 4001-4109): 11 passed, 0 failed.
+tests/domain/firebase-approvals-repository.test.mjs :: firebase-approvals-repository.js (rutas y payloads de app.js 4115-4441): 12 passed, 0 failed.
+tests/domain/firebase-shift-repository.test.mjs :: firebase-shift-repository.js + end-shift-button.js: 9 passed, 0 failed.
+tests/domain/gestor-config.test.mjs :: gestor-config (configuración de gestores y flag hasSplitShift; diferencial vs app.js 6757-6834): 14 passed, 0 failed.
+tests/domain/historial-repositories.test.mjs :: repositorios Firebase del corte historial/navegación (base inyectada, sin red): 7 passed, 0 failed.
+tests/domain/incident-service.test.mjs :: incident-service + incidents-view (novedades; diferencial vs app.js 8724-8815): 9 passed, 0 failed.
+tests/domain/kpi-data-sources.test.mjs :: kpi-data-sources (JSON operativo y lecturas de Firebase): 12 passed, 0 failed.
+tests/domain/kpi-metrics-calculator.test.mjs :: metrics-calculator (KPIs y Control Operativo): 32 passed, 0 failed.
+tests/domain/kpi-operativo-analysis.test.mjs :: operativo-analysis (Análisis Textual del Control Operativo): 18 passed, 0 failed.
+tests/domain/kpi-service.test.mjs :: kpi-service (fusión de reportes, gestores de KPIs, retiros): 20 passed, 0 failed.
+tests/domain/kpi-supervisor-directory.test.mjs :: supervisor-directory (D9b: supervisores por rol en users, sin lista fija): 6 passed, 0 failed.
+tests/domain/login-history.test.mjs :: login-history (historial de accesos; diferencial vs app.js 8402-8628): 13 passed, 0 failed.
+tests/domain/monitoring-view.test.mjs :: monitoring-view (tarjetas de Monitoreo: filtros, estado, retraso, tareas, bitácora y detalle): 15 passed, 0 failed.
+tests/domain/permission-service.test.mjs :: permission-service.js (diferencial vs app.js 4267-4448): 12 passed, 0 failed.
+tests/domain/presence-and-counter.test.mjs :: presence-service + approved-counter (base simulada con transacciones y desconexiones; diferencial vs app.js 8654-8721): 20 passed, 0 failed.
+tests/domain/schedule-parser.test.mjs :: schedule-parser.js: 11 passed, 0 failed.
+tests/domain/shift-closure-calculations.test.mjs :: shift-closure-calculations (diferencial vs app.js): 8 passed, 0 failed.
+tests/domain/shift-closure-rules.test.mjs :: shift-closure-rules.js: 11 passed, 0 failed.
+tests/domain/shift-closure-times-split.test.mjs :: shift-closure-times-split (RN: la pausa no es tiempo trabajado): 12 passed, 0 failed.
+tests/domain/shift-effective-hours-split.test.mjs :: shift-effective-hours-split (Pausa de Turno no es tiempo trabajado): 7 passed, 0 failed.
+tests/domain/shift-effective-time-d1.test.mjs :: shift-effective-time-d1 (fórmula única de horas efectivas: correo = panel): 18 passed, 0 failed.
+tests/domain/shift-report-builder.test.mjs :: shift-report-builder.js: 10 passed, 0 failed.
+tests/domain/shift-report-view.test.mjs :: shift-report-view (filtros, bitácora, PDF y tiempo efectivo del panel de reportes): 16 passed, 0 failed.
+tests/domain/split-shift-policy.test.mjs :: split-shift-policy (RN-1..RN-3): 8 passed, 0 failed.
+tests/domain/task-pure-rules.test.mjs :: reglas puras de tareas (reloj, progreso, latido, recuperación, guardado, selección, catálogo; diferencial vs app.js): 23 passed, 0 failed.
+tests/domain/task-repository.test.mjs :: firebase-task-repository.js (persistencia de tareas del gestor; diferencial vs app.js): 21 passed, 0 failed.
+tests/domain/user-approval-list.test.mjs :: user-approval-list.js (diferencial vs app.js 4111-4219): 12 passed, 0 failed.
+tests/ui/approvals-components.test.mjs :: componentes de aprobaciones (HTML idéntico al de app.js 4111-4448 + cajas, modales y avisos + decisiones D2/D7/D9a): 29 passed, 0 failed.
+tests/ui/break-button.test.mjs :: break-button.js (puerto 1:1 de los estilos de app.js): 9 passed, 0 failed.
+tests/ui/kpi-chart-configs.test.mjs :: operativo-chart-configs (gráficas del Control Operativo): 19 passed, 0 failed.
+tests/ui/shift-reports-view.test.mjs :: shift-reports-view (HTML de la tabla, el modal "Ver Todo" y el PDF del historial de turnos): 7 passed, 0 failed.
+tests/ui/task-views.test.mjs :: vistas de tareas y permisos (árbol, KPI, documentos rápidos, notificaciones; diferencial vs app.js): 12 passed, 0 failed.
+tests/utils/constants.test.mjs :: constants.js: 6 passed, 0 failed.
+tests/utils/date-time.test.mjs :: date-time.js: 15 passed, 0 failed.
+tests/utils/excel.test.mjs :: excel.js: 13 passed, 0 failed.
+tests/utils/normalize.test.mjs :: normalize.js: 14 passed, 0 failed.
+tests/utils/result.test.mjs :: result.js: 5 passed, 0 failed.
+tests/utils/sanitization.test.mjs :: sanitization.js: 14 passed, 0 failed.
+tests/utils/validation.test.mjs :: validation.js: 7 passed, 0 failed.
+suites: 62
+TOTAL REGRESIÓN: 62 suites, 952 pruebas pasaron, 0 fallaron
+
+================================================================================
+3. BUNDLE E INTEGRACIÓN DEL LABORATORIO
+================================================================================
+$ node /tmp/riskops-bundle.mjs /tmp/kpisup-bundle.js
+BUNDLE_OK /tmp/kpisup-bundle.js
+$ node /tmp/riskops-integrate.mjs /tmp/kpisup-integrado.js
+INTEGRADO /tmp/kpisup-integrado.js 58 pasos
+$ grep -c 'excludedNames' /tmp/kpisup-integrado.js   # ningún paso pasa ya la lista fija
+0
+$ grep -n 'D9b' /tmp/kpisup-integrado.js
+2942:            // [LAB-INTEGRACION] D9b: sin SUPERVISORES_NOMBRES; el controlador deriva los supervisores del ROL en users (consulta por rol
+3484:        // [LAB-INTEGRACION] D9b: sin SUPERVISORES_NOMBRES. Los supervisores se derivan del ROL en users (la misma lectura de users que ya
+
+================================================================================
+4. E2E DE MIS CORTES contra el app.js integrado y el bundle real
+================================================================================
+$ node tests/e2e/kpis-integrado.e2e.cjs /tmp/kpisup-integrado.js --riskops /tmp/kpisup-bundle.js
+KPIs, analítica y gráficas: app.js integrado (bundle real) vs app.js original
+
+  [PASS] las 17 funciones + parseTime siguen declaradas y delegan en RiskOps (nombre y firma conservados)
+  [PASS] el bundle expone los 12 espacios de nombres del corte
+  [PASS] K1 fetchKpiOperativosData: producción, localhost con semilla, 127.0.0.1, semilla vacía, sin semilla y semilla que falla
+  [PASS] K2 loadRetirosData: éxito y error
+  [PASS] K3 loadGestoresForKPIs: llena el desplegable, no recarga si ya está lleno, tolera fallos y usuarios sin nombre
+  [PASS] K4 parseTime (cierre de calcularIndicadores): 4000 entradas con semilla + particulares
+  [PASS] K5 openKpiTaskDetails/closeKpiTaskDetails: cada tipo, tipo desconocido, sin listas, cierre
+  [PASS] K6 toggleOperativoCustomDates y destroyChart
+  [PASS] K7 renderControlOperativoFiltered: 7 periodos x 5 selecciones (tabla, widgets, anillos y gráficas)
+  [PASS] K8 clic en una fila: filtra por el gestor; segundo clic quita el filtro; hover
+  [PASS] K9 generarAnalisisTextual: sin datos, global, un gestor y periodo personalizado ("Varios" pasa a K9b por D5)
+  [PASS] K9b D5 (DIFERENCIA INTENCIONAL): "Varios" (2 y 3 gestores) — original lanza TypeError; integrado muestra el resumen de los seleccionados
+  [PASS] K10 generarReporteEjecutivoPDF: informe con todas las gráficas, custom, sin gráficas y con imágenes ausentes; imprime a los 800 ms
+  [PASS] K11 loadControlOperativoData: éxito, sin base de usuarios, usuarios ya cargados, fallos de lectura y de datos
+  [PASS] K12 drawChart / drawPunctualDatesChart / drawCombinedChart / drawCombinedChartDaily / drawScatterMatriz directos (con y sin datalabels)
+  [PASS] K13 renderControlOperativoCharts directo: global, un gestor y varios
+  [PASS] K14 D9b: loadControlOperativoData deriva supervisores por ROL de users; paridad con el original usando la lista EXACTA (oráculo)
+  [PASS] K15-D9b D9b (DIFERENCIA INTENCIONAL): con la lista fija REAL el original oculta a "Mariana" y "Oriana"; el integrado no
+  [PASS] K16 D5 (DIFERENCIA INTENCIONAL): "mes anterior" el 29/30/31-mar = febrero completo en el integrado; el original desborda a marzo
+  [PASS] K17 D5 (DIFERENCIA INTENCIONAL): turno 22:00-06:00 en UTC-5 queda en su día operativo local (integrado); el original lo pasa al día siguiente (UTC)
+
+=== RESUMEN ===
+Pasan: 20 | Fallan: 0 | Total: 20
+RESULTADO: TODO CUMPLIDO (paridad en 14 escenarios; 4 con diferencia INTENCIONAL por D5/D9b afirmada por modo)
+
+$ node tests/e2e/historial-navegacion-integrado.e2e.cjs /mnt/user-data/uploads/riesgovirtualsoft/app.js /tmp/kpisup-integrado.js /tmp/kpisup-bundle.js
+=== PARIDAD ORIGINAL vs INTEGRADO — HISTORIAL, PERFIL, NAVEGACIÓN Y MONITOREO ===
+original: /mnt/user-data/uploads/riesgovirtualsoft/app.js
+integrado: /tmp/kpisup-integrado.js
+bundle: /tmp/kpisup-bundle.js
+2026-10-06T22:30:48.200Z
+  [PASS] Monitoreo: tarjetas (sin filtros, cronograma sin cargar)
+  [PASS] Monitoreo: tarjetas (sin filtros, cronograma cargado)
+  [PASS] Monitoreo: tarjetas (búsqueda "oscar", cronograma sin cargar)
+  [PASS] Monitoreo: tarjetas (búsqueda "oscar", cronograma cargado)
+  [PASS] Monitoreo: tarjetas (búsqueda por correo, cronograma sin cargar)
+  [PASS] Monitoreo: tarjetas (búsqueda por correo, cronograma cargado)
+  [PASS] Monitoreo: tarjetas (turno Tarde, cronograma sin cargar)
+  [PASS] Monitoreo: tarjetas (turno Tarde, cronograma cargado)
+  [PASS] Monitoreo: tarjetas (solo en línea, cronograma sin cargar)
+  [PASS] Monitoreo: tarjetas (solo en línea, cronograma cargado)
+  [PASS] Monitoreo: tarjetas (solo fuera de línea, cronograma sin cargar)
+  [PASS] Monitoreo: tarjetas (solo fuera de línea, cronograma cargado)
+  [PASS] Monitoreo: tarjetas (sin resultados, cronograma sin cargar)
+  [PASS] Monitoreo: tarjetas (sin resultados, cronograma cargado)
+  [PASS] Monitoreo: el listener de active_sessions guarda las sesiones y repinta (con datos, vacío y error)
+  [PASS] Monitoreo: bitácora de cada sesión (pausas, glitches, inactividad en curso, sesión inexistente)
+  [PASS] Monitoreo: detalle de tareas de cada sesión (asignadas, extras, directas, sin tareas)
+  [PASS] Monitoreo: desplegable de gestores (aprobados, sin nombre repetido) y fallo de lectura
+  [PASS] Monitoreo D9b: con users (Sara=Supervisor u5, Maria Sanchez=Admin s9) se ocultan por UID; paridad con el original usando la lista EXACTA (oráculo)
+  [PASS] Monitoreo D9b (DIFERENCIA INTENCIONAL): con la lista fija REAL el original oculta a Mariana, Oriana y a toda "Sara"/"Maria"; el integrado solo a los UID con rol
+  [PASS] Historial de turnos: cargar, filtrar y abrir el modal (sin filtros)
+  [PASS] Historial de turnos: cargar, filtrar y abrir el modal (gestor Ana)
+  [PASS] Historial de turnos: cargar, filtrar y abrir el modal (fecha de hoy)
+  [PASS] Historial de turnos: cargar, filtrar y abrir el modal (gestor + fecha sin resultados)
+  [PASS] Historial de turnos: exportar a PDF (en memoria, solo en Firebase, inexistente, sin motor, motor que falla)
+  [PASS] Historial de turnos: error de lectura de Firebase se registra y no rompe
+  [PASS] Notificaciones: abrir/cerrar el desplegable
+  [PASS] Notificaciones: marcar todas como leídas (Admin)
+  [PASS] Notificaciones: marcar todas como leídas (Supervisor)
+  [PASS] Notificaciones: marcar todas como leídas (Gestor)
+  [PASS] Notificaciones: Gestor sin uid en el usuario usa el uid de Firebase Auth; sin ninguno no hace nada
+  [PASS] Notificaciones: Gestor sin ningún uid no consulta Firebase
+  [PASS] Perfil: abrir el modal, mostrar/ocultar contraseña
+  [PASS] Perfil: cambiar contraseña (campo vacío)
+  [PASS] Perfil: cambiar contraseña (éxito: cierra el modal a los 2 s)
+  [PASS] Perfil: cambiar contraseña (sin sesión de Auth)
+  [PASS] Perfil: cambiar contraseña (error auth/requires-recent-login)
+  [PASS] Perfil: cambiar contraseña (error auth/weak-password)
+  [PASS] Perfil: cambiar contraseña (error auth/otro)
+  [PASS] Barra lateral: setupSidebar completa — orden por rol y botones de pausa (Admin)
+  [PASS] Controles administrativos: alignAdministrativeControlsByRole (Admin)
+  [PASS] Barra lateral: setupSidebar completa — orden por rol y botones de pausa (Supervisor)
+  [PASS] Controles administrativos: alignAdministrativeControlsByRole (Supervisor)
+  [PASS] Barra lateral: setupSidebar completa — orden por rol y botones de pausa (Gestor)
+  [PASS] Controles administrativos: alignAdministrativeControlsByRole (Gestor)
+  [PASS] Barra lateral: setupSidebar completa — orden por rol y botones de pausa (Auditor)
+  [PASS] Controles administrativos: alignAdministrativeControlsByRole (Auditor)
+  [PASS] Barra lateral: sin usuario (currentUser null) cae en el orden del Gestor y alinea sin fallar
+  [PASS] el integrado delega con el bundle (marcadores y llamadas a RiskOps)
+  [PASS] no se tocó el bloque del botón de Pausa de Turno ni las anclas del controlador de turno
+  [PASS] el global allShiftReports y el cuerpo original del historial ya no están en el integrado
+
+=== RESUMEN ===
+Pasan: 51 | Fallan: 0 | Total: 51
+RESULTADO: PARIDAD COMPLETA
+
+$ node tests/e2e/monitoreo-render.e2e.cjs /tmp/kpisup-integrado.js
+  [PASS] En Pausa de Turno, latido reciente: En Pausa de Turno ⏸️
+  [PASS] En Pausa de Turno, sin latido 5 min: En Pausa de Turno ⏸️
+  [PASS] En Almuerzo, latido reciente: En Almuerzo/Cena 🍽️
+  [PASS] En Desayuno, latido reciente: En Desayuno ☕
+  [PASS] Inactivo, latido reciente: Inactivo 💤
+  [PASS] En Línea, latido reciente: En Línea
+  [PASS] En Línea, sin latido 5 min: Inactivo 💤
+monitoreo-render: 7 passed, 0 failed.
+
+$ node tests/e2e/monitoreo-render.e2e.cjs /mnt/user-data/uploads/riesgovirtualsoft/app.js   # sobre el original
+monitoreo-render: 7 passed, 0 failed.
+
+================================================================================
+5. LA E2E MUERDE: mutaciones del integrado que reponen el comportamiento VIEJO (deben fallar)
+================================================================================
+M1: puente de KPIs con corregirBugs:false, fechaLocal:false, legacyExcludedNames:SUPERVISORES_NOMBRES
+  [FAIL] K7 renderControlOperativoFiltered: 7 periodos x 5 selecciones (tabla, widgets, anillos y gráficas)
+  [FAIL] K8 clic en una fila: filtra por el gestor; segundo clic quita el filtro; hover
+  [FAIL] K9 generarAnalisisTextual: sin datos, global, un gestor y periodo personalizado ("Varios" pasa a K9b por D5)
+  [FAIL] K9b D5 (DIFERENCIA INTENCIONAL): "Varios" (2 y 3 gestores) — original lanza TypeError; integrado muestra el resumen de los seleccionados
+  [FAIL] K10 generarReporteEjecutivoPDF: informe con todas las gráficas, custom, sin gráficas y con imágenes ausentes; imprime a los 800 ms
+  [FAIL] K11 loadControlOperativoData: éxito, sin base de usuarios, usuarios ya cargados, fallos de lectura y de datos
+  [FAIL] K14 D9b: loadControlOperativoData deriva supervisores por ROL de users; paridad con el original usando la lista EXACTA (oráculo)
+  [FAIL] K15-D9b D9b (DIFERENCIA INTENCIONAL): con la lista fija REAL el original oculta a "Mariana" y "Oriana"; el integrado no
+  [FAIL] K16 D5 (DIFERENCIA INTENCIONAL): "mes anterior" el 29/30/31-mar = febrero completo en el integrado; el original desborda a marzo
+  [FAIL] K17 D5 (DIFERENCIA INTENCIONAL): turno 22:00-06:00 en UTC-5 queda en su día operativo local (integrado); el original lo pasa al día siguiente (UTC)
+Pasan: 10 | Fallan: 10 | Total: 20
+RESULTADO: HAY FALLAS
+M2: Monitoreo con legacyExcludedNames:SUPERVISORES_NOMBRES
+  [FAIL] Monitoreo: tarjetas (sin filtros, cronograma sin cargar)
+  [FAIL] Monitoreo: tarjetas (sin filtros, cronograma cargado)
+  [FAIL] Monitoreo: tarjetas (solo en línea, cronograma sin cargar)
+  [FAIL] Monitoreo: tarjetas (solo en línea, cronograma cargado)
+  [FAIL] Monitoreo D9b: con users (Sara=Supervisor u5, Maria Sanchez=Admin s9) se ocultan por UID; paridad con el original usando la lista EXACTA (oráculo)
+  [FAIL] Monitoreo D9b (DIFERENCIA INTENCIONAL): con la lista fija REAL el original oculta a Mariana, Oriana y a toda "Sara"/"Maria"; el integrado solo a los UID con rol
+Pasan: 45 | Fallan: 6 | Total: 51
+RESULTADO: HAY DIFERENCIAS
+
+================================================================================
+6. COEXISTENCIA: e2e de los otros cortes contra el MISMO integrado (informativo; no son de mi zona)
+================================================================================
+$ comunicados
+Pasan: 18 | Fallan: 0 | Total: 18
+RESULTADO: TODO CUMPLIDO (16 escenarios: paridad con el original salvo las diferencias intencionales D2/D4/D6 afirmadas en cada escenario; D9(c) con paridad total)
+$ tareas
+Resultado: 236 pasaron, 0 fallaron.
+$ modales-permisos
+Resultado: 78 pasaron, 0 fallaron.
+$ split-shift-flag
+Pasan: 21 | Fallan: 0 | Brechas abiertas: 0 | Omitidas: 2 | Total: 23
+RESULTADO: TODO CUMPLIDO
+$ cierre-horas-efectivas
+Pasan: 19 | Fallan: 0 | Brechas abiertas: 0 | Total: 19
+RESULTADO: TODO CUMPLIDO
+$ turno-avance-panel-horas-efectivas
+=== RESUMEN ===
+Pasan: 9 | Fallan: 0 | Total: 9 | Panel: PROPUESTO (falta registrar el paso en pasos/kpis.mjs)
+$ parche-pausa-turno (diseñada para el app.js del repo)
+RESULTADO: PARCHE VERIFICADO

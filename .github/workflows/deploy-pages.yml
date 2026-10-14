@@ -25,6 +25,14 @@ jobs:
       - name: Check out source repository
         uses: actions/checkout@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build riskops bundle
+        run: npx --yes esbuild@0.25 fase_2/src/app/bootstrap.js --bundle --format=iife --global-name=RiskOps --outfile=riskops.bundle.js
+
       - name: Build strict public artifact
         shell: bash
         run: |
@@ -44,6 +52,7 @@ jobs:
             ".nojekyll"
             "procesos_list.json"
             "kpi_operativos_v2.json"
+            "riskops.bundle.js"
           )
 
           for file in "${ALLOWED_ROOT_FILES[@]}"; do
@@ -100,6 +109,7 @@ jobs:
               ".nojekyll",
               "procesos_list.json",
               "kpi_operativos_v2.json",
+              "riskops.bundle.js",
               "Procesos/Manual_Usuario_Penka.html",
               "Retiros/retiros_data.json",
               "js/tiempos.js",

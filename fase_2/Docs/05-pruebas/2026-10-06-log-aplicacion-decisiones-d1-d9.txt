@@ -1,0 +1,148 @@
+Log de pruebas — aplicación de las decisiones D1–D9 (regresión completa + bundle + integración del laboratorio + e2e)
+Generado: 2026-10-06T22:33:29Z | Node v22.22.2
+Script: /tmp/run-all.sh (suites de src, build+verify del bundle en sandbox, riskops-integrate sobre copia del app.js del repo, 10 pruebas e2e/unitarias de app.js)
+
+##### PARTE 1 — Suites de src/tests/{controllers,domain,ui,utils} #####
+tests/controllers/announcements-controller.test.mjs :: announcements-controller (comunicados con base y DOM simulados): 37 passed, 0 failed. (exit=0)
+tests/controllers/app-router.test.mjs :: app-router (navegación por rol: diferencial vs setupSidebar, alignAdministrativeControlsByRole, updateNavigation): 9 passed, 0 failed. (exit=0)
+tests/controllers/approvals-controller.test.mjs :: approvals-controller.js (diferencial vs app.js 3975-4448 + opciones propias): 84 passed, 0 failed. (exit=0)
+tests/controllers/approvals-decisiones.test.mjs :: approvals-controller.js (decisiones D2, D7 y D9a por defecto): 27 passed, 0 failed. (exit=0)
+tests/controllers/config-gestores-controller.test.mjs :: config-gestores-controller (interruptor de Pausa de Turno con base y DOM simulados): 13 passed, 0 failed. (exit=0)
+tests/controllers/incidents-controller.test.mjs :: incidents-controller (novedades con base y DOM simulados): 9 passed, 0 failed. (exit=0)
+tests/controllers/kpi-controller.test.mjs :: kpi-controller (orquestación de KPIs y Control Operativo): 23 passed, 0 failed. (exit=0)
+tests/controllers/login-history-controller.test.mjs :: login-history-controller (modal de accesos con base y DOM simulados): 6 passed, 0 failed. (exit=0)
+tests/controllers/monitoring-controller.test.mjs :: monitoring-controller (listener, tarjetas, bitácora, detalle y desplegable de gestores): 13 passed, 0 failed. (exit=0)
+tests/controllers/profile-notifications-controller.test.mjs :: profile-controller / notifications-controller (perfil, contraseña y notificaciones): 9 passed, 0 failed. (exit=0)
+tests/controllers/shift-controller.test.mjs :: shift-controller.js (RN-1..RN-4, deuda 2/4/5): 21 passed, 0 failed. (exit=0)
+tests/controllers/shift-reports-controller.test.mjs :: shift-reports-controller (historial de turnos: carga, filtros, modal y PDF): 10 passed, 0 failed. (exit=0)
+tests/controllers/task-controller.test.mjs :: task-controller.js (recuperación, latido, guardado, selección, arranque; diferencial vs app.js): 18 passed, 0 failed. (exit=0)
+tests/controllers/task-loaders-controller.test.mjs :: task-loaders-controller.js (loadExcelTasks, loadSchedule, loadTeletrabajo, loadPermisos, detalle de permiso; diferencial vs app.js): 8 passed, 0 failed. (exit=0)
+tests/domain/active-session-payload.test.mjs :: active-session-payload (latido: estado y campos de la Pausa de Turno): 6 passed, 0 failed. (exit=0)
+tests/domain/active-session-status.test.mjs :: active-session-status.js (bug: Pausa de Turno invisible al supervisor): 6 passed, 0 failed. (exit=0)
+tests/domain/active-supervisors.test.mjs :: active-supervisors (insignia de supervisor activo; diferencial vs app.js 8329-8396): 10 passed, 0 failed. (exit=0)
+tests/domain/announcement-service.test.mjs :: announcement-service (comunicados: lógica pura, diferencial vs app.js 6555-6965): 29 passed, 0 failed. (exit=0)
+tests/domain/approval-policy.test.mjs :: approval-policy.js (política de aprobaciones + contraste con database.rules.json): 37 passed, 0 failed. (exit=0)
+tests/domain/auth-service.test.mjs :: auth-service / notification-rules (política de navegación, controles administrativos, contraseña, notificaciones): 16 passed, 0 failed. (exit=0)
+tests/domain/break-state-ownership.test.mjs :: break-state-ownership (estado de pausas por usuario): 10 passed, 0 failed. (exit=0)
+tests/domain/break-state-timeline-coherence.test.mjs :: break-state-timeline-coherence: 12 passed, 0 failed. (exit=0)
+tests/domain/break-transitions.test.mjs :: break-transitions.js: 22 passed, 0 failed. (exit=0)
+tests/domain/extra-task.test.mjs :: extra-task.js + exception-justification.js (diferencial vs app.js 4001-4109): 11 passed, 0 failed. (exit=0)
+tests/domain/firebase-approvals-repository.test.mjs :: firebase-approvals-repository.js (rutas y payloads de app.js 4115-4441): 12 passed, 0 failed. (exit=0)
+tests/domain/firebase-shift-repository.test.mjs :: firebase-shift-repository.js + end-shift-button.js: 9 passed, 0 failed. (exit=0)
+tests/domain/gestor-config.test.mjs :: gestor-config (configuración de gestores y flag hasSplitShift; diferencial vs app.js 6757-6834): 14 passed, 0 failed. (exit=0)
+tests/domain/historial-repositories.test.mjs :: repositorios Firebase del corte historial/navegación (base inyectada, sin red): 7 passed, 0 failed. (exit=0)
+tests/domain/incident-service.test.mjs :: incident-service + incidents-view (novedades; diferencial vs app.js 8724-8815): 9 passed, 0 failed. (exit=0)
+tests/domain/kpi-data-sources.test.mjs :: kpi-data-sources (JSON operativo y lecturas de Firebase): 12 passed, 0 failed. (exit=0)
+tests/domain/kpi-metrics-calculator.test.mjs :: metrics-calculator (KPIs y Control Operativo): 32 passed, 0 failed. (exit=0)
+tests/domain/kpi-operativo-analysis.test.mjs :: operativo-analysis (Análisis Textual del Control Operativo): 18 passed, 0 failed. (exit=0)
+tests/domain/kpi-service.test.mjs :: kpi-service (fusión de reportes, gestores de KPIs, retiros): 20 passed, 0 failed. (exit=0)
+tests/domain/kpi-supervisor-directory.test.mjs :: supervisor-directory (D9b: supervisores por rol en users, sin lista fija): 6 passed, 0 failed. (exit=0)
+tests/domain/login-history.test.mjs :: login-history (historial de accesos; diferencial vs app.js 8402-8628): 13 passed, 0 failed. (exit=0)
+tests/domain/monitoring-view.test.mjs :: monitoring-view (tarjetas de Monitoreo: filtros, estado, retraso, tareas, bitácora y detalle): 16 passed, 0 failed. (exit=0)
+tests/domain/permission-service.test.mjs :: permission-service.js (diferencial vs app.js 4267-4448): 12 passed, 0 failed. (exit=0)
+tests/domain/presence-and-counter.test.mjs :: presence-service + approved-counter (base simulada con transacciones y desconexiones; diferencial vs app.js 8654-8721): 20 passed, 0 failed. (exit=0)
+tests/domain/schedule-parser.test.mjs :: schedule-parser.js: 11 passed, 0 failed. (exit=0)
+tests/domain/shift-closure-calculations.test.mjs :: shift-closure-calculations (diferencial vs app.js): 8 passed, 0 failed. (exit=0)
+tests/domain/shift-closure-rules.test.mjs :: shift-closure-rules.js: 11 passed, 0 failed. (exit=0)
+tests/domain/shift-closure-times-split.test.mjs :: shift-closure-times-split (RN: la pausa no es tiempo trabajado): 12 passed, 0 failed. (exit=0)
+tests/domain/shift-effective-hours-split.test.mjs :: shift-effective-hours-split (Pausa de Turno no es tiempo trabajado): 7 passed, 0 failed. (exit=0)
+tests/domain/shift-effective-time-d1.test.mjs :: shift-effective-time-d1 (fórmula única de horas efectivas: correo = panel): 18 passed, 0 failed. (exit=0)
+tests/domain/shift-report-builder.test.mjs :: shift-report-builder.js: 10 passed, 0 failed. (exit=0)
+tests/domain/shift-report-view.test.mjs :: shift-report-view (filtros, bitácora, PDF y tiempo efectivo del panel de reportes): 16 passed, 0 failed. (exit=0)
+tests/domain/split-shift-policy.test.mjs :: split-shift-policy (RN-1..RN-3): 8 passed, 0 failed. (exit=0)
+tests/domain/task-pure-rules.test.mjs :: reglas puras de tareas (reloj, progreso, latido, recuperación, guardado, selección, catálogo; diferencial vs app.js): 23 passed, 0 failed. (exit=0)
+tests/domain/task-repository.test.mjs :: firebase-task-repository.js (persistencia de tareas del gestor; diferencial vs app.js): 21 passed, 0 failed. (exit=0)
+tests/domain/user-approval-list.test.mjs :: user-approval-list.js (diferencial vs app.js 4111-4219): 12 passed, 0 failed. (exit=0)
+tests/ui/approvals-components.test.mjs :: componentes de aprobaciones (HTML idéntico al de app.js 4111-4448 + cajas, modales y avisos + decisiones D2/D7/D9a): 29 passed, 0 failed. (exit=0)
+tests/ui/break-button.test.mjs :: break-button.js (puerto 1:1 de los estilos de app.js): 9 passed, 0 failed. (exit=0)
+tests/ui/kpi-chart-configs.test.mjs :: operativo-chart-configs (gráficas del Control Operativo): 19 passed, 0 failed. (exit=0)
+tests/ui/shift-reports-view.test.mjs :: shift-reports-view (HTML de la tabla, el modal "Ver Todo" y el PDF del historial de turnos): 7 passed, 0 failed. (exit=0)
+tests/ui/task-views.test.mjs :: vistas de tareas y permisos (árbol, KPI, documentos rápidos, notificaciones; diferencial vs app.js): 12 passed, 0 failed. (exit=0)
+tests/utils/constants.test.mjs :: constants.js: 6 passed, 0 failed. (exit=0)
+tests/utils/date-time.test.mjs :: date-time.js: 15 passed, 0 failed. (exit=0)
+tests/utils/excel.test.mjs :: excel.js: 13 passed, 0 failed. (exit=0)
+tests/utils/normalize.test.mjs :: normalize.js: 14 passed, 0 failed. (exit=0)
+tests/utils/result.test.mjs :: result.js: 5 passed, 0 failed. (exit=0)
+tests/utils/sanitization.test.mjs :: sanitization.js: 14 passed, 0 failed. (exit=0)
+tests/utils/validation.test.mjs :: validation.js: 7 passed, 0 failed. (exit=0)
+TOTAL: 62 suites, 953 passed, 0 failed
+
+##### PARTE 2 — Bundle #####
+BUNDLE_OK /tmp/all-bundle.js
+⚡ Done in 68ms
+BUNDLE_OK dist/riskops.bundle.js (116 módulos)
+Espacios de nombres: 110 (entry.js + 5 entry-*.js)
+BUNDLE_VERIFY=PASS (71 comprobaciones, 462.0 KB)
+
+##### PARTE 3 — Integración #####
+INTEGRADO /tmp/all-integrado.js 59 pasos
+
+--- split-shift-flag.unit.cjs /tmp/all-integrado.js --strict --riskops /tmp/all-bundle.js --index /mnt/user-data/uploads/riesgovirtualsoft/index.html --rules /mnt/user-data/uploads/riesgovirtualsoft/database.rules.json
+
+=== RESUMEN ===
+Pasan: 23 | Fallan: 0 | Brechas abiertas: 0 | Omitidas: 0 | Total: 23
+RESULTADO: TODO CUMPLIDO
+exit=0
+
+--- cierre-horas-efectivas.e2e.cjs /tmp/all-integrado.js --strict --riskops /tmp/all-bundle.js
+
+=== RESUMEN ===
+Pasan: 19 | Fallan: 0 | Brechas abiertas: 0 | Total: 19
+RESULTADO: TODO CUMPLIDO
+exit=0
+
+--- monitoreo-render.e2e.cjs /tmp/all-integrado.js
+  [PASS] Inactivo, latido reciente: Inactivo 💤
+  [PASS] En Línea, latido reciente: En Línea
+  [PASS] En Línea, sin latido 5 min: Inactivo 💤
+monitoreo-render: 7 passed, 0 failed.
+exit=0
+
+--- tareas-integrado.e2e.cjs /tmp/all-integrado.js --riskops /tmp/all-bundle.js --original /mnt/user-data/uploads/riesgovirtualsoft/app.js
+  [PASS] G9 guardar progreso: No Realizada y En Proceso marcan su clase visual
+  [PASS] G9 paridad con el original
+
+Resultado: 236 pasaron, 0 fallaron.
+exit=0
+
+--- modales-permisos-integrado.e2e.cjs /tmp/all-integrado.js --riskops /tmp/all-bundle.js --original /mnt/user-data/uploads/riesgovirtualsoft/app.js
+  [PASS] E8 saveExtraTask: error genérico -> "No se pudo guardar... respaldado localmente"
+  [PASS] E8 paridad con el original
+
+Resultado: 78 pasaron, 0 fallaron.
+exit=0
+
+--- historial-navegacion-integrado.e2e.cjs /mnt/user-data/uploads/riesgovirtualsoft/app.js /tmp/all-integrado.js /tmp/all-bundle.js
+
+=== RESUMEN ===
+Pasan: 51 | Fallan: 0 | Total: 51
+RESULTADO: PARIDAD COMPLETA
+exit=0
+
+--- kpis-integrado.e2e.cjs /tmp/all-integrado.js --riskops /tmp/all-bundle.js --original /mnt/user-data/uploads/riesgovirtualsoft/app.js
+
+=== RESUMEN ===
+Pasan: 20 | Fallan: 0 | Total: 20
+RESULTADO: TODO CUMPLIDO (paridad en 14 escenarios; 4 con diferencia INTENCIONAL por D5/D9b afirmada por modo)
+exit=0
+
+--- comunicados-integrado.e2e.cjs /tmp/all-integrado.js --riskops /tmp/all-bundle.js --original /mnt/user-data/uploads/riesgovirtualsoft/app.js
+
+=== RESUMEN ===
+Pasan: 18 | Fallan: 0 | Total: 18
+RESULTADO: TODO CUMPLIDO (16 escenarios: paridad con el original salvo las diferencias intencionales D2/D4/D6 afirmadas en cada escenario; D9(c) con paridad total)
+exit=0
+
+--- turno-avance-panel-horas-efectivas.e2e.cjs /tmp/all-integrado.js --riskops /tmp/all-bundle.js --original /mnt/user-data/uploads/riesgovirtualsoft/app.js
+  [PASS] P8 sin inactividad ni penalidad el panel da lo mismo que el original (sin regresión)
+
+=== RESUMEN ===
+Pasan: 9 | Fallan: 0 | Total: 9 | Panel: CONECTADO
+exit=0
+
+--- parche-pausa-turno.unit.cjs /mnt/user-data/uploads/riesgovirtualsoft/app.js
+Integridad: 5/5
+Parchado:   21/21 pruebas pasan
+Original:   8 pruebas [BUG] fallan como se esperaba; 13 de control pasan -> coherente
+RESULTADO: PARCHE VERIFICADO
+exit=0

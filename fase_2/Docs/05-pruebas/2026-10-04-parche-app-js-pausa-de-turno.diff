@@ -1,0 +1,57 @@
+--- app.js (original)
++++ app.js (parchado)
+@@ -5242,7 +5242,7 @@
+         const excludedMonitoreo = SUPERVISORES_NOMBRES;
+         if (excludedMonitoreo.some(ex => fullName.toLowerCase().includes(ex.toLowerCase()))) return false;
+ 
+-        if (session.status === 'En Almuerzo' || session.status === 'En Desayuno' || session.status === 'Inactivo') {
++        if (session.status === 'En Almuerzo' || session.status === 'En Desayuno' || session.status === 'En Pausa de Turno' || session.status === 'Inactivo') {
+             isOnline = false;
+         }
+ 
+@@ -5284,7 +5284,7 @@
+         let isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
+         
+         // Fix: If they stopped pinging Firebase for over 2 minutes and aren't on break, force them to Inactivo locally
+-        if (!isOnline && session.status !== 'En Almuerzo' && session.status !== 'En Desayuno') {
++        if (!isOnline && session.status !== 'En Almuerzo' && session.status !== 'En Desayuno' && session.status !== 'En Pausa de Turno') {
+             session.status = 'Inactivo';
+         }
+ 
+@@ -5301,6 +5301,10 @@
+             statusBadge = '<span style="background: rgba(255,193,7,0.2); color: #ffc107; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;"><i class="bx bx-coffee"></i> Desayuno</span>';
+             displayStatus = 'En Desayuno ☕';
+             statusDot = '<div style="width: 8px; height: 8px; border-radius: 50%; background: #ffc107; margin-right: 6px;"></div>';
++        } else if (session.status === 'En Pausa de Turno') {
++            statusBadge = '<span style="background: rgba(139,92,246,0.2); color: #8b5cf6; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;"><i class="bx bx-pause-circle"></i> Pausa de Turno</span>';
++            displayStatus = 'En Pausa de Turno ⏸️';
++            statusDot = '<div style="width: 8px; height: 8px; border-radius: 50%; background: #8b5cf6; margin-right: 6px;"></div>';
+         } else if (session.status === 'Inactivo') {
+             isOnline = false;
+             displayStatus = 'Inactivo 💤';
+@@ -5475,7 +5479,7 @@
+     // Inyectar dinámicamente el bloque de inactividad actual si el gestor perdió conexión (PC suspendido) y no está en pausa
+     const lastPing = session.lastActive ? new Date(session.lastActive).getTime() : 0;
+     const now = Date.now();
+-    if (lastPing && (now - lastPing) > 120000 && session.status !== 'En Almuerzo' && session.status !== 'En Desayuno') { // más de 2 minutos sin dar señal y no está en break
++    if (lastPing && (now - lastPing) > 120000 && session.status !== 'En Almuerzo' && session.status !== 'En Desayuno' && session.status !== 'En Pausa de Turno') { // más de 2 minutos sin dar señal y no está en break
+         const hasOngoingInactividad = validTimeline.some(ev => ev.type === 'Inactividad' && !ev.end);
+         if (!hasOngoingInactividad) {
+             validTimeline.push({
+@@ -5503,6 +5507,7 @@
+             if (ev.type === 'Almuerzo') icon = "<i class='bx bx-restaurant' style='color: var(--success)'></i>";
+             if (ev.type === 'Desayuno') icon = "<i class='bx bx-coffee' style='color: var(--warning)'></i>";
+             if (ev.type === 'Inactividad') icon = "<i class='bx bx-sleepy' style='color: var(--danger)'></i>";
++            if (ev.type === 'Pausa de Turno') icon = "<i class='bx bx-pause-circle' style='color: #8b5cf6'></i>";
+ 
+             tbody.innerHTML += `
+                 <tr style="border-bottom: 1px solid var(--glass-border);">
+@@ -8428,7 +8433,7 @@
+                 seenKeys.add(key);
+ 
+                 let isOnline = s.lastActive ? ((Date.now() - s.lastActive) < 120000) : false;
+-                if (s.status === 'En Almuerzo' || s.status === 'En Desayuno' || s.status === 'Inactivo') isOnline = false;
++                if (s.status === 'En Almuerzo' || s.status === 'En Desayuno' || s.status === 'En Pausa de Turno' || s.status === 'Inactivo') isOnline = false;
+ 
+                 allLoginHistoryRecords.push({
+                     name: s.name,

@@ -53,10 +53,26 @@ const R = context.RiskOps;
 assert.ok(R && typeof R === 'object', 'no se creó el global RiskOps');
 const expectedNamespaces = ['announcementCapabilities', 'shiftExpiration', 'timeMetrics', 'withdrawalMetrics', 'cronogramParser', 'scheduleService',
     'shiftCalculator', 'timelineService', 'taskReconciler', 'taskReport', 'taskService', 'docLinks', 'roles', 'routes', 'idleDetector', 'formSubmit',
-    'localSessionStorage', 'multiSelect', 'constants', 'dateTime', 'excel', 'normalize', 'result', 'sanitization', 'validation'];
+    'localSessionStorage', 'multiSelect', 'constants', 'dateTime', 'excel', 'normalize', 'result', 'sanitization', 'validation',
+    // Corte 2 del paso 6 y reglas de la Pausa de Turno (2026-10-06)
+    'shiftController', 'activeSessionStatus', 'activeSessionPayload', 'breakStateOwnership', 'breakTransitions', 'shiftClosureRules',
+    'shiftReportBuilder', 'splitShiftPolicy', 'breakButton'];
 for (const ns of expectedNamespaces) assert.ok(R[ns], `falta el espacio de nombres ${ns}`);
-assert.equal(Object.keys(R).length, expectedNamespaces.length);
-let checks = 2 + expectedNamespaces.length;
+// Los espacios de nombres declarados en src/entry.js y en cada src/entry-*.js (cortes del paso 6) deben estar TODOS en el bundle, ni uno más ni uno menos.
+{
+    const srcDir = path.resolve(here, '../src');
+    const entryFiles = ['entry.js', ...fs.readdirSync(srcDir).filter((f) => /^entry-.+\.js$/.test(f)).sort()];
+    const declared = new Set();
+    for (const f of entryFiles) {
+        for (const m of fs.readFileSync(path.join(srcDir, f), 'utf8').matchAll(/export\s+\*\s+as\s+([A-Za-z0-9_$]+)\s+from/g)) declared.add(m[1]);
+    }
+    for (const ns of expectedNamespaces) assert.ok(declared.has(ns), `el espacio ${ns} no está declarado en entry*.js`);
+    const exported = new Set(Object.keys(R));
+    assert.deepEqual([...exported].sort(), [...declared].sort(), 'el bundle y entry*.js no coinciden');
+    for (const ns of declared) assert.ok(R[ns] && typeof R[ns] === 'object', `espacio de nombres vacío: ${ns}`);
+    console.log(`Espacios de nombres: ${declared.size} (entry.js + ${entryFiles.length - 1} entry-*.js)`);
+}
+let checks = 2 + expectedNamespaces.length + 1;
 
 // 3. Paridad bundle vs. módulos ESM.
 const SRC = path.resolve(here, '../src');
@@ -72,6 +88,24 @@ const evs = [{ type: 'Inactividad', start: 0, end: 120000 }, { type: 'Almuerzo',
 assert.equal(j(R.timelineService.consolidateTimeline(evs, { defaultEndMs: 4000000 })), j(ts.consolidateTimeline(evs, { defaultEndMs: 4000000 }))); checks++;
 assert.equal(R.sanitization.sanitizeAnnouncementHTML('<script>x</script><b onclick="a()">ok</b><a href="javascript:1">l</a>'), sa.sanitizeAnnouncementHTML('<script>x</script><b onclick="a()">ok</b><a href="javascript:1">l</a>')); checks++;
 assert.ok(!R.sanitization.sanitizeAnnouncementHTML('<script>x</script><b onclick="a()">ok</b>').includes('script')); checks++;
+
+// 3b. Paridad bundle vs. módulos ESM de las reglas de la Pausa de Turno (RN-1..RN-4).
+{
+    const bt = await esm('domain/shifts/break-transitions.js');
+    const sc = await esm('domain/shifts/shift-calculator.js');
+    const sp = await esm('domain/shifts/split-shift-policy.js');
+    const ow = await esm('domain/shifts/break-state-ownership.js');
+    const st = { ...sc.defaultState() };
+    assert.equal(j(R.breakTransitions.toggleBreak(st, 'split', 1000)), j(bt.toggleBreak(st, 'split', 1000))); checks++;
+    assert.equal(R.breakTransitions.toggleBreak(st, 'split', 1000).blockedReason, 'SPLIT_SHIFT_NOT_ENABLED'); checks++;
+    assert.equal(j(R.breakTransitions.toggleBreak(st, 'split', 1000, { splitShiftEnabled: true })), j(bt.toggleBreak(st, 'split', 1000, { splitShiftEnabled: true }))); checks++;
+    assert.equal(R.splitShiftPolicy.shouldShowSplitShiftButton({ role: 'Gestor', hasSplitShift: false }, { isSplitShiftBreak: true }), sp.shouldShowSplitShiftButton({ role: 'Gestor', hasSplitShift: false }, { isSplitShiftBreak: true })); checks++;
+    const closure = { loginMs: 0, endMs: 600 * 60000, lunchMs: 30 * 60000, breakfastMs: 0, splitShiftMs: 180 * 60000, inactivityMins: 0 };
+    assert.equal(R.shiftCalculator.calculateShiftClosureTimes(closure).effectiveHours, '6.50'); checks++;
+    assert.equal(j(R.shiftCalculator.calculateShiftClosureTimes(closure)), j(sc.calculateShiftClosureTimes(closure))); checks++;
+    assert.equal(j(R.breakStateOwnership.restoreBreakState(j(ow.serializeBreakState(st, 'u1')), 'u2')), j(ow.restoreBreakState(j(ow.serializeBreakState(st, 'u1')), 'u2'))); checks++;
+    assert.equal(typeof R.shiftController.createShiftController, 'function'); checks++;
+}
 
 // 4. IdleDetector dentro del bundle: vigilancia continua y comunicación con callbacks.
 const idleEvents = [];

@@ -1,0 +1,14 @@
+$ node fase_2/src/tests/domain/schedule-parser.test.mjs
+  [PASS] getShiftCategory devuelve "" con valores vacíos
+  [PASS] getShiftCategory reconoce "Mañana" con o sin tilde
+  [PASS] getShiftCategory reconoce "Tarde" por substring
+  [PASS] getShiftCategory reconoce "Noche" por substring
+  [PASS] getShiftCategory reconoce "Master" por substring, antes de intentar parsear hora
+  [PASS] getShiftCategory clasifica rangos de hora por la hora de inicio (am)
+  [PASS] getShiftCategory clasifica rangos de hora por la hora de inicio (pm, 12-13h)
+  [PASS] getShiftCategory clasifica rangos de hora por la hora de inicio (tarde, 14-21h)
+  [PASS] getShiftCategory clasifica como "Noche" cualquier hora de inicio fuera de Mañana/Tarde
+  [PASS] getShiftCategory normaliza "am"/"pm" al mediodía y medianoche (12am=0h, 12pm=12h)
+  [PASS] getShiftCategory devuelve "" si el texto no matchea ninguna palabra clave ni rango de hora
+schedule-parser.js: 11 passed, 0 failed.
+exit code: 0

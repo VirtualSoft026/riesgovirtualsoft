@@ -1,0 +1,369 @@
+Log de pruebas — incorporación de las reglas hasSplitShift y 'la Pausa de Turno no es tiempo trabajado' a fase_2/src
+Generado: 2026-10-06T14:52:11Z | Node v22.22.2
+Comando: cd fase_2/src ; node tests/domain/<suite>.test.mjs  (y node tests/e2e/<suite>.cjs <app.js> [--strict])
+
+##### PARTE 1 — Suites de fase_2/src (módulos puros; no leen app.js) #####
+
+--- tests/domain/active-session-status.test.mjs ---
+  [PASS] REPRODUCCIÓN DEL BUG: el código actual muestra "En Línea" a un gestor en Pausa de Turno con latido reciente
+  [PASS] REPRODUCCIÓN DEL BUG: sin latido, el código actual rotula la Pausa de Turno como "Inactivo"
+  [PASS] CORREGIDO: Pausa de Turno con latido reciente se muestra como pausa y no cuenta como En Línea en el filtro
+  [PASS] CORREGIDO: Pausa de Turno sin latido por más de 2 min sigue siendo pausa (no "Inactivo")
+  [PASS] el resto de estados es IDÉNTICO al código actual (diferencial, 6 estados x 4 latidos)
+  [PASS] Inactivo con latido reciente se muestra Inactivo (la vista ya lo soportaba)
+active-session-status.js (bug: Pausa de Turno invisible al supervisor): 6 passed, 0 failed.
+exit=0
+
+--- tests/domain/break-state-timeline-coherence.test.mjs ---
+  [PASS] A1. defaultState() incluye shiftTimeline: [] y los 9 campos de pausas en falso/0/null
+  [PASS] A2. normalizeState() sanea valores inválidos a los valores por defecto
+  [PASS] A3. normalizeState() copia shiftTimeline por valor, no por referencia
+  [PASS] A4. saveBreakState()/loadBreakState() hacen round-trip fiel, incluido shiftTimeline
+  [PASS] A5. loadBreakState() devuelve defaultState() si la llave no existe
+No se pudo cargar el estado de pausas: SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+    at JSON.parse (<anonymous>)
+    at loadBreakState (file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/services/storage/local-session-storage.js:29:49)
+    at file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs:181:22
+    at test (file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/test-harness.mjs:21:13)
+    at file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs:176:1
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+  [PASS] A6. loadBreakState() devuelve defaultState() ante JSON corrupto, sin lanzar
+No se pudo guardar el estado de pausas: Error: QuotaExceededError simulado
+    at Object.setItem (file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs:90:23)
+    at saveBreakState (file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/services/storage/local-session-storage.js:14:22)
+    at file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs:187:31
+    at getActual (node:assert:609:5)
+    at Function.doesNotThrow (node:assert:777:32)
+    at file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs:187:12
+    at test (file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/test-harness.mjs:21:13)
+    at file:///mnt/attach/outputs/riesgovirtualsoft/fase_2/src/tests/domain/break-state-timeline-coherence.test.mjs:184:1
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+  [PASS] A7. saveBreakState() contiene el error si localStorage.setItem lanza (p. ej. cuota excedida)
+  [PASS] B1 [RIESGO CRÍTICO]. loadBreakState() descarta en silencio una línea de tiempo real guardada por app.js
+  [PASS] B2 [RIESGO CRÍTICO]. saveBreakState() nunca lee ni escribe "riskOps_timeline"
+  [PASS] B3 [RIESGO CRÍTICO]. "riskOps_breakState" de producción jamás trae shiftTimeline (contrato documentado, no inferido)
+  [PASS] C1. pushTimelineEvent("start", ...) cierra eventos abiertos y abre uno nuevo
+  [PASS] C2. pushTimelineEvent("end", ...) cierra el último evento abierto de ese tipo
+break-state-timeline-coherence: 12 passed, 0 failed.
+exit=0
+
+--- tests/domain/break-transitions.test.mjs ---
+  [PASS] breakfast: iniciar marca activa, guarda hora de inicio y pide evento "Desayuno" start
+  [PASS] breakfast: terminar acumula el tiempo, limpia el inicio, pide evento end y updateActivity
+  [PASS] breakfast: iniciar queda bloqueado si hay otra pausa activa (sin efectos ni cambios)
+  [PASS] breakfast: dos pausas del mismo tipo suman sus tiempos
+  [PASS] lunch: iniciar marca activa, guarda hora de inicio y pide evento "Almuerzo" start
+  [PASS] lunch: terminar acumula el tiempo, limpia el inicio, pide evento end y updateActivity
+  [PASS] lunch: iniciar queda bloqueado si hay otra pausa activa (sin efectos ni cambios)
+  [PASS] lunch: dos pausas del mismo tipo suman sus tiempos
+  [PASS] split: iniciar marca activa, guarda hora de inicio y pide evento "Pausa de Turno" start
+  [PASS] split: terminar acumula el tiempo, limpia el inicio, pide evento end y updateActivity
+  [PASS] split: iniciar queda bloqueado si hay otra pausa activa (sin efectos ni cambios)
+  [PASS] split: dos pausas del mismo tipo suman sus tiempos
+  [PASS] característica heredada: terminar una pausa activa SIN hora de inicio no suma tiempo (estado restaurado incompleto)
+  [PASS] no muta el estado recibido
+  [PASS] un tipo de pausa desconocido lanza error
+  [PASS] RN-1: iniciar la Pausa de Turno SIN flag queda bloqueado con motivo SPLIT_SHIFT_NOT_ENABLED (sin efectos)
+  [PASS] RN-2: iniciar la Pausa de Turno CON flag (=== true) la inicia
+  [PASS] RN-3: retomar (terminar) la pausa SIEMPRE se permite, aunque el flag ya no esté (revocado a mitad de la pausa / recarga)
+  [PASS] Almuerzo y desayuno NO dependen del flag: se inician y terminan igual con o sin splitShiftEnabled
+  [PASS] con el flag y otra pausa activa el motivo es OTHER_BREAK_ACTIVE; sin flag y otra pausa activa gana SPLIT_SHIFT_NOT_ENABLED
+  [PASS] con la pausa de turno activa, almuerzo y desayuno siguen bloqueados (OTHER_BREAK_ACTIVE), con o sin flag
+  [PASS] bloqueo por flag no muta el estado recibido
+break-transitions.js: 22 passed, 0 failed.
+exit=0
+
+--- tests/domain/firebase-shift-repository.test.mjs ---
+  [PASS] persistShiftClosureCore devuelve la llave del reporte
+  [PASS] persistShiftClosureCore hace UNA sola escritura multi-ruta con las 3 rutas esperadas
+  [PASS] persistShiftClosureCore exige UID
+  [PASS] persistShiftClosureCore exige loginLogId (sin escribir nada)
+  [PASS] persistShiftClosureCore falla si no se puede asignar la llave del reporte
+  [PASS] persistShiftClosureCore propaga el error de Firebase sin escrituras parciales
+  [PASS] restoreEndShiftButton restaura el HTML previo y rehabilita el botón
+  [PASS] restoreEndShiftButton usa el texto por defecto si no hay HTML previo
+  [PASS] restoreEndShiftButton no falla con botón nulo
+firebase-shift-repository.js + end-shift-button.js: 9 passed, 0 failed.
+exit=0
+
+--- tests/domain/schedule-parser.test.mjs ---
+  [PASS] getShiftCategory devuelve "" con valores vacíos
+  [PASS] getShiftCategory reconoce "Mañana" con o sin tilde
+  [PASS] getShiftCategory reconoce "Tarde" por substring
+  [PASS] getShiftCategory reconoce "Noche" por substring
+  [PASS] getShiftCategory reconoce "Master" por substring, antes de intentar parsear hora
+  [PASS] getShiftCategory clasifica rangos de hora por la hora de inicio (am)
+  [PASS] getShiftCategory clasifica rangos de hora por la hora de inicio (pm, 12-13h)
+  [PASS] getShiftCategory clasifica rangos de hora por la hora de inicio (tarde, 14-21h)
+  [PASS] getShiftCategory clasifica como "Noche" cualquier hora de inicio fuera de Mañana/Tarde
+  [PASS] getShiftCategory normaliza "am"/"pm" al mediodía y medianoche (12am=0h, 12pm=12h)
+  [PASS] getShiftCategory devuelve "" si el texto no matchea ninguna palabra clave ni rango de hora
+schedule-parser.js: 11 passed, 0 failed.
+exit=0
+
+--- tests/domain/shift-closure-calculations.test.mjs ---
+  [PASS] calculateConnectivityPenalty coincide con el original en 200 combinaciones
+  [PASS] calculateConnectivityPenalty: caso fijo — 75 min de almuerzo, 20 de desayuno, 10 de inactividad = 30 de penalidad
+  [PASS] calculateEffectiveHours coincide con el original en 200 combinaciones (incluye el piso en 0)
+  [PASS] calculateEffectiveHours: caso fijo — turno de 8 h con 45 min de pausas y 15 de penalidad = 7.00 h
+  [PASS] calculateEffectiveHours: nunca devuelve negativo
+  [PASS] consolidateTimeline (3 tipos de pausa) coincide con el original en 300 líneas de tiempo aleatorias
+  [PASS] consolidateTimeline: línea de tiempo vacía o nula devuelve []
+  [PASS] consolidateTimeline: descarta inactividad < 30 s y la que cae dentro de una pausa
+shift-closure-calculations (diferencial vs app.js): 8 passed, 0 failed.
+exit=0
+
+--- tests/domain/shift-closure-rules.test.mjs ---
+  [PASS] hasRealSetOptions: false sin select o sin options
+  [PASS] hasRealSetOptions: ignora "", "Todos" y deshabilitadas
+  [PASS] hasRealSetOptions: true con al menos una opción real habilitada
+  [PASS] requiresSpecificSetSelection: exige elegir si hay opciones reales y el valor es "" o "Todos"
+  [PASS] requiresSpecificSetSelection: no exige nada si no hay opciones reales
+  [PASS] shouldValidateManagedTasks: solo Gestor con caché de tareas
+  [PASS] listUnmanagedTasks: con catálogo, acepta Finalizada y No Realizada en cualquier formato
+  [PASS] listUnmanagedTasks: nombre de respaldo = entry.name, luego el id canónico
+  [PASS] listUnmanagedTasks: las tareas extra pendientes se agregan al final
+  [PASS] listUnmanagedTasks: sin catálogo (allTasks no es arreglo) revisa el caché completo
+  [PASS] listUnmanagedTasks: todo gestionado devuelve arreglo vacío
+shift-closure-rules.js: 11 passed, 0 failed.
+exit=0
+
+--- tests/domain/shift-closure-times-split.test.mjs ---
+  [PASS] H1: sin pausa, 8 h con 30 min de almuerzo = 7.50 h (sin regresión)
+  [PASS] H2: sin pausa, excesos y penalidad iguales que antes (600-75-20-30 min = 7.92 h)
+  [PASS] H3: con pausa 180 min, 08:00-18:00 y almuerzo 30 = 6.50 h (antes 9.50 h)
+  [PASS] H4: cada minuto de pausa resta exactamente 1/60 h (90 min = 1.50 h)
+  [PASS] H5: la pausa NO altera la penalidad de conectividad
+  [PASS] H6: combinado (pausa + almuerzo con exceso + desayuno + inactividad) = 5.92 h
+  [PASS] H7: nunca negativo (pausa mayor que el turno = 0.00)
+  [PASS] H8: el correo informa Tiempo_Pausa_Turno_Descontado cuando hubo pausa
+  [PASS] H9: sin pausa el correo NO incluye el campo de pausa
+  [PASS] H10: campos del correo conservados y en el orden de app.js (la pausa va entre desayuno y penalidad)
+  [PASS] H11: coherencia con el panel de reportes cuando no hay penalidad (turno - almuerzo - desayuno - pausa)
+  [PASS] splitShiftMs omitido equivale a 0 (retrocompatible con el cálculo anterior)
+shift-closure-times-split (RN: la pausa no es tiempo trabajado): 12 passed, 0 failed.
+exit=0
+
+--- tests/domain/shift-effective-hours-split.test.mjs ---
+  [PASS] sin splitShiftMs (omitido) el resultado es IDÉNTICO al original en 200 combinaciones (retrocompatibilidad)
+  [PASS] con splitShiftMs coincide con la fórmula corregida de app.js en 300 combinaciones
+  [PASS] caso del informe: turno 08:00-18:00, almuerzo 30 min, pausa 180 min = 6.50 h (antes 9.50 h)
+  [PASS] la pausa resta 1 a 1: cada minuto de pausa baja las horas efectivas en 1/60 h
+  [PASS] la pausa NO genera penalidad por sí sola (la penalidad sigue viniendo de excesos e inactividad)
+  [PASS] nunca devuelve negativo aunque la pausa supere al turno
+  [PASS] splitShiftMs null o undefined se comporta como 0 (estado restaurado incompleto)
+shift-effective-hours-split (Pausa de Turno no es tiempo trabajado): 7 passed, 0 failed.
+exit=0
+
+--- tests/domain/shift-report-builder.test.mjs ---
+  [PASS] sumInactivityMinutes: suma solo "Inactividad" y cuenta los eventos abiertos hasta el límite
+  [PASS] sumInactivityMinutes: entrada inválida o vacía devuelve 0
+  [PASS] sumInactivityMinutes no redondea; sumCleanInactivityMinutes redondea a 1 decimal
+  [PASS] buildBitacoraText: sin eventos devuelve el mensaje fijo
+  [PASS] buildBitacoraText: una línea por evento, con salto de línea final
+  [PASS] buildBitacoraText: evento sin fin muestra "No regresó"
+  [PASS] buildBitacoraText: el formato por defecto es HH:MM en es-CO (dos dígitos)
+  [PASS] buildShiftReportObject: arma exactamente los 16 campos de shift_reports
+  [PASS] buildShiftReportObject: valores por defecto ("Por Asignar", "N/A", pausa de turno 0)
+  [PASS] buildShiftReportObject: un valor de SET "" se conserva (no se convierte en "N/A")
+shift-report-builder.js: 10 passed, 0 failed.
+exit=0
+
+--- tests/domain/split-shift-policy.test.mjs ---
+  [PASS] isSplitShiftEnabled solo es true con hasSplitShift === true (estricto)
+  [PASS] RN-1: gestor SIN flag y sin pausa activa: no ve el botón y no puede iniciar la pausa
+  [PASS] RN-2: gestor CON flag: ve el botón y puede entrar y salir de la pausa
+  [PASS] RN-3: pausa activa y flag revocado: el botón sigue visible y retomar se permite
+  [PASS] el botón es solo para el rol Gestor, aunque otro rol tenga el flag
+  [PASS] sin usuario: nada visible ni permitido
+  [PASS] SPLIT_SHIFT_BLOCK_REASON expone los motivos y está congelado
+  [PASS] coherencia: canToggle(false→iniciar) coincide con lo que exige toggleBreak (splitShiftEnabled)
+split-shift-policy (RN-1..RN-3): 8 passed, 0 failed.
+exit=0
+
+--- tests/utils/constants.test.mjs ---
+  [PASS] STORAGE_KEYS conserva las claves de localStorage usadas hoy en app.js
+  [PASS] los catálogos de estado quedan congelados (Object.freeze)
+  [PASS] intentar mutar un catálogo congelado no cambia su valor
+  [PASS] TASK_STATUS cubre los cuatro estados usados por el cierre de turno
+  [PASS] los umbrales de tiempo son números positivos y consistentes entre sí
+  [PASS] EXTRA_TASK_KEY_PREFIX mantiene el prefijo esperado
+constants.js: 6 passed, 0 failed.
+exit=0
+
+--- tests/utils/date-time.test.mjs ---
+  [PASS] normalizeMeridiem reconoce "p. m." y "AM" con puntos y mayúsculas
+  [PASS] normalizeMeridiem devuelve null para valores vacíos o irreconocibles
+  [PASS] to24Hour convierte mediodía y medianoche correctamente
+  [PASS] parseClockTime admite "8", "8:30" y "10:15 p. m."
+  [PASS] parseClockTime devuelve null con valores vacíos (incluido el 0 numérico)
+  [PASS] parseTimeFromLocaleString lee la hora de un string local con y sin meridiano
+  [PASS] parseShiftStart respeta un horario explícito "8:00 am - 5:00 pm"
+  [PASS] parseShiftStart usa las convenciones históricas de SET cuando no hay hora explícita
+  [PASS] parseShiftStart devuelve null para texto vacío o no reconocido
+  [PASS] parseShiftRange separa inicio y fin, y exige un fin parseable
+  [PASS] toMinutesOfDay convierte horas y minutos a minutos desde medianoche
+  [PASS] minutesBetweenWrappingMidnight suma un día cuando el fin es antes del inicio
+  [PASS] parseTimeToMs interpreta fechas completas directamente
+  [PASS] parseTimeToMs aplica "HH:MM AM/PM" sobre la fecha base cuando no hay fecha completa
+  [PASS] parseTimeToMs devuelve NaN cuando no puede interpretar el valor
+date-time.js: 15 passed, 0 failed.
+exit=0
+
+--- tests/utils/excel.test.mjs ---
+  [PASS] excelToJSDate convierte el serial 25569 exactamente al 1-ene-1970 (época Unix)
+  [PASS] excelToJSDate trata el serial 0 como vacío (0 es "falsy" en JS)
+  [PASS] excelToJSDate devuelve null con valores no numéricos o vacíos
+  [PASS] parseExcelDate interpreta fechas ISO (con guiones) directamente
+  [PASS] parseExcelDate con formato "DD/MM/YYYY" puede fallar si el día supera 12 (límite real conocido)
+  [PASS] parseExcelDate interpreta números como seriales de Excel
+  [PASS] parseExcelDate devuelve null para 0, vacío o texto no numérico
+  [PASS] readFirstSheetRows lee la primera hoja con el formato de filas (header:1)
+  [PASS] readFirstSheetRows usa {defval: ""} cuando se pide asObjects
+  [PASS] readFirstSheetRows devuelve null sin libro, sin hojas o sin la hoja referenciada
+  [PASS] hasMinimumRows exige al menos 3 filas por defecto y respeta el mínimo dado
+  [PASS] getCell devuelve el valor de la celda o el fallback si la fila/columna no existe
+  [PASS] isSameDate compara una fecha de Excel (UTC) con una fecha local de JS
+excel.js: 13 passed, 0 failed.
+exit=0
+
+--- tests/utils/normalize.test.mjs ---
+  [PASS] normalizeName quita acentos, espacios y pasa a minúsculas
+  [PASS] normalizeName devuelve "" con valores vacíos
+  [PASS] namesMatch acepta un nombre parcial contenido en el nombre completo
+  [PASS] namesMatch rechaza nombres distintos
+  [PASS] namesMatch aplica la excepción documentada "Daniel" vs "Josue"
+  [PASS] namesMatch devuelve false si algún nombre queda vacío tras filtrar tokens cortos
+  [PASS] cleanText quita tildes, puntuación y colapsa espacios
+  [PASS] cleanText devuelve "" con valores no-string o vacíos
+  [PASS] normalizeTaskName reconoce las variantes históricas de nombres de tarea
+  [PASS] normalizeTaskName deja igual (solo limpio) un nombre sin alias conocido
+  [PASS] taskNamesMatch reconoce coincidencia exacta tras normalizar
+  [PASS] taskNamesMatch aplica tolerancia difusa (longitud >= 15 y diferencia <= 6)
+  [PASS] taskNamesMatch rechaza nombres cortos y distintos, y valores vacíos
+  [PASS] setNamesMatch compara SETs por contención después de limpiar el texto
+normalize.js: 14 passed, 0 failed.
+exit=0
+
+--- tests/utils/result.test.mjs ---
+  [PASS] ok() construye un resultado exitoso congelado
+  [PASS] fail() construye un error con código, mensaje y causa
+  [PASS] fail() usa message="" y cause=null por defecto
+  [PASS] fail() devuelve un resultado y un error congelados
+  [PASS] ERROR_CODES incluye los códigos usados por adapters y controladores, y está congelado
+result.js: 5 passed, 0 failed.
+exit=0
+
+--- tests/utils/sanitization.test.mjs ---
+  [PASS] escapeHTML escapa las cinco entidades básicas
+  [PASS] escapeHTML devuelve "" para null y undefined
+  [PASS] encodeInlineHandlerArg codifica la cadena y además escapa comillas simples
+  [PASS] sanitizeAnnouncementHref acepta http(s) y mailto
+  [PASS] sanitizeAnnouncementHref rechaza esquemas peligrosos y rutas "//" (protocol-relative)
+  [PASS] sanitizeAnnouncementHref acepta una ruta relativa sin esquema
+  [PASS] sanitizeAnnouncementHref devuelve "" con valores vacíos
+  [PASS] sanitizeAnnouncementHTML conserva las etiquetas permitidas
+  [PASS] sanitizeAnnouncementHTML quita la etiqueta <script>, pero su texto interno queda como texto plano escapado (hallazgo real, no es un riesgo de XSS porque ya no está dentro de un <script> ejecutable)
+  [PASS] sanitizeAnnouncementHTML traduce alias de etiquetas (b→strong, i→em, div→p)
+  [PASS] sanitizeAnnouncementHTML desenvuelve etiquetas no permitidas pero conserva su texto
+  [PASS] sanitizeAnnouncementHTML quita un href peligroso pero conserva el enlace y su texto
+  [PASS] sanitizeAnnouncementHTML conserva un href legítimo
+  [PASS] sanitizeAnnouncementHTML devuelve "" con null o undefined
+sanitization.js: 14 passed, 0 failed.
+exit=0
+
+--- tests/utils/validation.test.mjs ---
+  [PASS] isNonEmptyString exige texto no vacío tras recortar espacios
+  [PASS] isFiniteNumber exige un número finito real (no texto, no Infinity, no NaN)
+  [PASS] isValidDate exige una instancia de Date válida (no un string de fecha)
+  [PASS] isOneOf acepta arreglos y Sets como lista de valores permitidos
+  [PASS] findMissingFields detecta undefined, null y "" como campos faltantes
+  [PASS] findMissingFields trata un origen null/undefined como objeto vacío
+  [PASS] findMissingFields devuelve un arreglo vacío cuando no falta nada
+validation.js: 7 passed, 0 failed.
+exit=0
+
+##### PARTE 2 — Suites contra app.js REAL de producción (con solo el parche de monitoreo; candidatos NO aplicados) #####
+(informativo: las [BRECHA] confirman que el defecto sigue en app.js y que lo cubre el módulo de arriba)
+
+--- parche-pausa-turno.unit.cjs ---
+  [OK ] F2       original pasa
+  [OK ] F3       original pasa
+
+=== RESUMEN ===
+Integridad: 5/5
+Parchado:   21/21 pruebas pasan
+Original:   8 pruebas [BUG] fallan como se esperaba; 13 de control pasan -> coherente
+RESULTADO: PARCHE VERIFICADO
+
+--- split-shift-flag.unit.cjs (app.js actual, informativo) ---
+  [PASS] R3.1 Cadena completa gestor → active_sessions → vista del supervisor: entrar y salir de Pausa de Turno
+  [PASS] R3.2 Almuerzo y Desayuno siguen reflejándose igual en la vista del supervisor
+  [PASS] R3.3 Exclusión mutua: en Pausa no se puede tomar Almuerzo ni Desayuno (y viceversa); el estado no se contamina
+  [PASS] R3.4 Secuencia Pausa → Almuerzo → Desayuno: 3 eventos cerrados, cada estado visible a su tiempo
+  [BRECHA] B3 [BRECHA] Flag revocado en plena pausa: el gestor no debe quedar bloqueado para Almuerzo/Desayuno
+         -> sin botón para retomar y con Almuerzo/Desayuno bloqueados
+
+=== RESUMEN ===
+Pasan: 19 | Fallan: 0 | Brechas abiertas: 4 | Omitidas: 0 | Total: 23
+RESULTADO: REQUISITOS CUMPLIDOS EN EL FLUJO NORMAL; HAY BRECHAS ABIERTAS (ver arriba)
+
+--- cierre-horas-efectivas.e2e.cjs (app.js actual, informativo) ---
+  [PASS] H2 Sin Pausa de Turno: almuerzo y desayuno con excesos y penalidad se calculan igual que antes
+  [BRECHA] H3 Con Pausa de Turno: 08:00-18:00, almuerzo 30 min, pausa 180 min = 6.50 h (antes 9.50 h)
+         -> distinto: esperado "6.50 hrs", obtenido "9.50 hrs"
+  [BRECHA] H4 La pausa resta del tiempo efectivo exactamente su duración (cada minuto baja 1/60 h)
+         -> distinto: esperado "1.50", obtenido "0.00"
+  [PASS] H5 La pausa NO altera la penalidad de conectividad (solo excesos e inactividad)
+  [BRECHA] H6 Combinado: pausa + almuerzo con exceso + desayuno + inactividad restan cada uno una sola vez
+         -> distinto: esperado "5.92 hrs", obtenido "7.92 hrs"
+  [BRECHA] H7 Nunca negativo: si la pausa supera al turno el resultado es 0.00
+         -> distinto: esperado "0.00 hrs", obtenido "1.00 hrs"
+  [BRECHA] H8 El correo informa "Tiempo_Pausa_Turno_Descontado" cuando hubo pausa
+         -> distinto: esperado "180 minutos", obtenido undefined
+  [PASS] H9 El correo NO agrega el campo de pausa si no hubo pausa (sin ruido para el resto de gestores)
+  [PASS] H10 Campos existentes del correo conservados (almuerzo, desayuno, penalidad, usuario, horas)
+  [BRECHA] H11 Coherencia con el panel de reportes (línea de tiempoEfectivo) cuando no hay penalidad
+         -> distinto: esperado "6.83", obtenido "9.33"
+  [PASS] H12 Orden: handleEndShift cierra la pausa abierta ANTES de calcular (el acumulado incluye el último tramo)
+  [PASS] H13 El reporte guardado en Firebase conserva tiempoPausaTurnoMins (para el panel de reportes)
+
+=== RESUMEN ===
+Pasan: 7 | Fallan: 0 | Brechas abiertas: 6 | Total: 13
+RESULTADO: SIN REGRESIONES; LA BRECHA DE HORAS EFECTIVAS SIGUE ABIERTA
+
+##### PARTE 3 — Mismos escenarios contra el CANDIDATO combinado (no aplicado), modo --strict: equivalencia con los módulos #####
+
+--- cierre-horas-efectivas.e2e.cjs (candidato, --strict) ---
+=== CIERRE DE TURNO — HORAS EFECTIVAS CON PAUSA DE TURNO ===
+app.js: /tmp/claude-0/-home-claude/56b76ec8-348b-576e-9ed1-3b5354375639/scratchpad/cand/app.candidato-ambos.js | modo: ESTRICTO | 2026-10-06T14:52:13.775Z
+  [PASS] H1 Sin Pausa de Turno: turno 8 h con 30 min de almuerzo = 7.50 h (sin regresión)
+  [PASS] H2 Sin Pausa de Turno: almuerzo y desayuno con excesos y penalidad se calculan igual que antes
+  [PASS] H3 Con Pausa de Turno: 08:00-18:00, almuerzo 30 min, pausa 180 min = 6.50 h (antes 9.50 h)
+  [PASS] H4 La pausa resta del tiempo efectivo exactamente su duración (cada minuto baja 1/60 h)
+  [PASS] H5 La pausa NO altera la penalidad de conectividad (solo excesos e inactividad)
+  [PASS] H6 Combinado: pausa + almuerzo con exceso + desayuno + inactividad restan cada uno una sola vez
+  [PASS] H7 Nunca negativo: si la pausa supera al turno el resultado es 0.00
+  [PASS] H8 El correo informa "Tiempo_Pausa_Turno_Descontado" cuando hubo pausa
+  [PASS] H9 El correo NO agrega el campo de pausa si no hubo pausa (sin ruido para el resto de gestores)
+  [PASS] H10 Campos existentes del correo conservados (almuerzo, desayuno, penalidad, usuario, horas)
+  [PASS] H11 Coherencia con el panel de reportes (línea de tiempoEfectivo) cuando no hay penalidad
+  [PASS] H12 Orden: handleEndShift cierra la pausa abierta ANTES de calcular (el acumulado incluye el último tramo)
+  [PASS] H13 El reporte guardado en Firebase conserva tiempoPausaTurnoMins (para el panel de reportes)
+
+=== RESUMEN ===
+Pasan: 13 | Fallan: 0 | Brechas abiertas: 0 | Total: 13
+RESULTADO: TODO CUMPLIDO
+
+--- split-shift-flag.unit.cjs (candidato, --strict) ---
+  [PASS] R3.2 Almuerzo y Desayuno siguen reflejándose igual en la vista del supervisor
+  [PASS] R3.3 Exclusión mutua: en Pausa no se puede tomar Almuerzo ni Desayuno (y viceversa); el estado no se contamina
+  [PASS] R3.4 Secuencia Pausa → Almuerzo → Desayuno: 3 eventos cerrados, cada estado visible a su tiempo
+  [PASS] B3 [BRECHA] Flag revocado en plena pausa: el gestor no debe quedar bloqueado para Almuerzo/Desayuno
+
+=== RESUMEN ===
+Pasan: 23 | Fallan: 0 | Brechas abiertas: 0 | Omitidas: 0 | Total: 23
+RESULTADO: TODO CUMPLIDO
