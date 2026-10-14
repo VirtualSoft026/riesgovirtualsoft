@@ -923,6 +923,1216 @@ var RiskOps = (() => {
     return { onIdleChange: onIdleChange2, onActivity, getLastActivityTimestamp: getLastActivityTimestamp2 };
   }
 
+  // ../src/controllers/task-controller.js
+  var task_controller_exports = {};
+  __export(task_controller_exports, {
+    countDomTasks: () => countDomTasks,
+    createSessionSyncController: () => createSessionSyncController,
+    createTaskRecoveryController: () => createTaskRecoveryController,
+    createTaskSaveController: () => createTaskSaveController,
+    createTaskWorkspaceController: () => createTaskWorkspaceController,
+    runStartupDataSequence: () => runStartupDataSequence
+  });
+
+  // ../src/domain/tasks/task-report.js
+  var task_report_exports = {};
+  __export(task_report_exports, {
+    buildTaskReportSummaryText: () => buildTaskReportSummaryText,
+    canonicalTaskId: () => canonicalTaskId,
+    isLegacyGenericTaskName: () => isLegacyGenericTaskName,
+    resolveTaskDisplayName: () => resolveTaskDisplayName
+  });
+  var EMPTY_REPORT_TEXT = "El gestor no marc\xF3 ninguna tarea expl\xEDcitamente durante este turno.";
+  var TIMELINE_MARKER = "=== BIT\xC1CORA DE TIEMPOS ===";
+  function canonicalTaskId(id) {
+    return String(id);
+  }
+  function isLegacyGenericTaskName(name) {
+    return typeof name === "string" && /^Tarea\s+\d+$/i.test(name.trim());
+  }
+  function resolveTaskDisplayName(key, entry, catalog = null, onWarn = () => {
+  }) {
+    const rawName = entry && entry.name;
+    if (rawName && !isLegacyGenericTaskName(rawName)) {
+      return rawName;
+    }
+    if (Array.isArray(catalog) && catalog.length > 0) {
+      const canonicalKey = canonicalTaskId(key);
+      const match = catalog.find((task) => canonicalTaskId(task.id) === canonicalKey);
+      if (match && match["Tarea"]) {
+        return match["Tarea"];
+      }
+    }
+    onWarn("No se pudo resolver el nombre visible de una tarea normal; ID t\xE9cnico:", key);
+    return "Tarea programada (nombre no disponible)";
+  }
+  function buildTaskReportSummaryText(report, options = {}) {
+    const { catalog = null, onWarn = () => {
+    } } = options;
+    const tasks = report && report.tasks;
+    if (tasks && Object.keys(tasks).length > 0) {
+      let text = "";
+      Object.keys(tasks).forEach((key) => {
+        const entry = tasks[key];
+        if (!entry) {
+          return;
+        }
+        const isExtra = key.startsWith(EXTRA_TASK_KEY_PREFIX);
+        const displayName = isExtra ? entry.name || "Tarea adicional" : resolveTaskDisplayName(key, entry, catalog, onWarn);
+        const status = (entry.status || "Pendiente").toString().toUpperCase();
+        text += `
+[ ${status} ] - ${displayName}
+Observaci\xF3n: ${entry.observation || "N/A"}
+`;
+      });
+      return text.trim() ? text : EMPTY_REPORT_TEXT;
+    }
+    if (report && report.reporte) {
+      let legacyText = report.reporte;
+      if (legacyText.includes(TIMELINE_MARKER)) {
+        legacyText = legacyText.split(TIMELINE_MARKER)[0];
+      }
+      legacyText = legacyText.trim();
+      if (legacyText) {
+        const processedLines = [];
+        for (const line of legacyText.split("\n")) {
+          const match = line.match(/^\[\s*([^\]]+?)\s*\]\s*-\s*(.+)$/);
+          if (match) {
+            const status = match[1];
+            let name = match[2];
+            if (isLegacyGenericTaskName(name)) {
+              const taskId = name.replace(/Tarea\s*/i, "").trim();
+              name = resolveTaskDisplayName(taskId, { name }, catalog, onWarn);
+            }
+            processedLines.push(`[ ${status} ] - ${name}`);
+          } else {
+            processedLines.push(line);
+          }
+        }
+        return processedLines.join("\n") || EMPTY_REPORT_TEXT;
+      }
+      return EMPTY_REPORT_TEXT;
+    }
+    return EMPTY_REPORT_TEXT;
+  }
+
+  // ../src/domain/tasks/task-reconciler.js
+  var task_reconciler_exports = {};
+  __export(task_reconciler_exports, {
+    computeLocalTaskMigrations: () => computeLocalTaskMigrations,
+    mergeTaskCaches: () => mergeTaskCaches,
+    reconcileScheduledTaskWithSession: () => reconcileScheduledTaskWithSession
+  });
+
+  // ../src/utils/normalize.js
+  var normalize_exports = {};
+  __export(normalize_exports, {
+    MONTH_NAME_ALIASES: () => MONTH_NAME_ALIASES,
+    cleanText: () => cleanText,
+    namesMatch: () => namesMatch,
+    normalizeName: () => normalizeName,
+    normalizeTaskName: () => normalizeTaskName,
+    setNamesMatch: () => setNamesMatch,
+    taskNamesMatch: () => taskNamesMatch
+  });
+  var MONTH_NAME_ALIASES = Object.freeze({
+    ene: "enero",
+    feb: "febrero",
+    mar: "marzo",
+    abr: "abril",
+    may: "mayo",
+    jun: "junio",
+    jul: "julio",
+    ago: "agosto",
+    sep: "septiembre",
+    set: "septiembre",
+    oct: "octubre",
+    nov: "noviembre",
+    dic: "diciembre"
+  });
+  function normalizeName(name) {
+    if (!name) {
+      return "";
+    }
+    return String(name).normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
+  }
+  function namesMatch(name1, name2) {
+    if (!name1 || !name2) {
+      return false;
+    }
+    const parts1 = normalizeName(name1).split(" ").filter((part) => part.length > 2);
+    const parts2 = normalizeName(name2).split(" ").filter((part) => part.length > 2);
+    if (parts1.length === 0 || parts2.length === 0) {
+      return false;
+    }
+    const [shorter, longer] = parts1.length <= parts2.length ? [parts1, parts2] : [parts2, parts1];
+    if (shorter.length > 1) {
+      return shorter.every((part) => longer.includes(part));
+    }
+    const shortPart = shorter[0];
+    if (shortPart === "daniel" && longer.includes("josue")) {
+      return false;
+    }
+    if (longer[0] === shortPart) {
+      return true;
+    }
+    return longer.includes(shortPart);
+  }
+  function cleanText(text) {
+    if (!text || typeof text !== "string") {
+      return "";
+    }
+    return text.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9\s]/g, " ").split(/\s+/).join(" ").trim();
+  }
+  function normalizeTaskName(name) {
+    const cleaned = cleanText(name);
+    if (cleaned.includes("conciliacion de pasarelas")) {
+      return "conciliacion de pasarelas";
+    }
+    if (cleaned.includes("revision de billetera") || cleaned.includes("billetera usuarios")) {
+      return "revision de billetera usuarios pdv";
+    }
+    if (cleaned.includes("revision de eventos") || cleaned.includes("revision de evento")) {
+      return "revision de eventos";
+    }
+    return cleaned;
+  }
+  function taskNamesMatch(cronTask, masterTask) {
+    if (!cronTask || !masterTask) {
+      return false;
+    }
+    const normalizedCronTask = normalizeTaskName(cronTask);
+    const normalizedMasterTask = normalizeTaskName(masterTask);
+    if (normalizedCronTask === normalizedMasterTask) {
+      return true;
+    }
+    const minimumLength = Math.min(
+      normalizedCronTask.length,
+      normalizedMasterTask.length
+    );
+    if (minimumLength >= 15 && (normalizedMasterTask.includes(normalizedCronTask) || normalizedCronTask.includes(normalizedMasterTask))) {
+      const lengthDifference = Math.abs(
+        normalizedCronTask.length - normalizedMasterTask.length
+      );
+      return lengthDifference <= 6;
+    }
+    return false;
+  }
+  function setNamesMatch(set1, set2) {
+    if (!set1 || !set2) {
+      return false;
+    }
+    const normalizedSet1 = cleanText(set1);
+    const normalizedSet2 = cleanText(set2);
+    return normalizedSet1 === normalizedSet2 || normalizedSet1.includes(normalizedSet2) || normalizedSet2.includes(normalizedSet1);
+  }
+
+  // ../src/domain/tasks/task-reconciler.js
+  function reconcileScheduledTaskWithSession(taskName, sessionTasks, catalog = null, onWarn = () => {
+  }) {
+    const tasks = sessionTasks || {};
+    for (const key in tasks) {
+      if (key.startsWith(EXTRA_TASK_KEY_PREFIX)) {
+        continue;
+      }
+      const entry = tasks[key];
+      if (!entry) {
+        continue;
+      }
+      const resolvedName = resolveTaskDisplayName(key, entry, catalog, onWarn);
+      if (taskNamesMatch(taskName, resolvedName) || taskNamesMatch(taskName, entry.name)) {
+        return {
+          status: entry.status || TASK_STATUS.PENDING,
+          observation: entry.observation || ""
+        };
+      }
+    }
+    return { status: TASK_STATUS.PENDING, observation: "" };
+  }
+  function mergeTaskCaches(localCache, remoteCache) {
+    const merged = { ...localCache || {} };
+    Object.keys(remoteCache || {}).forEach((taskId) => {
+      const remoteEntry = remoteCache[taskId];
+      const localEntry = merged[taskId];
+      if (!localEntry) {
+        merged[taskId] = remoteEntry;
+        return;
+      }
+      const remoteUpdatedAt = typeof remoteEntry.updatedAt === "number" ? remoteEntry.updatedAt : null;
+      const localUpdatedAt = typeof localEntry.updatedAt === "number" ? localEntry.updatedAt : null;
+      if (remoteUpdatedAt !== null && localUpdatedAt !== null && remoteUpdatedAt > localUpdatedAt) {
+        merged[taskId] = remoteEntry;
+      }
+    });
+    return merged;
+  }
+  function computeLocalTaskMigrations(mergedCache, remoteCache, now) {
+    const remote = remoteCache || {};
+    const migrations = [];
+    Object.keys(mergedCache || {}).forEach((taskId) => {
+      const mergedEntry = mergedCache[taskId];
+      const remoteEntry = remote[taskId];
+      const alreadyInSync = !!remoteEntry && mergedEntry.name === remoteEntry.name && mergedEntry.status === remoteEntry.status && mergedEntry.observation === remoteEntry.observation && mergedEntry.updatedAt === remoteEntry.updatedAt;
+      if (alreadyInSync) {
+        return;
+      }
+      const record = typeof mergedEntry.updatedAt === "number" ? mergedEntry : { ...mergedEntry, updatedAt: now };
+      migrations.push({ taskId, record });
+    });
+    return migrations;
+  }
+
+  // ../src/domain/tasks/task-recovery.js
+  var task_recovery_exports = {};
+  __export(task_recovery_exports, {
+    RECOVERY_REMOTE_READ_FAILED_MESSAGE: () => RECOVERY_REMOTE_READ_FAILED_MESSAGE,
+    RECOVERY_STATUS: () => RECOVERY_STATUS,
+    describeRecoveryAlert: () => describeRecoveryAlert,
+    shouldRecoverTaskProgress: () => shouldRecoverTaskProgress
+  });
+  var RECOVERY_STATUS = Object.freeze({
+    OK: "OK",
+    REMOTE_READ_FAILED: "REMOTE_READ_FAILED",
+    IDENTITY_MISMATCH: "IDENTITY_MISMATCH"
+  });
+  var RECOVERY_REMOTE_READ_FAILED_MESSAGE = "No se pudo verificar el progreso remoto de tareas en el servidor. Se conserva el respaldo local de este dispositivo; se reintentar\xE1 m\xE1s adelante.";
+  function describeRecoveryAlert(recovery) {
+    if (recovery.status === RECOVERY_STATUS.REMOTE_READ_FAILED) {
+      return RECOVERY_REMOTE_READ_FAILED_MESSAGE;
+    }
+    if (recovery.failedMigrationsCount > 0) {
+      return `No se pudo sincronizar con el servidor el progreso local de ${recovery.failedMigrationsCount} tarea(s). Se conserv\xF3 el respaldo local en este dispositivo; vuelve a guardar esas tareas cuando tengas conexi\xF3n.`;
+    }
+    return null;
+  }
+  function shouldRecoverTaskProgress(user) {
+    return !!(user && user.role === "Gestor" && user.uid);
+  }
+
+  // ../src/domain/tasks/task-session-sync.js
+  var task_session_sync_exports = {};
+  __export(task_session_sync_exports, {
+    APP_VERSION: () => APP_VERSION,
+    buildSessionMetadata: () => buildSessionMetadata,
+    buildSessionMetadataTail: () => buildSessionMetadataTail,
+    decideInactivityTimelineAction: () => decideInactivityTimelineAction,
+    isSessionClosedElsewhere: () => isSessionClosedElsewhere,
+    resolveIsInactive: () => resolveIsInactive,
+    resolveLoginTime: () => resolveLoginTime,
+    shouldSyncActiveSession: () => shouldSyncActiveSession
+  });
+  var APP_VERSION = "v104";
+  var GESTOR_ROLE = "Gestor";
+  function shouldSyncActiveSession(user) {
+    if (!user || user.role !== GESTOR_ROLE) return false;
+    return !!user.uid;
+  }
+  function isSessionClosedElsewhere(storedUserRaw) {
+    return !storedUserRaw;
+  }
+  function resolveLoginTime(user, nowIso) {
+    return user.loginTime || nowIso();
+  }
+  function resolveIsInactive({ idleDetectorGranted: idleDetectorGranted2, globalIdleState, domIdleFallback }) {
+    if (idleDetectorGranted2) return globalIdleState;
+    return domIdleFallback() ? true : false;
+  }
+  function decideInactivityTimelineAction(currentStatus, previousStatus) {
+    if (currentStatus === "Inactivo" && previousStatus !== "Inactivo") return "start";
+    if (currentStatus !== "Inactivo" && previousStatus === "Inactivo") return "end";
+    return null;
+  }
+  function buildSessionMetadata({ user, loginTime, lastActive, status, counters, timeline, appVersion = APP_VERSION }) {
+    return {
+      name: user.name,
+      email: user.email,
+      shift: user.shift || "Por Asignar",
+      loginTime,
+      lastActive,
+      status,
+      totalTasks: counters.totalTasks,
+      finalizedTasks: counters.finalized,
+      completedTasks: counters.completedTasks,
+      notDoneTasks: counters.notDoneTasks,
+      percentage: counters.percentage,
+      timeline: timeline || [],
+      appVersion
+    };
+  }
+  function buildSessionMetadataTail(counters, timeline, appVersion = APP_VERSION) {
+    return {
+      finalizedTasks: counters.finalized,
+      completedTasks: counters.completedTasks,
+      notDoneTasks: counters.notDoneTasks,
+      percentage: counters.percentage,
+      timeline: timeline || [],
+      appVersion
+    };
+  }
+
+  // ../src/domain/tasks/task-progress.js
+  var task_progress_exports = {};
+  __export(task_progress_exports, {
+    computeKpiFigures: () => computeKpiFigures,
+    computeSyncPercentage: () => computeSyncPercentage,
+    formatProgress: () => formatProgress
+  });
+  function formatProgress(current, total) {
+    if (!(typeof total === "number" && Number.isFinite(total) && total > 0)) return 0;
+    if (!(typeof current === "number" && Number.isFinite(current))) return 0;
+    return Math.round(current / total * 100);
+  }
+  function computeSyncPercentage(counts) {
+    const totalTasks = counts.total;
+    const completedTasks = counts.completed;
+    const notDoneTasks = counts.notDone;
+    const finalized = completedTasks + notDoneTasks;
+    const percentage = formatProgress(finalized, totalTasks);
+    return { totalTasks, completedTasks, notDoneTasks, finalized, percentage };
+  }
+  function computeKpiFigures(counts, { legacy = false } = {}) {
+    const totalTasks = counts.total;
+    const completedTasks = counts.completed;
+    const notDoneTasks = counts.notDone;
+    const finalized = completedTasks + notDoneTasks;
+    const pending = totalTasks - finalized;
+    let completedPercentage = 0;
+    let notDonePercentage = 0;
+    let totalPercentage = 0;
+    if (totalTasks > 0) {
+      completedPercentage = formatProgress(completedTasks, totalTasks);
+      notDonePercentage = formatProgress(notDoneTasks, totalTasks);
+      totalPercentage = legacy ? completedPercentage + notDonePercentage : formatProgress(finalized, totalTasks);
+    }
+    return {
+      totalTasks,
+      completedTasks,
+      notDoneTasks,
+      finalized,
+      pending,
+      completedPercentage,
+      notDonePercentage,
+      totalPercentage
+    };
+  }
+
+  // ../src/domain/tasks/task-save-rules.js
+  var task_save_rules_exports = {};
+  __export(task_save_rules_exports, {
+    buildTaskRecord: () => buildTaskRecord,
+    describeTaskSaveError: () => describeTaskSaveError,
+    resolveStatusClassForButton: () => resolveStatusClassForButton,
+    validateTaskSaveInput: () => validateTaskSaveInput
+  });
+  var INVALID_TASK_KEY_PATTERN = /[.#$\[\]/]/;
+  function validateTaskSaveInput(input) {
+    const { currentActiveTaskId, selectedStatusText, authUser, currentUser, currentSelectedTask } = input;
+    if (currentActiveTaskId === null || currentActiveTaskId === void 0) {
+      return { ok: false, message: "Selecciona una tarea antes de guardar el progreso." };
+    }
+    if (selectedStatusText === null || selectedStatusText === void 0) {
+      return { ok: false, message: "Selecciona un estado antes de guardar el progreso." };
+    }
+    const observation = input.observation === null || input.observation === void 0 ? "" : input.observation.trim();
+    if (!observation) {
+      return { ok: false, message: "OBLIGATORIO: Debes detallar la gesti\xF3n realizada en las Notas T\xE9cnicas antes de guardar." };
+    }
+    if (!authUser) {
+      return { ok: false, message: "Tu sesi\xF3n expir\xF3. Vuelve a iniciar sesi\xF3n para guardar el progreso." };
+    }
+    if (!currentUser || currentUser.uid !== authUser.uid) {
+      return { ok: false, message: "No se pudo verificar tu identidad. Vuelve a iniciar sesi\xF3n para guardar el progreso." };
+    }
+    const taskId = canonicalTaskId(currentActiveTaskId);
+    if (!taskId || INVALID_TASK_KEY_PATTERN.test(taskId)) {
+      return { ok: false, message: "La tarea seleccionada tiene un identificador inv\xE1lido y no puede guardarse." };
+    }
+    if (!currentSelectedTask || canonicalTaskId(currentSelectedTask.id) !== taskId) {
+      return { ok: false, message: "No se pudo confirmar la tarea seleccionada. Vuelve a seleccionarla antes de guardar." };
+    }
+    return { ok: true, taskId, observation };
+  }
+  function buildTaskRecord(selectedTask, statusText, observation, now) {
+    return {
+      name: selectedTask["Tarea"],
+      status: statusText.trim(),
+      observation,
+      updatedAt: now
+    };
+  }
+  function resolveStatusClassForButton(buttonClassList) {
+    if (buttonClassList.contains("completed")) return "status-completed";
+    if (buttonClassList.contains("in-progress")) return "status-in-progress";
+    if (buttonClassList.contains("not-done")) return "status-not-done";
+    return "status-pending";
+  }
+  function describeTaskSaveError(error) {
+    const errorCode = error && error.code ? error.code : "";
+    const isPermissionDenied = errorCode === "PERMISSION_DENIED" || /permission[_ ]denied/i.test(error && error.message || "");
+    return {
+      isPermissionDenied,
+      message: isPermissionDenied ? "No tienes permiso para guardar esta tarea. Contacta a tu supervisor." : "No se pudo guardar el progreso en el servidor. El cambio qued\xF3 respaldado localmente; intenta guardar de nuevo."
+    };
+  }
+
+  // ../src/domain/tasks/task-selection.js
+  var task_selection_exports = {};
+  __export(task_selection_exports, {
+    buildReviewerTaskDetailText: () => buildReviewerTaskDetailText,
+    findCatalogTask: () => findCatalogTask,
+    isTaskReviewerRole: () => isTaskReviewerRole
+  });
+  function isTaskReviewerRole(user) {
+    return !!(user && (user.role === "Admin" || user.role === "Supervisor"));
+  }
+  function findCatalogTask(allTasks, taskId) {
+    const canonicalId = canonicalTaskId(taskId);
+    return allTasks.find((t) => canonicalTaskId(t.id) === canonicalId);
+  }
+  function buildReviewerTaskDetailText(task) {
+    let detailText = `Detalle: ${task["Detalle de Tarea"] || "Sin detalle"}
+
+`;
+    detailText += `Horario: ${task["Horario"] || "No especificado"}
+`;
+    detailText += `D\xEDa: ${task["D\xEDa"] || "No especificado"}
+
+`;
+    detailText += `Instrucciones:
+${task["Instrucciones"] || "Sin instrucciones"}`;
+    return detailText;
+  }
+
+  // ../src/domain/tasks/clock-format.js
+  var clock_format_exports = {};
+  __export(clock_format_exports, {
+    formatClockTime: () => formatClockTime
+  });
+  function formatClockTime(date) {
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const seconds = String(date.getSeconds()).padStart(2, "0");
+    return `${hours}:${minutes}:${seconds}`;
+  }
+
+  // ../src/ui/views/task-tree-view.js
+  var task_tree_view_exports = {};
+  __export(task_tree_view_exports, {
+    buildTaskKpiHTML: () => buildTaskKpiHTML,
+    buildTreeSetHTML: () => buildTreeSetHTML,
+    getTaskStatusClass: () => getTaskStatusClass,
+    shouldAutoExpandTree: () => shouldAutoExpandTree,
+    sortedSetKeys: () => sortedSetKeys
+  });
+
+  // ../src/utils/sanitization.js
+  var sanitization_exports = {};
+  __export(sanitization_exports, {
+    appendSanitizedNode: () => appendSanitizedNode,
+    encodeInlineHandlerArg: () => encodeInlineHandlerArg,
+    escapeHTML: () => escapeHTML,
+    sanitizeAnnouncementHTML: () => sanitizeAnnouncementHTML,
+    sanitizeAnnouncementHref: () => sanitizeAnnouncementHref
+  });
+  var ANNOUNCEMENT_ALLOWED_TAGS = /* @__PURE__ */ new Set([
+    "p",
+    "br",
+    "strong",
+    "em",
+    "ul",
+    "ol",
+    "li",
+    "a"
+  ]);
+  var ANNOUNCEMENT_DROP_CONTENT_TAGS = /* @__PURE__ */ new Set([
+    "script",
+    "style",
+    "iframe",
+    "object",
+    "embed",
+    "template",
+    "noscript"
+  ]);
+  var ANNOUNCEMENT_TAG_ALIASES = Object.freeze({
+    b: "strong",
+    i: "em",
+    div: "p"
+  });
+  function escapeHTML(value) {
+    if (value === null || value === void 0) {
+      return "";
+    }
+    return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+  }
+  function encodeInlineHandlerArg(value) {
+    return encodeURIComponent(String(value)).replace(/'/g, "%27");
+  }
+  function sanitizeAnnouncementHref(value) {
+    if (!value) {
+      return "";
+    }
+    const trimmed = String(value).trim();
+    const normalized = trimmed.replace(/[\u0000- \u007F]+/g, "");
+    if (!normalized || normalized.startsWith("//")) {
+      return "";
+    }
+    const schemeMatch = normalized.match(/^([a-z][a-z0-9+.-]*):/i);
+    if (schemeMatch && !["http", "https", "mailto"].includes(
+      schemeMatch[1].toLowerCase()
+    )) {
+      return "";
+    }
+    return trimmed;
+  }
+  function escapeAttributeValue(value) {
+    return String(value).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/'/g, "&#039;");
+  }
+  function escapeName(value) {
+    return String(value).replace(/[^a-zA-Z0-9:_-]/g, "");
+  }
+  function parseAnnouncementFragment(html) {
+    var _a, _b, _c;
+    const root = {
+      type: "root",
+      children: []
+    };
+    const stack = [root];
+    const tokenPattern = /<!--[\s\S]*?-->|<\/?[a-z][^>]*>|[^<]+/gi;
+    const tokens = String(html).match(tokenPattern) || [];
+    for (const token of tokens) {
+      if (token.startsWith("<!--")) {
+        continue;
+      }
+      if (token.startsWith("</")) {
+        const closingMatch = token.match(
+          /^<\/\s*([a-z0-9-]+)/i
+        );
+        if (!closingMatch) {
+          continue;
+        }
+        const closingTag = closingMatch[1].toLowerCase();
+        for (let index = stack.length - 1; index > 0; index -= 1) {
+          if (stack[index].tagName === closingTag) {
+            stack.length = index;
+            break;
+          }
+        }
+        continue;
+      }
+      if (!token.startsWith("<")) {
+        stack[stack.length - 1].children.push({
+          type: "text",
+          value: token
+        });
+        continue;
+      }
+      const openingMatch = token.match(
+        /^<\s*([a-z0-9-]+)([^>]*)>/i
+      );
+      if (!openingMatch) {
+        continue;
+      }
+      const tagName = openingMatch[1].toLowerCase();
+      const rawAttributes = openingMatch[2] || "";
+      const attributes = {};
+      const attributePattern = /([a-z_:][a-z0-9:._-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/gi;
+      let attributeMatch;
+      while ((attributeMatch = attributePattern.exec(rawAttributes)) !== null) {
+        const attributeName = attributeMatch[1].toLowerCase();
+        if (attributeName === "href") {
+          attributes.href = (_c = (_b = (_a = attributeMatch[2]) != null ? _a : attributeMatch[3]) != null ? _b : attributeMatch[4]) != null ? _c : "";
+        }
+      }
+      const element = {
+        type: "element",
+        tagName,
+        attributes,
+        children: []
+      };
+      stack[stack.length - 1].children.push(element);
+      const isSelfClosing = /\/\s*>$/.test(token) || tagName === "br" || ANNOUNCEMENT_DROP_CONTENT_TAGS.has(tagName);
+      if (!isSelfClosing) {
+        stack.push(element);
+      }
+    }
+    return root;
+  }
+  function appendSanitizedNode(sourceNode) {
+    if (!sourceNode || typeof sourceNode !== "object") {
+      return "";
+    }
+    if (sourceNode.type === "text") {
+      return escapeHTML(sourceNode.value || "");
+    }
+    if (sourceNode.type === "root") {
+      return (sourceNode.children || []).map((child) => appendSanitizedNode(child)).join("");
+    }
+    if (sourceNode.type !== "element") {
+      return "";
+    }
+    const sourceTag = String(
+      sourceNode.tagName || ""
+    ).toLowerCase();
+    if (ANNOUNCEMENT_DROP_CONTENT_TAGS.has(sourceTag)) {
+      return "";
+    }
+    const cleanTag = ANNOUNCEMENT_TAG_ALIASES[sourceTag] || sourceTag;
+    const children = (sourceNode.children || []).map((child) => appendSanitizedNode(child)).join("");
+    if (!ANNOUNCEMENT_ALLOWED_TAGS.has(cleanTag)) {
+      return children;
+    }
+    let attributes = "";
+    if (cleanTag === "a" && sourceNode.attributes) {
+      const safeHref = sanitizeAnnouncementHref(
+        sourceNode.attributes.href
+      );
+      if (safeHref) {
+        attributes = ` href="${escapeAttributeValue(safeHref)}"`;
+      }
+    }
+    const safeTag = escapeName(cleanTag);
+    if (safeTag === "br") {
+      return `<br${attributes}>`;
+    }
+    return `<${safeTag}${attributes}>${children}</${safeTag}>`;
+  }
+  function sanitizeAnnouncementHTML(value) {
+    if (value === null || value === void 0) {
+      return "";
+    }
+    const parsedTree = parseAnnouncementFragment(String(value));
+    return appendSanitizedNode(parsedTree);
+  }
+
+  // ../src/ui/views/task-tree-view.js
+  function getTaskStatusClass(taskEntry) {
+    let statusClass = "status-pending";
+    if (taskEntry) {
+      const statusText = taskEntry.status;
+      if (statusText === TASK_STATUS.DONE) statusClass = "status-completed";
+      else if (statusText === TASK_STATUS.IN_PROGRESS) statusClass = "status-in-progress";
+      else if (statusText === TASK_STATUS.NOT_DONE) statusClass = "status-not-done";
+    }
+    return statusClass;
+  }
+  function sortedSetKeys(tasksBySet) {
+    return Object.keys(tasksBySet).sort();
+  }
+  function shouldAutoExpandTree(sets) {
+    return sets.length === 1;
+  }
+  function buildTreeSetHTML(input) {
+    const {
+      set,
+      tasks,
+      taskStateCache,
+      shouldAutoExpand,
+      escape = escapeHTML,
+      encodeArg = encodeInlineHandlerArg
+    } = input;
+    const total = tasks.length;
+    const headerClass = shouldAutoExpand ? "tree-header open" : "tree-header";
+    const childrenClass = shouldAutoExpand ? "tree-children show" : "tree-children";
+    return `
+            <div class="${headerClass}" onclick="toggleTree(this)">
+                <i class='bx bx-chevron-right'></i>
+                <span>${escape(set)}</span>
+                <span class="badge pending">${total} Tareas</span>
+            </div>
+            <div class="${childrenClass}">
+                ${tasks.map((task) => {
+      const cId = canonicalTaskId(task.id);
+      const taskEntry = taskStateCache[cId] || taskStateCache[task.id];
+      const statusClass = getTaskStatusClass(taskEntry);
+      return `
+                    <div class="task-item" onclick="selectTask(decodeURIComponent('${encodeArg(task.id)}'), event)">
+                        <i class='bx bx-file-blank'></i> ${escape(task.name)}
+                        <div class="task-status ${statusClass}"></div>
+                    </div>
+                    `;
+    }).join("")}
+            </div>
+        `;
+  }
+  function buildTaskKpiHTML(figures) {
+    const { totalTasks, completedTasks, notDoneTasks, pending, completedPercentage, notDonePercentage, totalPercentage } = figures;
+    return `
+            <div class="kpi-circle">
+                <svg viewBox="0 0 36 36" class="circular-chart" style="width: 100%; height: 100%;">
+                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" style="fill: none; stroke: var(--glass-border); stroke-width: 3.8;"/>
+                    <path class="circle" stroke-dasharray="${completedPercentage}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" style="fill: none; stroke-width: 3.8; stroke-linecap: round; stroke: var(--success); transition: stroke-dasharray 1s ease-out;"/>
+                    <path class="circle-not-done" stroke-dasharray="${notDonePercentage}, 100" stroke-dashoffset="-${completedPercentage}" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" style="fill: none; stroke-width: 3.8; stroke-linecap: round; stroke: var(--danger); transition: stroke-dasharray 1s ease-out, stroke-dashoffset 1s ease-out;"/>
+                    <text x="18" y="20.35" class="percentage" style="fill: var(--text-primary); font-family: 'Inter'; font-size: 8px; font-weight: bold; text-anchor: middle;">${totalPercentage}%</text>
+                </svg>
+            </div>
+            <div class="kpi-stats">
+                <p><strong>${totalTasks}</strong> Asignadas</p>
+                <p><strong style="color: var(--success);">${completedTasks}</strong> Realizadas</p>
+                <p><strong style="color: var(--danger);">${notDoneTasks}</strong> No Realizadas</p>
+                <p><strong>${pending}</strong> Pendientes</p>
+            </div>
+        `;
+  }
+
+  // ../src/ui/views/quick-docs-view.js
+  var quick_docs_view_exports = {};
+  __export(quick_docs_view_exports, {
+    buildQuickDocsHTML: () => buildQuickDocsHTML
+  });
+
+  // ../src/domain/tasks/quick-docs.js
+  var quick_docs_exports = {};
+  __export(quick_docs_exports, {
+    QUICK_DOC_FILES: () => QUICK_DOC_FILES,
+    getQuickDocIconMeta: () => getQuickDocIconMeta,
+    matchQuickDoc: () => matchQuickDoc,
+    stripDocExtension: () => stripDocExtension
+  });
+  var QUICK_DOC_FILES = Object.freeze([
+    "Instructivo de revisi\xF3n de apuestas casino.pdf",
+    "Instructivo de validaci\xF3n de GGR Casino.pdf",
+    "Pol\xEDtica Procedimiento De Aprobaci\xF3n De Retiros.pdf",
+    "Procedimiento Identificaci\xF3n de jineteo.pdf",
+    "Proceso de Eliminaci\xF3n de Cuentas - Implementaciones.pdf",
+    "VALIDACI\xD3N DE ABUSO DE BONOS EN CAMPA\xD1AS DE CRM.pdf",
+    "Revisi\xF3n de Eventos Deportivos.mp4",
+    "Revisi\xF3n de Eventos.mp4",
+    "Validaci\xF3n SEON.mp4"
+  ]);
+  function matchQuickDoc(taskName) {
+    if (!taskName) return null;
+    const taskNameLower = taskName.toLowerCase();
+    if (taskNameLower.includes("ggr")) return "Instructivo de validaci\xF3n de GGR Casino.pdf";
+    if (taskNameLower.includes("apuesta")) return "Instructivo de revisi\xF3n de apuestas casino.pdf";
+    if (taskNameLower.includes("retiro")) return "Pol\xEDtica Procedimiento De Aprobaci\xF3n De Retiros.pdf";
+    if (taskNameLower.includes("jineteo") || taskNameLower.includes("jineteo")) return "Procedimiento Identificaci\xF3n de jineteo.pdf";
+    if (taskNameLower.includes("eliminaci")) return "Proceso de Eliminaci\xF3n de Cuentas - Implementaciones.pdf";
+    if (taskNameLower.includes("bonos")) return "VALIDACI\xD3N DE ABUSO DE BONOS EN CAMPA\xD1AS DE CRM.pdf";
+    if (taskNameLower.includes("deportiv")) return "Revisi\xF3n de Eventos Deportivos.mp4";
+    if (taskNameLower.includes("evento")) return "Revisi\xF3n de Eventos.mp4";
+    if (taskNameLower.includes("seon")) return "Validaci\xF3n SEON.mp4";
+    return null;
+  }
+  function getQuickDocIconMeta(file) {
+    const lower = file.toLowerCase();
+    const isVideo = lower.endsWith(".mp4");
+    const isWord = lower.endsWith(".docx") || lower.endsWith(".doc");
+    const isExcel = lower.endsWith(".xlsx") || lower.endsWith(".xls");
+    let icon = "bx-file-pdf";
+    let color = "#FF5A5A";
+    if (isVideo) {
+      icon = "bx-video";
+      color = "#3B82F6";
+    } else if (isWord) {
+      icon = "bx-file-blank";
+      color = "#2563EB";
+    } else if (isExcel) {
+      icon = "bx-table";
+      color = "#10B981";
+    }
+    return { icon, color };
+  }
+  function stripDocExtension(file) {
+    return file.replace(/\.[^/.]+$/, "");
+  }
+
+  // ../src/ui/views/quick-docs-view.js
+  function buildQuickDocsHTML(selectedTaskName, getDocUrl2) {
+    const matchedDoc = matchQuickDoc(selectedTaskName);
+    let html = "";
+    if (matchedDoc) {
+      const { icon, color } = getQuickDocIconMeta(matchedDoc);
+      html += `
+            <div style="margin-bottom: 12px; background: rgba(0, 180, 216, 0.1); padding: 10px; border-radius: var(--radius-md); border: 1px dashed var(--accent-primary);">
+                <span style="font-size: 10px; color: var(--accent-primary); font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px; margin-bottom: 6px;">
+                    <i class='bx bxs-star'></i> Sugerido para esta tarea
+                </span>
+                <a href="${getDocUrl2(matchedDoc)}" target="_blank" rel="noopener noreferrer" class="doc-link" style="background: transparent; padding: 0; display: flex; align-items: center; gap: 10px;">
+                    <i class='bx ${icon}' style="font-size: 20px; color: ${color};"></i>
+                    <span style="color: var(--text-primary); font-weight: 500; font-size: 13px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${stripDocExtension(matchedDoc)}</span>
+                </a>
+            </div>
+            <div style="height: 1px; background: var(--glass-border); margin: 10px 0;"></div>
+        `;
+    }
+    QUICK_DOC_FILES.forEach((file) => {
+      if (file === matchedDoc) return;
+      const { icon, color } = getQuickDocIconMeta(file);
+      html += `
+            <a href="${getDocUrl2(file)}" target="_blank" rel="noopener noreferrer" class="doc-link" style="margin-bottom: 8px;">
+                <i class='bx ${icon}' style="font-size: 18px; color: ${color};"></i>
+                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;">${stripDocExtension(file)}</span>
+            </a>
+        `;
+    });
+    return html;
+  }
+
+  // ../src/ui/components/tree-toggle.js
+  var tree_toggle_exports = {};
+  __export(tree_toggle_exports, {
+    toggleTreeElement: () => toggleTreeElement
+  });
+  function toggleTreeElement(element) {
+    element.classList.toggle("open");
+    const childrenContainer = element.nextElementSibling;
+    if (childrenContainer) {
+      childrenContainer.classList.toggle("show");
+    }
+  }
+
+  // ../src/controllers/task-controller.js
+  function countDomTasks(doc) {
+    return {
+      total: doc.querySelectorAll(".task-item").length,
+      completed: doc.querySelectorAll(".task-item .status-completed").length,
+      notDone: doc.querySelectorAll(".task-item .status-not-done").length
+    };
+  }
+  function createTaskRecoveryController(deps) {
+    const { repository, getTaskCache, setTaskCache, saveTaskCache = () => {
+    }, getAuthUser, logger = console } = deps;
+    const alertFn = deps.alert || (() => {
+    });
+    async function recoverGestorTaskProgress(uid) {
+      const remoteResult = await repository.fetchOwnActiveSessionTasks(uid);
+      if (!remoteResult.ok) {
+        return { status: RECOVERY_STATUS.REMOTE_READ_FAILED, failedMigrationsCount: 0 };
+      }
+      setTaskCache(mergeTaskCaches(getTaskCache(), remoteResult.tasks));
+      try {
+        saveTaskCache(getTaskCache());
+      } catch (e) {
+      }
+      const authUser = getAuthUser();
+      if (!authUser || authUser.uid !== uid) {
+        logger.error("No se pudo verificar la identidad autenticada antes de migrar el progreso local; se omite la migraci\xF3n.");
+        return { status: RECOVERY_STATUS.IDENTITY_MISMATCH, failedMigrationsCount: 0 };
+      }
+      const { failed } = await repository.migrateLocalTasksToActiveSession(uid, getTaskCache(), remoteResult.tasks);
+      return { status: RECOVERY_STATUS.OK, failedMigrationsCount: failed.length };
+    }
+    async function runStartupRecovery(user) {
+      if (!shouldRecoverTaskProgress(user)) return { ran: false };
+      try {
+        const recovery = await recoverGestorTaskProgress(user.uid);
+        const message = describeRecoveryAlert(recovery);
+        if (message) alertFn(message);
+        return { ran: true, recovery, alerted: message };
+      } catch (e) {
+        logger.error("No se pudo recuperar el progreso remoto de tareas al iniciar:", e);
+        return { ran: true, error: e };
+      }
+    }
+    return { recoverGestorTaskProgress, runStartupRecovery };
+  }
+  function createSessionSyncController(deps) {
+    const {
+      getUser,
+      clearUser,
+      getStoredUserRaw,
+      redirectToLogin,
+      doc,
+      now = Date.now,
+      nowIso = () => (/* @__PURE__ */ new Date()).toISOString(),
+      markSyncLoop = () => {
+      },
+      loadBreakState: loadBreakState2 = () => {
+      },
+      idle,
+      describeLiveSession,
+      getLocalStatus,
+      setLocalStatus,
+      pushTimelineEvent: pushTimelineEvent2,
+      getTimeline,
+      repository
+    } = deps;
+    function syncActiveSession() {
+      const currentUser = getUser();
+      if (!shouldSyncActiveSession(currentUser)) return Promise.resolve();
+      const uid = currentUser.uid;
+      if (isSessionClosedElsewhere(getStoredUserRaw())) {
+        clearUser();
+        redirectToLogin();
+        return Promise.resolve();
+      }
+      const counters = computeSyncPercentage(countDomTasks(doc));
+      const loginTime = resolveLoginTime(currentUser, nowIso);
+      const nowMs = now();
+      markSyncLoop(nowMs);
+      loadBreakState2();
+      const newLastActive = now();
+      const isInactive = resolveIsInactive({
+        idleDetectorGranted: idle.isGranted(),
+        globalIdleState: idle.getGlobalIdleState(),
+        domIdleFallback: () => idle.domFallback(nowMs)
+      });
+      const live = describeLiveSession(isInactive);
+      const currentStatus = live.status;
+      const action = decideInactivityTimelineAction(currentStatus, getLocalStatus());
+      if (action) pushTimelineEvent2("Inactividad", action);
+      setLocalStatus(currentStatus);
+      const sessionMetadata = {
+        ...buildSessionMetadata({
+          user: currentUser,
+          loginTime,
+          lastActive: newLastActive,
+          status: currentStatus,
+          counters,
+          timeline: getTimeline()
+        }),
+        splitShiftStartTime: live.splitShiftStartTime,
+        totalSplitShiftTimeMs: live.totalSplitShiftTimeMs
+      };
+      return repository.syncSessionMetadata(uid, sessionMetadata);
+    }
+    return { syncActiveSession };
+  }
+  function createTaskSaveController(deps) {
+    const {
+      doc,
+      saveButton,
+      getAuthUser,
+      getUser,
+      getActiveTaskId,
+      getSelectedTask,
+      getTaskCache,
+      saveTaskCache = () => {
+      },
+      repository,
+      updateKPI,
+      alert: alertFn,
+      now = Date.now,
+      logger = console
+    } = deps;
+    const schedule = deps.setTimeout || ((fn, ms) => setTimeout(fn, ms));
+    let isSavingTask = false;
+    async function saveTaskProgress() {
+      if (isSavingTask) return { saved: false, reason: "IN_PROGRESS" };
+      const selectedStatusBtn = doc.querySelector(".btn-status.active");
+      const obsField = doc.getElementById("taskObservation");
+      const validation = validateTaskSaveInput({
+        currentActiveTaskId: getActiveTaskId(),
+        selectedStatusText: selectedStatusBtn ? selectedStatusBtn.textContent : null,
+        observation: obsField ? obsField.value : "",
+        authUser: getAuthUser(),
+        currentUser: getUser(),
+        currentSelectedTask: getSelectedTask()
+      });
+      if (!validation.ok) {
+        alertFn(validation.message);
+        return { saved: false, reason: "INVALID" };
+      }
+      const authUser = getAuthUser();
+      const taskIdStr = validation.taskId;
+      const btn = saveButton;
+      const prevText = btn.innerHTML;
+      isSavingTask = true;
+      btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Guardando...";
+      btn.disabled = true;
+      btn.classList.remove("btn-success", "btn-error");
+      const taskRecord = buildTaskRecord(getSelectedTask(), selectedStatusBtn.textContent, validation.observation, now());
+      const cache = getTaskCache();
+      cache[taskIdStr] = taskRecord;
+      try {
+        saveTaskCache(cache);
+      } catch (e) {
+      }
+      try {
+        const visualTaskElement = doc.querySelector(".task-item.active .task-status");
+        const statusClassToAdd = resolveStatusClassForButton(selectedStatusBtn.classList);
+        await repository.persistTaskToActiveSession(authUser.uid, taskIdStr, taskRecord);
+        btn.innerHTML = "<i class='bx bx-check'></i> Guardado Exitosamente";
+        btn.classList.add("btn-success");
+        if (obsField) {
+          obsField.value = "";
+        }
+        if (visualTaskElement) {
+          visualTaskElement.classList.remove("status-pending", "status-completed", "status-not-done", "status-in-progress");
+          visualTaskElement.classList.add(statusClassToAdd);
+        }
+        updateKPI();
+        schedule(() => {
+          btn.innerHTML = prevText;
+          btn.classList.remove("btn-success");
+        }, 2e3);
+        return { saved: true };
+      } catch (error) {
+        logger.error("Error al guardar el progreso de la tarea:", error);
+        btn.innerHTML = "<i class='bx bx-error'></i> Error al guardar";
+        btn.classList.add("btn-error");
+        alertFn(describeTaskSaveError(error).message);
+        schedule(() => {
+          btn.innerHTML = prevText;
+          btn.classList.remove("btn-error");
+        }, 2500);
+        return { saved: false, reason: "REMOTE_FAILED", error };
+      } finally {
+        btn.disabled = false;
+        isSavingTask = false;
+      }
+    }
+    return { saveTaskProgress };
+  }
+  function createTaskWorkspaceController(deps) {
+    const {
+      doc,
+      getUser,
+      getTaskCache,
+      getAllTasks,
+      setActiveTaskId,
+      setSelectedTask,
+      getDocUrl: getDocUrl2,
+      syncActiveSession = () => {
+      },
+      escape,
+      encodeArg,
+      newDate = () => /* @__PURE__ */ new Date(),
+      legacyProgress = false
+    } = deps;
+    function updateClock() {
+      const clockElement = doc.getElementById("liveClock");
+      if (!clockElement) return;
+      clockElement.textContent = formatClockTime(newDate());
+    }
+    function updateKPI() {
+      const figures = computeKpiFigures(countDomTasks(doc), { legacy: legacyProgress === true });
+      const kpiContainer = doc.querySelector(".kpi-card");
+      if (kpiContainer) {
+        kpiContainer.innerHTML = buildTaskKpiHTML(figures);
+      }
+      const currentUser = getUser();
+      if (currentUser && currentUser.role === "Gestor") {
+        syncActiveSession();
+      }
+    }
+    function renderTree(tasksBySet) {
+      const container = doc.querySelector(".tree-container");
+      if (!container) return;
+      container.innerHTML = "";
+      const sets = sortedSetKeys(tasksBySet);
+      const shouldAutoExpand = shouldAutoExpandTree(sets);
+      sets.forEach((set) => {
+        const setDiv = doc.createElement("div");
+        setDiv.className = "tree-item";
+        setDiv.innerHTML = buildTreeSetHTML({
+          set,
+          tasks: tasksBySet[set],
+          taskStateCache: getTaskCache(),
+          shouldAutoExpand,
+          escape,
+          encodeArg
+        });
+        container.appendChild(setDiv);
+      });
+      updateKPI();
+    }
+    function toggleTree(element) {
+      toggleTreeElement(element);
+    }
+    function renderQuickDocs(selectedTaskName) {
+      const container = doc.getElementById("quickDocsList");
+      if (!container) return;
+      container.innerHTML = buildQuickDocsHTML(selectedTaskName, getDocUrl2);
+    }
+    function selectTask(taskId, evt) {
+      const canonicalId = canonicalTaskId(taskId);
+      setActiveTaskId(canonicalId);
+      doc.querySelectorAll(".task-item").forEach((el) => el.classList.remove("active"));
+      const eventTarget = evt && evt.currentTarget;
+      if (eventTarget) eventTarget.classList.add("active");
+      const task = findCatalogTask(getAllTasks(), taskId);
+      if (task) {
+        const titleElement = doc.getElementById("currentTaskTitle");
+        if (titleElement) titleElement.textContent = task["Tarea"];
+        setSelectedTask(task);
+        renderQuickDocs(task["Tarea"]);
+        const textArea = doc.getElementById("taskObservation");
+        if (isTaskReviewerRole(getUser())) {
+          if (textArea) {
+            textArea.value = buildReviewerTaskDetailText(task);
+          }
+        } else {
+          const taskStateCache = getTaskCache();
+          doc.querySelectorAll(".btn-status").forEach((el) => el.classList.remove("active"));
+          if (taskStateCache[canonicalId]) {
+            if (textArea) textArea.value = taskStateCache[canonicalId].observation || "";
+            const cachedStatus = taskStateCache[canonicalId].status;
+            let found = false;
+            doc.querySelectorAll(".btn-status").forEach((el) => {
+              if (el.textContent.trim() === cachedStatus) {
+                el.classList.add("active");
+                found = true;
+              }
+            });
+            if (!found) doc.querySelector(".btn-status.pending").classList.add("active");
+          } else {
+            if (textArea) textArea.value = "";
+            doc.querySelector(".btn-status.pending").classList.add("active");
+          }
+        }
+      } else {
+        setSelectedTask(null);
+        setActiveTaskId(null);
+        if (eventTarget) eventTarget.classList.remove("active");
+        const titleElement = doc.getElementById("currentTaskTitle");
+        if (titleElement) titleElement.textContent = "Selecciona una tarea";
+        const textArea = doc.getElementById("taskObservation");
+        if (textArea) textArea.value = "";
+        doc.querySelectorAll(".btn-status").forEach((el) => el.classList.remove("active"));
+      }
+    }
+    return { updateClock, updateKPI, renderTree, toggleTree, renderQuickDocs, selectTask };
+  }
+  async function runStartupDataSequence(deps) {
+    const { user, runStartupRecovery, loadSchedule, loadExcelTasks, loadTeletrabajo, loadPermisos, renderQuickDocs, logger = console } = deps;
+    const steps = [];
+    await runStartupRecovery(user);
+    steps.push("recovery");
+    try {
+      await loadSchedule();
+    } catch (e) {
+      logger.error("Error al cargar el horario en la inicializaci\xF3n:", e);
+    }
+    steps.push("schedule");
+    try {
+      await loadExcelTasks();
+    } catch (e) {
+      logger.error("Error al cargar las tareas en la inicializaci\xF3n:", e);
+    }
+    steps.push("tasks");
+    loadTeletrabajo();
+    steps.push("teletrabajo");
+    loadPermisos();
+    steps.push("permisos");
+    renderQuickDocs(null);
+    steps.push("quickDocs");
+    return steps;
+  }
+
+  // ../src/domain/auth/auth-service.js
+  var auth_service_exports = {};
+  __export(auth_service_exports, {
+    GESTOR_BREAK_BUTTON_IDS: () => GESTOR_BREAK_BUTTON_IDS,
+    LOGIN_ACCESS: () => LOGIN_ACCESS,
+    NAV_PARENT: () => NAV_PARENT,
+    PASSWORD_MESSAGES: () => PASSWORD_MESSAGES,
+    PASSWORD_SUCCESS_CLOSE_DELAY_MS: () => PASSWORD_SUCCESS_CLOSE_DELAY_MS,
+    PASSWORD_TONE: () => PASSWORD_TONE,
+    PASSWORD_TONE_COLOR: () => PASSWORD_TONE_COLOR,
+    REGISTER_MESSAGES: () => REGISTER_MESSAGES,
+    buildAdministrativeControlsPolicy: () => buildAdministrativeControlsPolicy,
+    buildBreakButtonsPolicy: () => buildBreakButtonsPolicy,
+    buildSidebarPolicy: () => buildSidebarPolicy,
+    changeUserPassword: () => changeUserPassword,
+    evaluateLoginAccess: () => evaluateLoginAccess,
+    isPasswordInputAcceptable: () => isPasswordInputAcceptable,
+    isPrivilegedNavRole: () => isPrivilegedNavRole,
+    mapPasswordChangeError: () => mapPasswordChangeError,
+    normalizeRegistrationRole: () => normalizeRegistrationRole,
+    validateRegistrationInput: () => validateRegistrationInput
+  });
+
   // ../src/domain/announcements/announcement-capabilities.js
   var announcement_capabilities_exports = {};
   __export(announcement_capabilities_exports, {
@@ -949,6 +2159,205 @@ var RiskOps = (() => {
   var canViewComunicadoLecturas = (role) => COMUNICADOS_VIEW_LECTURAS_ROLES.has(role);
   var canDeleteComunicados = (role) => COMUNICADOS_DELETE_ROLES.has(role);
   var canManageComunicados = (role) => canPublishComunicados(role) || canViewComunicadoLecturas(role);
+
+  // ../src/domain/auth/auth-service.js
+  var NAV_PARENT = Object.freeze({
+    SIDEBAR: "sidebar",
+    ADMIN_GROUP: "adminGroup"
+  });
+  function isPrivilegedNavRole(user) {
+    return Boolean(user && (user.role === "Admin" || user.role === "Supervisor"));
+  }
+  function op(id, display, appendTo) {
+    const operation = { id };
+    if (display !== void 0) operation.display = display;
+    if (appendTo !== void 0) operation.appendTo = appendTo;
+    return operation;
+  }
+  function buildSidebarPolicy(user) {
+    const privileged = isPrivilegedNavRole(user);
+    const S = NAV_PARENT.SIDEBAR;
+    const A = NAV_PARENT.ADMIN_GROUP;
+    if (privileged) {
+      const isSupervisor = user.role === "Supervisor";
+      const operations = [
+        op("horarioGestorFilterContainer", "flex"),
+        op("teletrabajoGestorFilterContainer", "flex"),
+        op("navWorkspace", "none"),
+        // Mis Tareas: oculta para Admin y Supervisor
+        isSupervisor ? op("navComunicados", "flex", S) : op("navComunicados", "none"),
+        op("adminNavGroup", "block", S),
+        op("navMonitoreo", "flex", A),
+        op("navTiempos", "none"),
+        // Admin y Supervisor gestionan comunicados; eliminar sigue restringido a Admin (en su vista).
+        canManageComunicados(user.role) ? op("navAdminComunicados", "flex", A) : op("navAdminComunicados", "none"),
+        op("navTurnos", "flex", A),
+        op("navAprobaciones", "flex", A),
+        op("navHorario", void 0, S),
+        op("navDocs", "flex", S),
+        op("navPermisos", "flex", S)
+      ];
+      if (user.role === "Admin") operations.push(op("navConfigGestores", "flex", S));
+      return { privileged, operations };
+    }
+    return {
+      privileged,
+      operations: [
+        op("horarioGestorFilterContainer", "none"),
+        op("teletrabajoGestorFilterContainer", "none"),
+        op("navWorkspace", "flex", S),
+        op("navComunicados", "flex", S),
+        op("navHorario", void 0, S),
+        op("navDocs", "flex", S),
+        op("navPermisos", "flex", S),
+        op("adminNavGroup", "none")
+        // las pestañas de Administración se ocultan para el Gestor
+      ]
+    };
+  }
+  var GESTOR_BREAK_BUTTON_IDS = Object.freeze(["toggleLunchBtn", "toggleBreakfastBtn"]);
+  function buildBreakButtonsPolicy(user) {
+    if (isPrivilegedNavRole(user)) return [];
+    return GESTOR_BREAK_BUTTON_IDS.map((id) => ({ id, display: "flex" }));
+  }
+  function buildAdministrativeControlsPolicy(user) {
+    if (!user) return null;
+    return {
+      showUserApprovalSection: user.role === "Admin",
+      hideAdminAnnouncementsView: !canManageComunicados(user.role)
+    };
+  }
+  var PASSWORD_TONE = Object.freeze({
+    NEUTRAL: "neutral",
+    DANGER: "danger",
+    SUCCESS: "success"
+  });
+  var PASSWORD_TONE_COLOR = Object.freeze({
+    [PASSWORD_TONE.NEUTRAL]: "var(--text-primary)",
+    [PASSWORD_TONE.DANGER]: "var(--danger)",
+    [PASSWORD_TONE.SUCCESS]: "var(--success)"
+  });
+  var PASSWORD_MESSAGES = Object.freeze({
+    EMPTY: "Por favor ingresa una contrase\xF1a v\xE1lida.",
+    PENDING: "Actualizando...",
+    SUCCESS: "\xA1Contrase\xF1a actualizada exitosamente en Firebase Auth!",
+    NO_SESSION: "Error: No hay sesi\xF3n activa en Firebase Auth. Por favor, vuelve a iniciar sesi\xF3n.",
+    GENERIC_ERROR: "Error al actualizar contrase\xF1a.",
+    REQUIRES_RECENT_LOGIN: "Por seguridad, debes cerrar sesi\xF3n e iniciar sesi\xF3n nuevamente para cambiar tu contrase\xF1a.",
+    WEAK_PASSWORD: "La contrase\xF1a debe tener al menos 6 caracteres."
+  });
+  var PASSWORD_SUCCESS_CLOSE_DELAY_MS = 2e3;
+  function isPasswordInputAcceptable(newPassword) {
+    return !(!newPassword || String(newPassword).trim() === "");
+  }
+  function mapPasswordChangeError(error) {
+    const code = error && error.code;
+    if (code === "auth/requires-recent-login") return PASSWORD_MESSAGES.REQUIRES_RECENT_LOGIN;
+    if (code === "auth/weak-password") return PASSWORD_MESSAGES.WEAK_PASSWORD;
+    return PASSWORD_MESSAGES.GENERIC_ERROR;
+  }
+  async function changeUserPassword({ newPassword, getAuthUser }) {
+    if (!isPasswordInputAcceptable(newPassword)) {
+      return { status: "invalid", message: PASSWORD_MESSAGES.EMPTY, tone: PASSWORD_TONE.DANGER, closeModalAfterMs: null };
+    }
+    try {
+      const user = getAuthUser();
+      if (user) {
+        await user.updatePassword(newPassword);
+        return {
+          status: "updated",
+          message: PASSWORD_MESSAGES.SUCCESS,
+          tone: PASSWORD_TONE.SUCCESS,
+          closeModalAfterMs: PASSWORD_SUCCESS_CLOSE_DELAY_MS
+        };
+      }
+      return { status: "no-session", message: PASSWORD_MESSAGES.NO_SESSION, tone: PASSWORD_TONE.DANGER, closeModalAfterMs: null };
+    } catch (error) {
+      return { status: "error", message: mapPasswordChangeError(error), tone: PASSWORD_TONE.DANGER, closeModalAfterMs: null, error };
+    }
+  }
+  var LOGIN_ACCESS = Object.freeze({
+    ALLOWED: "allowed",
+    // acceso permitido → redirigir a index.html
+    REJECTED: "rejected",
+    // cuenta rechazada por un Admin (puede tener `reason`)
+    PENDING: "pending",
+    // cuenta pendiente de aprobación
+    SHIFT_EXPIRED: "shift-expired"
+    // turno del Gestor ya venció (ver shift-expiration.js)
+  });
+  function evaluateLoginAccess(dbUser, shiftExpired = false) {
+    if (!dbUser) return { status: LOGIN_ACCESS.REJECTED };
+    if (dbUser.rejected) {
+      return { status: LOGIN_ACCESS.REJECTED, reason: dbUser.rejectionReason };
+    }
+    if (!dbUser.approved) return { status: LOGIN_ACCESS.PENDING };
+    if (shiftExpired) return { status: LOGIN_ACCESS.SHIFT_EXPIRED };
+    return { status: LOGIN_ACCESS.ALLOWED };
+  }
+  var REGISTER_MESSAGES = Object.freeze({
+    NAME_MIN_WORDS: "Por favor ingresa tu nombre completo (al menos dos palabras).",
+    PASSWORDS_MISMATCH: "Las contrase\xF1as no coinciden."
+  });
+  function validateRegistrationInput({ name, password, confirmPassword }) {
+    const words = String(name != null ? name : "").trim().split(/\s+/).filter(Boolean);
+    if (words.length < 2) return REGISTER_MESSAGES.NAME_MIN_WORDS;
+    if (password !== confirmPassword) return REGISTER_MESSAGES.PASSWORDS_MISMATCH;
+    return null;
+  }
+  function normalizeRegistrationRole(rawRole) {
+    return rawRole === "Supervisor" ? "Supervisor" : "Gestor";
+  }
+
+  // ../src/app/app-router.js
+  var app_router_exports = {};
+  __export(app_router_exports, {
+    createAppRouter: () => createAppRouter
+  });
+  function createAppRouter({ document: document2, getUser }) {
+    function applyRoleNavigation(sidebarNav) {
+      const policy = buildSidebarPolicy(getUser());
+      const applied = [];
+      policy.operations.forEach((operation) => {
+        const el = document2.getElementById(operation.id);
+        if (!el) return;
+        if (operation.display !== void 0) el.style.display = operation.display;
+        if (operation.appendTo === NAV_PARENT.SIDEBAR) {
+          sidebarNav.appendChild(el);
+        } else if (operation.appendTo === NAV_PARENT.ADMIN_GROUP) {
+          const adminGroup = document2.getElementById("adminNavGroup");
+          if (adminGroup) adminGroup.appendChild(el);
+        }
+        applied.push(operation.id);
+      });
+      return { privileged: policy.privileged, applied };
+    }
+    function applyBreakButtonsVisibility() {
+      buildBreakButtonsPolicy(getUser()).forEach(({ id, display }) => {
+        const el = document2.getElementById(id);
+        if (el) el.style.display = display;
+      });
+    }
+    function alignAdministrativeControlsByRole() {
+      const policy = buildAdministrativeControlsPolicy(getUser());
+      if (!policy) return;
+      const pendingUsersBody = document2.getElementById("pendingUsersTableBody");
+      const userTablePanel = pendingUsersBody ? pendingUsersBody.closest(".glass-panel") : null;
+      const userSearch = document2.getElementById("filterAprobacionesSearch");
+      const userFilterPanel = userSearch ? userSearch.closest(".glass-panel") : null;
+      const userSectionTitle = userFilterPanel ? userFilterPanel.previousElementSibling : null;
+      [userSectionTitle, userFilterPanel, userTablePanel].forEach((element) => {
+        if (element) element.style.display = policy.showUserApprovalSection ? "" : "none";
+      });
+      const adminAnnouncementsView = document2.getElementById("view-gestion-comunicados");
+      if (adminAnnouncementsView && policy.hideAdminAnnouncementsView) adminAnnouncementsView.style.display = "none";
+    }
+    function updateNavigation({ refreshSplitShiftButton, setupSidebar } = {}) {
+      if (refreshSplitShiftButton) refreshSplitShiftButton();
+      if (typeof setupSidebar === "function") setupSidebar();
+    }
+    return { applyRoleNavigation, applyBreakButtonsVisibility, alignAdministrativeControlsByRole, updateNavigation };
+  }
 
   // ../src/domain/auth/shift-expiration.js
   var shift_expiration_exports = {};
@@ -1285,111 +2694,6 @@ var RiskOps = (() => {
     parseSheetRange: () => parseSheetRange,
     preloadCronograma: () => preloadCronograma
   });
-
-  // ../src/utils/normalize.js
-  var normalize_exports = {};
-  __export(normalize_exports, {
-    MONTH_NAME_ALIASES: () => MONTH_NAME_ALIASES,
-    cleanText: () => cleanText,
-    namesMatch: () => namesMatch,
-    normalizeName: () => normalizeName,
-    normalizeTaskName: () => normalizeTaskName,
-    setNamesMatch: () => setNamesMatch,
-    taskNamesMatch: () => taskNamesMatch
-  });
-  var MONTH_NAME_ALIASES = Object.freeze({
-    ene: "enero",
-    feb: "febrero",
-    mar: "marzo",
-    abr: "abril",
-    may: "mayo",
-    jun: "junio",
-    jul: "julio",
-    ago: "agosto",
-    sep: "septiembre",
-    set: "septiembre",
-    oct: "octubre",
-    nov: "noviembre",
-    dic: "diciembre"
-  });
-  function normalizeName(name) {
-    if (!name) {
-      return "";
-    }
-    return String(name).normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
-  }
-  function namesMatch(name1, name2) {
-    if (!name1 || !name2) {
-      return false;
-    }
-    const parts1 = normalizeName(name1).split(" ").filter((part) => part.length > 2);
-    const parts2 = normalizeName(name2).split(" ").filter((part) => part.length > 2);
-    if (parts1.length === 0 || parts2.length === 0) {
-      return false;
-    }
-    const [shorter, longer] = parts1.length <= parts2.length ? [parts1, parts2] : [parts2, parts1];
-    if (shorter.length > 1) {
-      return shorter.every((part) => longer.includes(part));
-    }
-    const shortPart = shorter[0];
-    if (shortPart === "daniel" && longer.includes("josue")) {
-      return false;
-    }
-    if (longer[0] === shortPart) {
-      return true;
-    }
-    return longer.includes(shortPart);
-  }
-  function cleanText(text) {
-    if (!text || typeof text !== "string") {
-      return "";
-    }
-    return text.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9\s]/g, " ").split(/\s+/).join(" ").trim();
-  }
-  function normalizeTaskName(name) {
-    const cleaned = cleanText(name);
-    if (cleaned.includes("conciliacion de pasarelas")) {
-      return "conciliacion de pasarelas";
-    }
-    if (cleaned.includes("revision de billetera") || cleaned.includes("billetera usuarios")) {
-      return "revision de billetera usuarios pdv";
-    }
-    if (cleaned.includes("revision de eventos") || cleaned.includes("revision de evento")) {
-      return "revision de eventos";
-    }
-    return cleaned;
-  }
-  function taskNamesMatch(cronTask, masterTask) {
-    if (!cronTask || !masterTask) {
-      return false;
-    }
-    const normalizedCronTask = normalizeTaskName(cronTask);
-    const normalizedMasterTask = normalizeTaskName(masterTask);
-    if (normalizedCronTask === normalizedMasterTask) {
-      return true;
-    }
-    const minimumLength = Math.min(
-      normalizedCronTask.length,
-      normalizedMasterTask.length
-    );
-    if (minimumLength >= 15 && (normalizedMasterTask.includes(normalizedCronTask) || normalizedCronTask.includes(normalizedMasterTask))) {
-      const lengthDifference = Math.abs(
-        normalizedCronTask.length - normalizedMasterTask.length
-      );
-      return lengthDifference <= 6;
-    }
-    return false;
-  }
-  function setNamesMatch(set1, set2) {
-    if (!set1 || !set2) {
-      return false;
-    }
-    const normalizedSet1 = cleanText(set1);
-    const normalizedSet2 = cleanText(set2);
-    return normalizedSet1 === normalizedSet2 || normalizedSet1.includes(normalizedSet2) || normalizedSet2.includes(normalizedSet1);
-  }
-
-  // ../src/domain/schedules/cronogram-parser.js
   var MONTH_NAMES = Object.freeze([
     "Enero",
     "Febrero",
@@ -1938,90 +3242,6 @@ var RiskOps = (() => {
     requiresSpecificSetSelection: () => requiresSpecificSetSelection,
     shouldValidateManagedTasks: () => shouldValidateManagedTasks
   });
-
-  // ../src/domain/tasks/task-report.js
-  var task_report_exports = {};
-  __export(task_report_exports, {
-    buildTaskReportSummaryText: () => buildTaskReportSummaryText,
-    canonicalTaskId: () => canonicalTaskId,
-    isLegacyGenericTaskName: () => isLegacyGenericTaskName,
-    resolveTaskDisplayName: () => resolveTaskDisplayName
-  });
-  var EMPTY_REPORT_TEXT = "El gestor no marc\xF3 ninguna tarea expl\xEDcitamente durante este turno.";
-  var TIMELINE_MARKER = "=== BIT\xC1CORA DE TIEMPOS ===";
-  function canonicalTaskId(id) {
-    return String(id);
-  }
-  function isLegacyGenericTaskName(name) {
-    return typeof name === "string" && /^Tarea\s+\d+$/i.test(name.trim());
-  }
-  function resolveTaskDisplayName(key, entry, catalog = null, onWarn = () => {
-  }) {
-    const rawName = entry && entry.name;
-    if (rawName && !isLegacyGenericTaskName(rawName)) {
-      return rawName;
-    }
-    if (Array.isArray(catalog) && catalog.length > 0) {
-      const canonicalKey = canonicalTaskId(key);
-      const match = catalog.find((task) => canonicalTaskId(task.id) === canonicalKey);
-      if (match && match["Tarea"]) {
-        return match["Tarea"];
-      }
-    }
-    onWarn("No se pudo resolver el nombre visible de una tarea normal; ID t\xE9cnico:", key);
-    return "Tarea programada (nombre no disponible)";
-  }
-  function buildTaskReportSummaryText(report, options = {}) {
-    const { catalog = null, onWarn = () => {
-    } } = options;
-    const tasks = report && report.tasks;
-    if (tasks && Object.keys(tasks).length > 0) {
-      let text = "";
-      Object.keys(tasks).forEach((key) => {
-        const entry = tasks[key];
-        if (!entry) {
-          return;
-        }
-        const isExtra = key.startsWith(EXTRA_TASK_KEY_PREFIX);
-        const displayName = isExtra ? entry.name || "Tarea adicional" : resolveTaskDisplayName(key, entry, catalog, onWarn);
-        const status = (entry.status || "Pendiente").toString().toUpperCase();
-        text += `
-[ ${status} ] - ${displayName}
-Observaci\xF3n: ${entry.observation || "N/A"}
-`;
-      });
-      return text.trim() ? text : EMPTY_REPORT_TEXT;
-    }
-    if (report && report.reporte) {
-      let legacyText = report.reporte;
-      if (legacyText.includes(TIMELINE_MARKER)) {
-        legacyText = legacyText.split(TIMELINE_MARKER)[0];
-      }
-      legacyText = legacyText.trim();
-      if (legacyText) {
-        const processedLines = [];
-        for (const line of legacyText.split("\n")) {
-          const match = line.match(/^\[\s*([^\]]+?)\s*\]\s*-\s*(.+)$/);
-          if (match) {
-            const status = match[1];
-            let name = match[2];
-            if (isLegacyGenericTaskName(name)) {
-              const taskId = name.replace(/Tarea\s*/i, "").trim();
-              name = resolveTaskDisplayName(taskId, { name }, catalog, onWarn);
-            }
-            processedLines.push(`[ ${status} ] - ${name}`);
-          } else {
-            processedLines.push(line);
-          }
-        }
-        return processedLines.join("\n") || EMPTY_REPORT_TEXT;
-      }
-      return EMPTY_REPORT_TEXT;
-    }
-    return EMPTY_REPORT_TEXT;
-  }
-
-  // ../src/domain/shifts/shift-closure-rules.js
   function hasRealSetOptions(setSelect) {
     if (!setSelect || !setSelect.options) return false;
     return Array.from(setSelect.options).some((option) => !option.disabled && option.value !== "" && option.value !== "Todos");
@@ -2184,67 +3404,6 @@ Observaci\xF3n: ${entry.observation || "N/A"}
     return nextTimeline;
   }
 
-  // ../src/domain/tasks/task-reconciler.js
-  var task_reconciler_exports = {};
-  __export(task_reconciler_exports, {
-    computeLocalTaskMigrations: () => computeLocalTaskMigrations,
-    mergeTaskCaches: () => mergeTaskCaches,
-    reconcileScheduledTaskWithSession: () => reconcileScheduledTaskWithSession
-  });
-  function reconcileScheduledTaskWithSession(taskName, sessionTasks, catalog = null, onWarn = () => {
-  }) {
-    const tasks = sessionTasks || {};
-    for (const key in tasks) {
-      if (key.startsWith(EXTRA_TASK_KEY_PREFIX)) {
-        continue;
-      }
-      const entry = tasks[key];
-      if (!entry) {
-        continue;
-      }
-      const resolvedName = resolveTaskDisplayName(key, entry, catalog, onWarn);
-      if (taskNamesMatch(taskName, resolvedName) || taskNamesMatch(taskName, entry.name)) {
-        return {
-          status: entry.status || TASK_STATUS.PENDING,
-          observation: entry.observation || ""
-        };
-      }
-    }
-    return { status: TASK_STATUS.PENDING, observation: "" };
-  }
-  function mergeTaskCaches(localCache, remoteCache) {
-    const merged = { ...localCache || {} };
-    Object.keys(remoteCache || {}).forEach((taskId) => {
-      const remoteEntry = remoteCache[taskId];
-      const localEntry = merged[taskId];
-      if (!localEntry) {
-        merged[taskId] = remoteEntry;
-        return;
-      }
-      const remoteUpdatedAt = typeof remoteEntry.updatedAt === "number" ? remoteEntry.updatedAt : null;
-      const localUpdatedAt = typeof localEntry.updatedAt === "number" ? localEntry.updatedAt : null;
-      if (remoteUpdatedAt !== null && localUpdatedAt !== null && remoteUpdatedAt > localUpdatedAt) {
-        merged[taskId] = remoteEntry;
-      }
-    });
-    return merged;
-  }
-  function computeLocalTaskMigrations(mergedCache, remoteCache, now) {
-    const remote = remoteCache || {};
-    const migrations = [];
-    Object.keys(mergedCache || {}).forEach((taskId) => {
-      const mergedEntry = mergedCache[taskId];
-      const remoteEntry = remote[taskId];
-      const alreadyInSync = !!remoteEntry && mergedEntry.name === remoteEntry.name && mergedEntry.status === remoteEntry.status && mergedEntry.observation === remoteEntry.observation && mergedEntry.updatedAt === remoteEntry.updatedAt;
-      if (alreadyInSync) {
-        return;
-      }
-      const record = typeof mergedEntry.updatedAt === "number" ? mergedEntry : { ...mergedEntry, updatedAt: now };
-      migrations.push({ taskId, record });
-    });
-    return migrations;
-  }
-
   // ../src/domain/tasks/task-service.js
   var task_service_exports = {};
   __export(task_service_exports, {
@@ -2262,6 +3421,62 @@ Observaci\xF3n: ${entry.observation || "N/A"}
       }
     }
     return unmanaged;
+  }
+
+  // ../src/domain/tasks/app-init-rules.js
+  var app_init_rules_exports = {};
+  __export(app_init_rules_exports, {
+    AVAILABLE_AVATARS: () => AVAILABLE_AVATARS,
+    PING_INTERVAL_MS: () => PING_INTERVAL_MS,
+    buildAvatarSrc: () => buildAvatarSrc,
+    buildFallbackAvatarUrl: () => buildFallbackAvatarUrl,
+    buildPingWorkerCode: () => buildPingWorkerCode,
+    findAvatarFile: () => findAvatarFile,
+    nextTheme: () => nextTheme,
+    resolveSavedTheme: () => resolveSavedTheme,
+    themeIconHTML: () => themeIconHTML
+  });
+  var AVAILABLE_AVATARS = Object.freeze([
+    "Alexander Villada.png",
+    "Camilo Espinosa.png",
+    "Daniel Benavides.png",
+    "Josue Alvarez.png",
+    "Juan Jose Diaz.png",
+    "Luis Fuentes.png",
+    "Maria Sanchez.png",
+    "Marilyn Jimenez.png",
+    "Oriana Borja.png",
+    "Samuel Cruz.png",
+    "Sara Santamaria.png",
+    "Sebastian Arango.png",
+    "Sebastian Hincapie.png",
+    "Yefferson Giraldo.png"
+  ]);
+  function findAvatarFile(fullName, namesMatch2, avatars = AVAILABLE_AVATARS) {
+    return avatars.find((img) => namesMatch2(fullName, img.replace(".png", "")));
+  }
+  function buildFallbackAvatarUrl(fullName) {
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0D8ABC&color=fff`;
+  }
+  function buildAvatarSrc(matchedAvatar, fullName) {
+    return matchedAvatar ? `assets/src/img/${matchedAvatar}` : buildFallbackAvatarUrl(fullName);
+  }
+  function resolveSavedTheme(stored) {
+    return stored || "dark";
+  }
+  function nextTheme(currentTheme) {
+    return currentTheme === "dark" ? "light" : "dark";
+  }
+  function themeIconHTML(theme) {
+    return theme === "dark" ? "<i class='bx bx-moon'></i>" : "<i class='bx bx-sun'></i>";
+  }
+  var PING_INTERVAL_MS = 3e4;
+  function buildPingWorkerCode() {
+    return `
+                setInterval(() => {
+                    postMessage('ping');
+                }, 30000);
+            `;
   }
 
   // ../src/config/doc-links.js
@@ -2390,6 +3605,10 @@ Observaci\xF3n: ${entry.observation || "N/A"}
   function setDetectorStatus(granted, started) {
     idleDetectorGranted = granted;
     idleDetectorStarted = started;
+    if (typeof window !== "undefined") {
+      window.idleDetectorGranted = granted;
+      window.idleDetectorStarted = started;
+    }
   }
   function clearScreenLockTimer() {
     if (screenLockTimer !== null) {
@@ -2595,26 +3814,55 @@ Observaci\xF3n: ${entry.observation || "N/A"}
   var local_session_storage_exports = {};
   __export(local_session_storage_exports, {
     loadBreakState: () => loadBreakState,
-    saveBreakState: () => saveBreakState
+    loadTimeline: () => loadTimeline,
+    migrateFromLegacyStorage: () => migrateFromLegacyStorage,
+    saveBreakState: () => saveBreakState,
+    saveTimeline: () => saveTimeline
   });
   var BREAK_STATE_STORAGE_KEY = "riskOps_breakState";
+  var TIMELINE_KEY = "riskOps_timeline";
   function saveBreakState(state) {
     const normalized = normalizeState(state);
+    const { shiftTimeline, ...pauseFields } = normalized;
     try {
-      localStorage.setItem(BREAK_STATE_STORAGE_KEY, JSON.stringify(normalized));
+      localStorage.setItem(BREAK_STATE_STORAGE_KEY, JSON.stringify(pauseFields));
     } catch (error) {
       console.warn("No se pudo guardar el estado de pausas:", error);
     }
+    saveTimeline(shiftTimeline);
     return normalized;
   }
   function loadBreakState() {
     try {
       const serialized = localStorage.getItem(BREAK_STATE_STORAGE_KEY);
-      return serialized ? normalizeState(JSON.parse(serialized)) : defaultState();
+      const pauseFields = serialized ? normalizeState(JSON.parse(serialized)) : defaultState();
+      const timeline = loadTimeline();
+      return { ...pauseFields, shiftTimeline: timeline };
     } catch (error) {
       console.warn("No se pudo cargar el estado de pausas:", error);
       return defaultState();
     }
+  }
+  function saveTimeline(events) {
+    try {
+      const safe = Array.isArray(events) ? events : [];
+      localStorage.setItem(TIMELINE_KEY, JSON.stringify(safe));
+    } catch (error) {
+      console.warn("No se pudo guardar la l\xEDnea de tiempo del turno:", error);
+    }
+  }
+  function loadTimeline() {
+    try {
+      const raw = localStorage.getItem(TIMELINE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      console.warn("No se pudo cargar la l\xEDnea de tiempo del turno:", error);
+      return [];
+    }
+  }
+  function migrateFromLegacyStorage() {
   }
 
   // ../src/ui/components/multi-select.js
@@ -2995,185 +4243,6 @@ Observaci\xF3n: ${entry.observation || "N/A"}
     });
   }
 
-  // ../src/utils/sanitization.js
-  var sanitization_exports = {};
-  __export(sanitization_exports, {
-    appendSanitizedNode: () => appendSanitizedNode,
-    encodeInlineHandlerArg: () => encodeInlineHandlerArg,
-    escapeHTML: () => escapeHTML,
-    sanitizeAnnouncementHTML: () => sanitizeAnnouncementHTML,
-    sanitizeAnnouncementHref: () => sanitizeAnnouncementHref
-  });
-  var ANNOUNCEMENT_ALLOWED_TAGS = /* @__PURE__ */ new Set([
-    "p",
-    "br",
-    "strong",
-    "em",
-    "ul",
-    "ol",
-    "li",
-    "a"
-  ]);
-  var ANNOUNCEMENT_DROP_CONTENT_TAGS = /* @__PURE__ */ new Set([
-    "script",
-    "style",
-    "iframe",
-    "object",
-    "embed",
-    "template",
-    "noscript"
-  ]);
-  var ANNOUNCEMENT_TAG_ALIASES = Object.freeze({
-    b: "strong",
-    i: "em",
-    div: "p"
-  });
-  function escapeHTML(value) {
-    if (value === null || value === void 0) {
-      return "";
-    }
-    return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-  }
-  function encodeInlineHandlerArg(value) {
-    return encodeURIComponent(String(value)).replace(/'/g, "%27");
-  }
-  function sanitizeAnnouncementHref(value) {
-    if (!value) {
-      return "";
-    }
-    const trimmed = String(value).trim();
-    const normalized = trimmed.replace(/[\u0000- \u007F]+/g, "");
-    if (!normalized || normalized.startsWith("//")) {
-      return "";
-    }
-    const schemeMatch = normalized.match(/^([a-z][a-z0-9+.-]*):/i);
-    if (schemeMatch && !["http", "https", "mailto"].includes(
-      schemeMatch[1].toLowerCase()
-    )) {
-      return "";
-    }
-    return trimmed;
-  }
-  function escapeAttributeValue(value) {
-    return String(value).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/'/g, "&#039;");
-  }
-  function escapeName(value) {
-    return String(value).replace(/[^a-zA-Z0-9:_-]/g, "");
-  }
-  function parseAnnouncementFragment(html) {
-    var _a, _b, _c;
-    const root = {
-      type: "root",
-      children: []
-    };
-    const stack = [root];
-    const tokenPattern = /<!--[\s\S]*?-->|<\/?[a-z][^>]*>|[^<]+/gi;
-    const tokens = String(html).match(tokenPattern) || [];
-    for (const token of tokens) {
-      if (token.startsWith("<!--")) {
-        continue;
-      }
-      if (token.startsWith("</")) {
-        const closingMatch = token.match(
-          /^<\/\s*([a-z0-9-]+)/i
-        );
-        if (!closingMatch) {
-          continue;
-        }
-        const closingTag = closingMatch[1].toLowerCase();
-        for (let index = stack.length - 1; index > 0; index -= 1) {
-          if (stack[index].tagName === closingTag) {
-            stack.length = index;
-            break;
-          }
-        }
-        continue;
-      }
-      if (!token.startsWith("<")) {
-        stack[stack.length - 1].children.push({
-          type: "text",
-          value: token
-        });
-        continue;
-      }
-      const openingMatch = token.match(
-        /^<\s*([a-z0-9-]+)([^>]*)>/i
-      );
-      if (!openingMatch) {
-        continue;
-      }
-      const tagName = openingMatch[1].toLowerCase();
-      const rawAttributes = openingMatch[2] || "";
-      const attributes = {};
-      const attributePattern = /([a-z_:][a-z0-9:._-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/gi;
-      let attributeMatch;
-      while ((attributeMatch = attributePattern.exec(rawAttributes)) !== null) {
-        const attributeName = attributeMatch[1].toLowerCase();
-        if (attributeName === "href") {
-          attributes.href = (_c = (_b = (_a = attributeMatch[2]) != null ? _a : attributeMatch[3]) != null ? _b : attributeMatch[4]) != null ? _c : "";
-        }
-      }
-      const element = {
-        type: "element",
-        tagName,
-        attributes,
-        children: []
-      };
-      stack[stack.length - 1].children.push(element);
-      const isSelfClosing = /\/\s*>$/.test(token) || tagName === "br" || ANNOUNCEMENT_DROP_CONTENT_TAGS.has(tagName);
-      if (!isSelfClosing) {
-        stack.push(element);
-      }
-    }
-    return root;
-  }
-  function appendSanitizedNode(sourceNode) {
-    if (!sourceNode || typeof sourceNode !== "object") {
-      return "";
-    }
-    if (sourceNode.type === "text") {
-      return escapeHTML(sourceNode.value || "");
-    }
-    if (sourceNode.type === "root") {
-      return (sourceNode.children || []).map((child) => appendSanitizedNode(child)).join("");
-    }
-    if (sourceNode.type !== "element") {
-      return "";
-    }
-    const sourceTag = String(
-      sourceNode.tagName || ""
-    ).toLowerCase();
-    if (ANNOUNCEMENT_DROP_CONTENT_TAGS.has(sourceTag)) {
-      return "";
-    }
-    const cleanTag = ANNOUNCEMENT_TAG_ALIASES[sourceTag] || sourceTag;
-    const children = (sourceNode.children || []).map((child) => appendSanitizedNode(child)).join("");
-    if (!ANNOUNCEMENT_ALLOWED_TAGS.has(cleanTag)) {
-      return children;
-    }
-    let attributes = "";
-    if (cleanTag === "a" && sourceNode.attributes) {
-      const safeHref = sanitizeAnnouncementHref(
-        sourceNode.attributes.href
-      );
-      if (safeHref) {
-        attributes = ` href="${escapeAttributeValue(safeHref)}"`;
-      }
-    }
-    const safeTag = escapeName(cleanTag);
-    if (safeTag === "br") {
-      return `<br${attributes}>`;
-    }
-    return `<${safeTag}${attributes}>${children}</${safeTag}>`;
-  }
-  function sanitizeAnnouncementHTML(value) {
-    if (value === null || value === void 0) {
-      return "";
-    }
-    const parsedTree = parseAnnouncementFragment(String(value));
-    return appendSanitizedNode(parsedTree);
-  }
-
   // ../src/utils/validation.js
   var validation_exports = {};
   __export(validation_exports, {
@@ -3201,211 +4270,6 @@ Observaci\xF3n: ${entry.observation || "N/A"}
       const value = target[field];
       return value === void 0 || value === null || value === "";
     });
-  }
-
-  // ../src/domain/tasks/clock-format.js
-  var clock_format_exports = {};
-  __export(clock_format_exports, {
-    formatClockTime: () => formatClockTime
-  });
-  function formatClockTime(date) {
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    const seconds = String(date.getSeconds()).padStart(2, "0");
-    return `${hours}:${minutes}:${seconds}`;
-  }
-
-  // ../src/domain/tasks/task-progress.js
-  var task_progress_exports = {};
-  __export(task_progress_exports, {
-    computeKpiFigures: () => computeKpiFigures,
-    computeSyncPercentage: () => computeSyncPercentage,
-    formatProgress: () => formatProgress
-  });
-  function formatProgress(current, total) {
-    if (!(typeof total === "number" && Number.isFinite(total) && total > 0)) return 0;
-    if (!(typeof current === "number" && Number.isFinite(current))) return 0;
-    return Math.round(current / total * 100);
-  }
-  function computeSyncPercentage(counts) {
-    const totalTasks = counts.total;
-    const completedTasks = counts.completed;
-    const notDoneTasks = counts.notDone;
-    const finalized = completedTasks + notDoneTasks;
-    const percentage = formatProgress(finalized, totalTasks);
-    return { totalTasks, completedTasks, notDoneTasks, finalized, percentage };
-  }
-  function computeKpiFigures(counts, { legacy = false } = {}) {
-    const totalTasks = counts.total;
-    const completedTasks = counts.completed;
-    const notDoneTasks = counts.notDone;
-    const finalized = completedTasks + notDoneTasks;
-    const pending = totalTasks - finalized;
-    let completedPercentage = 0;
-    let notDonePercentage = 0;
-    let totalPercentage = 0;
-    if (totalTasks > 0) {
-      completedPercentage = formatProgress(completedTasks, totalTasks);
-      notDonePercentage = formatProgress(notDoneTasks, totalTasks);
-      totalPercentage = legacy ? completedPercentage + notDonePercentage : formatProgress(finalized, totalTasks);
-    }
-    return {
-      totalTasks,
-      completedTasks,
-      notDoneTasks,
-      finalized,
-      pending,
-      completedPercentage,
-      notDonePercentage,
-      totalPercentage
-    };
-  }
-
-  // ../src/domain/tasks/task-session-sync.js
-  var task_session_sync_exports = {};
-  __export(task_session_sync_exports, {
-    APP_VERSION: () => APP_VERSION,
-    buildSessionMetadata: () => buildSessionMetadata,
-    buildSessionMetadataTail: () => buildSessionMetadataTail,
-    decideInactivityTimelineAction: () => decideInactivityTimelineAction,
-    isSessionClosedElsewhere: () => isSessionClosedElsewhere,
-    resolveIsInactive: () => resolveIsInactive,
-    resolveLoginTime: () => resolveLoginTime,
-    shouldSyncActiveSession: () => shouldSyncActiveSession
-  });
-  var APP_VERSION = "v104";
-  var GESTOR_ROLE = "Gestor";
-  function shouldSyncActiveSession(user) {
-    if (!user || user.role !== GESTOR_ROLE) return false;
-    return !!user.uid;
-  }
-  function isSessionClosedElsewhere(storedUserRaw) {
-    return !storedUserRaw;
-  }
-  function resolveLoginTime(user, nowIso) {
-    return user.loginTime || nowIso();
-  }
-  function resolveIsInactive({ idleDetectorGranted: idleDetectorGranted2, globalIdleState, domIdleFallback }) {
-    if (idleDetectorGranted2) return globalIdleState;
-    return domIdleFallback() ? true : false;
-  }
-  function decideInactivityTimelineAction(currentStatus, previousStatus) {
-    if (currentStatus === "Inactivo" && previousStatus !== "Inactivo") return "start";
-    if (currentStatus !== "Inactivo" && previousStatus === "Inactivo") return "end";
-    return null;
-  }
-  function buildSessionMetadata({ user, loginTime, lastActive, status, counters, timeline, appVersion = APP_VERSION }) {
-    return {
-      name: user.name,
-      email: user.email,
-      shift: user.shift || "Por Asignar",
-      loginTime,
-      lastActive,
-      status,
-      totalTasks: counters.totalTasks,
-      finalizedTasks: counters.finalized,
-      completedTasks: counters.completedTasks,
-      notDoneTasks: counters.notDoneTasks,
-      percentage: counters.percentage,
-      timeline: timeline || [],
-      appVersion
-    };
-  }
-  function buildSessionMetadataTail(counters, timeline, appVersion = APP_VERSION) {
-    return {
-      finalizedTasks: counters.finalized,
-      completedTasks: counters.completedTasks,
-      notDoneTasks: counters.notDoneTasks,
-      percentage: counters.percentage,
-      timeline: timeline || [],
-      appVersion
-    };
-  }
-
-  // ../src/domain/tasks/task-recovery.js
-  var task_recovery_exports = {};
-  __export(task_recovery_exports, {
-    RECOVERY_REMOTE_READ_FAILED_MESSAGE: () => RECOVERY_REMOTE_READ_FAILED_MESSAGE,
-    RECOVERY_STATUS: () => RECOVERY_STATUS,
-    describeRecoveryAlert: () => describeRecoveryAlert,
-    shouldRecoverTaskProgress: () => shouldRecoverTaskProgress
-  });
-  var RECOVERY_STATUS = Object.freeze({
-    OK: "OK",
-    REMOTE_READ_FAILED: "REMOTE_READ_FAILED",
-    IDENTITY_MISMATCH: "IDENTITY_MISMATCH"
-  });
-  var RECOVERY_REMOTE_READ_FAILED_MESSAGE = "No se pudo verificar el progreso remoto de tareas en el servidor. Se conserva el respaldo local de este dispositivo; se reintentar\xE1 m\xE1s adelante.";
-  function describeRecoveryAlert(recovery) {
-    if (recovery.status === RECOVERY_STATUS.REMOTE_READ_FAILED) {
-      return RECOVERY_REMOTE_READ_FAILED_MESSAGE;
-    }
-    if (recovery.failedMigrationsCount > 0) {
-      return `No se pudo sincronizar con el servidor el progreso local de ${recovery.failedMigrationsCount} tarea(s). Se conserv\xF3 el respaldo local en este dispositivo; vuelve a guardar esas tareas cuando tengas conexi\xF3n.`;
-    }
-    return null;
-  }
-  function shouldRecoverTaskProgress(user) {
-    return !!(user && user.role === "Gestor" && user.uid);
-  }
-
-  // ../src/domain/tasks/task-save-rules.js
-  var task_save_rules_exports = {};
-  __export(task_save_rules_exports, {
-    buildTaskRecord: () => buildTaskRecord,
-    describeTaskSaveError: () => describeTaskSaveError,
-    resolveStatusClassForButton: () => resolveStatusClassForButton,
-    validateTaskSaveInput: () => validateTaskSaveInput
-  });
-  var INVALID_TASK_KEY_PATTERN = /[.#$\[\]/]/;
-  function validateTaskSaveInput(input) {
-    const { currentActiveTaskId, selectedStatusText, authUser, currentUser, currentSelectedTask } = input;
-    if (currentActiveTaskId === null || currentActiveTaskId === void 0) {
-      return { ok: false, message: "Selecciona una tarea antes de guardar el progreso." };
-    }
-    if (selectedStatusText === null || selectedStatusText === void 0) {
-      return { ok: false, message: "Selecciona un estado antes de guardar el progreso." };
-    }
-    const observation = input.observation === null || input.observation === void 0 ? "" : input.observation.trim();
-    if (!observation) {
-      return { ok: false, message: "OBLIGATORIO: Debes detallar la gesti\xF3n realizada en las Notas T\xE9cnicas antes de guardar." };
-    }
-    if (!authUser) {
-      return { ok: false, message: "Tu sesi\xF3n expir\xF3. Vuelve a iniciar sesi\xF3n para guardar el progreso." };
-    }
-    if (!currentUser || currentUser.uid !== authUser.uid) {
-      return { ok: false, message: "No se pudo verificar tu identidad. Vuelve a iniciar sesi\xF3n para guardar el progreso." };
-    }
-    const taskId = canonicalTaskId(currentActiveTaskId);
-    if (!taskId || INVALID_TASK_KEY_PATTERN.test(taskId)) {
-      return { ok: false, message: "La tarea seleccionada tiene un identificador inv\xE1lido y no puede guardarse." };
-    }
-    if (!currentSelectedTask || canonicalTaskId(currentSelectedTask.id) !== taskId) {
-      return { ok: false, message: "No se pudo confirmar la tarea seleccionada. Vuelve a seleccionarla antes de guardar." };
-    }
-    return { ok: true, taskId, observation };
-  }
-  function buildTaskRecord(selectedTask, statusText, observation, now) {
-    return {
-      name: selectedTask["Tarea"],
-      status: statusText.trim(),
-      observation,
-      updatedAt: now
-    };
-  }
-  function resolveStatusClassForButton(buttonClassList) {
-    if (buttonClassList.contains("completed")) return "status-completed";
-    if (buttonClassList.contains("in-progress")) return "status-in-progress";
-    if (buttonClassList.contains("not-done")) return "status-not-done";
-    return "status-pending";
-  }
-  function describeTaskSaveError(error) {
-    const errorCode = error && error.code ? error.code : "";
-    const isPermissionDenied = errorCode === "PERMISSION_DENIED" || /permission[_ ]denied/i.test(error && error.message || "");
-    return {
-      isPermissionDenied,
-      message: isPermissionDenied ? "No tienes permiso para guardar esta tarea. Contacta a tu supervisor." : "No se pudo guardar el progreso en el servidor. El cambio qued\xF3 respaldado localmente; intenta guardar de nuevo."
-    };
   }
 
   // ../src/domain/tasks/task-catalog.js
@@ -3566,146 +4430,6 @@ Observaci\xF3n: ${entry.observation || "N/A"}
     const filtered = {};
     filtered[value] = tasksBySet[value];
     return filtered;
-  }
-
-  // ../src/domain/tasks/task-selection.js
-  var task_selection_exports = {};
-  __export(task_selection_exports, {
-    buildReviewerTaskDetailText: () => buildReviewerTaskDetailText,
-    findCatalogTask: () => findCatalogTask,
-    isTaskReviewerRole: () => isTaskReviewerRole
-  });
-  function isTaskReviewerRole(user) {
-    return !!(user && (user.role === "Admin" || user.role === "Supervisor"));
-  }
-  function findCatalogTask(allTasks, taskId) {
-    const canonicalId = canonicalTaskId(taskId);
-    return allTasks.find((t) => canonicalTaskId(t.id) === canonicalId);
-  }
-  function buildReviewerTaskDetailText(task) {
-    let detailText = `Detalle: ${task["Detalle de Tarea"] || "Sin detalle"}
-
-`;
-    detailText += `Horario: ${task["Horario"] || "No especificado"}
-`;
-    detailText += `D\xEDa: ${task["D\xEDa"] || "No especificado"}
-
-`;
-    detailText += `Instrucciones:
-${task["Instrucciones"] || "Sin instrucciones"}`;
-    return detailText;
-  }
-
-  // ../src/domain/tasks/quick-docs.js
-  var quick_docs_exports = {};
-  __export(quick_docs_exports, {
-    QUICK_DOC_FILES: () => QUICK_DOC_FILES,
-    getQuickDocIconMeta: () => getQuickDocIconMeta,
-    matchQuickDoc: () => matchQuickDoc,
-    stripDocExtension: () => stripDocExtension
-  });
-  var QUICK_DOC_FILES = Object.freeze([
-    "Instructivo de revisi\xF3n de apuestas casino.pdf",
-    "Instructivo de validaci\xF3n de GGR Casino.pdf",
-    "Pol\xEDtica Procedimiento De Aprobaci\xF3n De Retiros.pdf",
-    "Procedimiento Identificaci\xF3n de jineteo.pdf",
-    "Proceso de Eliminaci\xF3n de Cuentas - Implementaciones.pdf",
-    "VALIDACI\xD3N DE ABUSO DE BONOS EN CAMPA\xD1AS DE CRM.pdf",
-    "Revisi\xF3n de Eventos Deportivos.mp4",
-    "Revisi\xF3n de Eventos.mp4",
-    "Validaci\xF3n SEON.mp4"
-  ]);
-  function matchQuickDoc(taskName) {
-    if (!taskName) return null;
-    const taskNameLower = taskName.toLowerCase();
-    if (taskNameLower.includes("ggr")) return "Instructivo de validaci\xF3n de GGR Casino.pdf";
-    if (taskNameLower.includes("apuesta")) return "Instructivo de revisi\xF3n de apuestas casino.pdf";
-    if (taskNameLower.includes("retiro")) return "Pol\xEDtica Procedimiento De Aprobaci\xF3n De Retiros.pdf";
-    if (taskNameLower.includes("jineteo") || taskNameLower.includes("jineteo")) return "Procedimiento Identificaci\xF3n de jineteo.pdf";
-    if (taskNameLower.includes("eliminaci")) return "Proceso de Eliminaci\xF3n de Cuentas - Implementaciones.pdf";
-    if (taskNameLower.includes("bonos")) return "VALIDACI\xD3N DE ABUSO DE BONOS EN CAMPA\xD1AS DE CRM.pdf";
-    if (taskNameLower.includes("deportiv")) return "Revisi\xF3n de Eventos Deportivos.mp4";
-    if (taskNameLower.includes("evento")) return "Revisi\xF3n de Eventos.mp4";
-    if (taskNameLower.includes("seon")) return "Validaci\xF3n SEON.mp4";
-    return null;
-  }
-  function getQuickDocIconMeta(file) {
-    const lower = file.toLowerCase();
-    const isVideo = lower.endsWith(".mp4");
-    const isWord = lower.endsWith(".docx") || lower.endsWith(".doc");
-    const isExcel = lower.endsWith(".xlsx") || lower.endsWith(".xls");
-    let icon = "bx-file-pdf";
-    let color = "#FF5A5A";
-    if (isVideo) {
-      icon = "bx-video";
-      color = "#3B82F6";
-    } else if (isWord) {
-      icon = "bx-file-blank";
-      color = "#2563EB";
-    } else if (isExcel) {
-      icon = "bx-table";
-      color = "#10B981";
-    }
-    return { icon, color };
-  }
-  function stripDocExtension(file) {
-    return file.replace(/\.[^/.]+$/, "");
-  }
-
-  // ../src/domain/tasks/app-init-rules.js
-  var app_init_rules_exports = {};
-  __export(app_init_rules_exports, {
-    AVAILABLE_AVATARS: () => AVAILABLE_AVATARS,
-    PING_INTERVAL_MS: () => PING_INTERVAL_MS,
-    buildAvatarSrc: () => buildAvatarSrc,
-    buildFallbackAvatarUrl: () => buildFallbackAvatarUrl,
-    buildPingWorkerCode: () => buildPingWorkerCode,
-    findAvatarFile: () => findAvatarFile,
-    nextTheme: () => nextTheme,
-    resolveSavedTheme: () => resolveSavedTheme,
-    themeIconHTML: () => themeIconHTML
-  });
-  var AVAILABLE_AVATARS = Object.freeze([
-    "Alexander Villada.png",
-    "Camilo Espinosa.png",
-    "Daniel Benavides.png",
-    "Josue Alvarez.png",
-    "Juan Jose Diaz.png",
-    "Luis Fuentes.png",
-    "Maria Sanchez.png",
-    "Marilyn Jimenez.png",
-    "Oriana Borja.png",
-    "Samuel Cruz.png",
-    "Sara Santamaria.png",
-    "Sebastian Arango.png",
-    "Sebastian Hincapie.png",
-    "Yefferson Giraldo.png"
-  ]);
-  function findAvatarFile(fullName, namesMatch2, avatars = AVAILABLE_AVATARS) {
-    return avatars.find((img) => namesMatch2(fullName, img.replace(".png", "")));
-  }
-  function buildFallbackAvatarUrl(fullName) {
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0D8ABC&color=fff`;
-  }
-  function buildAvatarSrc(matchedAvatar, fullName) {
-    return matchedAvatar ? `assets/src/img/${matchedAvatar}` : buildFallbackAvatarUrl(fullName);
-  }
-  function resolveSavedTheme(stored) {
-    return stored || "dark";
-  }
-  function nextTheme(currentTheme) {
-    return currentTheme === "dark" ? "light" : "dark";
-  }
-  function themeIconHTML(theme) {
-    return theme === "dark" ? "<i class='bx bx-moon'></i>" : "<i class='bx bx-sun'></i>";
-  }
-  var PING_INTERVAL_MS = 3e4;
-  function buildPingWorkerCode() {
-    return `
-                setInterval(() => {
-                    postMessage('ping');
-                }, 30000);
-            `;
   }
 
   // ../src/domain/tasks/schedule-sheet.js
@@ -3993,120 +4717,6 @@ ${task["Instrucciones"] || "Sin instrucciones"}`;
     return html;
   }
 
-  // ../src/ui/views/task-tree-view.js
-  var task_tree_view_exports = {};
-  __export(task_tree_view_exports, {
-    buildTaskKpiHTML: () => buildTaskKpiHTML,
-    buildTreeSetHTML: () => buildTreeSetHTML,
-    getTaskStatusClass: () => getTaskStatusClass,
-    shouldAutoExpandTree: () => shouldAutoExpandTree,
-    sortedSetKeys: () => sortedSetKeys
-  });
-  function getTaskStatusClass(taskEntry) {
-    let statusClass = "status-pending";
-    if (taskEntry) {
-      const statusText = taskEntry.status;
-      if (statusText === TASK_STATUS.DONE) statusClass = "status-completed";
-      else if (statusText === TASK_STATUS.IN_PROGRESS) statusClass = "status-in-progress";
-      else if (statusText === TASK_STATUS.NOT_DONE) statusClass = "status-not-done";
-    }
-    return statusClass;
-  }
-  function sortedSetKeys(tasksBySet) {
-    return Object.keys(tasksBySet).sort();
-  }
-  function shouldAutoExpandTree(sets) {
-    return sets.length === 1;
-  }
-  function buildTreeSetHTML(input) {
-    const {
-      set,
-      tasks,
-      taskStateCache,
-      shouldAutoExpand,
-      escape = escapeHTML,
-      encodeArg = encodeInlineHandlerArg
-    } = input;
-    const total = tasks.length;
-    const headerClass = shouldAutoExpand ? "tree-header open" : "tree-header";
-    const childrenClass = shouldAutoExpand ? "tree-children show" : "tree-children";
-    return `
-            <div class="${headerClass}" onclick="toggleTree(this)">
-                <i class='bx bx-chevron-right'></i>
-                <span>${escape(set)}</span>
-                <span class="badge pending">${total} Tareas</span>
-            </div>
-            <div class="${childrenClass}">
-                ${tasks.map((task) => {
-      const cId = canonicalTaskId(task.id);
-      const taskEntry = taskStateCache[cId] || taskStateCache[task.id];
-      const statusClass = getTaskStatusClass(taskEntry);
-      return `
-                    <div class="task-item" onclick="selectTask(decodeURIComponent('${encodeArg(task.id)}'), event)">
-                        <i class='bx bx-file-blank'></i> ${escape(task.name)}
-                        <div class="task-status ${statusClass}"></div>
-                    </div>
-                    `;
-    }).join("")}
-            </div>
-        `;
-  }
-  function buildTaskKpiHTML(figures) {
-    const { totalTasks, completedTasks, notDoneTasks, pending, completedPercentage, notDonePercentage, totalPercentage } = figures;
-    return `
-            <div class="kpi-circle">
-                <svg viewBox="0 0 36 36" class="circular-chart" style="width: 100%; height: 100%;">
-                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" style="fill: none; stroke: var(--glass-border); stroke-width: 3.8;"/>
-                    <path class="circle" stroke-dasharray="${completedPercentage}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" style="fill: none; stroke-width: 3.8; stroke-linecap: round; stroke: var(--success); transition: stroke-dasharray 1s ease-out;"/>
-                    <path class="circle-not-done" stroke-dasharray="${notDonePercentage}, 100" stroke-dashoffset="-${completedPercentage}" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" style="fill: none; stroke-width: 3.8; stroke-linecap: round; stroke: var(--danger); transition: stroke-dasharray 1s ease-out, stroke-dashoffset 1s ease-out;"/>
-                    <text x="18" y="20.35" class="percentage" style="fill: var(--text-primary); font-family: 'Inter'; font-size: 8px; font-weight: bold; text-anchor: middle;">${totalPercentage}%</text>
-                </svg>
-            </div>
-            <div class="kpi-stats">
-                <p><strong>${totalTasks}</strong> Asignadas</p>
-                <p><strong style="color: var(--success);">${completedTasks}</strong> Realizadas</p>
-                <p><strong style="color: var(--danger);">${notDoneTasks}</strong> No Realizadas</p>
-                <p><strong>${pending}</strong> Pendientes</p>
-            </div>
-        `;
-  }
-
-  // ../src/ui/views/quick-docs-view.js
-  var quick_docs_view_exports = {};
-  __export(quick_docs_view_exports, {
-    buildQuickDocsHTML: () => buildQuickDocsHTML
-  });
-  function buildQuickDocsHTML(selectedTaskName, getDocUrl2) {
-    const matchedDoc = matchQuickDoc(selectedTaskName);
-    let html = "";
-    if (matchedDoc) {
-      const { icon, color } = getQuickDocIconMeta(matchedDoc);
-      html += `
-            <div style="margin-bottom: 12px; background: rgba(0, 180, 216, 0.1); padding: 10px; border-radius: var(--radius-md); border: 1px dashed var(--accent-primary);">
-                <span style="font-size: 10px; color: var(--accent-primary); font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px; margin-bottom: 6px;">
-                    <i class='bx bxs-star'></i> Sugerido para esta tarea
-                </span>
-                <a href="${getDocUrl2(matchedDoc)}" target="_blank" rel="noopener noreferrer" class="doc-link" style="background: transparent; padding: 0; display: flex; align-items: center; gap: 10px;">
-                    <i class='bx ${icon}' style="font-size: 20px; color: ${color};"></i>
-                    <span style="color: var(--text-primary); font-weight: 500; font-size: 13px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${stripDocExtension(matchedDoc)}</span>
-                </a>
-            </div>
-            <div style="height: 1px; background: var(--glass-border); margin: 10px 0;"></div>
-        `;
-    }
-    QUICK_DOC_FILES.forEach((file) => {
-      if (file === matchedDoc) return;
-      const { icon, color } = getQuickDocIconMeta(file);
-      html += `
-            <a href="${getDocUrl2(file)}" target="_blank" rel="noopener noreferrer" class="doc-link" style="margin-bottom: 8px;">
-                <i class='bx ${icon}' style="font-size: 18px; color: ${color};"></i>
-                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;">${stripDocExtension(file)}</span>
-            </a>
-        `;
-    });
-    return html;
-  }
-
   // ../src/ui/views/permission-history-view.js
   var permission_history_view_exports = {};
   __export(permission_history_view_exports, {
@@ -4304,19 +4914,6 @@ ${task["Instrucciones"] || "Sin instrucciones"}`;
     return { html: notifsHtml === "" ? NOTIFICATIONS_EMPTY_HTML : notifsHtml, unreadCount };
   }
 
-  // ../src/ui/components/tree-toggle.js
-  var tree_toggle_exports = {};
-  __export(tree_toggle_exports, {
-    toggleTreeElement: () => toggleTreeElement
-  });
-  function toggleTreeElement(element) {
-    element.classList.toggle("open");
-    const childrenContainer = element.nextElementSibling;
-    if (childrenContainer) {
-      childrenContainer.classList.toggle("show");
-    }
-  }
-
   // ../src/services/firebase/firebase-task-repository.js
   var firebase_task_repository_exports = {};
   __export(firebase_task_repository_exports, {
@@ -4391,344 +4988,6 @@ ${task["Instrucciones"] || "Sin instrucciones"}`;
       migrateLocalTasksToActiveSession,
       syncSessionMetadata
     };
-  }
-
-  // ../src/controllers/task-controller.js
-  var task_controller_exports = {};
-  __export(task_controller_exports, {
-    countDomTasks: () => countDomTasks,
-    createSessionSyncController: () => createSessionSyncController,
-    createTaskRecoveryController: () => createTaskRecoveryController,
-    createTaskSaveController: () => createTaskSaveController,
-    createTaskWorkspaceController: () => createTaskWorkspaceController,
-    runStartupDataSequence: () => runStartupDataSequence
-  });
-  function countDomTasks(doc) {
-    return {
-      total: doc.querySelectorAll(".task-item").length,
-      completed: doc.querySelectorAll(".task-item .status-completed").length,
-      notDone: doc.querySelectorAll(".task-item .status-not-done").length
-    };
-  }
-  function createTaskRecoveryController(deps) {
-    const { repository, getTaskCache, setTaskCache, saveTaskCache = () => {
-    }, getAuthUser, logger = console } = deps;
-    const alertFn = deps.alert || (() => {
-    });
-    async function recoverGestorTaskProgress(uid) {
-      const remoteResult = await repository.fetchOwnActiveSessionTasks(uid);
-      if (!remoteResult.ok) {
-        return { status: RECOVERY_STATUS.REMOTE_READ_FAILED, failedMigrationsCount: 0 };
-      }
-      setTaskCache(mergeTaskCaches(getTaskCache(), remoteResult.tasks));
-      try {
-        saveTaskCache(getTaskCache());
-      } catch (e) {
-      }
-      const authUser = getAuthUser();
-      if (!authUser || authUser.uid !== uid) {
-        logger.error("No se pudo verificar la identidad autenticada antes de migrar el progreso local; se omite la migraci\xF3n.");
-        return { status: RECOVERY_STATUS.IDENTITY_MISMATCH, failedMigrationsCount: 0 };
-      }
-      const { failed } = await repository.migrateLocalTasksToActiveSession(uid, getTaskCache(), remoteResult.tasks);
-      return { status: RECOVERY_STATUS.OK, failedMigrationsCount: failed.length };
-    }
-    async function runStartupRecovery(user) {
-      if (!shouldRecoverTaskProgress(user)) return { ran: false };
-      try {
-        const recovery = await recoverGestorTaskProgress(user.uid);
-        const message = describeRecoveryAlert(recovery);
-        if (message) alertFn(message);
-        return { ran: true, recovery, alerted: message };
-      } catch (e) {
-        logger.error("No se pudo recuperar el progreso remoto de tareas al iniciar:", e);
-        return { ran: true, error: e };
-      }
-    }
-    return { recoverGestorTaskProgress, runStartupRecovery };
-  }
-  function createSessionSyncController(deps) {
-    const {
-      getUser,
-      clearUser,
-      getStoredUserRaw,
-      redirectToLogin,
-      doc,
-      now = Date.now,
-      nowIso = () => (/* @__PURE__ */ new Date()).toISOString(),
-      markSyncLoop = () => {
-      },
-      loadBreakState: loadBreakState2 = () => {
-      },
-      idle,
-      describeLiveSession,
-      getLocalStatus,
-      setLocalStatus,
-      pushTimelineEvent: pushTimelineEvent2,
-      getTimeline,
-      repository
-    } = deps;
-    function syncActiveSession() {
-      const currentUser = getUser();
-      if (!shouldSyncActiveSession(currentUser)) return Promise.resolve();
-      const uid = currentUser.uid;
-      if (isSessionClosedElsewhere(getStoredUserRaw())) {
-        clearUser();
-        redirectToLogin();
-        return Promise.resolve();
-      }
-      const counters = computeSyncPercentage(countDomTasks(doc));
-      const loginTime = resolveLoginTime(currentUser, nowIso);
-      const nowMs = now();
-      markSyncLoop(nowMs);
-      loadBreakState2();
-      const newLastActive = now();
-      const isInactive = resolveIsInactive({
-        idleDetectorGranted: idle.isGranted(),
-        globalIdleState: idle.getGlobalIdleState(),
-        domIdleFallback: () => idle.domFallback(nowMs)
-      });
-      const live = describeLiveSession(isInactive);
-      const currentStatus = live.status;
-      const action = decideInactivityTimelineAction(currentStatus, getLocalStatus());
-      if (action) pushTimelineEvent2("Inactividad", action);
-      setLocalStatus(currentStatus);
-      const sessionMetadata = {
-        ...buildSessionMetadata({
-          user: currentUser,
-          loginTime,
-          lastActive: newLastActive,
-          status: currentStatus,
-          counters,
-          timeline: getTimeline()
-        }),
-        splitShiftStartTime: live.splitShiftStartTime,
-        totalSplitShiftTimeMs: live.totalSplitShiftTimeMs
-      };
-      return repository.syncSessionMetadata(uid, sessionMetadata);
-    }
-    return { syncActiveSession };
-  }
-  function createTaskSaveController(deps) {
-    const {
-      doc,
-      saveButton,
-      getAuthUser,
-      getUser,
-      getActiveTaskId,
-      getSelectedTask,
-      getTaskCache,
-      saveTaskCache = () => {
-      },
-      repository,
-      updateKPI,
-      alert: alertFn,
-      now = Date.now,
-      logger = console
-    } = deps;
-    const schedule = deps.setTimeout || ((fn, ms) => setTimeout(fn, ms));
-    let isSavingTask = false;
-    async function saveTaskProgress() {
-      if (isSavingTask) return { saved: false, reason: "IN_PROGRESS" };
-      const selectedStatusBtn = doc.querySelector(".btn-status.active");
-      const obsField = doc.getElementById("taskObservation");
-      const validation = validateTaskSaveInput({
-        currentActiveTaskId: getActiveTaskId(),
-        selectedStatusText: selectedStatusBtn ? selectedStatusBtn.textContent : null,
-        observation: obsField ? obsField.value : "",
-        authUser: getAuthUser(),
-        currentUser: getUser(),
-        currentSelectedTask: getSelectedTask()
-      });
-      if (!validation.ok) {
-        alertFn(validation.message);
-        return { saved: false, reason: "INVALID" };
-      }
-      const authUser = getAuthUser();
-      const taskIdStr = validation.taskId;
-      const btn = saveButton;
-      const prevText = btn.innerHTML;
-      isSavingTask = true;
-      btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Guardando...";
-      btn.disabled = true;
-      btn.classList.remove("btn-success", "btn-error");
-      const taskRecord = buildTaskRecord(getSelectedTask(), selectedStatusBtn.textContent, validation.observation, now());
-      const cache = getTaskCache();
-      cache[taskIdStr] = taskRecord;
-      try {
-        saveTaskCache(cache);
-      } catch (e) {
-      }
-      try {
-        const visualTaskElement = doc.querySelector(".task-item.active .task-status");
-        const statusClassToAdd = resolveStatusClassForButton(selectedStatusBtn.classList);
-        await repository.persistTaskToActiveSession(authUser.uid, taskIdStr, taskRecord);
-        btn.innerHTML = "<i class='bx bx-check'></i> Guardado Exitosamente";
-        btn.classList.add("btn-success");
-        if (obsField) {
-          obsField.value = "";
-        }
-        if (visualTaskElement) {
-          visualTaskElement.classList.remove("status-pending", "status-completed", "status-not-done", "status-in-progress");
-          visualTaskElement.classList.add(statusClassToAdd);
-        }
-        updateKPI();
-        schedule(() => {
-          btn.innerHTML = prevText;
-          btn.classList.remove("btn-success");
-        }, 2e3);
-        return { saved: true };
-      } catch (error) {
-        logger.error("Error al guardar el progreso de la tarea:", error);
-        btn.innerHTML = "<i class='bx bx-error'></i> Error al guardar";
-        btn.classList.add("btn-error");
-        alertFn(describeTaskSaveError(error).message);
-        schedule(() => {
-          btn.innerHTML = prevText;
-          btn.classList.remove("btn-error");
-        }, 2500);
-        return { saved: false, reason: "REMOTE_FAILED", error };
-      } finally {
-        btn.disabled = false;
-        isSavingTask = false;
-      }
-    }
-    return { saveTaskProgress };
-  }
-  function createTaskWorkspaceController(deps) {
-    const {
-      doc,
-      getUser,
-      getTaskCache,
-      getAllTasks,
-      setActiveTaskId,
-      setSelectedTask,
-      getDocUrl: getDocUrl2,
-      syncActiveSession = () => {
-      },
-      escape,
-      encodeArg,
-      newDate = () => /* @__PURE__ */ new Date(),
-      legacyProgress = false
-    } = deps;
-    function updateClock() {
-      const clockElement = doc.getElementById("liveClock");
-      if (!clockElement) return;
-      clockElement.textContent = formatClockTime(newDate());
-    }
-    function updateKPI() {
-      const figures = computeKpiFigures(countDomTasks(doc), { legacy: legacyProgress === true });
-      const kpiContainer = doc.querySelector(".kpi-card");
-      if (kpiContainer) {
-        kpiContainer.innerHTML = buildTaskKpiHTML(figures);
-      }
-      const currentUser = getUser();
-      if (currentUser && currentUser.role === "Gestor") {
-        syncActiveSession();
-      }
-    }
-    function renderTree(tasksBySet) {
-      const container = doc.querySelector(".tree-container");
-      if (!container) return;
-      container.innerHTML = "";
-      const sets = sortedSetKeys(tasksBySet);
-      const shouldAutoExpand = shouldAutoExpandTree(sets);
-      sets.forEach((set) => {
-        const setDiv = doc.createElement("div");
-        setDiv.className = "tree-item";
-        setDiv.innerHTML = buildTreeSetHTML({
-          set,
-          tasks: tasksBySet[set],
-          taskStateCache: getTaskCache(),
-          shouldAutoExpand,
-          escape,
-          encodeArg
-        });
-        container.appendChild(setDiv);
-      });
-      updateKPI();
-    }
-    function toggleTree(element) {
-      toggleTreeElement(element);
-    }
-    function renderQuickDocs(selectedTaskName) {
-      const container = doc.getElementById("quickDocsList");
-      if (!container) return;
-      container.innerHTML = buildQuickDocsHTML(selectedTaskName, getDocUrl2);
-    }
-    function selectTask(taskId, evt) {
-      const canonicalId = canonicalTaskId(taskId);
-      setActiveTaskId(canonicalId);
-      doc.querySelectorAll(".task-item").forEach((el) => el.classList.remove("active"));
-      const eventTarget = evt && evt.currentTarget;
-      if (eventTarget) eventTarget.classList.add("active");
-      const task = findCatalogTask(getAllTasks(), taskId);
-      if (task) {
-        const titleElement = doc.getElementById("currentTaskTitle");
-        if (titleElement) titleElement.textContent = task["Tarea"];
-        setSelectedTask(task);
-        renderQuickDocs(task["Tarea"]);
-        const textArea = doc.getElementById("taskObservation");
-        if (isTaskReviewerRole(getUser())) {
-          if (textArea) {
-            textArea.value = buildReviewerTaskDetailText(task);
-          }
-        } else {
-          const taskStateCache = getTaskCache();
-          doc.querySelectorAll(".btn-status").forEach((el) => el.classList.remove("active"));
-          if (taskStateCache[canonicalId]) {
-            if (textArea) textArea.value = taskStateCache[canonicalId].observation || "";
-            const cachedStatus = taskStateCache[canonicalId].status;
-            let found = false;
-            doc.querySelectorAll(".btn-status").forEach((el) => {
-              if (el.textContent.trim() === cachedStatus) {
-                el.classList.add("active");
-                found = true;
-              }
-            });
-            if (!found) doc.querySelector(".btn-status.pending").classList.add("active");
-          } else {
-            if (textArea) textArea.value = "";
-            doc.querySelector(".btn-status.pending").classList.add("active");
-          }
-        }
-      } else {
-        setSelectedTask(null);
-        setActiveTaskId(null);
-        if (eventTarget) eventTarget.classList.remove("active");
-        const titleElement = doc.getElementById("currentTaskTitle");
-        if (titleElement) titleElement.textContent = "Selecciona una tarea";
-        const textArea = doc.getElementById("taskObservation");
-        if (textArea) textArea.value = "";
-        doc.querySelectorAll(".btn-status").forEach((el) => el.classList.remove("active"));
-      }
-    }
-    return { updateClock, updateKPI, renderTree, toggleTree, renderQuickDocs, selectTask };
-  }
-  async function runStartupDataSequence(deps) {
-    const { user, runStartupRecovery, loadSchedule, loadExcelTasks, loadTeletrabajo, loadPermisos, renderQuickDocs, logger = console } = deps;
-    const steps = [];
-    await runStartupRecovery(user);
-    steps.push("recovery");
-    try {
-      await loadSchedule();
-    } catch (e) {
-      logger.error("Error al cargar el horario en la inicializaci\xF3n:", e);
-    }
-    steps.push("schedule");
-    try {
-      await loadExcelTasks();
-    } catch (e) {
-      logger.error("Error al cargar las tareas en la inicializaci\xF3n:", e);
-    }
-    steps.push("tasks");
-    loadTeletrabajo();
-    steps.push("teletrabajo");
-    loadPermisos();
-    steps.push("permisos");
-    renderQuickDocs(null);
-    steps.push("quickDocs");
-    return steps;
   }
 
   // ../src/controllers/task-loaders-controller.js
@@ -5987,139 +6246,6 @@ ${task["Instrucciones"] || "Sin instrucciones"}`;
     };
   }
 
-  // ../src/domain/auth/auth-service.js
-  var auth_service_exports = {};
-  __export(auth_service_exports, {
-    GESTOR_BREAK_BUTTON_IDS: () => GESTOR_BREAK_BUTTON_IDS,
-    NAV_PARENT: () => NAV_PARENT,
-    PASSWORD_MESSAGES: () => PASSWORD_MESSAGES,
-    PASSWORD_SUCCESS_CLOSE_DELAY_MS: () => PASSWORD_SUCCESS_CLOSE_DELAY_MS,
-    PASSWORD_TONE: () => PASSWORD_TONE,
-    PASSWORD_TONE_COLOR: () => PASSWORD_TONE_COLOR,
-    buildAdministrativeControlsPolicy: () => buildAdministrativeControlsPolicy,
-    buildBreakButtonsPolicy: () => buildBreakButtonsPolicy,
-    buildSidebarPolicy: () => buildSidebarPolicy,
-    changeUserPassword: () => changeUserPassword,
-    isPasswordInputAcceptable: () => isPasswordInputAcceptable,
-    isPrivilegedNavRole: () => isPrivilegedNavRole,
-    mapPasswordChangeError: () => mapPasswordChangeError
-  });
-  var NAV_PARENT = Object.freeze({
-    SIDEBAR: "sidebar",
-    ADMIN_GROUP: "adminGroup"
-  });
-  function isPrivilegedNavRole(user) {
-    return Boolean(user && (user.role === "Admin" || user.role === "Supervisor"));
-  }
-  function op(id, display, appendTo) {
-    const operation = { id };
-    if (display !== void 0) operation.display = display;
-    if (appendTo !== void 0) operation.appendTo = appendTo;
-    return operation;
-  }
-  function buildSidebarPolicy(user) {
-    const privileged = isPrivilegedNavRole(user);
-    const S = NAV_PARENT.SIDEBAR;
-    const A = NAV_PARENT.ADMIN_GROUP;
-    if (privileged) {
-      const isSupervisor = user.role === "Supervisor";
-      const operations = [
-        op("horarioGestorFilterContainer", "flex"),
-        op("teletrabajoGestorFilterContainer", "flex"),
-        op("navWorkspace", "none"),
-        // Mis Tareas: oculta para Admin y Supervisor
-        isSupervisor ? op("navComunicados", "flex", S) : op("navComunicados", "none"),
-        op("adminNavGroup", "block", S),
-        op("navMonitoreo", "flex", A),
-        op("navTiempos", "none"),
-        // Admin y Supervisor gestionan comunicados; eliminar sigue restringido a Admin (en su vista).
-        canManageComunicados(user.role) ? op("navAdminComunicados", "flex", A) : op("navAdminComunicados", "none"),
-        op("navTurnos", "flex", A),
-        op("navAprobaciones", "flex", A),
-        op("navHorario", void 0, S),
-        op("navDocs", "flex", S),
-        op("navPermisos", "flex", S)
-      ];
-      if (user.role === "Admin") operations.push(op("navConfigGestores", "flex", S));
-      return { privileged, operations };
-    }
-    return {
-      privileged,
-      operations: [
-        op("horarioGestorFilterContainer", "none"),
-        op("teletrabajoGestorFilterContainer", "none"),
-        op("navWorkspace", "flex", S),
-        op("navComunicados", "flex", S),
-        op("navHorario", void 0, S),
-        op("navDocs", "flex", S),
-        op("navPermisos", "flex", S),
-        op("adminNavGroup", "none")
-        // las pestañas de Administración se ocultan para el Gestor
-      ]
-    };
-  }
-  var GESTOR_BREAK_BUTTON_IDS = Object.freeze(["toggleLunchBtn", "toggleBreakfastBtn"]);
-  function buildBreakButtonsPolicy(user) {
-    if (isPrivilegedNavRole(user)) return [];
-    return GESTOR_BREAK_BUTTON_IDS.map((id) => ({ id, display: "flex" }));
-  }
-  function buildAdministrativeControlsPolicy(user) {
-    if (!user) return null;
-    return {
-      showUserApprovalSection: user.role === "Admin",
-      hideAdminAnnouncementsView: !canManageComunicados(user.role)
-    };
-  }
-  var PASSWORD_TONE = Object.freeze({
-    NEUTRAL: "neutral",
-    DANGER: "danger",
-    SUCCESS: "success"
-  });
-  var PASSWORD_TONE_COLOR = Object.freeze({
-    [PASSWORD_TONE.NEUTRAL]: "var(--text-primary)",
-    [PASSWORD_TONE.DANGER]: "var(--danger)",
-    [PASSWORD_TONE.SUCCESS]: "var(--success)"
-  });
-  var PASSWORD_MESSAGES = Object.freeze({
-    EMPTY: "Por favor ingresa una contrase\xF1a v\xE1lida.",
-    PENDING: "Actualizando...",
-    SUCCESS: "\xA1Contrase\xF1a actualizada exitosamente en Firebase Auth!",
-    NO_SESSION: "Error: No hay sesi\xF3n activa en Firebase Auth. Por favor, vuelve a iniciar sesi\xF3n.",
-    GENERIC_ERROR: "Error al actualizar contrase\xF1a.",
-    REQUIRES_RECENT_LOGIN: "Por seguridad, debes cerrar sesi\xF3n e iniciar sesi\xF3n nuevamente para cambiar tu contrase\xF1a.",
-    WEAK_PASSWORD: "La contrase\xF1a debe tener al menos 6 caracteres."
-  });
-  var PASSWORD_SUCCESS_CLOSE_DELAY_MS = 2e3;
-  function isPasswordInputAcceptable(newPassword) {
-    return !(!newPassword || String(newPassword).trim() === "");
-  }
-  function mapPasswordChangeError(error) {
-    const code = error && error.code;
-    if (code === "auth/requires-recent-login") return PASSWORD_MESSAGES.REQUIRES_RECENT_LOGIN;
-    if (code === "auth/weak-password") return PASSWORD_MESSAGES.WEAK_PASSWORD;
-    return PASSWORD_MESSAGES.GENERIC_ERROR;
-  }
-  async function changeUserPassword({ newPassword, getAuthUser }) {
-    if (!isPasswordInputAcceptable(newPassword)) {
-      return { status: "invalid", message: PASSWORD_MESSAGES.EMPTY, tone: PASSWORD_TONE.DANGER, closeModalAfterMs: null };
-    }
-    try {
-      const user = getAuthUser();
-      if (user) {
-        await user.updatePassword(newPassword);
-        return {
-          status: "updated",
-          message: PASSWORD_MESSAGES.SUCCESS,
-          tone: PASSWORD_TONE.SUCCESS,
-          closeModalAfterMs: PASSWORD_SUCCESS_CLOSE_DELAY_MS
-        };
-      }
-      return { status: "no-session", message: PASSWORD_MESSAGES.NO_SESSION, tone: PASSWORD_TONE.DANGER, closeModalAfterMs: null };
-    } catch (error) {
-      return { status: "error", message: mapPasswordChangeError(error), tone: PASSWORD_TONE.DANGER, closeModalAfterMs: null, error };
-    }
-  }
-
   // ../src/domain/auth/notification-rules.js
   var notification_rules_exports = {};
   __export(notification_rules_exports, {
@@ -7024,56 +7150,6 @@ ${task["Instrucciones"] || "Sin instrucciones"}`;
         `;
   }
   var PDF_CONTAINER_STYLE = "width: 750px; padding: 25px; background: #FFFFFF; font-family: 'Inter', sans-serif; color: #0F172A;";
-
-  // ../src/app/app-router.js
-  var app_router_exports = {};
-  __export(app_router_exports, {
-    createAppRouter: () => createAppRouter
-  });
-  function createAppRouter({ document: document2, getUser }) {
-    function applyRoleNavigation(sidebarNav) {
-      const policy = buildSidebarPolicy(getUser());
-      const applied = [];
-      policy.operations.forEach((operation) => {
-        const el = document2.getElementById(operation.id);
-        if (!el) return;
-        if (operation.display !== void 0) el.style.display = operation.display;
-        if (operation.appendTo === NAV_PARENT.SIDEBAR) {
-          sidebarNav.appendChild(el);
-        } else if (operation.appendTo === NAV_PARENT.ADMIN_GROUP) {
-          const adminGroup = document2.getElementById("adminNavGroup");
-          if (adminGroup) adminGroup.appendChild(el);
-        }
-        applied.push(operation.id);
-      });
-      return { privileged: policy.privileged, applied };
-    }
-    function applyBreakButtonsVisibility() {
-      buildBreakButtonsPolicy(getUser()).forEach(({ id, display }) => {
-        const el = document2.getElementById(id);
-        if (el) el.style.display = display;
-      });
-    }
-    function alignAdministrativeControlsByRole() {
-      const policy = buildAdministrativeControlsPolicy(getUser());
-      if (!policy) return;
-      const pendingUsersBody = document2.getElementById("pendingUsersTableBody");
-      const userTablePanel = pendingUsersBody ? pendingUsersBody.closest(".glass-panel") : null;
-      const userSearch = document2.getElementById("filterAprobacionesSearch");
-      const userFilterPanel = userSearch ? userSearch.closest(".glass-panel") : null;
-      const userSectionTitle = userFilterPanel ? userFilterPanel.previousElementSibling : null;
-      [userSectionTitle, userFilterPanel, userTablePanel].forEach((element) => {
-        if (element) element.style.display = policy.showUserApprovalSection ? "" : "none";
-      });
-      const adminAnnouncementsView = document2.getElementById("view-gestion-comunicados");
-      if (adminAnnouncementsView && policy.hideAdminAnnouncementsView) adminAnnouncementsView.style.display = "none";
-    }
-    function updateNavigation({ refreshSplitShiftButton, setupSidebar } = {}) {
-      if (refreshSplitShiftButton) refreshSplitShiftButton();
-      if (typeof setupSidebar === "function") setupSidebar();
-    }
-    return { applyRoleNavigation, applyBreakButtonsVisibility, alignAdministrativeControlsByRole, updateNavigation };
-  }
 
   // ../src/controllers/monitoring-controller.js
   var monitoring_controller_exports = {};
@@ -9541,6 +9617,16 @@ ${task["Instrucciones"] || "Sin instrucciones"}`;
       /** Marca `announcements/{id}/readBy/{uid}` con el recibo de lectura. */
       async markAsRead(id, uid, receipt) {
         await database.ref(`announcements/${id}/readBy/${uid}`).set(receipt);
+      },
+      /**
+       * D4 (2026-10-14, restaurado): lee una vez `announcements/{id}/readBy/{uid}` para distinguir, tras un
+       * PERMISSION_DENIED al marcar como leído, una duplicidad (la lectura ya existe) de un permiso real.
+       * Devuelve el recibo o `null`. El propio usuario puede leer su lectura (regla de `announcements`).
+       */
+      async fetchReadReceipt(id, uid) {
+        const snapshot = await database.ref(`announcements/${id}/readBy/${uid}`).once("value");
+        const value = snapshot && typeof snapshot.val === "function" ? snapshot.val() : null;
+        return value === void 0 ? null : value;
       },
       /** Elimina un comunicado completo. */
       async remove(id) {

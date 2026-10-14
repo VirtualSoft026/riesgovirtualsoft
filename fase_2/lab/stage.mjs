@@ -71,15 +71,26 @@ if (INJECT_BUNDLE) {
     const indexPath = path.join(SITE, 'index.html');
     const html = fs.readFileSync(indexPath, 'utf8');
     const marker = /<script src="app\.js[^"]*"><\/script>/;
-    if (!marker.test(html)) {
-        say('FALLA', 'No se encontró la etiqueta <script src="app.js"> para inyectar el bundle.');
-        process.exit(1);
+    // 2026-10-14: el index.html de la rama ya carga el bundle antes de app.js; no se inyecta dos veces.
+    const yaCargaBundle = /<script src="riskops\.bundle\.js[^"]*"><\/script>/.test(html);
+    if (yaCargaBundle) {
+        say('OK', 'index.html de la rama ya carga riskops.bundle.js antes de app.js: se sirve tal cual.');
+    } else {
+        if (!marker.test(html)) {
+            say('FALLA', 'No se encontró la etiqueta <script src="app.js"> para inyectar el bundle.');
+            process.exit(1);
+        }
+        fs.writeFileSync(indexPath, html.replace(marker, (tag) => `<script src="riskops.bundle.js"></script>\n    ${tag}`));
+        say('OK', 'Bundle inyectado ANTES de app.js solo en la copia de staging (RISKOPS_LAB_INJECT_BUNDLE=0 lo desactiva).');
     }
-    fs.writeFileSync(indexPath, html.replace(marker, (tag) => `<script src="riskops.bundle.js"></script>\n    ${tag}`));
-    say('OK', 'Bundle inyectado ANTES de app.js solo en la copia de staging (RISKOPS_LAB_INJECT_BUNDLE=0 lo desactiva).');
 }
 
-if (INTEGRATE) {
+// 2026-10-14: si el app.js de la rama YA trae la integración (marcas [LAB-INTEGRACION]), se prueba tal cual:
+// el laboratorio sirve exactamente lo que se va a subir.
+const APP_YA_INTEGRADO = fs.readFileSync(path.join(SITE, 'app.js'), 'utf8').includes('[LAB-INTEGRACION]');
+if (APP_YA_INTEGRADO) {
+    say('OK', 'app.js de la rama ya está conectado a fase_2/src: se sirve tal cual, sin parches del laboratorio.');
+} else if (INTEGRATE) {
     const { integrateApp, loadExtraSteps } = await import('./integracion/aplicar-integracion.mjs');
     const extraSteps = await loadExtraSteps(path.join(here, 'integracion', 'pasos'));
     const appPath = path.join(SITE, 'app.js');

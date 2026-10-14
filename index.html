@@ -1464,8 +1464,10 @@
     </div>
 
     <!-- Custom JS -->
-    <script src="app.js?v=20260826_v1"></script>
+    <!-- Fase 2: el bundle (window.RiskOps, fase_2/src/entry.js) va ANTES de app.js y como script clasico:
+         app.js lo usa de forma sincrona al cargar. Sin type="module" (diferiria la carga). -->
+    <script src="riskops.bundle.js?v=20261014_f2"></script>
+    <script src="app.js?v=20261014_f2"></script>
     <script src="js/tiempos.js?v=20260730_v3"></script>
-    <script type="module" src="riskops.bundle.js"></script>
 </body>
 </html>

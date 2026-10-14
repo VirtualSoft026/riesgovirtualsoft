@@ -312,19 +312,87 @@ let activeIdleDetector = null;
 window.idleDetectorGranted = false;
 window.idleDetectorStarted = false;
 
+// [LAB-INTEGRACION:INICIO]
+// Puente entre app.js (estado global de pausas) y RiskOps.shiftController (src/controllers/shift-controller.js).
+function __labCurrentUid() {
+    try {
+        const u = JSON.parse(localStorage.getItem('riskOps_currentUser'));
+        return u && u.uid ? u.uid : null;
+    } catch (e) { return null; }
+}
+
+function __labSetSyncWarning(failed) {
+    try {
+        let el = document.getElementById('riskOpsSyncWarning');
+        if (!el && failed) {
+            el = document.createElement('div');
+            el.id = 'riskOpsSyncWarning';
+            el.style.cssText = 'position:fixed;bottom:12px;right:12px;z-index:99999;background:#b45309;color:#fff;padding:8px 12px;border-radius:8px;font-size:13px;';
+            el.textContent = 'Sin sincronizar con el supervisor. Reintentando...';
+            document.body.appendChild(el);
+        }
+        if (el) el.style.display = failed ? 'block' : 'none';
+    } catch (e) {}
+}
+
+let __labShiftController = null;
+function __shiftController() {
+    if (__labShiftController) return __labShiftController;
+    __labShiftController = RiskOps.shiftController.createShiftController({
+        getUser: () => currentUser,
+        getState: () => ({
+            isLunchBreak, lunchStartTime, totalLunchTimeMs,
+            isBreakfastBreak, breakfastStartTime, totalBreakfastTimeMs,
+            isSplitShiftBreak, splitShiftStartTime, totalSplitShiftTimeMs
+        }),
+        applyState: (f) => {
+            isLunchBreak = f.isLunchBreak; lunchStartTime = f.lunchStartTime; totalLunchTimeMs = f.totalLunchTimeMs;
+            isBreakfastBreak = f.isBreakfastBreak; breakfastStartTime = f.breakfastStartTime; totalBreakfastTimeMs = f.totalBreakfastTimeMs;
+            isSplitShiftBreak = f.isSplitShiftBreak; splitShiftStartTime = f.splitShiftStartTime; totalSplitShiftTimeMs = f.totalSplitShiftTimeMs;
+        },
+        reloadState: () => loadBreakState(),
+        setUserFlag: (v) => {
+            currentUser.hasSplitShift = v;
+            localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
+        },
+        now: () => Date.now(),
+        timeline: { push: (type, action) => pushTimelineEvent(type, action) },
+        storage: { saveBreakState: () => saveBreakState() },
+        sync: () => syncActiveSessionToFirebase(),
+        onActivity: () => updateActivity(),
+        ui: {
+            getButton: (id) => document.getElementById(id),
+            setSplitShiftVisible: (visible) => {
+                const b = document.getElementById('toggleSplitShiftBtn');
+                if (b) b.style.display = visible ? 'flex' : 'none';
+            },
+            notifyBlocked: (reason, message) => { if (message) alert(message); },
+            setSyncWarning: (failed) => __labSetSyncWarning(failed),
+            refreshSidebar: () => { if (typeof setupSidebar === 'function') setupSidebar(); }
+        },
+        logger: console
+    });
+    return __labShiftController;
+}
+// [LAB-INTEGRACION:FIN]
+
 function saveBreakState() {
-    localStorage.setItem('riskOps_breakState', JSON.stringify({
+    // [LAB-INTEGRACION] el estado se guarda con ownerUid (RiskOps.breakStateOwnership)
+    localStorage.setItem('riskOps_breakState', JSON.stringify(RiskOps.breakStateOwnership.serializeBreakState({
         isLunchBreak, lunchStartTime, totalLunchTimeMs,
         isBreakfastBreak, breakfastStartTime, totalBreakfastTimeMs,
         isSplitShiftBreak, splitShiftStartTime, totalSplitShiftTimeMs
-    }));
+    }, __labCurrentUid())));
 }
 
 function loadBreakState() {
     try {
-        const savedState = localStorage.getItem('riskOps_breakState');
-        if (savedState) {
-            const parsed = JSON.parse(savedState);
+        // [LAB-INTEGRACION] un estado de pausas guardado por OTRO usuario se descarta (no se hereda)
+        const restored = RiskOps.breakStateOwnership.restoreBreakState(localStorage.getItem('riskOps_breakState'), __labCurrentUid());
+        if (restored.status === RiskOps.breakStateOwnership.BREAK_STATE_RESTORE.OTHER_OWNER) {
+            localStorage.removeItem('riskOps_breakState');
+        } else if (!restored.discarded && restored.status !== RiskOps.breakStateOwnership.BREAK_STATE_RESTORE.EMPTY) {
+            const parsed = restored.state;
             isLunchBreak = parsed.isLunchBreak || false;
             lunchStartTime = parsed.lunchStartTime || null;
             totalLunchTimeMs = parsed.totalLunchTimeMs || 0;
@@ -342,7 +410,8 @@ loadBreakState();
 
 window.addEventListener('storage', (e) => {
     if (e.key === 'riskOps_breakState') {
-        loadBreakState();
+        // [LAB-INTEGRACION] recarga el estado Y repinta botones/visibilidad (antes solo actualizaba variables)
+        __shiftController().handleStorageChange(e.key);
     }
 });
 
@@ -514,27 +583,42 @@ async function startIdleDetectorLogic() {
     return idleDetectorStartPromise;
 }
 
-function applyIdleStateChange() {
-    loadBreakState();
-    if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
-        if (isLunchBreak || isBreakfastBreak || isSplitShiftBreak) return;
-
-        if (globalIdleState && currentUser.status === 'Activo') {
-            currentUser.status = 'Inactivo';
-            if (typeof pushTimelineEvent === 'function') pushTimelineEvent('Inactividad', 'start');
-            if (typeof database !== 'undefined') database.ref(`users/${currentUser.uid}/status`).set('Inactivo');
+// [LAB-INTEGRACION:ACTIVIDAD-INICIO]
+// [LAB-INTEGRACION] Detector de inactividad: RiskOps.shiftActivityController (src/controllers/shift-activity-controller.js)
+// Singleton lazy — se crea la primera vez que cualquiera de las tres funciones lo llama.
+let __labShiftActivityCtrl = null;
+function __shiftActivityController() {
+    if (__labShiftActivityCtrl) return __labShiftActivityCtrl;
+    __labShiftActivityCtrl = RiskOps.shiftActivityController.createShiftActivityController({
+        getUser: () => currentUser,
+        isOnBreak: () => Boolean(isLunchBreak || isBreakfastBreak || isSplitShiftBreak),
+        setUserStatus: (uid, status) => {
+            if (typeof database !== 'undefined') database.ref('users/' + uid + '/status').set(status);
+        },
+        pushTimelineEvent: (type, action) => {
+            // En el scope de app.js (a diferencia de bootstrap.js) esta función sí está disponible.
+            if (typeof pushTimelineEvent === 'function') pushTimelineEvent(type, action);
+        },
+        onStatusDisplay: () => {
             if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
+        },
+        syncSession: () => {
             if (typeof syncActiveSessionToFirebase === 'function') syncActiveSessionToFirebase();
-        } else if (!globalIdleState && currentUser.status === 'Inactivo') {
-            currentUser.status = 'Activo';
-            if (typeof pushTimelineEvent === 'function') pushTimelineEvent('Inactividad', 'end');
-            lastLocalActivityTimestamp = Date.now();
-            if (typeof database !== 'undefined') database.ref(`users/${currentUser.uid}/status`).set('Activo');
-            if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
-            if (typeof syncActiveSessionToFirebase === 'function') syncActiveSessionToFirebase();
-        }
-    }
+        },
+        now: Date.now,
+        logger: console,
+    });
+    return __labShiftActivityCtrl;
 }
+// [LAB-INTEGRACION:ACTIVIDAD-FIN]
+
+function applyIdleStateChange() {
+    // [LAB-INTEGRACION] delega en RiskOps.shiftActivityController
+    // Conserva lastLocalActivityTimestamp cuando vuelve a Activo (igual que app.js original)
+    if (!globalIdleState) lastLocalActivityTimestamp = Date.now();
+    __shiftActivityController().onIdleChange(globalIdleState);
+}
+
 
 checkAndStartIdleDetector();
 
@@ -562,29 +646,12 @@ function shouldApplyDomIdleFallback(now = Date.now()) {
 }
 
 function updateActivity() {
-    loadBreakState();
-    const now = Date.now();
-    const timeSinceLast = now - lastLocalActivityTimestamp;
-    lastLocalActivityTimestamp = now;
-    
-    if (typeof globalIdleState !== 'undefined') {
-        globalIdleState = false;
-    }
-    
-    // Si somos Gestor y estábamos inactivos, volver a Activo inmediatamente
-    if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
-        // Si ya estábamos marcados inactivos localmente, o pasó más tiempo del umbral en silencio (browser throttling)
-        if (currentUser.status === 'Inactivo' || timeSinceLast > DOM_IDLE_FALLBACK_THRESHOLD_MS) {
-            currentUser.status = 'Activo';
-            if (typeof pushTimelineEvent === 'function') pushTimelineEvent('Inactividad', 'end');
-            if (typeof database !== 'undefined') {
-                database.ref(`users/${currentUser.uid}/status`).set('Activo');
-            }
-            if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
-            if (typeof syncActiveSessionToFirebase === 'function') syncActiveSessionToFirebase();
-        }
-    }
+    // [LAB-INTEGRACION] delega en RiskOps.shiftActivityController
+    lastLocalActivityTimestamp = Date.now(); // mantiene la variable para shouldApplyDomIdleFallback
+    if (typeof globalIdleState !== 'undefined') globalIdleState = false;
+    __shiftActivityController().onActivity();
 }
+
 document.addEventListener('mousemove', updateActivity);
 document.addEventListener('keydown', updateActivity);
 document.addEventListener('click', updateActivity);
@@ -592,29 +659,11 @@ document.addEventListener('scroll', updateActivity);
 document.addEventListener('visibilitychange', updateActivity);
 window.addEventListener('focus', updateActivity);
 
-// Fast checker loop to apply 10s inactivity exactly on time
+// Fast checker loop to apply 10s inactivity exactly on time — [LAB-INTEGRACION]
 setInterval(() => {
-    loadBreakState();
-    if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
-        if (window.idleDetectorGranted) return; // Si hay detector nativo, no usar el fallback
-        
-        // El fallback DOM no puede observar actividad en otras pestañas o ventanas.
-        // Solo se usa cuando esta página está visible y enfocada para evitar falsos positivos.
-        if (shouldApplyDomIdleFallback() && currentUser.status === 'Activo') {
-            // Ignorar si está en pausa global o breaks
-            if (typeof globalIdleState !== 'undefined' && globalIdleState) return;
-            if (typeof isLunchBreak !== 'undefined' && isLunchBreak) return;
-            if (typeof isBreakfastBreak !== 'undefined' && isBreakfastBreak) return;
-            if (typeof isSplitShiftBreak !== 'undefined' && isSplitShiftBreak) return;
-
-            currentUser.status = 'Inactivo';
-            if (typeof pushTimelineEvent === 'function') pushTimelineEvent('Inactividad', 'start');
-            if (typeof database !== 'undefined') {
-                database.ref(`users/${currentUser.uid}/status`).set('Inactivo');
-            }
-            if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
-            if (typeof syncActiveSessionToFirebase === 'function') syncActiveSessionToFirebase();
-        }
+    // [LAB-INTEGRACION] los guards de rol, pausa y estado los maneja el controlador internamente
+    if (shouldApplyDomIdleFallback()) {
+        __shiftActivityController().onIdleChange(true);
     }
 }, 1000);
 
@@ -681,17 +730,8 @@ try {
             // Listen for hasSplitShift changes in real-time
             database.ref(`users/${currentUser.uid}/hasSplitShift`).on('value', snap => {
                 const newVal = snap.val() === true;
-                if (currentUser.hasSplitShift !== newVal) {
-                    currentUser.hasSplitShift = newVal;
-                    localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
-                    const toggleSplitShiftBtn = document.getElementById('toggleSplitShiftBtn');
-                    if (toggleSplitShiftBtn) {
-                        toggleSplitShiftBtn.style.display = newVal ? 'flex' : 'none';
-                    }
-                    if (typeof setupSidebar === 'function') {
-                        setupSidebar();
-                    }
-                }
+                // [LAB-INTEGRACION] si se revoca con la pausa en curso, "Retomar Turno" sigue visible
+                __shiftController().handleFlagChange(newVal);
             });
 
                         // --- PATCH CLEAR FALSE INACTIVITY (JUNE 17 3PM & 7PM SHIFTS) ---
@@ -1318,17 +1358,101 @@ let currentActiveTaskId = null;
 let pendingExtraTaskId = null;
 let isSavingExtraTask = false;
 
-// Live Clock Logic
+// [LAB-INTEGRACION] Puente app.js -> RiskOps (corte "tareas"): controladores creados la primera vez que se usan.
+// Todo el estado (taskStateCache, allTasks, currentUser, ...) sigue siendo de app.js y se lee/escribe por getters/setters.
+let __labTaskRepository = null;
+function __tareasRepo() {
+    if (__labTaskRepository) return __labTaskRepository;
+    __labTaskRepository = RiskOps.taskRepository.createTaskRepository({
+        database: database,
+        now: () => Date.now(),
+        saveCache: (cache) => localStorage.setItem('riskOps_cache', JSON.stringify(cache)),
+        logger: console
+    });
+    return __labTaskRepository;
+}
+
+let __labTaskWorkspace = null;
+function __tareasWorkspace() {
+    if (__labTaskWorkspace) return __labTaskWorkspace;
+    __labTaskWorkspace = RiskOps.taskController.createTaskWorkspaceController({
+        doc: document,
+        getUser: () => currentUser,
+        getTaskCache: () => taskStateCache,
+        getAllTasks: () => allTasks,
+        setActiveTaskId: (id) => { currentActiveTaskId = id; },
+        setSelectedTask: (task) => { currentSelectedTask = task; },
+        getDocUrl: (fileName) => getDocUrl(fileName),
+        syncActiveSession: () => syncActiveSessionToFirebase(),
+        escape: (value) => escapeHTML(value),
+        encodeArg: (value) => encodeInlineHandlerArg(value),
+        newDate: () => new Date()
+    });
+    return __labTaskWorkspace;
+}
+
+let __labTaskRecovery = null;
+function __tareasRecovery() {
+    if (__labTaskRecovery) return __labTaskRecovery;
+    __labTaskRecovery = RiskOps.taskController.createTaskRecoveryController({
+        repository: __tareasRepo(),
+        getTaskCache: () => taskStateCache,
+        setTaskCache: (cache) => { taskStateCache = cache; },
+        saveTaskCache: (cache) => localStorage.setItem('riskOps_cache', JSON.stringify(cache)),
+        getAuthUser: () => firebase.auth().currentUser,
+        alert: (message) => alert(message),
+        logger: console
+    });
+    return __labTaskRecovery;
+}
+
+let __labTaskLoaders = null;
+function __tareasLoaders() {
+    if (__labTaskLoaders) return __labTaskLoaders;
+    __labTaskLoaders = RiskOps.taskLoadersController.createTaskLoadersController({
+        fetchFn: (url) => fetch(url),
+        XLSX: XLSX,
+        doc: document,
+        now: () => Date.now(),
+        newDate: () => new Date(),
+        getUser: () => currentUser,
+        persistUser: (user) => localStorage.setItem('riskOps_currentUser', JSON.stringify(user)),
+        getScheduleRows: () => globalScheduleRows,
+        getScheduleBlocks: () => globalScheduleBlocks,
+        setSchedule: (rows, blocks) => { globalScheduleRows = rows; globalScheduleBlocks = blocks; },
+        getShiftForDate: (rows, blocks, name, date) => getShiftForDate(rows, blocks, name, date),
+        normalizeName: (name) => normalizeName(name),
+        namesMatch: (a, b) => namesMatch(a, b),
+        taskNamesMatch: (a, b) => taskNamesMatch(a, b),
+        setNamesMatch: (a, b) => setNamesMatch(a, b),
+        escape: (value) => escapeHTML(value),
+        encodeArg: (value) => encodeInlineHandlerArg(value),
+        multiSelect: {
+            setup: (id, options, onChange) => setupCustomMultiSelect(id, options, onChange),
+            getValues: (id) => getSelectedMultiSelectValues(id)
+        },
+        loadCronogramaAssignments: (name, shift) => loadCronogramaAssignments(name, shift),
+        getCronogramaAssignments: () => gestorCronogramaAssignments,
+        getTaskCache: () => taskStateCache,
+        saveTaskCache: (cache) => localStorage.setItem('riskOps_cache', JSON.stringify(cache)),
+        repository: __tareasRepo(),
+        setAllTasks: (tasks) => { allTasks = tasks; },
+        renderTree: (tasksBySet) => renderTree(tasksBySet),
+        syncActiveSession: () => syncActiveSessionToFirebase(),
+        database: database,
+        getAuthUid: () => { const u = firebase.auth().currentUser; return u && u.uid; },
+        alert: (message) => alert(message),
+        logger: console
+    });
+    return __labTaskLoaders;
+}
+
+// Live Clock Logic — [LAB-INTEGRACION] delega en RiskOps.clockFormat
 function updateClock() {
     const clockElement = document.getElementById('liveClock');
     if (!clockElement) return;
 
-    const now = new Date();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
-    
-    clockElement.textContent = `${hours}:${minutes}:${seconds}`;
+    clockElement.textContent = RiskOps.clockFormat.formatClockTime(new Date());
 }
 
 // Update clock every second
@@ -1340,776 +1464,19 @@ let allTasks = [];
 let currentSelectedTask = null;
 
 // Initialize Excel fetching
-async function loadExcelTasks() {
-    const container = document.querySelector('.tree-container');
-    if(container) container.innerHTML = '<div style="padding: 20px; color: var(--text-secondary);"><i class="bx bx-loader-alt bx-spin"></i> Cargando Tareas...</div>';
-    
-    try {
-        const url = encodeURI('Tareas Riesgo/Tareas de Riesgo.xlsx') + '?t=' + new Date().getTime();
-        const response = await fetch(url);
-        console.log(`XLSX_FETCH url=${url} status=${response.status}`);
-        if(!response.ok) throw new Error("Error HTTP " + response.status);
-        const arrayBuffer = await response.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer, {type: 'array'});
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-        
-        // Assign ID to all master tasks in json
-        json.forEach((row, idx) => {
-            row.id = idx;
-        });
-        
-        let processedRows = [];
-        
-        if (currentUser && currentUser.role === 'Gestor') {
-            // Resolve today's real shift from the parsed schedule (globalScheduleRows/globalScheduleBlocks)
-            // This ensures the filter uses the actual shift for today, not a stale value from localStorage
-            let resolvedShift = currentUser.shift || 'Por Asignar';
-            if (globalScheduleRows && globalScheduleBlocks && globalScheduleBlocks.length > 0) {
-                const todayShift = getShiftForDate(globalScheduleRows, globalScheduleBlocks, currentUser.name, new Date());
-                if (todayShift && todayShift !== 'Por Asignar' && todayShift !== 'Descansa') {
-                    resolvedShift = todayShift;
-                }
-            }
-            // Load cronograma assignments using the resolved real shift
-            await loadCronogramaAssignments(currentUser.name, resolvedShift);
-            
-            if (gestorCronogramaAssignments && gestorCronogramaAssignments.length > 0) {
-                // Filter the master json rows
-                const filteredMasterRows = json.filter(row => {
-                    const set = row['Set '] || row['Set'] || 'Otros';
-                    const taskName = row['Tarea'];
-                    return gestorCronogramaAssignments.some(assign => 
-                        taskNamesMatch(assign.task, taskName) && setNamesMatch(assign.set, set)
-                    );
-                });
-                
-                // Generate mock tasks for assignments that aren't in the master sheet
-                const generatedMocks = [];
-                const usedMockIds = new Set();
-                const generateDeterministicMockTaskId = (taskName, set) => {
-                    const raw = `${(set || 'Otros').trim().toLowerCase()}::${(taskName || '').trim().toLowerCase()}`;
-                    let hash = 0;
-                    for (let i = 0; i < raw.length; i++) {
-                        hash = ((hash << 5) - hash) + raw.charCodeAt(i);
-                        hash |= 0;
-                    }
-                    let candidate = 10000 + (Math.abs(hash) % 89999);
-                    while (usedMockIds.has(candidate)) {
-                        candidate++;
-                    }
-                    usedMockIds.add(candidate);
-                    return candidate;
-                };
-
-                gestorCronogramaAssignments.forEach(assign => {
-                    const hasMasterMatch = json.some(row => 
-                        taskNamesMatch(assign.task, row['Tarea']) && setNamesMatch(assign.set, row['Set '] || row['Set'] || 'Otros')
-                    );
-                    
-                    if (!hasMasterMatch) {
-                        const mockRow = {
-                            'Set ': assign.set,
-                            'Tarea': assign.task,
-                            'Detalle de Tarea': `Tarea de control rutinario: ${assign.task}. Realizar las verificaciones correspondientes según los lineamientos de Riesgo.`,
-                            'Horario': 'Durante el turno',
-                            'Día': 'Diario',
-                            'Instrucciones': '1. Realizar la validación de la tarea de acuerdo con el procedimiento estándar.\n2. Registrar cualquier anomalía en los canales oficiales.\n3. Marcar como completada en esta plataforma al finalizar.',
-                            'Documento / Video de Apoyo': '',
-                            id: generateDeterministicMockTaskId(assign.task, assign.set)
-                        };
-                        generatedMocks.push(mockRow);
-                    }
-                });
-                
-                processedRows = [...filteredMasterRows, ...generatedMocks];
-            } else {
-                processedRows = [];
-            }
-        } else {
-            // Admin/Supervisor or other roles see everything
-            processedRows = json;
-        }
-        
-        // Transform the data, group by Set
-        const tasksBySet = {};
-        allTasks = []; // Clear global allTasks
-        
-        processedRows.forEach((row, index) => {
-            const set = row['Set '] || row['Set'] || 'Otros';
-            const taskName = row['Tarea'];
-            const taskId = row.id !== undefined ? row.id : index;
-            
-            if (!tasksBySet[set]) tasksBySet[set] = [];
-            
-            // Check for duplicates in the visual tree
-            const isDuplicate = tasksBySet[set].some(t => t.name === taskName);
-            
-            if (!isDuplicate) {
-                tasksBySet[set].push({
-                    id: taskId,
-                    name: taskName,
-                    detail: row['Detalle de Tarea'],
-                    time: row['Horario'],
-                    day: row['Día']
-                });
-            }
-            allTasks.push({ ...row, id: taskId });
-        });
-        
-        // Inicializar estado 'En Proceso' para las tareas asignadas del gestor y purgar huérfanas
-        if (currentUser && currentUser.role === 'Gestor' && Array.isArray(processedRows)) {
-            let hasNewTasksToSync = false;
-            const validAssignedIds = new Set(processedRows.map((row, index) => canonicalTaskId(row.id !== undefined ? row.id : index)));
-
-            // Purgar tareas huérfanas o desactualizadas del caché local (evita que tareas de turnos pasados bloqueen el cierre)
-            let cacheWasPurged = false;
-            for (const cachedId in taskStateCache) {
-                if (!validAssignedIds.has(cachedId) && !cachedId.startsWith('extra_')) {
-                    delete taskStateCache[cachedId];
-                    cacheWasPurged = true;
-                }
-            }
-
-            processedRows.forEach((row, index) => {
-                const taskId = canonicalTaskId(row.id !== undefined ? row.id : index);
-                const taskName = row['Tarea'];
-                if (!taskStateCache[taskId]) {
-                    taskStateCache[taskId] = {
-                        name: taskName,
-                        status: 'En Proceso',
-                        observation: '',
-                        updatedAt: Date.now()
-                    };
-                    hasNewTasksToSync = true;
-                }
-            });
-            if (hasNewTasksToSync || cacheWasPurged) {
-                try {
-                    localStorage.setItem('riskOps_cache', JSON.stringify(taskStateCache));
-                } catch (e) {}
-                if (currentUser.uid && hasNewTasksToSync) {
-                    try {
-                        await migrateLocalTasksToActiveSession(currentUser.uid, taskStateCache, {});
-                    } catch (syncErr) {
-                        console.error("Error al sincronizar tareas iniciales En Proceso:", syncErr);
-                    }
-                }
-            }
-        }
-        
-        // Populate Set Selector
-        const select = document.getElementById('activeSetSelect');
-        if(select) {
-            select.innerHTML = '<option value="" disabled selected>Selecciona tu SET a trabajar...</option><option value="Todos">Mostrar Todos</option>';
-            const setsKeys = Object.keys(tasksBySet).sort();
-            setsKeys.forEach(set => {
-                select.innerHTML += `<option value="${escapeHTML(set)}">${escapeHTML(set)}</option>`;
-            });
-            
-            // Clone select to remove old event listeners
-            const newSelect = select.cloneNode(true);
-            select.parentNode.replaceChild(newSelect, select);
-            
-            newSelect.addEventListener('change', (e) => {
-                const val = e.target.value;
-                if(val === 'Todos') {
-                    renderTree(tasksBySet);
-                } else {
-                    const filtered = {};
-                    filtered[val] = tasksBySet[val];
-                    renderTree(filtered);
-                }
-            });
-
-            if (setsKeys.length === 1) {
-                newSelect.value = setsKeys[0];
-                const filtered = {};
-                filtered[setsKeys[0]] = tasksBySet[setsKeys[0]];
-                renderTree(filtered);
-            } else if (setsKeys.length === 0) {
-                const container = document.querySelector('.tree-container');
-                if(container) container.innerHTML = '<div style="padding: 20px; color: var(--text-secondary); text-align: center;">No hay tareas asignadas en tu cronograma para el día de hoy.</div>';
-            } else {
-                // No renderizar todos por defecto, esperar selección
-                const container = document.querySelector('.tree-container');
-                if(container) container.innerHTML = '<div style="padding: 20px; color: var(--text-secondary); text-align: center;">Selecciona un SET en el menú desplegable para ver las tareas.</div>';
-            }
-        }
-        
-    } catch(err) {
-        console.error("Error loading tasks:", err);
-        const container = document.querySelector('.tree-container');
-        if(container) container.innerHTML = `<div style="padding: 20px; color: var(--danger);"><i class="bx bx-error-circle"></i> Error cargando tareas: ${escapeHTML(err.message)}</div>`;
-    }
-}
+async function loadExcelTasks() { return __tareasLoaders().loadExcelTasks(); } // [LAB-INTEGRACION] RiskOps.taskLoadersController
 
 // Initializar parseo del Horario Personal
-async function loadSchedule() {
-    try {
-        const url = encodeURI('Horario/Horario 2026.xlsx') + '?t=' + Date.now();
-        const response = await fetch(url);
-        console.log(`XLSX_FETCH url=${url} status=${response.status}`);
-        if(!response.ok) throw new Error("Fallo red");
-        const arrayBuffer = await response.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer, {type: 'array'});
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
-        
-        function formatExcelDate(serial) {
-            if(!serial) return "";
-            const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-            
-            // Si ya es un string que parece fecha (ej: "2026-06-08" o "2026-06-08T00:00...")
-            if (typeof serial === 'string' && (serial.includes('-') || serial.includes('/'))) {
-                const d = new Date(serial);
-                if (!isNaN(d.getTime())) {
-                    return `${d.getUTCDate()} ${monthNames[d.getUTCMonth()]}`;
-                }
-            }
-            
-            // Si es un número (serial de Excel)
-            if (!isNaN(serial)) {
-                const epochUTC = Date.UTC(1899, 11, 30);
-                const d = new Date(epochUTC + parseFloat(serial) * 86400000);
-                return `${d.getUTCDate()} ${monthNames[d.getUTCMonth()]}`;
-            }
-            
-            return "";
-        }
-        
-        let allScheduleBlocks = [];
-        if (rows && rows.length > 2) {
-            for(let rIdx = 0; rIdx < rows.length; rIdx++) {
-                const testRow = rows[rIdx];
-                if (!testRow || testRow.length < 2) continue;
-                
-                if (formatExcelDate(testRow[1]) !== "") {
-                    const nextR = rows[rIdx+1];
-                    if (nextR && nextR.length > 1 && (nextR[1] === 'Lunes' || nextR[1] === 'Martes')) {
-                        // Encontramos un bloque, vamos a ver la fecha inicial y final
-                        let firstDate = formatExcelDate(testRow[1]);
-                        let lastDate = firstDate;
-                        for(let c = 1; c < testRow.length; c++) {
-                            if(formatExcelDate(testRow[c])) lastDate = formatExcelDate(testRow[c]);
-                        }
-                        
-                        allScheduleBlocks.push({
-                            startRow: rIdx,
-                            label: `Semana del ${firstDate} al ${lastDate}`
-                        });
-                        rIdx++; // Saltar la fila de días
-                    }
-                }
-            }
-        }
+async function loadSchedule() { return __tareasLoaders().loadSchedule(); } // [LAB-INTEGRACION] RiskOps.taskLoadersController
 
-        globalScheduleRows = rows;
-        globalScheduleBlocks = allScheduleBlocks;
-        
-        if (allScheduleBlocks.length === 0) return; // No hay datos válidos
+function loadTeletrabajo() { return __tareasLoaders().loadTeletrabajo(); } // [LAB-INTEGRACION] RiskOps.taskLoadersController
 
-        const tableHead = document.getElementById('scheduleTableHead');
-        const tableBody = document.getElementById('scheduleTableBody');
-        
-        if(tableHead && tableBody && rows.length > 2) {
-            
-            const weekSelector = document.getElementById('weekSelector');
-            
-            // Encontrar el bloque correspondiente a hoy
-            let defaultBlockRow = null;
-            const today = new Date();
-            for (let block of allScheduleBlocks) {
-                const dateRow = rows[block.startRow];
-                for (let c = 1; c < dateRow.length; c++) {
-                    const serial = dateRow[c];
-                    if (serial) {
-                        let cellDate = null;
-                        if (!isNaN(serial)) {
-                            cellDate = excelToJSDate(serial);
-                        } else if (typeof serial === 'string' && (serial.includes('-') || serial.includes('/'))) {
-                            const parsed = new Date(serial);
-                            if (!isNaN(parsed.getTime())) {
-                                cellDate = parsed;
-                            }
-                        }
-                        
-                        if (cellDate && isSameDate(cellDate, today)) {
-                            defaultBlockRow = block.startRow;
-                            break;
-                        }
-                    }
-                }
-                if (defaultBlockRow !== null) break;
-            }
-            
-            if (defaultBlockRow === null) {
-                defaultBlockRow = allScheduleBlocks[allScheduleBlocks.length - 1].startRow;
-            }
-            
-            const scheduleGestorFilter = document.getElementById('scheduleGestorFilter');
-            let selectedGestor = '';
-
-            // Extraer lista única de gestores de la hoja de cálculo
-            const allGestoresSet = new Set();
-            allScheduleBlocks.forEach(block => {
-                for (let rIdx = block.startRow + 2; rIdx < rows.length; rIdx++) {
-                    const row = rows[rIdx];
-                    if (!row || !row[0] || String(row[0]).trim() === '' || String(row[0]).trim().toUpperCase() === 'GESTOR') break;
-                    allGestoresSet.add(String(row[0]).trim());
-                }
-            });
-            const sortedGestores = Array.from(allGestoresSet).sort((a, b) => a.localeCompare(b));
-
-            setupCustomMultiSelect('scheduleGestorMultiSelect', sortedGestores, (selectedList) => {
-                renderScheduleBlock(parseInt(weekSelector ? weekSelector.value : defaultBlockRow));
-            });
-
-            if (weekSelector) {
-                weekSelector.innerHTML = '';
-                allScheduleBlocks.forEach(block => {
-                    weekSelector.innerHTML += `<option value="${escapeHTML(String(block.startRow))}">${escapeHTML(block.label)}</option>`;
-                });
-                
-                weekSelector.value = defaultBlockRow;
-                
-                weekSelector.addEventListener('change', (e) => {
-                    renderScheduleBlock(parseInt(e.target.value));
-                });
-            }
-            
-            // Renderizar el bloque inicial
-            renderScheduleBlock(defaultBlockRow);
-            
-            function renderScheduleBlock(blockStartRow) {
-                const dateRow = rows[blockStartRow];
-                const dayRow = rows[blockStartRow + 1];
-                const selectedList = getSelectedMultiSelectValues('scheduleGestorMultiSelect');
-                
-                let numCols = 0;
-                for(let i=1; i<dateRow.length; i++) {
-                    if(formatExcelDate(dateRow[i])) numCols = i;
-                }
-                if(numCols === 0) numCols = 7; // fallback
-                
-                let headHTML = '<tr style="border-bottom: 1px solid var(--glass-border);">';
-                headHTML += `<th style="padding: 12px; color: var(--accent-primary); text-align: left; position: sticky; left: 0; background: var(--bg-panel); z-index: 2;">GESTOR <i class='bx bx-refresh' style='cursor:pointer; margin-left:5px;' onclick='loadSchedule()' title='Refrescar Horario'></i></th>`;
-                for(let i = 1; i <= numCols; i++) {
-                    const dayName = dayRow[i] || `Día ${i}`;
-                    const dateParsed = formatExcelDate(dateRow[i]);
-                    const subText = dateParsed ? `<br><span style="font-size: 11px; font-weight: normal; color: var(--text-secondary);">${dateParsed}</span>` : '';
-                    headHTML += `<th style="padding: 12px; color: var(--accent-primary); text-align: center;">${escapeHTML(String(dayName))}${subText}</th>`;
-                }
-                headHTML += '</tr>';
-                tableHead.innerHTML = headHTML;
-                
-                tableBody.innerHTML = '';
-                for(let rowIndex = blockStartRow + 2; rowIndex < rows.length; rowIndex++) {
-                    const r = rows[rowIndex];
-                    if (!r || !r[0] || String(r[0]).trim() === '' || String(r[0]).trim().toUpperCase() === 'GESTOR') break;
-                    
-                    const gestorName = String(r[0]).trim();
-                    if (selectedList.length > 0 && !selectedList.some(sel => normalizeName(gestorName) === normalizeName(sel))) {
-                        continue;
-                    }
-
-                    let isCurrentUser = (currentUser && namesMatch(gestorName, currentUser.name));
-                    if (isCurrentUser) console.log('current user matched = true');
-                    
-                    if (currentUser && currentUser.role === 'Gestor' && !isCurrentUser) continue;
-
-                    let bgClass = isCurrentUser ? 'rgba(59,130,246,0.1)' : 'transparent';
-                    
-                    let trHTML = `<tr class="hover-highlight" style="border-bottom: 1px solid var(--glass-border); background: ${bgClass};">`;
-                    trHTML += `<td style="padding: 12px; font-weight: 600; text-align: left; color: ${isCurrentUser ? 'var(--accent-primary)' : 'var(--text-primary)'}; position: sticky; left: 0; background: ${isCurrentUser ? 'var(--bg-dark)' : 'var(--bg-panel)'}; z-index: 1;">${escapeHTML(gestorName)}</td>`;
-                    
-                    // Encontrar el turno para mostrar en el badge principal (corresponde a hoy)
-                    let badgeShift = getShiftForDate(rows, allScheduleBlocks, gestorName, new Date());
-                    
-                    for(let i = 1; i <= numCols; i++) {
-                        const shift = r[i] || 'Descansa';
-                        
-                        let badgeClass = 'pending';
-                        const sLower = normalizeName(shift);
-                        if(/\d\s*(am|pm)/i.test(shift)) badgeClass = 'in-progress';
-                        else if(sLower.includes('vacacion')) badgeClass = 'vacaciones-badge';
-                        else if(sLower.includes('descansa')) badgeClass = 'descanso-badge';
-                        else if(sLower.includes('familia')) badgeClass = 'familia-badge';
-                        else if(sLower.includes('incapacidad')) badgeClass = 'incapacidad-badge';
-                        else if(sLower.includes('disponible') || sLower.includes('dosponible')) badgeClass = 'disponible-badge';
-                        
-                        trHTML += `<td style="padding: 12px; text-align: center; white-space: nowrap;"><span class="badge ${badgeClass}">${escapeHTML(String(shift))}</span></td>`;
-                    }
-                    
-                    if (isCurrentUser && badgeShift) {
-                        const userRoleEl = document.getElementById('userRole');
-                        if (userRoleEl) userRoleEl.textContent = `${currentUser.role} | Turno: ${badgeShift}`;
-                        const headerShiftBadge = document.querySelector('.shift-badge');
-                        if (headerShiftBadge) headerShiftBadge.textContent = `TURNO: ${badgeShift}`;
-                        
-                        // Guardar el turno en currentUser y sincronizar a Firebase
-                        if (currentUser.shift !== badgeShift) {
-                            currentUser.shift = badgeShift;
-                            localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
-                            syncActiveSessionToFirebase();
-                            loadExcelTasks();
-                        }
-                    }
-                    trHTML += '</tr>';
-                    tableBody.innerHTML += trHTML;
-                }
-            }
-        }
-    } catch(e) {
-        console.log("No se pudo cargar el horario", e);
-    }
-}
-
-function loadTeletrabajo() {
-    fetch('Teletrabajo/Teletrabajo.xlsx?v=' + Date.now())
-        .then(res => { console.log(`XLSX_TELEWORK_FETCH status=${res.status}`); return res; })
-        .then(res => {
-            if(!res.ok) throw new Error("No se encontró el archivo de Teletrabajo");
-            return res.arrayBuffer();
-        })
-        .then(data => {
-            const workbook = XLSX.read(data, {type: 'array'});
-            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-            const rows = XLSX.utils.sheet_to_json(firstSheet, {header: 1, defval: ""});
-            
-            let allBlocks = [];
-            
-            for(let r = 0; r < rows.length; r++) {
-                for(let c = 0; c < rows[r].length; c++) {
-                    // Bloque mejorado: busca etiquetas claras de calendario
-                    const cellVal = String(rows[r][c]).trim();
-                    const lowCell = cellVal.toLowerCase();
-                    if(lowCell.includes('semana') || lowCell.includes('teletrabajo') || /^\d{1,2}\/\d{1,2}/.test(cellVal)) {
-                        let block = {
-                            label: cellVal,
-                            startRow: r,
-                            colIndex: c,
-                            data: []
-                        };
-                        
-                        // Buscamos filas debajo de este título que tengan nombres
-                        for(let i = r + 1; i < rows.length; i++) {
-                            const gestor = rows[i] ? rows[i][c] : null;
-                            const dia = rows[i] ? rows[i][c+1] : null;
-                            
-                            if(!gestor || String(gestor).trim() === '') break;
-                            if(String(gestor).trim().toUpperCase() === 'GESTOR') continue; 
-                            
-                            block.data.push({
-                                gestor: String(gestor).trim(),
-                                dia: String(dia || '').trim()
-                            });
-                        }
-                        
-                        if(block.data.length > 0) allBlocks.push(block);
-                    }
-                }
-            }
-            
-            if(allBlocks.length === 0) return;
-            
-            const weekSelector = document.getElementById('teletrabajoWeekSelector');
-            const tableHead = document.getElementById('teletrabajoTableHead');
-            const tableBody = document.getElementById('teletrabajoTableBody');
-            
-            const allTeleGestores = new Set();
-            allBlocks.forEach(b => {
-                b.data.forEach(r => {
-                    if (r.gestor) allTeleGestores.add(String(r.gestor).trim());
-                });
-            });
-            const sortedTeleGestores = Array.from(allTeleGestores).sort((a,b) => a.localeCompare(b));
-
-            let defaultBlockIdx = allBlocks.length - 1;
-
-            setupCustomMultiSelect('teletrabajoGestorMultiSelect', sortedTeleGestores, () => {
-                renderTeletrabajoBlock(allBlocks[weekSelector ? weekSelector.value : defaultBlockIdx]);
-            });
-
-            if(weekSelector) {
-                weekSelector.innerHTML = '';
-                allBlocks.forEach((block, idx) => {
-                    weekSelector.innerHTML += `<option value="${escapeHTML(String(idx))}">${escapeHTML(block.label)}</option>`;
-                });
-                
-                weekSelector.value = defaultBlockIdx;
-                
-                weekSelector.addEventListener('change', (e) => {
-                    renderTeletrabajoBlock(allBlocks[e.target.value]);
-                });
-                
-                renderTeletrabajoBlock(allBlocks[defaultBlockIdx]);
-            }
-            
-            function renderTeletrabajoBlock(block) {
-                const selectedList = getSelectedMultiSelectValues('teletrabajoGestorMultiSelect');
-                tableHead.innerHTML = `
-                    <tr style="border-bottom: 1px solid var(--glass-border);">
-                        <th style="padding: 12px; color: var(--accent-primary); text-align: left; position: sticky; left: 0; background: var(--bg-panel); z-index: 2;">GESTOR <i class='bx bx-refresh' style='cursor:pointer; margin-left:5px;' onclick='loadTeletrabajo()' title='Refrescar Teletrabajo'></i></th>
-                        <th style="padding: 12px; color: var(--accent-primary); text-align: center;">DÍA</th>
-                        <th style="padding: 12px; color: var(--accent-primary); text-align: center;">MODALIDAD</th>
-                    </tr>
-                `;
-                
-                tableBody.innerHTML = '';
-                block.data.forEach(row => {
-                    if (selectedList.length > 0 && !selectedList.some(sel => normalizeName(row.gestor) === normalizeName(sel))) {
-                        return;
-                    }
-
-                    let isCurrentUser = (currentUser && namesMatch(row.gestor, currentUser.name));
-                    
-                    if (currentUser && currentUser.role === 'Gestor' && !isCurrentUser) return;
-
-                    let bgClass = isCurrentUser ? 'rgba(59,130,246,0.1)' : 'transparent';
-                    
-                    let isTeletrabajo = row.dia && row.dia.toLowerCase() !== 'nan';
-                    let estadoHtml = isTeletrabajo ? `<span class="badge" style="background: rgba(16, 185, 129, 0.2); color: var(--success);">HOME OFFICE</span>` : `<span class="badge pending">PRESENCIAL</span>`;
-                    
-                    tableBody.innerHTML += `
-                        <tr class="hover-highlight" style="border-bottom: 1px solid var(--glass-border); background: ${bgClass};">
-                            <td style="padding: 12px; font-weight: 600; text-align: left; color: ${isCurrentUser ? 'var(--accent-primary)' : 'var(--text-primary)'}; position: sticky; left: 0; background: ${isCurrentUser ? 'var(--bg-dark)' : 'var(--bg-panel)'}; z-index: 1;">${escapeHTML(row.gestor)}</td>
-                            <td style="padding: 12px; text-align: center;">${isTeletrabajo ? escapeHTML(row.dia) : '-'}</td>
-                            <td style="padding: 12px; text-align: center;">${estadoHtml}</td>
-                        </tr>
-                    `;
-                });
-            }
-        })
-        .catch(err => {
-            console.error("Error cargando Teletrabajo:", err);
-            const tb = document.getElementById('teletrabajoTableBody');
-            if(tb) tb.innerHTML = `<tr><td colspan="3" style="padding: 20px; color: var(--danger); text-align: center;">No se pudo cargar Teletrabajo.xlsx o no existe.</td></tr>`;
-        });
-}
-
-let allLoadedPermissions = [];
-
-// Cargar Histórico de Permisos desde Firebase
-async function loadPermisos() {
-    try {
-        let permissionsRef = database.ref('permissions');
-        if (currentUser && currentUser.role !== 'Admin' && currentUser.role !== 'Supervisor') {
-            const authUid = currentUser.uid || (firebase.auth().currentUser && firebase.auth().currentUser.uid);
-            if (!authUid) throw new Error('No se pudo determinar el UID del usuario autenticado');
-            permissionsRef = permissionsRef.orderByChild('uid').equalTo(authUid);
-        }
-        const snapshot = await permissionsRef.once('value');
-        const historicoContainer = document.getElementById('historicoPermisosList');
-        if(!historicoContainer) return;
-        
-        historicoContainer.innerHTML = '';
-        
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            let permisos = Object.keys(data).map(k => ({...data[k], fb_id: k}));
-            allLoadedPermissions = permisos;
-            
-            // Filtro de privacidad: Gestor solo ve lo suyo. Admin ve todo.
-            if (currentUser && currentUser.role !== 'Admin' && currentUser.role !== 'Supervisor') {
-                permisos = permisos.filter(p => p.gestor === currentUser.name);
-            }
-            
-            // Ordenar por ID descendente (más nuevos primero)
-            permisos.sort((a,b) => b.id - a.id);
-            
-            if (permisos.length === 0) {
-                historicoContainer.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 20px;">No hay permisos en el historial.</p>';
-                return;
-            }
-            
-            permisos.forEach(p => {
-                let icon = 'bx-time';
-                let badgeClass = 'pending';
-                if(p.status === 'Aprobado') { badgeClass = 'in-progress'; icon = 'bx-check-double'; }
-                if(p.status === 'Rechazado') { badgeClass = 'not-done'; icon = 'bx-x'; }
-                
-                let rejectionHtml = p.rejectionReason ? `<br><small style="color:var(--danger)">Razón/Obs: ${escapeHTML(p.rejectionReason)}</small>` : '';
-                
-                let createdTimeText = p.horaSolicitud;
-                if (!createdTimeText && p.id) {
-                    try {
-                        const d = new Date(p.id);
-                        createdTimeText = `${d.toLocaleDateString('es-CO')} ${d.toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', hour12:true})}`;
-                    } catch(err) { createdTimeText = 'N/A'; }
-                }
-
-                historicoContainer.innerHTML += `
-                    <div class="tree-item" style="margin-top: 10px; cursor: pointer; transition: all 0.2s ease; border-radius: 8px;" onclick="openPermisoDetailModal(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))" title="Haz clic para ver el detalle completo de este permiso">
-                        <div class="tree-header" style="padding: 12px; display: flex; align-items: center; gap: 10px;">
-                            <i class='bx ${icon}' style="font-size: 20px;"></i>
-                            <div style="display:flex; flex-direction:column; flex: 1;">
-                                <strong style="font-size: 14px; color: var(--text-primary);">${escapeHTML(p.tipo)}</strong>
-                                <small style="font-size:11px; opacity:0.8; color: var(--text-secondary); margin-top: 2px;">
-                                    ${escapeHTML(p.gestor)} | ${escapeHTML(p.fecha)} (${escapeHTML(p.horaInicio)} a ${escapeHTML(p.horaFin)})${rejectionHtml}
-                                </small>
-                                <small style="font-size:10px; color: var(--accent-primary); margin-top: 2px; font-weight: 500;">
-                                    <i class='bx bx-calendar-event'></i> Solicitado el: ${escapeHTML(createdTimeText || 'N/A')}
-                                </small>
-                            </div>
-                            <span class="badge ${badgeClass}" style="margin-left: auto; padding: 4px 10px; font-size: 11px;">${escapeHTML(p.status)}</span>
-                            <i class='bx bx-chevron-right' style="font-size: 18px; color: var(--text-secondary); opacity: 0.6;"></i>
-                        </div>
-                    </div>
-                `;
-            });
-        } else {
-            historicoContainer.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 20px;">No hay permisos registrados.</p>';
-        }
-    } catch(e) {
-        console.error("No se pudo cargar permisos desde Firebase", e);
-    }
-}
+async function loadPermisos() { return __tareasLoaders().loadPermisos(); } // [LAB-INTEGRACION] RiskOps.taskLoadersController (allLoadedPermissions vive dentro del controlador)
 
 // Modal de detalle completo de permiso
-window.openPermisoDetailModal = async function(fb_id) {
-    let perm = allLoadedPermissions.find(p => p.fb_id === fb_id);
-    if (!perm) {
-        try {
-            const snap = await database.ref('permissions/' + fb_id).once('value');
-            if (snap.exists()) perm = { ...snap.val(), fb_id };
-        } catch(e) { console.error(e); }
-    }
-    
-    if (!perm) {
-        alert("No se encontró información del permiso.");
-        return;
-    }
-    
-    const body = document.getElementById('permDetailModalBody');
-    if (!body) return;
-    
-    let statusColor = 'var(--warning)';
-    let statusIcon = 'bx-time';
-    if (perm.status === 'Aprobado') { statusColor = 'var(--success)'; statusIcon = 'bx-check-circle'; }
-    if (perm.status === 'Rechazado') { statusColor = 'var(--danger)'; statusIcon = 'bx-x-circle'; }
-    
-    let fechaRange = perm.fecha;
-    if (perm.fechaDesde && perm.fechaHasta && perm.fechaDesde !== perm.fechaHasta) {
-        fechaRange = `Desde ${perm.fechaDesde} hasta ${perm.fechaHasta}`;
-    }
-    
-    let createdTimeText = perm.horaSolicitud;
-    if (!createdTimeText && perm.id) {
-        try {
-            const d = new Date(perm.id);
-            createdTimeText = `${d.toLocaleDateString('es-CO')} ${d.toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', hour12:true})}`;
-        } catch(err) { createdTimeText = 'N/A'; }
-    }
+window.openPermisoDetailModal = async function(fb_id) { return __tareasLoaders().openPermisoDetailModal(fb_id); }; // [LAB-INTEGRACION] RiskOps.taskLoadersController
 
-    body.innerHTML = `
-        <div style="display: flex; flex-direction: column; gap: 15px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 12px 15px; border-radius: 10px; border: 1px solid var(--glass-border);">
-                <div>
-                    <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-secondary); display: block;">Estado de Solicitud</span>
-                    <strong style="font-size: 16px; color: ${statusColor}; display: flex; align-items: center; gap: 6px; margin-top: 2px;">
-                        <i class='bx ${statusIcon}'></i> ${escapeHTML(perm.status)}
-                    </strong>
-                </div>
-                <div style="text-align: right;">
-                    <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-secondary); display: block;">Tipo de Permiso</span>
-                    <strong style="font-size: 14px; color: var(--accent-primary); margin-top: 2px; display: block;">${escapeHTML(perm.tipo)}</strong>
-                </div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
-                <div style="background: rgba(255,255,255,0.02); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
-                    <small style="color: var(--text-secondary); display: block; font-size: 11px;">Gestor Solicitante</small>
-                    <strong style="font-size: 13px; color: var(--text-primary); margin-top: 3px; display: block;">${escapeHTML(perm.gestor)}</strong>
-                </div>
-                <div style="background: rgba(255,255,255,0.02); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
-                    <small style="color: var(--text-secondary); display: block; font-size: 11px;">Fecha de Solicitud (Creación)</small>
-                    <strong style="font-size: 13px; color: var(--accent-primary); margin-top: 3px; display: block;">${escapeHTML(createdTimeText || 'N/A')}</strong>
-                </div>
-                <div style="background: rgba(255,255,255,0.02); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
-                    <small style="color: var(--text-secondary); display: block; font-size: 11px;">Fecha del Permiso</small>
-                    <strong style="font-size: 13px; color: var(--text-primary); margin-top: 3px; display: block;">${escapeHTML(fechaRange)}</strong>
-                </div>
-                <div style="background: rgba(255,255,255,0.02); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
-                    <small style="color: var(--text-secondary); display: block; font-size: 11px;">Horario Solicitado</small>
-                    <strong style="font-size: 13px; color: var(--text-primary); margin-top: 3px; display: block;">${escapeHTML(perm.horaInicio || 'N/A')} a ${escapeHTML(perm.horaFin || 'N/A')}</strong>
-                </div>
-            </div>
-
-            <div style="background: rgba(255,255,255,0.03); padding: 12px 15px; border-radius: 10px; border: 1px solid var(--glass-border);">
-                <small style="color: var(--accent-primary); display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Motivo / Justificación del Gestor:</small>
-                <div style="font-size: 13px; color: var(--text-primary); line-height: 1.5; white-space: pre-wrap; word-break: break-word;">
-                    ${escapeHTML(perm.motivo || 'Sin justificación detallada.')}
-                </div>
-            </div>
-
-            ${perm.rejectionReason ? `
-                <div style="background: rgba(239, 68, 68, 0.08); padding: 12px 15px; border-radius: 10px; border: 1px solid rgba(239, 68, 68, 0.3);">
-                    <small style="color: var(--danger); display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Observación / Razón de Respuesta:</small>
-                    <div style="font-size: 13px; color: var(--text-primary); line-height: 1.5; white-space: pre-wrap; word-break: break-word;">
-                        ${escapeHTML(perm.rejectionReason)}
-                    </div>
-                </div>
-            ` : ''}
-        </div>
-    `;
-    
-    const modal = document.getElementById('permDetailModal');
-    if (modal) {
-        modal.classList.add('active');
-    }
-};
-
-function renderTree(tasksBySet) {
-    const container = document.querySelector('.tree-container');
-    if(!container) return;
-    
-    container.innerHTML = ''; // clear mock
-    
-    // Sort keys logically
-    const sets = Object.keys(tasksBySet).sort();
-    const shouldAutoExpand = sets.length === 1;
-    
-    sets.forEach(set => {
-        const setDiv = document.createElement('div');
-        setDiv.className = 'tree-item';
-        
-        const total = tasksBySet[set].length;
-        const headerClass = shouldAutoExpand ? 'tree-header open' : 'tree-header';
-        const childrenClass = shouldAutoExpand ? 'tree-children show' : 'tree-children';
-        
-        setDiv.innerHTML = `
-            <div class="${headerClass}" onclick="toggleTree(this)">
-                <i class='bx bx-chevron-right'></i>
-                <span>${escapeHTML(set)}</span>
-                <span class="badge pending">${total} Tareas</span>
-            </div>
-            <div class="${childrenClass}">
-                ${tasksBySet[set].map(task => {
-                    const cId = canonicalTaskId(task.id);
-                    const taskEntry = taskStateCache[cId] || taskStateCache[task.id];
-                    let statusClass = 'status-pending';
-                    if (taskEntry) {
-                        const statusText = taskEntry.status;
-                        if (statusText === 'Finalizada') statusClass = 'status-completed';
-                        else if (statusText === 'En Proceso') statusClass = 'status-in-progress';
-                        else if (statusText === 'No Realizada') statusClass = 'status-not-done';
-                    }
-                    return `
-                    <div class="task-item" onclick="selectTask(decodeURIComponent('${encodeInlineHandlerArg(task.id)}'), event)">
-                        <i class='bx bx-file-blank'></i> ${escapeHTML(task.name)}
-                        <div class="task-status ${statusClass}"></div>
-                    </div>
-                    `;
-                }).join('')}
-            </div>
-        `;
-        container.appendChild(setDiv);
-    });
-    
-    // Update KPI whenever tree is rendered
-    updateKPI();
-}
+function renderTree(tasksBySet) { return __tareasWorkspace().renderTree(tasksBySet); } // [LAB-INTEGRACION] RiskOps.taskController
 
 // --- Identidad canónica y nombre visible de tareas normales ---------------
 // Los IDs de tareas normales pueden llegar como number (loadExcelTasks():
@@ -2238,31 +1605,15 @@ function buildTaskReportSummaryText(report) {
 // Escribe únicamente en active_sessions/{uid}/tasks/{taskId}, nunca reemplaza
 // el nodo "tasks" completo, y siempre devuelve/rechaza la Promise real de
 // Firebase (no la atrapa ni la convierte en éxito).
+// [LAB-INTEGRACION] Persistencia central del progreso de UNA tarea y lectura del progreso remoto propio: delegan en
+// RiskOps.taskRepository (mismas rutas, mismas Promises reales, `ok:false` ante fallo de lectura).
+// Autocontenida a propósito (solo usa `database` y `RiskOps`): la prueba de otro corte (modales-permisos-integrado.e2e.cjs) la
+// extrae de app.js por su cabecera hasta la primera llave de cierre y la ejecuta aislada.
 function persistTaskToActiveSession(uid, taskId, taskData) {
-    if (!uid) return Promise.reject(new Error('MISSING_UID'));
-    if (!taskId) return Promise.reject(new Error('MISSING_TASK_ID'));
-    return database.ref(`active_sessions/${uid}/tasks/${taskId}`).update(taskData);
+    return RiskOps.taskRepository.createTaskRepository({ database: database }).persistTaskToActiveSession(uid, taskId, taskData);
 }
 
-// Lee el progreso remoto de tareas del propio Gestor (nunca de otros usuarios)
-// para poder recuperarlo al recargar la aplicación durante el mismo turno.
-// IMPORTANTE: un error de lectura NUNCA se convierte silenciosamente en "no
-// hay tareas remotas" — eso podría hacer que la migración trate tareas que sí
-// existen en Firebase como ausentes y las re-escriba innecesariamente (o
-// peor, con datos obsoletos). Por eso el resultado siempre indica
-// explícitamente si la lectura fue confiable ({ ok: true, tasks }) o no
-// ({ ok: false, tasks: {} }), para que el llamador pueda abortar con
-// seguridad en vez de fusionar/migrar contra un estado remoto desconocido.
-async function fetchOwnActiveSessionTasks(uid) {
-    if (!uid) return { ok: false, tasks: {} };
-    try {
-        const snapshot = await database.ref(`active_sessions/${uid}/tasks`).once('value');
-        return { ok: true, tasks: snapshot.exists() ? snapshot.val() : {} };
-    } catch (e) {
-        console.error('Error al recuperar el progreso remoto de tareas:', e);
-        return { ok: false, tasks: {} };
-    }
-}
+async function fetchOwnActiveSessionTasks(uid) { return __tareasRepo().fetchOwnActiveSessionTasks(uid); }
 
 // Combina el caché local (localStorage) con el progreso remoto recuperado,
 // resolviendo conflictos por tarea mediante updatedAt: el remoto solo
@@ -2329,21 +1680,8 @@ function computeLocalTaskMigrations(mergedCache, remoteCache, now) {
 // intenta migrar (por ejemplo, el propio Gestor guardó esa misma tarea desde
 // otra pestaña justo mientras corría la migración), la transacción se aborta
 // devolviendo undefined y Firebase conserva la remota sin modificarla.
-function persistTaskIfNotNewerRemote(uid, taskId, record) {
-    if (!uid) return Promise.reject(new Error('MISSING_UID'));
-    if (!taskId) return Promise.reject(new Error('MISSING_TASK_ID'));
-    return database.ref(`active_sessions/${uid}/tasks/${taskId}`).transaction((currentValue) => {
-        if (
-            currentValue
-            && typeof currentValue.updatedAt === 'number'
-            && typeof record.updatedAt === 'number'
-            && currentValue.updatedAt > record.updatedAt
-        ) {
-            return undefined; // Abortar: conservar la versión remota más reciente.
-        }
-        return record;
-    });
-}
+// [LAB-INTEGRACION] Transacción condicional (aborta si el remoto es estrictamente más reciente): RiskOps.taskRepository
+function persistTaskIfNotNewerRemote(uid, taskId, record) { return __tareasRepo().persistTaskIfNotNewerRemote(uid, taskId, record); }
 
 // Migración de recuperación puntual (se ejecuta una vez durante initApp,
 // nunca de forma periódica): persiste individualmente, vía la transacción
@@ -2356,32 +1694,8 @@ function persistTaskIfNotNewerRemote(uid, taskId, record) {
 // advertir de los taskId en "failed". Un taskId en "skipped" no es un fallo:
 // significa que una versión remota más reciente ganó la transacción y se
 // conservó intacta, tal como exige persistTaskIfNotNewerRemote().
-async function migrateLocalTasksToActiveSession(uid, mergedCache, remoteCache) {
-    if (!uid || !mergedCache) return { migrated: [], failed: [], skipped: [] };
-    const migrations = computeLocalTaskMigrations(mergedCache, remoteCache, Date.now());
-    const migrated = [];
-    const failed = [];
-    const skipped = [];
-    for (const { taskId, record } of migrations) {
-        mergedCache[taskId] = record;
-        try {
-            localStorage.setItem('riskOps_cache', JSON.stringify(mergedCache));
-        } catch (e) { /* localStorage no disponible: el respaldo local es best-effort */ }
-
-        try {
-            const result = await persistTaskIfNotNewerRemote(uid, taskId, record);
-            if (result && result.committed === false) {
-                skipped.push(taskId);
-            } else {
-                migrated.push(taskId);
-            }
-        } catch (error) {
-            console.error('Error al migrar una tarea local a Firebase durante la recuperación de sesión:', taskId, error);
-            failed.push(taskId);
-        }
-    }
-    return { migrated, failed, skipped };
-}
+// [LAB-INTEGRACION] Migración de recuperación puntual (respaldo local ANTES del intento remoto): RiskOps.taskRepository
+async function migrateLocalTasksToActiveSession(uid, mergedCache, remoteCache) { return __tareasRepo().migrateLocalTasksToActiveSession(uid, mergedCache, remoteCache); }
 
 function syncActiveSessionToFirebase() {
     if (!currentUser || currentUser.role !== 'Gestor') return Promise.resolve();
@@ -2395,15 +1709,14 @@ function syncActiveSessionToFirebase() {
         return Promise.resolve();
     }
 
-    const totalTasks = document.querySelectorAll('.task-item').length;
-    const completedTasks = document.querySelectorAll('.task-item .status-completed').length;
-    const notDoneTasks = document.querySelectorAll('.task-item .status-not-done').length;
-    const finalized = completedTasks + notDoneTasks;
+    // [LAB-INTEGRACION] contadores y porcentaje del latido desde RiskOps.taskProgress (el DOM se cuenta con countDomTasks)
+    const __syncCounters = RiskOps.taskProgress.computeSyncPercentage(RiskOps.taskController.countDomTasks(document));
+    const totalTasks = __syncCounters.totalTasks;
+    const completedTasks = __syncCounters.completedTasks;
+    const notDoneTasks = __syncCounters.notDoneTasks;
+    const finalized = __syncCounters.finalized;
 
-    let percentage = 0;
-    if (totalTasks > 0) {
-        percentage = Math.round((finalized / totalTasks) * 100);
-    }
+    let percentage = __syncCounters.percentage;
 
     // Use local currentUser.loginTime, avoiding any database reads that could hang
     const loginTime = currentUser.loginTime || new Date().toISOString();
@@ -2423,23 +1736,13 @@ function syncActiveSessionToFirebase() {
         isInactive = true;
     }
     
-    if (isSplitShiftBreak) {
-        currentStatus = 'En Pausa de Turno';
-    } else if (isLunchBreak) {
-        currentStatus = 'En Almuerzo';
-    } else if (isBreakfastBreak) {
-        currentStatus = 'En Desayuno';
-    } else if (isInactive) {
-        currentStatus = 'Inactivo';
-    } else {
-        currentStatus = 'En Línea';
-    }
+    // [LAB-INTEGRACION] estado y campos de la Pausa de Turno desde RiskOps.shiftController
+    const __live = __shiftController().describeLiveSession(isInactive);
+    currentStatus = __live.status;
     
-    if (currentStatus === 'Inactivo' && localStatus !== 'Inactivo') {
-        pushTimelineEvent('Inactividad', 'start');
-    } else if (currentStatus !== 'Inactivo' && localStatus === 'Inactivo') {
-        pushTimelineEvent('Inactividad', 'end');
-    }
+    // [LAB-INTEGRACION] transición de Inactividad desde RiskOps.taskSessionSync
+    const __inactivityAction = RiskOps.taskSessionSync.decideInactivityTimelineAction(currentStatus, localStatus);
+    if (__inactivityAction) pushTimelineEvent('Inactividad', __inactivityAction);
     localStatus = currentStatus;
     
     // Esta sincronización SOLO transporta metadatos de la sesión (nombre,
@@ -2466,224 +1769,27 @@ function syncActiveSessionToFirebase() {
             lastActive: newLastActive,
             status: currentStatus,
             totalTasks: totalTasks,
-            finalizedTasks: finalized,
-            completedTasks: completedTasks,
-            notDoneTasks: notDoneTasks,
-            percentage: percentage,
-            timeline: shiftTimeline || [],
-            appVersion: 'v104'
+            ...RiskOps.taskSessionSync.buildSessionMetadataTail({ finalized: finalized, completedTasks: completedTasks, notDoneTasks: notDoneTasks, percentage: percentage }, shiftTimeline), // [LAB-INTEGRACION] finalizedTasks..appVersion
           };
 
     // No se atrapa el error de forma que oculte el fallo: se devuelve la
     // Promise real (rechazada si falla) y, aparte, se registra en consola.
+    sessionMetadata.splitShiftStartTime = __live.splitShiftStartTime; // [LAB-INTEGRACION]
+    sessionMetadata.totalSplitShiftTimeMs = __live.totalSplitShiftTimeMs; // [LAB-INTEGRACION]
     const syncPromise = database.ref(`active_sessions/${uid}`).update(sessionMetadata);
     syncPromise.catch(e => console.error("Error syncing active session via SDK:", e));
+    syncPromise.then(() => __labSetSyncWarning(false), () => __labSetSyncWarning(true)); // [LAB-INTEGRACION]
     return syncPromise;
 }
 
-function updateKPI() {
-    const totalTasks = document.querySelectorAll('.task-item').length;
-    const completedTasks = document.querySelectorAll('.task-item .status-completed').length;
-    const notDoneTasks = document.querySelectorAll('.task-item .status-not-done').length;
-    
-    // Finalizadas = completed + not-done
-    const finalized = completedTasks + notDoneTasks; 
-    const pending = totalTasks - finalized;
-    
-    let completedPercentage = 0;
-    let notDonePercentage = 0;
-    let totalPercentage = 0;
-    
-    if (totalTasks > 0) {
-        completedPercentage = Math.round((completedTasks / totalTasks) * 100);
-        notDonePercentage = Math.round((notDoneTasks / totalTasks) * 100);
-        totalPercentage = completedPercentage + notDonePercentage;
-    }
-    
-    const kpiContainer = document.querySelector('.kpi-card');
-    if (kpiContainer) {
-        kpiContainer.innerHTML = `
-            <div class="kpi-circle">
-                <svg viewBox="0 0 36 36" class="circular-chart" style="width: 100%; height: 100%;">
-                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" style="fill: none; stroke: var(--glass-border); stroke-width: 3.8;"/>
-                    <path class="circle" stroke-dasharray="${completedPercentage}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" style="fill: none; stroke-width: 3.8; stroke-linecap: round; stroke: var(--success); transition: stroke-dasharray 1s ease-out;"/>
-                    <path class="circle-not-done" stroke-dasharray="${notDonePercentage}, 100" stroke-dashoffset="-${completedPercentage}" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" style="fill: none; stroke-width: 3.8; stroke-linecap: round; stroke: var(--danger); transition: stroke-dasharray 1s ease-out, stroke-dashoffset 1s ease-out;"/>
-                    <text x="18" y="20.35" class="percentage" style="fill: var(--text-primary); font-family: 'Inter'; font-size: 8px; font-weight: bold; text-anchor: middle;">${totalPercentage}%</text>
-                </svg>
-            </div>
-            <div class="kpi-stats">
-                <p><strong>${totalTasks}</strong> Asignadas</p>
-                <p><strong style="color: var(--success);">${completedTasks}</strong> Realizadas</p>
-                <p><strong style="color: var(--danger);">${notDoneTasks}</strong> No Realizadas</p>
-                <p><strong>${pending}</strong> Pendientes</p>
-            </div>
-        `;
-    }
+function updateKPI() { return __tareasWorkspace().updateKPI(); } // [LAB-INTEGRACION] RiskOps.taskController
 
-    // Sincronizar sesión activa si es gestor
-    if (currentUser && currentUser.role === 'Gestor') {
-        syncActiveSessionToFirebase();
-    }
-}
+function toggleTree(element) { return __tareasWorkspace().toggleTree(element); } // [LAB-INTEGRACION] RiskOps.taskController
 
-function toggleTree(element) {
-    element.classList.toggle('open');
-    const childrenContainer = element.nextElementSibling;
-    if (childrenContainer) {
-        childrenContainer.classList.toggle('show');
-    }
-}
-
-// Renderizar documentos en el panel de accesos rápidos
-function renderQuickDocs(selectedTaskName) {
-    const container = document.getElementById('quickDocsList');
-    if (!container) return;
-
-    const archivos = [
-        "Instructivo de revisión de apuestas casino.pdf",
-        "Instructivo de validación de GGR Casino.pdf",
-        "Política Procedimiento De Aprobación De Retiros.pdf",
-        "Procedimiento Identificación de jineteo.pdf",
-        "Proceso de Eliminación de Cuentas - Implementaciones.pdf",
-        "VALIDACIÓN DE ABUSO DE BONOS EN CAMPAÑAS DE CRM.pdf",
-        "Revisión de Eventos Deportivos.mp4",
-        "Revisión de Eventos.mp4",
-        "Validación SEON.mp4"
-    ];
-
-    let matchedDoc = null;
-    if (selectedTaskName) {
-        const taskNameLower = selectedTaskName.toLowerCase();
-        if (taskNameLower.includes('ggr')) matchedDoc = "Instructivo de validación de GGR Casino.pdf";
-        else if (taskNameLower.includes('apuesta')) matchedDoc = "Instructivo de revisión de apuestas casino.pdf";
-        else if (taskNameLower.includes('retiro')) matchedDoc = "Política Procedimiento De Aprobación De Retiros.pdf";
-        else if (taskNameLower.includes('jineteo') || taskNameLower.includes('jineteo')) matchedDoc = "Procedimiento Identificación de jineteo.pdf";
-        else if (taskNameLower.includes('eliminaci')) matchedDoc = "Proceso de Eliminación de Cuentas - Implementaciones.pdf";
-        else if (taskNameLower.includes('bonos')) matchedDoc = "VALIDACIÓN DE ABUSO DE BONOS EN CAMPAÑAS DE CRM.pdf";
-        else if (taskNameLower.includes('deportiv')) matchedDoc = "Revisión de Eventos Deportivos.mp4";
-        else if (taskNameLower.includes('evento')) matchedDoc = "Revisión de Eventos.mp4";
-        else if (taskNameLower.includes('seon')) matchedDoc = "Validación SEON.mp4";
-    }
-
-    container.innerHTML = '';
-
-    // Si hay un documento que coincide, mostrarlo destacado arriba
-    if (matchedDoc) {
-        const isVideo = matchedDoc.toLowerCase().endsWith('.mp4');
-        const isWord = matchedDoc.toLowerCase().endsWith('.docx') || matchedDoc.toLowerCase().endsWith('.doc');
-        const isExcel = matchedDoc.toLowerCase().endsWith('.xlsx') || matchedDoc.toLowerCase().endsWith('.xls');
-        
-        let icon = 'bx-file-pdf';
-        let color = '#FF5A5A'; // PDF red
-        
-        if (isVideo) { icon = 'bx-video'; color = '#3B82F6'; }
-        else if (isWord) { icon = 'bx-file-blank'; color = '#2563EB'; } // Word blue
-        else if (isExcel) { icon = 'bx-table'; color = '#10B981'; } // Excel green
-
-        container.innerHTML += `
-            <div style="margin-bottom: 12px; background: rgba(0, 180, 216, 0.1); padding: 10px; border-radius: var(--radius-md); border: 1px dashed var(--accent-primary);">
-                <span style="font-size: 10px; color: var(--accent-primary); font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px; margin-bottom: 6px;">
-                    <i class='bx bxs-star'></i> Sugerido para esta tarea
-                </span>
-                <a href="${getDocUrl(matchedDoc)}" target="_blank" rel="noopener noreferrer" class="doc-link" style="background: transparent; padding: 0; display: flex; align-items: center; gap: 10px;">
-                    <i class='bx ${icon}' style="font-size: 20px; color: ${color};"></i>
-                    <span style="color: var(--text-primary); font-weight: 500; font-size: 13px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${matchedDoc.replace(/\.[^/.]+$/, "")}</span>
-                </a>
-            </div>
-            <div style="height: 1px; background: var(--glass-border); margin: 10px 0;"></div>
-        `;
-    }
-
-    // Listar todos los demás documentos
-    archivos.forEach(file => {
-        if (file === matchedDoc) return; // Omitir el destacado ya listado
-
-        const isVideo = file.toLowerCase().endsWith('.mp4');
-        const isWord = file.toLowerCase().endsWith('.docx') || file.toLowerCase().endsWith('.doc');
-        const isExcel = file.toLowerCase().endsWith('.xlsx') || file.toLowerCase().endsWith('.xls');
-        
-        let icon = 'bx-file-pdf';
-        let color = '#FF5A5A'; // PDF red
-        
-        if (isVideo) { icon = 'bx-video'; color = '#3B82F6'; }
-        else if (isWord) { icon = 'bx-file-blank'; color = '#2563EB'; } // Word blue
-        else if (isExcel) { icon = 'bx-table'; color = '#10B981'; } // Excel green
-
-        container.innerHTML += `
-            <a href="${getDocUrl(file)}" target="_blank" rel="noopener noreferrer" class="doc-link" style="margin-bottom: 8px;">
-                <i class='bx ${icon}' style="font-size: 18px; color: ${color};"></i>
-                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;">${file.replace(/\.[^/.]+$/, "")}</span>
-            </a>
-        `;
-    });
-}
+function renderQuickDocs(selectedTaskName) { return __tareasWorkspace().renderQuickDocs(selectedTaskName); } // [LAB-INTEGRACION] RiskOps.taskController
 
 // Global scope logic for onclick elements
-window.selectTask = function(taskId, evt) {
-    const canonicalId = canonicalTaskId(taskId);
-    currentActiveTaskId = canonicalId;
-    // Remove active
-    document.querySelectorAll('.task-item').forEach(el => el.classList.remove('active'));
-    // Add active (evt is passed explicitly from the inline onclick; never rely on the global event object)
-    const eventTarget = evt && evt.currentTarget;
-    if(eventTarget) eventTarget.classList.add('active');
-
-    // Comparar por ID canónico (string): allTasks trae IDs number (loadExcelTasks:
-    // row.id = idx) mientras que taskId llega siempre como string (decodeURIComponent()
-    // del onclick serializado por renderTree()). Sin canonicalTaskId(), 0 !== "0"
-    // dejaba la selección sin resolver.
-    const task = allTasks.find(t => canonicalTaskId(t.id) === canonicalId);
-    if(task) {
-        const titleElement = document.getElementById('currentTaskTitle');
-        if (titleElement) titleElement.textContent = task['Tarea'];
-        currentSelectedTask = task;
-        
-        // Renderizar accesos rápidos destacando el documento de esta tarea
-        renderQuickDocs(task['Tarea']);
-        
-        // Populate instructions text area if we want to
-        const textArea = document.getElementById('taskObservation');
-        
-        if (currentUser && (currentUser.role === 'Admin' || currentUser.role === 'Supervisor')) {
-            if (textArea) {
-                // Show task detail and instructions for admin/supervisor review
-                let detailText = `Detalle: ${task['Detalle de Tarea'] || 'Sin detalle'}\n\n`;
-                detailText += `Horario: ${task['Horario'] || 'No especificado'}\n`;
-                detailText += `Día: ${task['Día'] || 'No especificado'}\n\n`;
-                detailText += `Instrucciones:\n${task['Instrucciones'] || 'Sin instrucciones'}`;
-                textArea.value = detailText;
-            }
-        } else {
-            // Restore from cache if exists
-            document.querySelectorAll('.btn-status').forEach(el => el.classList.remove('active'));
-            if(taskStateCache[canonicalId]) {
-                if(textArea) textArea.value = taskStateCache[canonicalId].observation || "";
-
-                const cachedStatus = taskStateCache[canonicalId].status;
-                let found = false;
-                document.querySelectorAll('.btn-status').forEach(el => {
-                    if(el.textContent.trim() === cachedStatus) {
-                        el.classList.add('active');
-                        found = true;
-                    }
-                });
-                if(!found) document.querySelector('.btn-status.pending').classList.add('active');
-            } else {
-                if(textArea) textArea.value = ""; // Limpiar nota de otras tareas
-                document.querySelector('.btn-status.pending').classList.add('active');
-            }
-        }
-    } else {
-        currentSelectedTask = null;
-        currentActiveTaskId = null;
-        if(eventTarget) eventTarget.classList.remove('active');
-        const titleElement = document.getElementById('currentTaskTitle');
-        if (titleElement) titleElement.textContent = "Selecciona una tarea";
-        const textArea = document.getElementById('taskObservation');
-        if (textArea) textArea.value = "";
-        document.querySelectorAll('.btn-status').forEach(el => el.classList.remove('active'));
-    }
-}
+window.selectTask = function(taskId, evt) { return __tareasWorkspace().selectTask(taskId, evt); }; // [LAB-INTEGRACION] RiskOps.taskController
 
 // Orquesta, de forma "fail-safe", la recuperación del progreso remoto de
 // tareas y la migración de recuperación puntual para el Gestor autenticado.
@@ -2701,32 +1807,9 @@ window.selectTask = function(taskId, evt) {
 // La combinación (merge) en memoria y su respaldo en localStorage sí pueden
 // ocurrir con el resultado ya leído de Firebase (es solo una vista local),
 // pero ninguna escritura remota ocurre salvo que ambas validaciones pasen.
-async function recoverGestorTaskProgress(uid) {
-    const remoteResult = await fetchOwnActiveSessionTasks(uid);
-    if (!remoteResult.ok) {
-        return { status: 'REMOTE_READ_FAILED', failedMigrationsCount: 0 };
-    }
-
-    taskStateCache = mergeTaskCaches(taskStateCache, remoteResult.tasks);
-    try {
-        localStorage.setItem('riskOps_cache', JSON.stringify(taskStateCache));
-    } catch (e) { /* localStorage no disponible: el respaldo local es best-effort */ }
-
-    const authUser = firebase.auth().currentUser;
-    if (!authUser || authUser.uid !== uid) {
-        console.error('No se pudo verificar la identidad autenticada antes de migrar el progreso local; se omite la migración.');
-        return { status: 'IDENTITY_MISMATCH', failedMigrationsCount: 0 };
-    }
-
-    // Migración de recuperación puntual (una sola vez, no periódica):
-    // re-escribe en Firebase, tarea por tarea y de forma transaccional
-    // condicional, lo que ya está resuelto localmente pero que Firebase
-    // todavía no tiene o tiene desactualizado (ausente en remoto, o el local
-    // ganó el conflicto de mergeTaskCaches). Es idempotente: una recarga
-    // posterior no vuelve a migrar lo ya igual.
-    const { failed } = await migrateLocalTasksToActiveSession(uid, taskStateCache, remoteResult.tasks);
-    return { status: 'OK', failedMigrationsCount: failed.length };
-}
+// [LAB-INTEGRACION] Recuperación "fail-safe" del progreso remoto (lectura no confiable o identidad distinta => cero escrituras remotas):
+// RiskOps.taskController.createTaskRecoveryController
+async function recoverGestorTaskProgress(uid) { return __tareasRecovery().recoverGestorTaskProgress(uid); }
 
 // Task Status Buttons Interaction
 async function initApp() {
@@ -2735,44 +1818,17 @@ async function initApp() {
     // ANTES de renderizar, y migrar de vuelta lo que Firebase todavía no
     // tiene. Cualquier fallo se resuelve de forma segura dentro de
     // recoverGestorTaskProgress(): nunca produce un falso éxito.
-    if (currentUser && currentUser.role === 'Gestor' && currentUser.uid) {
-        try {
-            const recovery = await recoverGestorTaskProgress(currentUser.uid);
-            if (recovery.status === 'REMOTE_READ_FAILED') {
-                alert(
-                    'No se pudo verificar el progreso remoto de tareas en el servidor. '
-                    + 'Se conserva el respaldo local de este dispositivo; se reintentará más adelante.',
-                );
-            } else if (recovery.failedMigrationsCount > 0) {
-                // Advertencia visible; nunca se reporta esto como una recuperación
-                // exitosa. El respaldo local ya quedó conservado por
-                // migrateLocalTasksToActiveSession() antes de cada intento fallido.
-                alert(
-                    `No se pudo sincronizar con el servidor el progreso local de ${recovery.failedMigrationsCount} tarea(s). `
-                    + 'Se conservó el respaldo local en este dispositivo; vuelve a guardar esas tareas cuando tengas conexión.',
-                );
-            }
-        } catch (e) {
-            console.error('No se pudo recuperar el progreso remoto de tareas al iniciar:', e);
-        }
-    }
-
-    // Carga de Excel Inicial
-    try {
-        await loadSchedule();
-    } catch(e) {
-        console.error("Error al cargar el horario en la inicialización:", e);
-    }
-    
-    try {
-        await loadExcelTasks();
-    } catch(e) {
-        console.error("Error al cargar las tareas en la inicialización:", e);
-    }
-    
-    loadTeletrabajo();
-    loadPermisos();
-    renderQuickDocs(null);
+    // [LAB-INTEGRACION] secuencia de arranque de datos desde RiskOps.taskController: recuperación -> horario -> tareas -> teletrabajo -> permisos -> docs
+    await RiskOps.taskController.runStartupDataSequence({
+        user: currentUser,
+        runStartupRecovery: (user) => __tareasRecovery().runStartupRecovery(user),
+        loadSchedule: () => loadSchedule(),
+        loadExcelTasks: () => loadExcelTasks(),
+        loadTeletrabajo: () => loadTeletrabajo(),
+        loadPermisos: () => loadPermisos(),
+        renderQuickDocs: (name) => renderQuickDocs(name),
+        logger: console
+    });
 
     // Theme logic
     const themeToggleBtn = document.getElementById('themeToggleBtn');
@@ -3264,127 +2320,26 @@ async function initApp() {
         if(pName) pName.value = currentUser.name;
     }
     
-    // Botón de guardar progreso en tarea
+    // Botón de guardar progreso en tarea — [LAB-INTEGRACION] lógica en RiskOps.taskController.createTaskSaveController
     const saveTaskBtn = document.getElementById('saveTaskBtn');
     if(saveTaskBtn) {
-        let isSavingTask = false;
-        saveTaskBtn.addEventListener('click', async () => {
-            // Evitar dobles clics / escrituras simultáneas mientras una ya está en curso
-            if (isSavingTask) return;
-
-            // --- Validaciones obligatorias antes de escribir ---
-            if (currentActiveTaskId === null || currentActiveTaskId === undefined) {
-                alert("Selecciona una tarea antes de guardar el progreso.");
-                return;
-            }
-            const selectedStatusBtn = document.querySelector('.btn-status.active');
-            if (!selectedStatusBtn) {
-                alert("Selecciona un estado antes de guardar el progreso.");
-                return;
-            }
-            const obsField = document.getElementById('taskObservation');
-            const obsValue = obsField ? obsField.value.trim() : '';
-            if (!obsValue) {
-                alert("OBLIGATORIO: Debes detallar la gestión realizada en las Notas Técnicas antes de guardar.");
-                return;
-            }
-            const authUser = firebase.auth().currentUser;
-            if (!authUser) {
-                alert("Tu sesión expiró. Vuelve a iniciar sesión para guardar el progreso.");
-                return;
-            }
-            if (!currentUser || currentUser.uid !== authUser.uid) {
-                alert("No se pudo verificar tu identidad. Vuelve a iniciar sesión para guardar el progreso.");
-                return;
-            }
-            const taskIdStr = canonicalTaskId(currentActiveTaskId);
-            if (!taskIdStr || /[.#$\[\]/]/.test(taskIdStr)) {
-                alert("La tarea seleccionada tiene un identificador inválido y no puede guardarse.");
-                return;
-            }
-            // La selección debe estar resuelta contra el catálogo (allTasks) antes de
-            // permitir guardar: si currentSelectedTask no existe o quedó apuntando a
-            // una tarea distinta de currentActiveTaskId (selección no resuelta, ver
-            // selectTask()), nunca se debe persistir un nombre genérico "Tarea <id>".
-            if (!currentSelectedTask || canonicalTaskId(currentSelectedTask.id) !== taskIdStr) {
-                alert("No se pudo confirmar la tarea seleccionada. Vuelve a seleccionarla antes de guardar.");
-                return;
-            }
-
-            const btn = saveTaskBtn;
-            const prevText = btn.innerHTML;
-            isSavingTask = true;
-            btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Guardando...";
-            btn.disabled = true;
-            btn.classList.remove('btn-success', 'btn-error');
-
-            const taskRecord = {
-                // currentSelectedTask ya quedó validado arriba: siempre existe y su ID
-                // coincide con taskIdStr, así que su nombre real de catálogo (nunca un
-                // "Tarea <id>" genérico) es lo único que se persiste aquí.
-                name: currentSelectedTask['Tarea'],
-                status: selectedStatusBtn.textContent.trim(),
-                observation: obsValue,
-                updatedAt: Date.now()
-            };
-
-            // Respaldo local inmediato para permitir reintento visual, pero esto
-            // NO cuenta como confirmación de persistencia (eso solo lo da Firebase).
-            taskStateCache[taskIdStr] = taskRecord;
-            try {
-                localStorage.setItem('riskOps_cache', JSON.stringify(taskStateCache));
-            } catch (e) { /* localStorage no disponible: el respaldo local es best-effort */ }
-
-            try {
-                // Capturar el elemento visual actual y la clase de estado antes de la promesa,
-                // para evitar condiciones de carrera si el usuario cambia la selección mientras guarda.
-                const visualTaskElement = document.querySelector('.task-item.active .task-status');
-                const statusClassToAdd = selectedStatusBtn.classList.contains('completed') ? 'status-completed' :
-                                         selectedStatusBtn.classList.contains('in-progress') ? 'status-in-progress' :
-                                         selectedStatusBtn.classList.contains('not-done') ? 'status-not-done' : 'status-pending';
-
-                // Único punto de verdad para la persistencia: espera la Promise
-                // real de Firebase antes de mostrar cualquier éxito.
-                await persistTaskToActiveSession(authUser.uid, taskIdStr, taskRecord);
-
-                btn.innerHTML = "<i class='bx bx-check'></i> Guardado Exitosamente";
-                btn.classList.add('btn-success');
-
-                // Limpiar el campo de texto de observaciones al confirmarse el envío de la actividad
-                if (obsField) {
-                    obsField.value = '';
-                }
-
-                // Actualizar estado visual de la tarea guardada
-                if (visualTaskElement) {
-                    visualTaskElement.classList.remove('status-pending', 'status-completed', 'status-not-done', 'status-in-progress');
-                    visualTaskElement.classList.add(statusClassToAdd);
-                }
-
-                updateKPI();
-
-                setTimeout(() => {
-                    btn.innerHTML = prevText;
-                    btn.classList.remove('btn-success');
-                }, 2000);
-            } catch (error) {
-                console.error("Error al guardar el progreso de la tarea:", error);
-                const errorCode = error && error.code ? error.code : '';
-                const isPermissionDenied = errorCode === 'PERMISSION_DENIED' || /permission[_ ]denied/i.test((error && error.message) || '');
-                btn.innerHTML = "<i class='bx bx-error'></i> Error al guardar";
-                btn.classList.add('btn-error');
-                alert(isPermissionDenied
-                    ? "No tienes permiso para guardar esta tarea. Contacta a tu supervisor."
-                    : "No se pudo guardar el progreso en el servidor. El cambio quedó respaldado localmente; intenta guardar de nuevo.");
-                setTimeout(() => {
-                    btn.innerHTML = prevText;
-                    btn.classList.remove('btn-error');
-                }, 2500);
-            } finally {
-                btn.disabled = false;
-                isSavingTask = false;
-            }
+        const __saveTaskController = RiskOps.taskController.createTaskSaveController({
+            doc: document,
+            saveButton: saveTaskBtn,
+            getAuthUser: () => firebase.auth().currentUser,
+            getUser: () => currentUser,
+            getActiveTaskId: () => currentActiveTaskId,
+            getSelectedTask: () => currentSelectedTask,
+            getTaskCache: () => taskStateCache,
+            saveTaskCache: (cache) => localStorage.setItem('riskOps_cache', JSON.stringify(cache)),
+            repository: { persistTaskToActiveSession: (uid, taskId, record) => persistTaskToActiveSession(uid, taskId, record) },
+            updateKPI: () => updateKPI(),
+            alert: (message) => alert(message),
+            setTimeout: (fn, ms) => setTimeout(fn, ms),
+            now: () => Date.now(),
+            logger: console
         });
+        saveTaskBtn.addEventListener('click', async () => { await __saveTaskController.saveTaskProgress(); });
     }
 
     const pForm = document.getElementById('permisosForm');
@@ -3508,87 +2463,10 @@ async function initApp() {
     }
 }
 
-// Lógica de Desayuno
-function toggleBreakfastBreak() {
-    if (!currentUser) return;
-    const btn = document.getElementById('toggleBreakfastBtn');
-    
-    if (!isBreakfastBreak) {
-        if (isLunchBreak || isSplitShiftBreak) { alert("Debes volver del descanso actual primero."); return; }
-        isBreakfastBreak = true;
-        breakfastStartTime = Date.now();
-        pushTimelineEvent('Desayuno', 'start');
-        saveBreakState();
-        if(btn) {
-            btn.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Desayuno";
-            btn.classList.remove('btn-outline');
-            btn.style.backgroundColor = "rgba(255, 152, 0, 0.15)";
-            btn.style.color = "#ff9800";
-            btn.style.borderColor = "rgba(255, 152, 0, 0.5)";
-            btn.style.boxShadow = "0 0 15px rgba(255, 152, 0, 0.2)";
-        }
-        syncActiveSessionToFirebase();
-    } else {
-        isBreakfastBreak = false;
-        if(breakfastStartTime) {
-            totalBreakfastTimeMs += (Date.now() - breakfastStartTime);
-        }
-        breakfastStartTime = null;
-        pushTimelineEvent('Desayuno', 'end');
-        saveBreakState();
-        if(btn) {
-            btn.innerHTML = "<i class='bx bx-coffee'></i> Tomar Desayuno";
-            btn.classList.add('btn-outline');
-            btn.style.backgroundColor = "";
-            btn.style.color = "var(--text-primary)";
-            btn.style.borderColor = "rgba(255,255,255,0.2)";
-            btn.style.boxShadow = "";
-        }
-        updateActivity();
-        syncActiveSessionToFirebase();
-    }
-}
+// Lógica de Desayuno y Almuerzo — [LAB-INTEGRACION] delega en RiskOps.shiftController
+function toggleBreakfastBreak() { return __shiftController().toggleBreakfast(); }
 
-// Lógica de Almuerzo
-function toggleLunchBreak() {
-    if (!currentUser) return;
-    const btn = document.getElementById('toggleLunchBtn');
-    
-    if (!isLunchBreak) {
-        if (isBreakfastBreak || isSplitShiftBreak) { alert("Debes volver del descanso actual primero."); return; }
-        isLunchBreak = true;
-        lunchStartTime = Date.now();
-        pushTimelineEvent('Almuerzo', 'start');
-        saveBreakState();
-        if(btn) {
-            btn.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Almuerzo/Cena";
-            btn.classList.remove('btn-outline');
-            btn.style.backgroundColor = "rgba(0, 188, 212, 0.15)";
-            btn.style.color = "#00bcd4";
-            btn.style.borderColor = "rgba(0, 188, 212, 0.5)";
-            btn.style.boxShadow = "0 0 15px rgba(0, 188, 212, 0.2)";
-        }
-        syncActiveSessionToFirebase();
-    } else {
-        isLunchBreak = false;
-        if(lunchStartTime) {
-            totalLunchTimeMs += (Date.now() - lunchStartTime);
-        }
-        lunchStartTime = null;
-        pushTimelineEvent('Almuerzo', 'end');
-        saveBreakState();
-        if(btn) {
-            btn.innerHTML = "<i class='bx bx-restaurant'></i> Tomar Almuerzo/Cena";
-            btn.classList.add('btn-outline');
-            btn.style.backgroundColor = "";
-            btn.style.color = "var(--text-primary)";
-            btn.style.borderColor = "rgba(255,255,255,0.2)";
-            btn.style.boxShadow = "";
-        }
-        updateActivity();
-        syncActiveSessionToFirebase();
-    }
-}
+function toggleLunchBreak() { return __shiftController().toggleLunch(); }
 
 async function persistShiftClosureCore(reportUid, loginLogId, shiftReportObject) {
     if (!reportUid) throw new Error('Missing authenticated UID for shift closure');
@@ -3624,46 +2502,9 @@ function restoreEndShiftButton(button, previousHtml) {
     button.disabled = false;
 }
 
-// Lógica de Pausa Turno Partido
-function toggleSplitShiftBreak() {
-    if (!currentUser) return;
-    const btn = document.getElementById('toggleSplitShiftBtn');
-    
-    if (!isSplitShiftBreak) {
-        if (isBreakfastBreak || isLunchBreak) { alert("Debes volver del descanso actual primero."); return; }
-        isSplitShiftBreak = true;
-        splitShiftStartTime = Date.now();
-        pushTimelineEvent('Pausa de Turno', 'start');
-        saveBreakState();
-        if(btn) {
-            btn.innerHTML = "<i class='bx bx-check-circle'></i> Retomar Turno";
-            btn.classList.remove('btn-outline');
-            btn.style.backgroundColor = "rgba(139, 92, 246, 0.15)";
-            btn.style.color = "#8b5cf6";
-            btn.style.borderColor = "rgba(139, 92, 246, 0.5)";
-            btn.style.boxShadow = "0 0 15px rgba(139, 92, 246, 0.2)";
-        }
-        syncActiveSessionToFirebase();
-    } else {
-        isSplitShiftBreak = false;
-        if(splitShiftStartTime) {
-            totalSplitShiftTimeMs += (Date.now() - splitShiftStartTime);
-        }
-        splitShiftStartTime = null;
-        pushTimelineEvent('Pausa de Turno', 'end');
-        saveBreakState();
-        if(btn) {
-            btn.innerHTML = "<i class='bx bx-pause-circle'></i> Pausa de Turno";
-            btn.classList.add('btn-outline');
-            btn.style.backgroundColor = "";
-            btn.style.color = "var(--text-primary)";
-            btn.style.borderColor = "rgba(255,255,255,0.2)";
-            btn.style.boxShadow = "";
-        }
-        updateActivity();
-        syncActiveSessionToFirebase();
-    }
-}
+// Lógica de Pausa Turno Partido — [LAB-INTEGRACION] delega en RiskOps.shiftController
+// (iniciar exige users/{uid}/hasSplitShift === true; retomar siempre se permite)
+function toggleSplitShiftBreak() { return __shiftController().toggleSplitShift(); }
 
 async function handleEndShift() {
     if (!confirm("¿Estás seguro que deseas finalizar tu turno actual? Se enviará un resumen al supervisor.")) return;
@@ -3736,9 +2577,8 @@ async function handleEndShift() {
         }
 
         // Cerrar almuerzo, desayuno o turno partido solo después de validar la sesión y el SET.
-        if (isLunchBreak) toggleLunchBreak();
-        if (isBreakfastBreak) toggleBreakfastBreak();
-        if (isSplitShiftBreak) toggleSplitShiftBreak();
+        // [LAB-INTEGRACION] cierra almuerzo, desayuno y Pausa de Turno abiertos (retomar siempre se permite)
+        __shiftController().closeOpenBreaks();
 
         const formData = new FormData();
             
@@ -3746,17 +2586,9 @@ async function handleEndShift() {
             const loginDate = new Date(localUser.loginTime);
             const endDate = new Date();
             
-            // Calculo de tiempos tomados
-            const lunchMinutes = parseFloat((totalLunchTimeMs / (1000 * 60)).toFixed(1));
-            const breakfastMinutes = parseFloat((totalBreakfastTimeMs / (1000 * 60)).toFixed(1));
-            
-            // Calculo de penalidades (excesos)
-            const allowedLunch = 60;
-            const allowedBreakfast = 15;
-            
-            let extraLunch = Math.max(0, lunchMinutes - allowedLunch);
-            let extraBreakfast = Math.max(0, breakfastMinutes - allowedBreakfast);
-            
+            // [LAB-INTEGRACION] tiempos de cierre desde RiskOps.shiftController (la Pausa de Turno NO es tiempo trabajado)
+            // D1: horas efectivas = turno - almuerzo - desayuno - Pausa de Turno - inactividad (fórmula única,
+            // la misma del panel); la penalidad se calcula igual que antes y solo se informa.
             let inactividadMins = 0;
             if (shiftTimeline && shiftTimeline.length > 0) {
                 shiftTimeline.forEach(ev => {
@@ -3766,34 +2598,27 @@ async function handleEndShift() {
                     }
                 });
             }
-            
-            let penalidadConectividadMins = parseFloat((extraLunch + extraBreakfast + inactividadMins).toFixed(1));
-
-            // Calculo de tiempo efectivo
-            const totalShiftMs = endDate.getTime() - loginDate.getTime();
-            // Restamos TODAS las pausas, pero además la penalidad adicional sobre las horas efectivas
-            const effectiveShiftMs = totalShiftMs - totalLunchTimeMs - totalBreakfastTimeMs - (penalidadConectividadMins * 60 * 1000);
-            const effectiveHours = Math.max(0, (effectiveShiftMs / (1000 * 60 * 60))).toFixed(2);
+            // Inactividad que se RESTA: la de la bitácora consolidada (= inactividadTotalMins del reporte guardado)
+            const __inactividadLimpiaMins = RiskOps.shiftReportBuilder.sumCleanInactivityMinutes(
+                RiskOps.timelineService.consolidateTimeline(shiftTimeline, { defaultEndMs: endDate.getTime() }),
+                endDate.getTime()
+            );
+            const __closure = __shiftController().computeShiftClosure({
+                loginMs: loginDate.getTime(),
+                endMs: endDate.getTime(),
+                inactivityMins: inactividadMins,
+                cleanInactivityMins: __inactividadLimpiaMins
+            });
+            const lunchMinutes = __closure.times.lunchMinutes;
+            const breakfastMinutes = __closure.times.breakfastMinutes;
+            let penalidadConectividadMins = __closure.times.penaltyMins;
             
             formData.append("Usuario", localUser.name);
             formData.append("Rol", localUser.role);
             formData.append("Reporte", "CIERRE DE TURNO Y RESUMEN DE TAREAS");
             formData.append("Hora_Inicio_Turno", loginDate.toLocaleString());
             formData.append("Hora_Fin_Turno", endDate.toLocaleString());
-            // [Fase 2] Delegado a shiftReportBuilder.buildClosureEmailTimeFields
-            const _splitMins = totalSplitShiftTimeMs ? parseFloat((totalSplitShiftTimeMs / 60000).toFixed(1)) : 0;
-            const _emailFields = (window.RiskOps && window.RiskOps.shiftReportBuilder)
-                ? window.RiskOps.shiftReportBuilder.buildClosureEmailTimeFields(
-                    { lunchMinutes, breakfastMinutes, splitShiftMinutes: _splitMins, penaltyMins: penalidadConectividadMins, effectiveHours },
-                    totalSplitShiftTimeMs || 0
-                  )
-                : [
-                    ['Tiempo_Almuerzo_Descontado', lunchMinutes + " minutos"],
-                    ['Tiempo_Desayuno_Descontado', breakfastMinutes + " minutos"],
-                    ['Exceso_Pausas_Penalidad', penalidadConectividadMins + " minutos"],
-                    ['Horas_Efectivas_Trabajadas', effectiveHours + " hrs"]
-                  ];
-            _emailFields.forEach(([k, v]) => formData.append(k, v));
+            __closure.emailFields.forEach(([campo, valor]) => formData.append(campo, valor)); // [LAB-INTEGRACION]
             
             // Consolidar eventos duplicados o superpuestos en shiftTimeline antes de armar la bitácora
             let cleanTimeline = [];
@@ -4008,1021 +2833,161 @@ async function handleEndShift() {
 // Inicializar inmediatamente ya que el script está al final del DOM
 initApp();
 
+// [LAB-INTEGRACION:MODALES-PERMISOS:INICIO]
+// [LAB-INTEGRACION] Modales, tareas extra, usuarios y permisos: delegan en RiskOps.approvalsController
+// (fase_2/src/controllers/approvals-controller.js). Mismos nombres y firmas que las funciones originales.
+let __labApprovalsController = null;
+function __approvals() {
+    if (__labApprovalsController) return __labApprovalsController;
+    __labApprovalsController = RiskOps.approvalsController.createApprovalsController({
+        doc: document,
+        repository: RiskOps.approvalsRepository.createApprovalsRepository({ database }),
+        alert: (message) => alert(message),
+        confirm: (message) => confirm(message),
+        now: () => new Date(),
+        schedule: (fn, ms) => setTimeout(fn, ms),
+        logger: console,
+        onPermissionUpdated: () => loadPermisos(),
+        // D7: el rol se valida en el cliente con la sesión actual (enforcePolicy encendido por defecto).
+        getUser: () => currentUser
+        // D2/D7/D9a: sin opciones legacy -> escapeRole, preventDuplicates, enforcePolicy y showRejectedUsers activos.
+    });
+    return __labApprovalsController;
+}
+
+let __labModalsController = null;
+function __modals() {
+    if (__labModalsController) return __labModalsController;
+    __labModalsController = RiskOps.approvalsController.createModalsController({
+        doc: document,
+        alert: (message) => alert(message),
+        now: () => Date.now(),
+        logger: console,
+        getAuthUser: () => firebase.auth().currentUser,
+        getCurrentUser: () => currentUser,
+        persistTask: (uid, taskId, record) => persistTaskToActiveSession(uid, taskId, record),
+        getTaskCache: () => taskStateCache,
+        storage: { setItem: (key, value) => localStorage.setItem(key, value) },
+        updateKPI: () => updateKPI()
+    });
+    return __labModalsController;
+}
+
 // Modal Logic
-function openExceptionModal() {
-    // Set 'not-done' active visually
-    document.querySelectorAll('.btn-status').forEach(b => b.classList.remove('active'));
-    document.querySelector('.btn-status.not-done').classList.add('active');
-    
-    // Clear previous exception inputs!
-    const exReason = document.getElementById('exceptionReason');
-    if(exReason) exReason.value = "";
-    const exDetails = document.getElementById('exceptionDetails');
-    if(exDetails) exDetails.value = "";
-    
-    // Open Modal
-    const modal = document.getElementById('exceptionModal');
-    if(modal) {
-        modal.classList.add('active');
-    }
-}
+function openExceptionModal() { return __modals().openExceptionModal(); }
 
-function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if(modal) {
-        modal.classList.remove('active');
-    }
-}
+function closeModal(modalId) { return __modals().closeModal(modalId); }
 
-function confirmException() {
-    const select = document.getElementById('exceptionReason');
-    const reasonText = select.options[select.selectedIndex].text;
-    const details = document.getElementById('exceptionDetails').value.trim();
-    
-    if(!select.value) {
-        alert('Por favor seleccione una razón principal.');
-        return;
-    }
-    
-    if(!details) {
-        alert('Por favor detalle el problema obligatoriamente.');
-        return;
-    }
-    
-    const obsText = `Excepción: ${reasonText}${details ? ' - ' + details : ''}`;
-    document.getElementById('taskObservation').value = obsText;
-    closeModal('exceptionModal');
-}
+function confirmException() { return __modals().confirmException(); }
 
-function openExtraTaskModal() {
-    const modal = document.getElementById('extraTaskModal');
-    if (modal) {
-        document.getElementById('extraTaskName').value = '';
-        document.getElementById('extraTaskStatus').value = 'Finalizada';
-        document.getElementById('extraTaskObs').value = '';
-        // Un modal recién abierto empieza una tarea extra lógicamente nueva.
-        pendingExtraTaskId = null;
-        modal.classList.add('active');
-    }
-}
+function openExtraTaskModal() { return __modals().openExtraTaskModal(); }
 
-async function saveExtraTask() {
-    if (isSavingExtraTask) return; // Evitar dobles clics / escrituras simultáneas
-
-    const name = document.getElementById('extraTaskName').value.trim();
-    const status = document.getElementById('extraTaskStatus').value;
-    const obs = document.getElementById('extraTaskObs').value.trim();
-
-    if (!name) {
-        alert("OBLIGATORIO: Debes ingresar el nombre de la tarea extra.");
-        return;
-    }
-    if (!obs) {
-        alert("OBLIGATORIO: Debes detallar la gestión realizada en las Notas Técnicas.");
-        return;
-    }
-    const authUser = firebase.auth().currentUser;
-    if (!authUser) {
-        alert("Tu sesión expiró. Vuelve a iniciar sesión para guardar la tarea extra.");
-        return;
-    }
-    if (!currentUser || currentUser.uid !== authUser.uid) {
-        alert("No se pudo verificar tu identidad. Vuelve a iniciar sesión para guardar la tarea extra.");
-        return;
-    }
-
-    const btn = document.getElementById('saveExtraTaskBtn');
-    const prevText = btn ? btn.innerHTML : '';
-    isSavingExtraTask = true;
-    if (btn) {
-        btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Guardando...";
-        btn.disabled = true;
-    }
-
-    // Reutilizar el mismo ID en un reintento tras un fallo previo, para no
-    // duplicar la tarea extra con un nuevo Date.now() en cada intento.
-    const extraId = pendingExtraTaskId || ('extra_' + Date.now());
-    pendingExtraTaskId = extraId;
-
-    const taskRecord = {
-        name: "[EXTRA] " + name,
-        status: status,
-        observation: obs,
-        updatedAt: Date.now()
-    };
-
-    // Respaldo local inmediato para permitir reintento visual; esto NO cuenta
-    // como confirmación de persistencia (eso solo lo da Firebase).
-    taskStateCache[extraId] = taskRecord;
-    try {
-        localStorage.setItem('riskOps_cache', JSON.stringify(taskStateCache));
-    } catch (e) { /* localStorage no disponible: el respaldo local es best-effort */ }
-
-    try {
-        // Único punto de verdad para la persistencia: espera la Promise real
-        // de Firebase antes de mostrar cualquier éxito.
-        await persistTaskToActiveSession(authUser.uid, extraId, taskRecord);
-
-        pendingExtraTaskId = null;
-        updateKPI(); // Actualizar el anillo de progreso
-        closeModal('extraTaskModal');
-        alert(`Tarea Adicional "${name}" agregada exitosamente y se incluirá en tu reporte de turno.`);
-    } catch (error) {
-        console.error("Error al guardar la tarea extra:", error);
-        const errorCode = error && error.code ? error.code : '';
-        const isPermissionDenied = errorCode === 'PERMISSION_DENIED' || /permission[_ ]denied/i.test((error && error.message) || '');
-        alert(isPermissionDenied
-            ? "No tienes permiso para guardar esta tarea extra. Contacta a tu supervisor."
-            : "No se pudo guardar la tarea extra en el servidor. El cambio quedó respaldado localmente; intenta guardar de nuevo.");
-    } finally {
-        if (btn) {
-            btn.innerHTML = prevText;
-            btn.disabled = false;
-        }
-        isSavingExtraTask = false;
-    }
-}
+async function saveExtraTask() { return __modals().saveExtraTask(); }
 
 // Logic for Approving Users
-async function renderPendingUsers() {
-    const tbody = document.getElementById('pendingUsersTableBody');
-    if (!tbody) return;
-    
-    let users = [];
-    try { 
-        const snapshot = await database.ref('users').once('value');
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            users = Object.keys(data).map(k => ({...data[k], id: k}));
-        }
-    } catch(e) {
-        console.error(e);
-    }
-    
-    const pending = users.filter(u => u.approved === false);
-    const approved = users.filter(u => u.approved === true && u.email !== 'maria.sanchez@virtualsoft.tech');
-    
-    tbody.innerHTML = '';
-    
-    const searchInput = document.getElementById('filterAprobacionesSearch');
-    const statusSelect = document.getElementById('filterAprobacionesStatus');
-    const searchVal = searchInput ? normalizeName(searchInput.value) : '';
-    const statusVal = statusSelect ? statusSelect.value : 'Todos';
+async function renderPendingUsers() { return __approvals().renderPendingUsers(); }
 
-    // Mostramos primero los pendientes, luego los aprobados, ordenados por fecha de registro (más reciente a más antiguo)
-    let allDisplayUsers = [...pending, ...approved].sort((a, b) => {
-        const dateA = a.registrationDate ? new Date(a.registrationDate).getTime() : 0;
-        const dateB = b.registrationDate ? new Date(b.registrationDate).getTime() : 0;
-        return dateB - dateA;
-    });
-    
-    // Apply filters
-    const hasFilter = searchVal !== '' || statusVal !== 'Todos';
-    allDisplayUsers = allDisplayUsers.filter(u => {
-        const matchSearch = searchVal === '' || normalizeName(u.name || '').includes(searchVal) || normalizeName(u.email || '').includes(searchVal);
-        let matchStatus = true;
-        if (statusVal === 'Pendiente') matchStatus = (u.approved === false);
-        if (statusVal === 'Aprobado') matchStatus = (u.approved === true);
-        return matchSearch && matchStatus;
-    });
-    
-    // Only show top 5 if no filters are active to keep UI clean
-    if (!hasFilter && allDisplayUsers.length > 5) {
-        allDisplayUsers = allDisplayUsers.slice(0, 5);
-        // Add a fake row to indicate there are more
-        const total = [...pending, ...approved].length;
-        setTimeout(() => {
-            if(document.getElementById('pendingUsersTableBody')) {
-                document.getElementById('pendingMostrandoMsg') ? document.getElementById('pendingMostrandoMsg').remove() : null;
-                const msg = document.createElement('div');
-                msg.id = 'pendingMostrandoMsg';
-                msg.style = 'text-align: center; font-size: 11px; color: var(--text-secondary); margin-top: 10px; margin-bottom: 15px; font-style: italic;';
-                msg.innerText = `Mostrando los 5 registros más recientes de ${total} en total. Usa los filtros arriba para buscar más.`;
-                document.getElementById('pendingUsersTableBody').parentElement.parentElement.appendChild(msg);
-            }
-        }, 100);
-    } else {
-        setTimeout(() => {
-            if(document.getElementById('pendingMostrandoMsg')) document.getElementById('pendingMostrandoMsg').remove();
-        }, 100);
-    }
-    
-    if (allDisplayUsers.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay usuarios que coincidan con los filtros.</td></tr>`;
-        return;
-    }
-    
-    allDisplayUsers.forEach(user => {
-        let actionHtml = '';
-        if (user.approved === true) {
-            actionHtml = `<span style="color: var(--success); font-weight: bold;"><i class='bx bx-check'></i> Aprobado</span>`;
-        } else if (user.approved === 'Rechazado') {
-            actionHtml = `<span style="color: var(--danger); font-weight: bold;"><i class='bx bx-x'></i> Rechazado</span>`;
-        } else {
-            actionHtml = `
-                <div id="user-action-btns-${escapeHTML(user.id)}" style="display:flex; justify-content:center; gap:5px;">
-                    <button class="btn btn-success" style="padding: 5px 10px; font-size: 12px;" onclick="approveUser(decodeURIComponent('${encodeInlineHandlerArg(user.id)}'))">Aprobar</button>
-                    <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="showUserRejectBox(decodeURIComponent('${encodeInlineHandlerArg(user.id)}'))">Rechazar</button>
-                </div>
-                <div id="user-reject-box-${escapeHTML(user.id)}" style="display:none; flex-direction:column; gap:5px; margin-top:5px;">
-                    <input type="text" id="user-reason-${escapeHTML(user.id)}" name="user-reason-${escapeHTML(user.id)}" aria-label="Motivo de rechazo" placeholder="Motivo de rechazo" class="modern-input" style="padding:4px; font-size:11px; width:100%;">
-                    <div style="display:flex; gap:5px; justify-content:center;">
-                        <button class="btn btn-danger" style="padding: 2px 5px; font-size: 10px;" onclick="confirmRejectUser(decodeURIComponent('${encodeInlineHandlerArg(user.id)}'))">Confirmar</button>
-                        <button class="btn btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="cancelRejectUser(decodeURIComponent('${encodeInlineHandlerArg(user.id)}'))">Cancelar</button>
-                    </div>
-                </div>
-            `;
-        }
-        
-        let statusBadge = user.approved ? `<span class="badge" style="background: rgba(16, 185, 129, 0.2); color: var(--success);">${user.role}</span>` : `<span class="badge pending">${user.role}</span>`;
+async function approveUser(userId) { return __approvals().approveUser(userId); }
 
-        const regDateStr = user.registrationDate ? new Date(user.registrationDate).toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'Desconocida';
-        const appDateStr = user.approvalDate ? new Date(user.approvalDate).toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : (user.approved === true ? 'Desconocida' : '-');
-        
-        tbody.innerHTML += `
-            <tr style="border-bottom: 1px solid var(--glass-border);">
-                <td style="padding: 12px;">${escapeHTML(user.name)}</td>
-                <td style="padding: 12px; color: var(--text-secondary);">${escapeHTML(user.email)}</td>
-                <td style="padding: 12px;">${statusBadge}</td>
-                <td style="padding: 12px; font-size: 12px;">${escapeHTML(regDateStr)}</td>
-                <td style="padding: 12px; font-size: 12px;">${escapeHTML(appDateStr)}</td>
-                <td style="padding: 12px; text-align: center;">
-                    ${actionHtml}
-                </td>
-            </tr>
-        `;
-    });
-}
+function showUserRejectBox(id) { return __approvals().showUserRejectBox(id); }
 
-async function approveUser(userId) {
-    if(!confirm(`¿Estás seguro de aprobar el acceso para este usuario?`)) return;
-    
-    try {
-        await database.ref('users/' + userId).update({
-            approved: true,
-            approvalDate: new Date().toISOString()
-        });
-        alert('Usuario aprobado exitosamente. Ahora puede iniciar sesión.');
-        renderPendingUsers(); // Reload table
-    } catch(e) {
-        alert('Error al contactar al servidor');
-    }
-}
+function cancelRejectUser(id) { return __approvals().cancelRejectUser(id); }
 
-function showUserRejectBox(id) {
-    document.getElementById('user-action-btns-' + id).style.display = 'none';
-    document.getElementById('user-reject-box-' + id).style.display = 'flex';
-}
+async function confirmRejectUser(userId) { return __approvals().confirmRejectUser(userId); }
 
-function cancelRejectUser(id) {
-    document.getElementById('user-reject-box-' + id).style.display = 'none';
-    document.getElementById('user-action-btns-' + id).style.display = 'flex';
-    document.getElementById('user-reason-' + id).value = '';
-}
-
-async function confirmRejectUser(userId) {
-    const reason = document.getElementById('user-reason-' + userId).value.trim();
-    if (!reason) {
-        alert("Debes escribir un motivo de rechazo.");
-        return;
-    }
-    
-    try {
-        await database.ref('users/' + userId).update({
-            approved: 'Rechazado',
-            rejectionReason: reason
-        });
-        alert('Usuario rechazado exitosamente.');
-        renderPendingUsers(); // Reload table
-    } catch(e) {
-        alert('Error al contactar al servidor');
-    }
-}
+// [LAB-INTEGRACION] D9a: revertir un rechazo (botón "Revertir" de la vista "Rechazados"); no existe en app.js original.
+async function revertRejectedUser(userId) { return __approvals().revertRejectedUser(userId); }
 
 // Logic for Approving Permissions
-async function renderPendingPermissions() {
-    const tbody = document.getElementById('pendingPermissionsTableBody');
-    if (!tbody) return;
-    
-    let permisos = [];
-    try { 
-        const snapshot = await database.ref('permissions').once('value');
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            permisos = Object.keys(data).map(k => ({...data[k], fb_id: k}));
-        }
-    } catch(e) {
-        console.error(e);
-    }
-    
-    const searchInput = document.getElementById('filterPermisosSearch');
-    const searchVal = searchInput ? normalizeName(searchInput.value) : '';
+async function renderPendingPermissions() { return __approvals().renderPendingPermissions(); }
 
-    let pending = permisos.filter(p => p.status === 'Pendiente');
-    
-    // Sort so most recent is first
-    pending.sort((a,b) => {
-        return new Date(b.fecha).getTime() - new Date(a.fecha).getTime();
-    });
-    
-    // Limit to 5
-    if (pending.length > 5) {
-        const total = pending.length;
-        pending = pending.slice(0, 5);
-        setTimeout(() => {
-            if(document.getElementById('pendingPermsMostrandoMsg')) document.getElementById('pendingPermsMostrandoMsg').remove();
-            const msg = document.createElement('div');
-            msg.id = 'pendingPermsMostrandoMsg';
-            msg.style = 'text-align: center; font-size: 11px; color: var(--text-secondary); margin-top: 10px; margin-bottom: 15px; font-style: italic;';
-            msg.innerText = `Mostrando los 5 permisos más recientes de ${total} pendientes.`;
-            document.getElementById('pendingPermissionsTableBody').parentElement.parentElement.appendChild(msg);
-        }, 100);
-    } else {
-        setTimeout(() => {
-            if(document.getElementById('pendingPermsMostrandoMsg')) document.getElementById('pendingPermsMostrandoMsg').remove();
-        }, 100);
-    }
-    
-    tbody.innerHTML = '';
-    
-    if (pending.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay permisos pendientes de aprobación.</td></tr>`;
-        return;
-    }
-    
-    pending.forEach(p => {
-        let createdTimeText = p.horaSolicitud;
-        if (!createdTimeText && p.id) {
-            try {
-                const d = new Date(p.id);
-                createdTimeText = `${d.toLocaleDateString('es-CO')} ${d.toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', hour12:true})}`;
-            } catch(err) { createdTimeText = 'N/A'; }
-        }
+function showPermRejectBox(id) { return __approvals().showPermRejectBox(id); }
 
-        tbody.innerHTML += `
-            <tr style="border-bottom: 1px solid var(--glass-border);">
-                <td style="padding: 12px; font-weight: 600; color: var(--text-primary);">${escapeHTML(p.gestor)}</td>
-                <td style="padding: 12px;">
-                    <span class="badge pending">${escapeHTML(p.tipo)}</span>
-                    <br><small style="font-size:10px; color:var(--accent-primary); font-weight:500;"><i class='bx bx-time-five'></i> ${escapeHTML(createdTimeText)}</small>
-                </td>
-                <td style="padding: 12px; color: var(--text-secondary); font-size: 12px; white-space: nowrap;"><strong>${escapeHTML(p.fecha)}</strong><br><span style="opacity: 0.85;">${escapeHTML(p.horaInicio)} a ${escapeHTML(p.horaFin)}</span></td>
-                <td style="padding: 12px; font-size: 13px; min-width: 250px;">
-                    <div style="background: rgba(255, 255, 255, 0.04); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--glass-border); color: var(--text-primary); line-height: 1.45; word-break: break-word; white-space: pre-wrap;">
-                        ${escapeHTML(p.motivo || 'Sin observación')}
-                    </div>
-                </td>
-                <td style="padding: 12px; text-align: center; min-width: 220px;">
-                    <div id="perm-action-btns-${escapeHTML(p.fb_id)}" style="display:flex; justify-content:center; gap:8px;">
-                        <button class="btn btn-success" style="padding: 6px 14px; font-size: 12px; display:inline-flex; align-items:center; gap:4px;" onclick="showPermApproveBox(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))"><i class='bx bx-check' style="font-size:16px;"></i> Aprobar</button>
-                        <button class="btn btn-danger" style="padding: 6px 14px; font-size: 12px; display:inline-flex; align-items:center; gap:4px;" onclick="showPermRejectBox(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))"><i class='bx bx-x' style="font-size:16px;"></i> Rechazar</button>
-                    </div>
-                    <div id="perm-approve-box-${escapeHTML(p.fb_id)}" style="display:none; flex-direction:column; gap:8px; margin-top:5px; background: rgba(16, 185, 129, 0.08); padding: 10px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
-                        <label for="perm-approve-reason-${escapeHTML(p.fb_id)}" style="font-size:11px; font-weight:600; color:var(--success); text-align:left;">Observación de aprobación:</label>
-                        <textarea id="perm-approve-reason-${escapeHTML(p.fb_id)}" name="perm-approve-reason-${escapeHTML(p.fb_id)}" placeholder="Escribe un comentario u observación para el gestor..." class="modern-input" style="padding:8px; font-size:12px; width:100%; min-height:60px; resize:vertical; box-sizing:border-box; border-radius:6px; font-family:inherit;"></textarea>
-                        <div style="display:flex; gap:6px; justify-content:flex-end;">
-                            <button class="btn btn-success" style="padding: 5px 12px; font-size: 11px;" onclick="confirmApprovePerm(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))">Confirmar Aprobar</button>
-                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;" onclick="cancelApprovePerm(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))">Cancelar</button>
-                        </div>
-                    </div>
-                    <div id="perm-reject-box-${escapeHTML(p.fb_id)}" style="display:none; flex-direction:column; gap:8px; margin-top:5px; background: rgba(239, 68, 68, 0.08); padding: 10px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
-                        <label for="perm-reason-${escapeHTML(p.fb_id)}" style="font-size:11px; font-weight:600; color:var(--danger); text-align:left;">Motivo de rechazo:</label>
-                        <textarea id="perm-reason-${escapeHTML(p.fb_id)}" name="perm-reason-${escapeHTML(p.fb_id)}" placeholder="Escribe la razón por la cual se rechaza..." class="modern-input" style="padding:8px; font-size:12px; width:100%; min-height:60px; resize:vertical; box-sizing:border-box; border-radius:6px; font-family:inherit;"></textarea>
-                        <div style="display:flex; gap:6px; justify-content:flex-end;">
-                            <button class="btn btn-danger" style="padding: 5px 12px; font-size: 11px;" onclick="confirmRejectPerm(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))">Confirmar Rechazo</button>
-                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;" onclick="cancelRejectPerm(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))">Cancelar</button>
-                        </div>
-                    </div>
-                </td>
-            </tr>
-        `;
-    });
-    
-    const historyBody = document.getElementById('historyPermissionsTableBody');
-    if(historyBody) {
-        historyBody.innerHTML = '';
-        const history = permisos.filter(p => p.status !== 'Pendiente');
-        
-        if (history.length === 0) {
-            historyBody.innerHTML = `<tr><td colspan="5" style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay historial de permisos procesados.</td></tr>`;
-        } else {
-            // Ordenar los más recientes primero
-            history.sort((a, b) => b.id - a.id);
-            history.forEach(p => {
-                let statusBadge = p.status === 'Aprobado' ? `<span class="badge" style="background: rgba(16, 185, 129, 0.2); color: var(--success);"><i class='bx bx-check'></i> Aprobado</span>` : `<span class="badge" style="background: rgba(239, 68, 68, 0.2); color: var(--danger);"><i class='bx bx-x'></i> Rechazado</span>`;
-                historyBody.innerHTML += `
-                    <tr style="border-bottom: 1px solid var(--glass-border);">
-                        <td style="padding: 12px; font-weight: 500;">${escapeHTML(p.gestor)}</td>
-                        <td style="padding: 12px;">${escapeHTML(p.tipo)}</td>
-                        <td style="padding: 12px;">${statusBadge}</td>
-                        <td style="padding: 12px; color: var(--text-secondary); font-size: 13px;">${escapeHTML(p.fecha)}</td>
-                        <td style="padding: 12px; font-size: 13px; color: var(--text-secondary);">${escapeHTML(p.rejectionReason || '-')}</td>
-                    </tr>
-                `;
-            });
-        }
-    }
+function cancelRejectPerm(id) { return __approvals().cancelRejectPerm(id); }
+
+async function confirmRejectPerm(id) { return __approvals().confirmRejectPerm(id); }
+
+function showPermApproveBox(id) { return __approvals().showPermApproveBox(id); }
+
+function cancelApprovePerm(id) { return __approvals().cancelApprovePerm(id); }
+
+async function confirmApprovePerm(id) { return __approvals().confirmApprovePerm(id); }
+
+async function updatePermissionStatus(fb_id, newStatus, reason = null) { return __approvals().updatePermissionStatus(fb_id, newStatus, reason); }
+// [LAB-INTEGRACION:MODALES-PERMISOS:FIN]
+
+// [LAB-INTEGRACION:HISTORIAL-NAVEGACION:INICIO]
+// [LAB-INTEGRACION] Historial de turnos, notificaciones y perfil: delegan en RiskOps (fase_2/src/controllers/*).
+// Mismos nombres y firmas que las funciones originales (los onclick de index.html y del HTML generado siguen funcionando).
+let __labHistNav = null;
+function __histNav() {
+    if (__labHistNav) return __labHistNav;
+    __labHistNav = {
+        shiftReports: RiskOps.shiftReportsController.createShiftReportsController({
+            document,
+            repository: RiskOps.shiftReportsRepository.createShiftReportsRepository({ database }),
+            setupCustomMultiSelect: (id, options, cb) => setupCustomMultiSelect(id, options, cb),
+            getSelectedMultiSelectValues: (id) => getSelectedMultiSelectValues(id),
+            summarizeTasks: (report) => buildTaskReportSummaryText(report),
+            getPdfWorker: () => (window.html2pdf ? window.html2pdf() : null),
+            alert: (message) => alert(message),
+            now: () => Date.now(),
+            setTimeout: (fn, ms) => setTimeout(fn, ms),
+            logger: console
+        }),
+        monitoring: RiskOps.monitoringController.createMonitoringController({
+            document,
+            repository: RiskOps.monitoringRepository.createMonitoringRepository({ database }),
+            getSessions: () => allActiveSessions,
+            setSessions: (sessions) => { allActiveSessions = sessions; },
+            hasCronograma: () => typeof globalCronogramaData !== 'undefined' && !!globalCronogramaData,
+            getAssignedTasksForGestor: (name, shift) => getAssignedTasksForGestor(name, shift),
+            reconcileTask: (taskName, tasks) => reconcileScheduledTaskWithSession(taskName, tasks),
+            resolveTaskName: (key, entry) => resolveTaskDisplayName(key, entry),
+            getShiftCategory: (shift) => getShiftCategory(shift),
+            // [LAB-INTEGRACION] D9b: sin SUPERVISORES_NOMBRES; el controlador deriva los supervisores del ROL en users (consulta por rol
+            // con el repositorio de arriba; Monitoreo solo lo abre Supervisor/Admin, que puede leer users) y excluye por UID.
+            avatars: availableAvatars,
+            now: () => Date.now(),
+            logger: console
+        }),
+        profile: RiskOps.profileController.createProfileController({
+            document,
+            getUser: () => currentUser,
+            getAuthUser: () => firebase.auth().currentUser,
+            closeModal: (id) => closeModal(id),
+            setTimeout: (fn, ms) => setTimeout(fn, ms),
+            logger: console
+        }),
+        notifications: RiskOps.notificationsController.createNotificationsController({
+            document,
+            getUser: () => currentUser,
+            repository: RiskOps.notificationsRepository.createNotificationsRepository({
+                database,
+                getAuthUid: () => (firebase.auth().currentUser && firebase.auth().currentUser.uid)
+            }),
+            logger: console
+        })
+    };
+    return __labHistNav;
 }
 
-function showPermRejectBox(id) {
-    document.getElementById('perm-action-btns-' + id).style.display = 'none';
-    document.getElementById('perm-reject-box-' + id).style.display = 'flex';
-}
-
-function cancelRejectPerm(id) {
-    document.getElementById('perm-reject-box-' + id).style.display = 'none';
-    document.getElementById('perm-action-btns-' + id).style.display = 'flex';
-    document.getElementById('perm-reason-' + id).value = '';
-}
-
-async function confirmRejectPerm(id) {
-    const reason = document.getElementById('perm-reason-' + id).value.trim();
-    if (!reason) {
-        alert("Debes escribir un motivo de rechazo.");
-        return;
-    }
-    await updatePermissionStatus(id, 'Rechazado', reason);
-}
-
-function showPermApproveBox(id) {
-    document.getElementById('perm-action-btns-' + id).style.display = 'none';
-    document.getElementById('perm-approve-box-' + id).style.display = 'flex';
-}
-
-function cancelApprovePerm(id) {
-    document.getElementById('perm-approve-box-' + id).style.display = 'none';
-    document.getElementById('perm-action-btns-' + id).style.display = 'flex';
-    document.getElementById('perm-approve-reason-' + id).value = '';
-}
-
-function cancelRejectPerm(id) {
-    document.getElementById('perm-reject-box-' + id).style.display = 'none';
-    document.getElementById('perm-action-btns-' + id).style.display = 'flex';
-    document.getElementById('perm-reason-' + id).value = '';
-}
-
-async function confirmApprovePerm(id) {
-    const reason = document.getElementById('perm-approve-reason-' + id).value.trim();
-    await updatePermissionStatus(id, 'Aprobado', reason || 'Aprobado sin observaciones adicionales');
-}
-
-async function updatePermissionStatus(fb_id, newStatus, reason = null) {
-    try {
-        const updates = { status: newStatus, notified: false };
-        if (reason) {
-            updates.rejectionReason = reason;
-        }
-        
-        await database.ref('permissions/' + fb_id).update(updates);
-        
-        alert(`Permiso ${newStatus} exitosamente.`);
-        renderPendingPermissions(); // Reload table
-        loadPermisos(); // Reload historical permissions if looking at it
-    } catch(e) {
-        alert('Error al contactar al servidor');
-    }
-}
-
-// Exportar Reporte a PDF
-window.exportShiftReport = async function(fb_id) {
-    try {
-        let reportObj = allShiftReports.find(r => r.fb_id === fb_id);
-        if (!reportObj) {
-            const snapshot = await database.ref('shift_reports/' + fb_id).once('value');
-            if(snapshot.exists()) reportObj = snapshot.val();
-        }
-        if(!reportObj) return alert("No se encontró el reporte en la base de datos.");
-        
-        // El texto de tareas SIEMPRE se construye a partir de reportObj.tasks (nombres
-        // resueltos vía buildTaskReportSummaryText/resolveTaskDisplayName) cuando existe;
-        // el texto legado reportObj.reporte solo se usa si no hay objeto tasks. Así un
-        // registro legado con "Tarea <id>" horneado en el texto nunca se expone en el PDF.
-        let reportText = buildTaskReportSummaryText(reportObj);
-        let bitacoraLines = [];
-        const rawReporte = reportObj.reporte || '';
-        if (rawReporte.includes('=== BITÁCORA DE TIEMPOS ===')) {
-            const parts = rawReporte.split('=== BITÁCORA DE TIEMPOS ===');
-            const rawBitacora = (parts[1] || '').trim();
-            if (rawBitacora) {
-                const lines = rawBitacora.split('\n').map(l => l.trim()).filter(Boolean);
-                lines.forEach(l => {
-                    if (!bitacoraLines.includes(l)) bitacoraLines.push(l);
-                });
-            }
-        }
-
-        const formattedReportText = escapeHTML(reportText).replace(/\n/g, '<br>').replace(/\[(.*?)\]/g, '<span style="background: #E0E7FF; color: #3730A3; padding: 2px 6px; border-radius: 4px; font-weight: 600;">$1</span>');
-
-        let bitacoraHtml = '';
-        if (bitacoraLines.length > 0) {
-            bitacoraHtml = bitacoraLines.map(l => `<div style="padding: 6px 10px; background: #F1F5F9; border-radius: 4px; font-family: monospace; font-size: 11px; color: #334155; margin-bottom: 4px; border-left: 3px solid #3B82F6;">${escapeHTML(l)}</div>`).join('');
-        } else {
-            bitacoraHtml = '<div style="color: #64748B; font-size: 12px; font-style: italic;">No se registraron pausas o inactividades en este turno.</div>';
-        }
-
-        // Crear elemento HTML temporal limpio para renderizado PDF
-        const pdfContainer = document.createElement('div');
-        pdfContainer.style = "width: 750px; padding: 25px; background: #FFFFFF; font-family: 'Inter', sans-serif; color: #0F172A;";
-        pdfContainer.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3B82F6; padding-bottom: 12px; margin-bottom: 20px;">
-                <div>
-                    <h1 style="margin: 0; font-size: 22px; color: #1E293B; font-weight: 700;">RISK MANAGER</h1>
-                    <span style="font-size: 12px; color: #64748B;">Detalle de Turno y Control Operativo</span>
-                </div>
-                <div style="text-align: right;">
-                    <span style="font-size: 11px; color: #64748B; display: block;">Fecha de Generación</span>
-                    <strong style="font-size: 12px; color: #0F172A;">${new Date().toLocaleDateString('es-CO')}</strong>
-                </div>
-            </div>
-
-            <!-- Encabezado Gestor y Rol -->
-            <div style="display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; padding: 16px; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 15px;">
-                <div>
-                    <span style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #64748B; display: block;">GESTOR</span>
-                    <strong style="font-size: 18px; color: #0F172A; margin-top: 2px; display: block;">${escapeHTML(reportObj.gestor)}</strong>
-                    <span style="font-size: 12px; color: #2563EB; font-weight: 600;">Rol: ${escapeHTML(reportObj.rol || 'Gestor')}</span>
-                </div>
-                <div style="text-align: right;">
-                    <span style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #64748B; display: block;">SET PRINCIPAL TRABAJADO</span>
-                    <strong style="font-size: 15px; color: #059669; margin-top: 2px; display: block;">${escapeHTML(reportObj.setTrabajado || 'N/A')}</strong>
-                </div>
-            </div>
-
-            <!-- Tiempos e Indicadores -->
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
-                <div style="background: #F8FAFC; padding: 10px 12px; border-radius: 6px; border: 1px solid #E2E8F0;">
-                    <small style="color: #64748B; display: block; font-size: 10px;">Hora Inicio Turno</small>
-                    <strong style="font-size: 12px; color: #0F172A; margin-top: 2px; display: block;">${escapeHTML(reportObj.horaInicio || 'N/A')}</strong>
-                </div>
-                <div style="background: #F8FAFC; padding: 10px 12px; border-radius: 6px; border: 1px solid #E2E8F0;">
-                    <small style="color: #64748B; display: block; font-size: 10px;">Hora Fin Turno</small>
-                    <strong style="font-size: 12px; color: #0F172A; margin-top: 2px; display: block;">${escapeHTML(reportObj.horaFin || 'N/A')}</strong>
-                </div>
-                <div style="background: #F8FAFC; padding: 10px 12px; border-radius: 6px; border: 1px solid #E2E8F0;">
-                    <small style="color: #64748B; display: block; font-size: 10px;">Almuerzo Descontado</small>
-                    <strong style="font-size: 12px; color: #059669; margin-top: 2px; display: block;">${escapeHTML(reportObj.tiempoAlmuerzoMins != null ? reportObj.tiempoAlmuerzoMins + ' minutos' : 'N/A')}</strong>
-                </div>
-                <div style="background: #F8FAFC; padding: 10px 12px; border-radius: 6px; border: 1px solid #E2E8F0;">
-                    <small style="color: #64748B; display: block; font-size: 10px;">Desayuno Descontado</small>
-                    <strong style="font-size: 12px; color: #D97706; margin-top: 2px; display: block;">${escapeHTML(reportObj.tiempoDesayunoMins != null ? reportObj.tiempoDesayunoMins + ' minutos' : 'N/A')}</strong>
-                </div>
-                <div style="background: #F8FAFC; padding: 10px 12px; border-radius: 6px; border: 1px solid #E2E8F0; grid-column: span 2;">
-                    <small style="color: #64748B; display: block; font-size: 10px;">Inactividad / Exceso Pausas</small>
-                    <strong style="font-size: 12px; color: #DC2626; margin-top: 2px; display: block;">${escapeHTML(reportObj.inactividadTotalMins != null ? reportObj.inactividadTotalMins + ' minutos' : 'N/A')}</strong>
-                </div>
-            </div>
-
-            <!-- Bitácora de Tiempos -->
-            <div style="background: #F8FAFC; padding: 12px 14px; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 15px;">
-                <h4 style="font-size: 12px; color: #2563EB; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px;">Bitácora de Tiempos</h4>
-                <div>${bitacoraHtml}</div>
-            </div>
-
-            <!-- Resumen de Tareas -->
-            <div style="background: #F8FAFC; padding: 14px; border-radius: 8px; border: 1px solid #E2E8F0;">
-                <h4 style="font-size: 12px; color: #2563EB; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 0.5px;">Resumen de Tareas y Observaciones</h4>
-                <div style="font-size: 12px; color: #1E293B; line-height: 1.6; white-space: pre-wrap; word-break: break-word;">${formattedReportText}</div>
-            </div>
-        `;
-
-        document.body.appendChild(pdfContainer);
-
-        const safeName = (reportObj.gestor || 'Gestor').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        const dateStr = (reportObj.timestamp ? new Date(reportObj.timestamp).toLocaleDateString('es-CO') : 'fecha').replace(/[^a-z0-9]/gi, '_');
-
-        const opt = {
-            margin:       10,
-            filename:     `Reporte_Turno_${safeName}_${dateStr}.pdf`,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, logging: false },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
-        if (window.html2pdf) {
-            await window.html2pdf().set(opt).from(pdfContainer).save();
-        } else {
-            alert("Cargando motor de generación PDF, por favor intenta en unos segundos.");
-        }
-
-        document.body.removeChild(pdfContainer);
-        
-    } catch(e) {
-        alert("Hubo un error al intentar exportar el reporte.");
-        console.error(e);
-    }
-};
-
-// Logic for Shift Reports History
-let allShiftReports = [];
-
-async function renderShiftReports() {
-    const tbody = document.getElementById('shiftReportsTableBody');
-    if (!tbody) return;
-    
-    // Si ya tenemos los reportes precargados, aplicamos filtros rápido
-    if (allShiftReports.length > 0) {
-        applyShiftReportsFilters();
-    } else {
-        tbody.innerHTML = `<tr><td colspan="6" style="padding: 30px; text-align: center; color: var(--accent-primary);"><i class='bx bx-loader-alt bx-spin' style='font-size: 24px;'></i><br><span style='font-size:12px; margin-top:5px; display:inline-block;'>Cargando historial de turnos...</span></td></tr>`;
-    }
-    
-    try { 
-        const snapshot = await database.ref('shift_reports').once('value');
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            allShiftReports = Object.keys(data).map(k => ({...data[k], fb_id: k}));
-        } else {
-            allShiftReports = [];
-        }
-
-        const gestoresTurnosSet = new Set();
-        allShiftReports.forEach(r => {
-            if (r.gestor) gestoresTurnosSet.add(String(r.gestor).trim());
-        });
-        const sortedTurnosGestores = Array.from(gestoresTurnosSet).sort((a,b) => a.localeCompare(b));
-        setupCustomMultiSelect('turnosGestorMultiSelect', sortedTurnosGestores, () => {
-            applyShiftReportsFilters();
-        });
-    } catch(e) {
-        console.error("Error cargando historial de turnos:", e);
-    }
-    
-    applyShiftReportsFilters();
-}
-
-function applyShiftReportsFilters() {
-    const tbody = document.getElementById('shiftReportsTableBody');
-    if (!tbody) return;
-
-    const selectedGestores = getSelectedMultiSelectValues('turnosGestorMultiSelect');
-    const fechaQuery = document.getElementById('filterFechaInput') ? document.getElementById('filterFechaInput').value : '';
-
-    let filtered = [...allShiftReports];
-
-    const hasExplicitFilter = selectedGestores.length > 0 || fechaQuery;
-
-    // Filter by Gestor name
-    if (selectedGestores.length > 0) {
-        filtered = filtered.filter(r => selectedGestores.some(g => normalizeName(r.gestor) === normalizeName(g)));
-    }
-
-    // Filter by Date (comparing local YYYY-MM-DD format)
-    if (fechaQuery) {
-        filtered = filtered.filter(r => {
-            if (r.timestamp) {
-                const d = new Date(r.timestamp);
-                const localYear = d.getFullYear();
-                const localMonth = String(d.getMonth() + 1).padStart(2, '0');
-                const localDay = String(d.getDate()).padStart(2, '0');
-                const localDateStr = `${localYear}-${localMonth}-${localDay}`;
-                if (localDateStr === fechaQuery) return true;
-            }
-            if (r.horaInicio && r.horaInicio.includes(fechaQuery)) return true;
-            if (r.horaFin && r.horaFin.includes(fechaQuery)) return true;
-            return false;
-        });
-    } else if (!hasExplicitFilter) {
-        // Si no hay filtro de fecha ni gestor, limitar por defecto a los últimos 2 días para máxima velocidad
-        const now = new Date();
-        const twoDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0).getTime(); // inicio de ayer
-        filtered = filtered.filter(r => {
-            const reportTime = r.timestamp || (r.horaInicio ? new Date(r.horaInicio).getTime() : 0);
-            return reportTime >= twoDaysAgo;
-        });
-    }
-
-    tbody.innerHTML = '';
-    
-    if (filtered.length === 0) {
-        const emptyMsg = hasExplicitFilter ? 'No hay historial de turnos registrados con los filtros seleccionados.' : 'No hay turnos registrados en los últimos 2 días. Selecciona una fecha o escribe un gestor para consultar turnos anteriores.';
-        tbody.innerHTML = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text-secondary);">${escapeHTML(emptyMsg)}</td></tr>`;
-        return;
-    }
-    
-    // Sort descending by timestamp
-    filtered.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-    
-    filtered.forEach(r => {
-        // Prioriza r.tasks (estructurado, nombres resueltos) sobre el texto legado
-        // r.reporte, que puede traer "Tarea <id>" horneado en registros antiguos.
-        let reportText = buildTaskReportSummaryText(r);
-        let bitacoraHTML = '';
-        const rawReporte = r.reporte || '';
-        if (rawReporte.includes('=== BITÁCORA DE TIEMPOS ===')) {
-            const parts = rawReporte.split('=== BITÁCORA DE TIEMPOS ===');
-            const rawBitacora = (parts[1] || '').trim();
-            if (rawBitacora) {
-                // Filtrar y desduplicar líneas de la bitácora textual
-                const lines = rawBitacora.split('\n').map(l => l.trim()).filter(Boolean);
-                const uniqueLines = [];
-                lines.forEach(line => {
-                    if (!uniqueLines.includes(line)) {
-                        uniqueLines.push(line);
-                    }
-                });
-                const bitacoraContent = uniqueLines.map(l => escapeHTML(l)).join('<br>');
-                bitacoraHTML = `
-                    <details style="margin-top: 8px; border-top: 1px dashed var(--glass-border); padding-top: 6px;">
-                        <summary style="cursor: pointer; color: var(--accent-primary); font-weight: 600; font-size: 11px; outline: none; list-style: none; display: flex; align-items: center; gap: 4px;">
-                            <i class='bx bx-chevron-down'></i> Ver Bitácora de Tiempos
-                        </summary>
-                        <div style="font-size: 11px; margin-top: 5px; color: var(--text-secondary); line-height: 1.5; background: rgba(0,0,0,0.15); padding: 6px; border-radius: 4px;">
-                            ${bitacoraContent}
-                        </div>
-                    </details>
-                `;
-            }
-        }
-        const safeReport = escapeHTML(reportText).replace(/\n/g, '<br>').replace(/\[(.*?)\]/g, '<strong>[$1]</strong>') + bitacoraHTML;
-        
-        tbody.innerHTML += `
-            <tr style="border-bottom: 1px solid var(--glass-border);">
-                <td style="padding: 12px; font-weight: 500;">
-                    ${escapeHTML(r.gestor)}
-                    <div style="font-size: 11px; color: var(--text-secondary);">${escapeHTML(r.rol)}</div>
-                </td>
-                <td style="padding: 12px; color: var(--accent-primary);">${escapeHTML(r.setTrabajado)}</td>
-                <td style="padding: 12px; font-size: 13px;">${escapeHTML(r.horaInicio)}</td>
-                <td style="padding: 12px; font-size: 13px;">${escapeHTML(r.horaFin)}</td>
-                <td style="padding: 12px; font-size: 12px; color: var(--text-secondary); max-width: 350px; text-align: left;">
-                    <div style="max-height: 120px; overflow-y: auto; background: var(--bg-dark); padding: 8px; border-radius: 6px;">
-                        ${safeReport}
-                    </div>
-                </td>
-                <td style="padding: 12px; text-align: center; white-space: nowrap;">
-                    <div style="display: flex; gap: 6px; justify-content: center;">
-                        <button class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;" onclick="openShiftDetailModal(decodeURIComponent('${encodeInlineHandlerArg(r.fb_id)}'))" title="Ver todo el informe igual al correo">
-                            <i class='bx bx-show'></i> Ver Todo
-                        </button>
-                        <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px;" onclick="exportShiftReport(decodeURIComponent('${encodeInlineHandlerArg(r.fb_id)}'))" title="Exportar PDF">
-                            <i class='bx bx-file-blank'></i> PDF
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `;
-    });
-
-window.openShiftDetailModal = function(fb_id) {
-    const reportObj = allShiftReports.find(r => r.fb_id === fb_id);
-    if (!reportObj) return alert("No se encontró la información del turno.");
-    
-    const body = document.getElementById('shiftDetailModalBody');
-    const exportBtn = document.getElementById('exportPdfModalBtn');
-    if (exportBtn) {
-        exportBtn.onclick = function() { exportShiftReport(fb_id); };
-    }
-
-    // Prioriza reportObj.tasks (estructurado, nombres resueltos) sobre el texto
-    // legado reportObj.reporte, que puede traer "Tarea <id>" horneado en registros
-    // antiguos.
-    let reportText = buildTaskReportSummaryText(reportObj);
-    let bitacoraLines = [];
-    const rawReporte = reportObj.reporte || '';
-    if (rawReporte.includes('=== BITÁCORA DE TIEMPOS ===')) {
-        const parts = rawReporte.split('=== BITÁCORA DE TIEMPOS ===');
-        const rawBitacora = (parts[1] || '').trim();
-        if (rawBitacora) {
-            const lines = rawBitacora.split('\n').map(l => l.trim()).filter(Boolean);
-            lines.forEach(l => {
-                if (!bitacoraLines.includes(l)) bitacoraLines.push(l);
-            });
-        }
-    }
-
-    const formattedReportText = escapeHTML(reportText).replace(/\n/g, '<br>').replace(/\[(.*?)\]/g, '<span style="background: rgba(139, 92, 246, 0.15); color: var(--accent-primary); padding: 2px 6px; border-radius: 4px; font-weight: 600;">$1</span>');
-
-    let bitacoraHtml = '';
-    if (bitacoraLines.length > 0) {
-        bitacoraHtml = bitacoraLines.map(l => `<div style="padding: 4px 8px; background: rgba(0,0,0,0.2); border-radius: 4px; font-family: monospace; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;"><i class='bx bx-time-five' style="color: var(--accent-primary);"></i> ${escapeHTML(l)}</div>`).join('');
-    } else {
-        bitacoraHtml = '<div style="color: var(--text-secondary); font-size: 12px; font-style: italic;">No se registraron pausas o inactividades en este turno.</div>';
-    }
-
-    body.innerHTML = `
-        <div style="display: flex; flex-direction: column; gap: 15px;">
-            <!-- Encabezado Gestor y Rol -->
-            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 14px 18px; border-radius: 12px; border: 1px solid var(--glass-border);">
-                <div>
-                    <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-secondary); display: block;">Gestor</span>
-                    <strong style="font-size: 18px; color: var(--text-primary); margin-top: 2px; display: block;">${escapeHTML(reportObj.gestor)}</strong>
-                    <span style="font-size: 12px; color: var(--accent-primary); font-weight: 500;">Rol: ${escapeHTML(reportObj.rol || 'Gestor')}</span>
-                </div>
-                <div style="text-align: right;">
-                    <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-secondary); display: block;">SET Principal Trabajado</span>
-                    <strong style="font-size: 15px; color: var(--success); margin-top: 2px; display: block;"><i class='bx bx-layer'></i> ${escapeHTML(reportObj.setTrabajado || 'N/A')}</strong>
-                </div>
-            </div>
-
-            <!-- Tiempos de Turno e Indicadores (Igual al correo) -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
-                <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border);">
-                    <small style="color: var(--text-secondary); display: block; font-size: 11px;">Hora Inicio Turno</small>
-                    <strong style="font-size: 13px; color: var(--text-primary); margin-top: 4px; display: block;"><i class='bx bx-log-in-circle' style="color: var(--accent-primary);"></i> ${escapeHTML(reportObj.horaInicio || 'N/A')}</strong>
-                </div>
-                <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border);">
-                    <small style="color: var(--text-secondary); display: block; font-size: 11px;">Hora Fin Turno</small>
-                    <strong style="font-size: 13px; color: var(--text-primary); margin-top: 4px; display: block;"><i class='bx bx-log-out-circle' style="color: var(--warning);"></i> ${escapeHTML(reportObj.horaFin || 'N/A')}</strong>
-                </div>
-                <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border);">
-                    <small style="color: var(--text-secondary); display: block; font-size: 11px;">Tiempo Almuerzo Descontado</small>
-                    <strong style="font-size: 13px; color: var(--success); margin-top: 4px; display: block;"><i class='bx bx-restaurant'></i> ${escapeHTML(reportObj.tiempoAlmuerzoMins != null ? reportObj.tiempoAlmuerzoMins + ' minutos' : 'N/A')}</strong>
-                </div>
-                <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border);">
-                    <small style="color: var(--text-secondary); display: block; font-size: 11px;">Tiempo Desayuno Descontado</small>
-                    <strong style="font-size: 13px; color: var(--warning); margin-top: 4px; display: block;"><i class='bx bx-coffee'></i> ${escapeHTML(reportObj.tiempoDesayunoMins != null ? reportObj.tiempoDesayunoMins + ' minutos' : 'N/A')}</strong>
-                </div>
-                <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border);">
-                    <small style="color: var(--text-secondary); display: block; font-size: 11px;">Inactividad / Exceso Pausas</small>
-                    <strong style="font-size: 13px; color: var(--danger); margin-top: 4px; display: block;"><i class='bx bx-stopwatch'></i> ${escapeHTML(reportObj.inactividadTotalMins != null ? reportObj.inactividadTotalMins + ' minutos' : 'N/A')}</strong>
-                </div>
-            </div>
-
-            <!-- Bitácora de Tiempos -->
-            <div style="background: rgba(0,0,0,0.15); padding: 14px; border-radius: 10px; border: 1px solid var(--glass-border);">
-                <h4 style="font-size: 13px; color: var(--accent-primary); margin: 0 0 10px 0; display: flex; align-items: center; gap: 6px;">
-                    <i class='bx bx-list-ul'></i> Bitácora de Tiempos
-                </h4>
-                <div style="max-height: 180px; overflow-y: auto; padding-right: 5px;">
-                    ${bitacoraHtml}
-                </div>
-            </div>
-
-            <!-- Resumen de Tareas y Observaciones -->
-            <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 10px; border: 1px solid var(--glass-border);">
-                <h4 style="font-size: 13px; color: var(--accent-primary); margin: 0 0 10px 0; display: flex; align-items: center; gap: 6px;">
-                    <i class='bx bx-task'></i> Resumen de Tareas y Observaciones
-                </h4>
-                <div style="font-size: 13px; color: var(--text-primary); line-height: 1.6; white-space: pre-wrap; word-break: break-word; font-family: inherit;">
-                    ${formattedReportText}
-                </div>
-            </div>
-        </div>
-    `;
-
-    document.getElementById('shiftDetailModal').classList.add('active');
-};
-
-    if (!hasExplicitFilter) {
-        setTimeout(() => {
-            if (document.getElementById('shiftReportsMostrandoMsg')) document.getElementById('shiftReportsMostrandoMsg').remove();
-            const msg = document.createElement('div');
-            msg.id = 'shiftReportsMostrandoMsg';
-            msg.style = 'text-align: center; font-size: 11px; color: var(--text-secondary); margin-top: 10px; font-style: italic;';
-            msg.innerText = `Mostrando turnos de los últimos 2 días (${filtered.length} turnos). Selecciona una fecha o escribe un gestor para consultar el historial antiguo complete.`;
-            tbody.parentElement.parentElement.appendChild(msg);
-        }, 50);
-    } else {
-        setTimeout(() => {
-            if (document.getElementById('shiftReportsMostrandoMsg')) document.getElementById('shiftReportsMostrandoMsg').remove();
-        }, 50);
-    }
-}
-
-
-
-// Helper Notification function
-function toggleNotifications() {
-    const drop = document.getElementById('notificationDropdown');
-    if (drop) {
-        if (drop.style.display === 'none' || drop.style.display === '') {
-            drop.style.display = 'block';
-        } else {
-            drop.style.display = 'none';
-        }
-    }
-}
-
-async function markAllAsRead() {
-    if (!currentUser) return;
-    try {
-        if (currentUser.role === 'Admin' || currentUser.role === 'Supervisor') {
-            const snapshot = await database.ref('permissions').once('value');
-            if (snapshot.exists()) {
-                const data = snapshot.val();
-                const updates = {};
-                for (let key in data) {
-                    if (data[key].notified_admin === false && data[key].status === 'Pendiente') {
-                        updates[key + '/notified_admin'] = true;
-                    }
-                }
-                if (Object.keys(updates).length > 0) {
-                    await database.ref('permissions').update(updates);
-                }
-            }
-        } else {
-            const authUid = currentUser.uid || (firebase.auth().currentUser && firebase.auth().currentUser.uid);
-            if (!authUid) return;
-            const snapshot = await database.ref('permissions').orderByChild('uid').equalTo(authUid).once('value');
-            if (snapshot.exists()) {
-                const data = snapshot.val();
-                const updates = {};
-                for (let key in data) {
-                    if (data[key].notified === false && data[key].status !== 'Pendiente') {
-                        updates[key + '/notified'] = true;
-                    }
-                }
-                if (Object.keys(updates).length > 0) {
-                    await database.ref('permissions').update(updates);
-                }
-            }
-        }
-    } catch(e) {
-        console.error(e);
-    }
-}
-
-// Funciones del Modal de Perfil
-function openProfileModal() {
-    const avatarEl = document.querySelector('.user-profile .avatar');
-    const modalImg = document.getElementById('modalProfileAvatar');
-    if (avatarEl && modalImg) {
-        modalImg.src = avatarEl.src;
-    }
-    
-    if (currentUser) {
-        const modalName = document.getElementById('modalProfileName');
-        if (modalName) modalName.textContent = currentUser.name || 'Usuario';
-        
-        const modalRole = document.getElementById('modalProfileRole');
-        if (modalRole) modalRole.textContent = currentUser.role || 'Rol';
-    }
-
-    document.getElementById('profileModal').classList.add('active');
-    document.getElementById('newPasswordInput').value = '';
-    const msg = document.getElementById('passwordChangeMsg');
-    if (msg) msg.style.display = 'none';
-}
-
-function toggleProfilePassword(iconElement) {
-    const input = document.getElementById('newPasswordInput');
-    if (input.type === 'password') {
-        input.type = 'text';
-        iconElement.classList.remove('bx-show');
-        iconElement.classList.add('bx-hide');
-    } else {
-        input.type = 'password';
-        iconElement.classList.remove('bx-hide');
-        iconElement.classList.add('bx-show');
-    }
-}
-
-async function changePassword() {
-    const newPass = document.getElementById('newPasswordInput').value;
-    const msg = document.getElementById('passwordChangeMsg');
-    
-    if(!newPass || newPass.trim() === '') {
-        msg.textContent = 'Por favor ingresa una contraseña válida.';
-        msg.style.color = 'var(--danger)';
-        msg.style.display = 'block';
-        return;
-    }
-    
-    msg.textContent = 'Actualizando...';
-    msg.style.color = 'var(--text-primary)';
-    msg.style.display = 'block';
-    
-    try {
-        const user = firebase.auth().currentUser;
-        if (user) {
-            await user.updatePassword(newPass);
-            msg.textContent = '¡Contraseña actualizada exitosamente en Firebase Auth!';
-            msg.style.color = 'var(--success)';
-            setTimeout(() => closeModal('profileModal'), 2000);
-        } else {
-            msg.textContent = 'Error: No hay sesión activa en Firebase Auth. Por favor, vuelve a iniciar sesión.';
-            msg.style.color = 'var(--danger)';
-        }
-    } catch(e) {
-        msg.textContent = 'Error al actualizar contraseña.';
-        if (e.code === 'auth/requires-recent-login') {
-            msg.textContent = 'Por seguridad, debes cerrar sesión e iniciar sesión nuevamente para cambiar tu contraseña.';
-        } else if (e.code === 'auth/weak-password') {
-            msg.textContent = 'La contraseña debe tener al menos 6 caracteres.';
-        }
-        msg.style.color = 'var(--danger)';
-        console.error("Error al actualizar la contraseña:", e);
-    }
-}
+window.exportShiftReport = async function(fb_id) { return __histNav().shiftReports.exportShiftReport(fb_id); };
+async function renderShiftReports() { return __histNav().shiftReports.renderShiftReports(); }
+function applyShiftReportsFilters() { return __histNav().shiftReports.applyShiftReportsFilters(); }
+window.openShiftDetailModal = function(fb_id) { return __histNav().shiftReports.openShiftDetailModal(fb_id); };
+function toggleNotifications() { return __histNav().notifications.toggleNotifications(); }
+async function markAllAsRead() { return __histNav().notifications.markAllAsRead(); }
+function openProfileModal() { return __histNav().profile.openProfileModal(); }
+function toggleProfilePassword(iconElement) { return __histNav().profile.toggleProfilePassword(iconElement); }
+async function changePassword() { return __histNav().profile.changePassword(); }
+// [LAB-INTEGRACION:HISTORIAL-NAVEGACION:FIN]
 
 // --- PROGRAMMATIC SIDEBAR ORDER & MONITOREO REALTIME ---
 
 function alignAdministrativeControlsByRole() {
-    if (!currentUser) return;
-
-    const isAdmin = currentUser.role === 'Admin';
-    const pendingUsersBody = document.getElementById('pendingUsersTableBody');
-    const userTablePanel = pendingUsersBody ? pendingUsersBody.closest('.glass-panel') : null;
-    const userSearch = document.getElementById('filterAprobacionesSearch');
-    const userFilterPanel = userSearch ? userSearch.closest('.glass-panel') : null;
-    const userSectionTitle = userFilterPanel ? userFilterPanel.previousElementSibling : null;
-
-    [userSectionTitle, userFilterPanel, userTablePanel].forEach(element => {
-        if (element) element.style.display = isAdmin ? '' : 'none';
-    });
-
-    const adminAnnouncementsView = document.getElementById('view-gestion-comunicados');
-    if (adminAnnouncementsView && !canManageComunicados(currentUser.role)) adminAnnouncementsView.style.display = 'none';
+    // [LAB-INTEGRACION] política en RiskOps.authService; aplicación al DOM en RiskOps.appRouter
+    return RiskOps.appRouter.createAppRouter({ document, getUser: () => currentUser }).alignAdministrativeControlsByRole();
 }
 
 function setupSidebar() {
@@ -5086,79 +3051,16 @@ function setupSidebar() {
         }
     }
 
-    if (currentUser && (currentUser.role === 'Admin' || currentUser.role === 'Supervisor')) {
-        // Admin/Supervisor Order
-        const hFilter = document.getElementById('horarioGestorFilterContainer');
-        if (hFilter) hFilter.style.display = 'flex';
-        const tFilter = document.getElementById('teletrabajoGestorFilterContainer');
-        if (tFilter) tFilter.style.display = 'flex';
-
-        if (navWorkspace) { navWorkspace.style.display = 'none'; } // HIDE Mis Tareas for Admin and Supervisor
-        if (navComunicados) {
-            if (currentUser.role === 'Supervisor') {
-                navComunicados.style.display = 'flex';
-                sidebarNav.appendChild(navComunicados);
-            } else {
-                navComunicados.style.display = 'none';
-            }
-        }
-
-        if (adminNavGroup) { adminNavGroup.style.display = 'block'; sidebarNav.appendChild(adminNavGroup); }
-        if (navMonitoreo) { navMonitoreo.style.display = 'flex'; adminNavGroup.appendChild(navMonitoreo); }
-
-        if (navTiempos) { navTiempos.style.display = 'none'; }
-        if (navAdminComunicados) {
-            // Admin y Supervisor gestionan comunicados (crear/publicar, leer, ver lecturas);
-            // el botón de eliminar dentro de la vista sigue restringido a Admin (ver renderAdminComunicados).
-            if (canManageComunicados(currentUser.role)) {
-                navAdminComunicados.style.display = 'flex';
-                adminNavGroup.appendChild(navAdminComunicados);
-            } else {
-                navAdminComunicados.style.display = 'none';
-            }
-        }
-        if (navTurnos) { navTurnos.style.display = 'flex'; adminNavGroup.appendChild(navTurnos); }
-        if (navAprobaciones) { navAprobaciones.style.display = 'flex'; adminNavGroup.appendChild(navAprobaciones); }
-
-        if (navHorario) { sidebarNav.appendChild(navHorario); }
-        if (navDocs) { navDocs.style.display = 'flex'; sidebarNav.appendChild(navDocs); }
-        if (navPermisos) { navPermisos.style.display = 'flex'; sidebarNav.appendChild(navPermisos); }
-
-        const navConfigGestores = document.getElementById('navConfigGestores');
-        if (navConfigGestores && currentUser.role === 'Admin') {
-            navConfigGestores.style.display = 'flex';
-            sidebarNav.appendChild(navConfigGestores);
-        }
-    } else {
-        // Gestor Order
-        const hFilter = document.getElementById('horarioGestorFilterContainer');
-        if (hFilter) hFilter.style.display = 'none';
-        const tFilter = document.getElementById('teletrabajoGestorFilterContainer');
-        if (tFilter) tFilter.style.display = 'none';
-
-        if (navWorkspace) { navWorkspace.style.display = 'flex'; sidebarNav.appendChild(navWorkspace); }
-        if (navComunicados) { navComunicados.style.display = 'flex'; sidebarNav.appendChild(navComunicados); }
-        if (navHorario) { sidebarNav.appendChild(navHorario); }
-        if (navDocs) { navDocs.style.display = 'flex'; sidebarNav.appendChild(navDocs); }
-        if (navPermisos) { navPermisos.style.display = 'flex'; sidebarNav.appendChild(navPermisos); }
+    // [LAB-INTEGRACION] orden de pestañas por rol desde RiskOps.appRouter (política pura: RiskOps.authService.buildSidebarPolicy)
+    const __navResult = RiskOps.appRouter.createAppRouter({ document, getUser: () => currentUser }).applyRoleNavigation(sidebarNav);
+    if (!__navResult.privileged) {
         
-        // Hide Admin tabs for Gestor
-        if (adminNavGroup) adminNavGroup.style.display = 'none';
-        
-        // --- LUNCH BUTTON VISIBILITY ---
-        const toggleLunchBtn = document.getElementById('toggleLunchBtn');
-        if (toggleLunchBtn) {
-            toggleLunchBtn.style.display = 'flex';
-        }
-        
-        const toggleBreakfastBtn = document.getElementById('toggleBreakfastBtn');
-        if (toggleBreakfastBtn) {
-            toggleBreakfastBtn.style.display = 'flex';
-        }
+        // [LAB-INTEGRACION] botones de Almuerzo y Desayuno del Gestor desde RiskOps.appRouter
+        RiskOps.appRouter.createAppRouter({ document, getUser: () => currentUser }).applyBreakButtonsVisibility();
 
         const toggleSplitShiftBtn = document.getElementById('toggleSplitShiftBtn');
-        if (toggleSplitShiftBtn && currentUser.hasSplitShift === true) {
-            toggleSplitShiftBtn.style.display = 'flex';
+        if (toggleSplitShiftBtn) {
+            __shiftController().refreshSplitShiftButton(); // [LAB-INTEGRACION] visible con flag o con pausa en curso
         }
     }
 
@@ -5168,7 +3070,7 @@ function setupSidebar() {
 function updateNavigation() {
     const toggleSplitShiftBtn = document.getElementById('toggleSplitShiftBtn');
     if (toggleSplitShiftBtn && typeof currentUser !== 'undefined' && currentUser) {
-        toggleSplitShiftBtn.style.display = (currentUser.hasSplitShift === true) ? 'flex' : 'none';
+        __shiftController().refreshSplitShiftButton(); // [LAB-INTEGRACION] visible con flag o con pausa en curso
     }
     if (typeof setupSidebar === 'function') {
         setupSidebar();
@@ -5196,16 +3098,8 @@ const availableAvatars = [
 ];
 
 function startActiveSessionsListener() {
-    database.ref('active_sessions').on('value', (snapshot) => {
-        if (snapshot.exists()) {
-            allActiveSessions = snapshot.val();
-        } else {
-            allActiveSessions = {};
-        }
-        renderActiveSessionsDashboard();
-    }, (error) => {
-        console.error("Error cargando monitoreo en tiempo real:", error);
-    });
+    // [LAB-INTEGRACION] escucha de active_sessions en RiskOps.monitoringController
+    return __histNav().monitoring.startActiveSessionsListener();
 }
 
 function calculateShiftDelay(session) {
@@ -5249,6 +3143,8 @@ function calculateShiftDelay(session) {
 }
 
 function renderActiveSessionsDashboard() {
+    // [LAB-INTEGRACION] con el bundle cargado se usa RiskOps.monitoringController; el cuerpo original queda de respaldo
+    if (typeof RiskOps !== 'undefined' && typeof __histNav === 'function') return __histNav().monitoring.renderActiveSessionsDashboard();
     const grid = document.getElementById('monitoreoGrid');
     if (!grid) return;
 
@@ -5278,7 +3174,7 @@ function renderActiveSessionsDashboard() {
         const excludedMonitoreo = SUPERVISORES_NOMBRES;
         if (excludedMonitoreo.some(ex => fullName.toLowerCase().includes(ex.toLowerCase()))) return false;
 
-        if (session.status === 'En Almuerzo' || session.status === 'En Desayuno' || session.status === 'Inactivo') {
+        if (session.status === 'En Almuerzo' || session.status === 'En Desayuno' || session.status === 'En Pausa de Turno' || session.status === 'Inactivo') {
             isOnline = false;
         }
 
@@ -5320,7 +3216,7 @@ function renderActiveSessionsDashboard() {
         let isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
         
         // Fix: If they stopped pinging Firebase for over 2 minutes and aren't on break, force them to Inactivo locally
-        if (!isOnline && session.status !== 'En Almuerzo' && session.status !== 'En Desayuno') {
+        if (!isOnline && session.status !== 'En Almuerzo' && session.status !== 'En Desayuno' && session.status !== 'En Pausa de Turno') {
             session.status = 'Inactivo';
         }
 
@@ -5337,6 +3233,10 @@ function renderActiveSessionsDashboard() {
             statusBadge = '<span style="background: rgba(255,193,7,0.2); color: #ffc107; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;"><i class="bx bx-coffee"></i> Desayuno</span>';
             displayStatus = 'En Desayuno ☕';
             statusDot = '<div style="width: 8px; height: 8px; border-radius: 50%; background: #ffc107; margin-right: 6px;"></div>';
+        } else if (session.status === 'En Pausa de Turno') {
+            statusBadge = '<span style="background: rgba(139,92,246,0.2); color: #8b5cf6; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;"><i class="bx bx-pause-circle"></i> Pausa de Turno</span>';
+            displayStatus = 'En Pausa de Turno ⏸️';
+            statusDot = '<div style="width: 8px; height: 8px; border-radius: 50%; background: #8b5cf6; margin-right: 6px;"></div>';
         } else if (session.status === 'Inactivo') {
             isOnline = false;
             displayStatus = 'Inactivo 💤';
@@ -5490,6 +3390,8 @@ function renderActiveSessionsDashboard() {
 }
 
 function viewTimelineInMonitoreo(uid) {
+    // [LAB-INTEGRACION] con el bundle cargado se usa RiskOps.monitoringController; el cuerpo original queda de respaldo
+    if (typeof RiskOps !== 'undefined' && typeof __histNav === 'function') return __histNav().monitoring.viewTimelineInMonitoreo(uid);
     const session = allActiveSessions[uid];
     if (!session) return;
     
@@ -5511,7 +3413,7 @@ function viewTimelineInMonitoreo(uid) {
     // Inyectar dinámicamente el bloque de inactividad actual si el gestor perdió conexión (PC suspendido) y no está en pausa
     const lastPing = session.lastActive ? new Date(session.lastActive).getTime() : 0;
     const now = Date.now();
-    if (lastPing && (now - lastPing) > 120000 && session.status !== 'En Almuerzo' && session.status !== 'En Desayuno') { // más de 2 minutos sin dar señal y no está en break
+    if (lastPing && (now - lastPing) > 120000 && session.status !== 'En Almuerzo' && session.status !== 'En Desayuno' && session.status !== 'En Pausa de Turno') { // más de 2 minutos sin dar señal y no está en break
         const hasOngoingInactividad = validTimeline.some(ev => ev.type === 'Inactividad' && !ev.end);
         if (!hasOngoingInactividad) {
             validTimeline.push({
@@ -5539,6 +3441,7 @@ function viewTimelineInMonitoreo(uid) {
             if (ev.type === 'Almuerzo') icon = "<i class='bx bx-restaurant' style='color: var(--success)'></i>";
             if (ev.type === 'Desayuno') icon = "<i class='bx bx-coffee' style='color: var(--warning)'></i>";
             if (ev.type === 'Inactividad') icon = "<i class='bx bx-sleepy' style='color: var(--danger)'></i>";
+            if (ev.type === 'Pausa de Turno') icon = "<i class='bx bx-pause-circle' style='color: #8b5cf6'></i>";
 
             tbody.innerHTML += `
                 <tr style="border-bottom: 1px solid var(--glass-border);">
@@ -5555,147 +3458,9 @@ function viewTimelineInMonitoreo(uid) {
 window.viewTimelineInMonitoreo = viewTimelineInMonitoreo;
 
 
-window.openMonitoreoDetails = function(uid) {
-    const session = allActiveSessions[uid];
-    if (!session) return;
+window.openMonitoreoDetails = function(uid) { return __histNav().monitoring.openMonitoreoDetails(uid); }; // [LAB-INTEGRACION]
 
-    const fullName = (session.name || '').trim();
-    let matchedAvatar = availableAvatars.find(img => namesMatch(fullName, img.replace('.png', '')));
-    let avatarSrc = matchedAvatar ? `assets/src/img/${matchedAvatar}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0D8ABC&color=fff`;
-
-    const avatarEl = document.getElementById('monitoreoModalAvatar');
-    if (avatarEl) {
-        avatarEl.src = avatarSrc;
-        avatarEl.onerror = function() {
-            this.onerror = null;
-            this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0D8ABC&color=fff`;
-        };
-    }
-
-    const nameEl = document.getElementById('monitoreoModalName');
-    if (nameEl) nameEl.textContent = "Detalle de Tareas: " + fullName;
-    
-    const lastActiveTime = session.lastActive ? new Date(session.lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Nunca';
-    const loginTimeStr = session.loginTime ? new Date(session.loginTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pendiente';
-    const infoEl = document.getElementById('monitoreoModalInfo');
-    if (infoEl) infoEl.textContent = `Turno: ${session.shift || 'Mañana'} | Inicio: ${loginTimeStr} | Actividad: ${lastActiveTime}`;
-
-    const tasksList = document.getElementById('monitoreoModalTasksList');
-    if (tasksList) {
-        tasksList.innerHTML = '';
-
-        const tasks = session.tasks || {};
-        
-        let assignedTasks = [];
-        if (typeof globalCronogramaData !== 'undefined' && globalCronogramaData) {
-            assignedTasks = getAssignedTasksForGestor(fullName, session.shift || 'Mañana');
-        }
-
-        let displayTasks = [];
-        if (assignedTasks && assignedTasks.length > 0) {
-            assignedTasks.forEach(taskName => {
-                // Misma función de reconciliación que la tarjeta de
-                // renderActiveSessionsDashboard(): taskNamesMatch() en vez de igualdad
-                // exacta, con resolución de nombres legados "Tarea <id>" vía allTasks.
-                const reconciled = reconcileScheduledTaskWithSession(taskName, tasks);
-                displayTasks.push({ name: taskName, status: reconciled.status, observation: reconciled.observation });
-            });
-        }
-
-        // Extras
-        for (let key in tasks) {
-            if (key.startsWith('extra_') && tasks[key]) {
-                displayTasks.push({
-                    name: tasks[key].name,
-                    status: tasks[key].status || 'Pendiente',
-                    observation: tasks[key].observation || 'Tarea extra agregada durante el turno.'
-                });
-            }
-        }
-
-        // Direct tasks fallback if displayTasks is empty
-        if (displayTasks.length === 0 && Object.keys(tasks).length > 0) {
-            for (let key in tasks) {
-                if (!tasks[key]) continue;
-                const isExtra = key.startsWith('extra_');
-                displayTasks.push({
-                    name: isExtra ? (tasks[key].name || key) : resolveTaskDisplayName(key, tasks[key]),
-                    status: tasks[key].status || 'Pendiente',
-                    observation: tasks[key].observation || ''
-                });
-            }
-        }
-
-        if (displayTasks.length === 0) {
-            tasksList.innerHTML = `
-                <div style="padding: 20px; text-align: center; color: var(--text-secondary);">
-                    Este gestor aún no tiene tareas asignadas en este turno.
-                </div>
-            `;
-        } else {
-            displayTasks.forEach(t => {
-                let badgeClass = 'pending';
-                let badgeStyle = 'background: rgba(148,163,184,0.15); color: #94a3b8;';
-                if (t.status === 'Finalizada') {
-                    badgeClass = 'completed';
-                    badgeStyle = 'background: rgba(16,185,129,0.15); color: var(--success);';
-                } else if (t.status === 'En Proceso') {
-                    badgeClass = 'in-progress';
-                    badgeStyle = 'background: rgba(245,158,11,0.15); color: var(--warning);';
-                } else if (t.status === 'No Realizada') {
-                    badgeClass = 'not-done';
-                    badgeStyle = 'background: rgba(239,68,68,0.15); color: var(--danger);';
-                }
-
-                const observationText = t.observation ? escapeHTML(t.observation.trim()) : 'Sin observaciones cargadas.';
-
-                tasksList.innerHTML += `
-                    <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--glass-border); padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px;">
-                        <div style="display: flex; justify-content: space-between; align-items: start; gap: 10px;">
-                            <span style="font-weight: 600; font-size: 13.5px; color: var(--text-primary);">${escapeHTML(t.name)}</span>
-                            <span class="monitoreo-task-badge ${badgeClass}" style="padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; ${badgeStyle}">${escapeHTML(t.status)}</span>
-                        </div>
-                        <div style="font-size: 12px; color: var(--text-secondary); background: rgba(0,0,0,0.03); padding: 8px 10px; border-radius: 6px; border-left: 3px solid var(--accent-primary);">
-                            <strong>Notas u Observaciones:</strong> ${observationText}
-                        </div>
-                    </div>
-                `;
-            });
-        }
-    }
-
-    const modal = document.getElementById('monitoreoModal');
-    if (modal) modal.classList.add('active');
-};
-
-function populateGestoresDropdown() {
-    const selectEl = document.getElementById('monitoreoSearchInput');
-    if (!selectEl) return;
-    
-    selectEl.innerHTML = '<option value="">Todos los Gestores</option>';
-    
-    database.ref('users').once('value').then(snapshot => {
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            const gestores = Object.keys(data)
-                .map(k => data[k])
-                .filter(u => u && u.role === 'Gestor' && u.approved === true)
-                .map(u => u.name.trim())
-                .sort((a, b) => a.localeCompare(b));
-            
-            const uniqueGestores = [...new Set(gestores)];
-            
-            uniqueGestores.forEach(name => {
-                const opt = document.createElement('option');
-                opt.value = name;
-                opt.textContent = name;
-                selectEl.appendChild(opt);
-            });
-        }
-    }).catch(err => {
-        console.error("Error populating gestores dropdown:", err);
-    });
-}
+function populateGestoresDropdown() { return __histNav().monitoring.populateGestoresDropdown(); } // [LAB-INTEGRACION]
 
 // --- Lógica del Portal de Indicadores de Gestión (KPIs) ---
 
@@ -5703,107 +3468,52 @@ window.kpiUsersData = {}; // email -> name
 window.retirosGlobalData = null; // Carga automática del backend
 window.kpiTaskLists = { finalizadas: [], no_realizadas: [], pendientes: [] };
 
+// [LAB-INTEGRACION] Puente app.js -> RiskOps (corte "kpis"): el controlador se crea la primera vez que se usa.
+// El estado (window.*, controlOperativoCharts) sigue siendo de app.js; el controlador lo lee y escribe por referencia.
+let __labKpiController = null;
+function __kpiController() {
+    if (__labKpiController) return __labKpiController;
+    __labKpiController = RiskOps.kpiController.createKpiController({
+        getEl: (id) => document.getElementById(id),
+        querySelector: (selector) => document.querySelector(selector),
+        createElement: (tag) => document.createElement(tag),
+        state: window,
+        chartRegistry: controlOperativoCharts,
+        ChartClass: Chart,
+        datalabelsPlugin: typeof ChartDataLabels !== 'undefined' ? ChartDataLabels : {},
+        fetchKpiData: () => fetchKpiOperativosData(),
+        database: database,
+        getSelectedGestores: (id) => getSelectedMultiSelectValues(id),
+        setSelectedGestores: (id, values) => setCustomMultiSelectValues(id, values),
+        setupMultiSelect: (id, options, onChange) => setupCustomMultiSelect(id, options, onChange),
+        recalcularIndicadores: () => calcularIndicadores(),
+        // [LAB-INTEGRACION] D9b: sin SUPERVISORES_NOMBRES. Los supervisores se derivan del ROL en users (la misma lectura de users que ya
+        // hacen loadGestoresForKPIs/loadControlOperativoData; el panel de KPIs solo lo abre Supervisor/Admin).
+        // D5: corregirBugs y fechaLocal quedan con su valor por defecto (encendidos); el día operativo usa la zona del navegador.
+        now: () => new Date(),
+        alert: (message) => alert(message),
+        print: () => window.print(),
+        setTimeout: (fn, ms) => setTimeout(fn, ms),
+        scrollToTop: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
+        logger: console
+    });
+    return __labKpiController;
+}
+
 // Función centralizada para obtener datos de KPIs respetando el aislamiento de entornos
-async function fetchKpiOperativosData() {
-    const isLocal = typeof window !== 'undefined' && (
-        window.location.hostname === 'localhost' ||
-        window.location.hostname === '127.0.0.1' ||
-        window.location.protocol === 'file:'
-    );
-
-    if (isLocal) {
-        try {
-            const seedResp = await fetch('kpi_operativos_seed.json?v=' + new Date().getTime());
-            if (seedResp.ok) {
-                const seedData = await seedResp.json();
-                if (seedData && Object.keys(seedData).length > 0) {
-                    console.log("[Laboratorio Local] Datos semilla cargados con éxito desde kpi_operativos_seed.json");
-                    return seedData;
-                }
-            }
-        } catch (e) {
-            console.warn("[Laboratorio Local] kpi_operativos_seed.json no disponible, usando archivo estándar", e);
-        }
-    }
-
-    const response = await fetch('kpi_operativos_v2.json?v=' + new Date().getTime());
-    if (!response.ok) throw new Error("No se pudo cargar kpi_operativos_v2.json");
-    return await response.json();
+async function fetchKpiOperativosData() { // [LAB-INTEGRACION] RiskOps.kpiOperativosSource
+    return RiskOps.kpiOperativosSource.fetchKpiOperativosData({
+        fetchFn: (url) => fetch(url),
+        isLocal: RiskOps.kpiOperativosSource.detectLocalEnvironment(window),
+        now: () => new Date().getTime(),
+        logger: console
+    });
 }
 
 // Cargar data de retiros automáticamente (JSON pre-procesado del motor operativo o seed en local)
-async function loadRetirosData() {
-    try {
-        const data = await fetchKpiOperativosData();
-        window.retirosGlobalData = data;
-        window.controlOperativoRawData = data;
-        console.log("Data de retiros cargada automáticamente:", Object.keys(data).length, "gestores");
-    } catch (err) {
-        console.warn("No hay data de retiros automatizada o hubo un error:", err);
-        window.retirosGlobalData = null;
-    }
-}
+async function loadRetirosData() { return __kpiController().loadRetirosData(); } // [LAB-INTEGRACION] RiskOps.kpiController
 
-function loadGestoresForKPIs() {
-    const selectEl = document.getElementById('kpiGestorSelect');
-    if (!selectEl) return;
-    
-    if (selectEl.options.length > 2) {
-        // If already loaded, just return. We don't want to overwrite and re-trigger calculation
-        return;
-    }
-    
-    selectEl.innerHTML = '<option value="todos" selected>Todos los gestores</option><option value="">Selecciona un gestor...</option>';
-    
-    database.ref('users').once('value').then(snapshot => {
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            window.kpiUsersData = {};
-            
-            const targetGestores = [
-                "oriana borja",
-                "marilyn",
-                "sebastian hincapie",
-                "sebastian arango",
-                "sebastiana",
-                "juan jose diaz",
-                "yefferson",
-                "alexander villada",
-                "daniel",
-                "josue alvarez",
-                "luis"
-            ];
-            
-            const gestores = Object.keys(data)
-                .map(k => {
-                    const u = data[k];
-                    if (u && u.email && u.name) {
-                        window.kpiUsersData[u.email.toLowerCase()] = u.name.trim();
-                    }
-                    return u;
-                })
-                .filter(u => {
-                    if (!u || u.role !== 'Gestor' || u.approved !== true) return false;
-                    const nameLower = u.name.toLowerCase();
-                    return targetGestores.some(t => nameLower.includes(t));
-                })
-                .map(u => u.name.trim())
-                .sort((a, b) => a.localeCompare(b));
-            
-            const uniqueGestores = [...new Set(gestores)];
-            
-            uniqueGestores.forEach(name => {
-                const opt = document.createElement('option');
-                opt.value = name;
-                opt.textContent = name;
-                selectEl.appendChild(opt);
-            });
-            
-            // Auto-trigger KPI calculation once loaded to map the global view
-            calcularIndicadores();
-        }
-    }).catch(err => console.error("Error populating KPI gestores dropdown:", err));
-}
+function loadGestoresForKPIs() { __kpiController().loadGestoresForKPIs(); } // [LAB-INTEGRACION] RiskOps.kpiController (el original no devuelve nada)
 
 async function calcularIndicadores() {
     const selectedGestores = getSelectedMultiSelectValues('operativoGestorMultiSelect');
@@ -5938,26 +3648,7 @@ async function calcularIndicadores() {
         if (report.horaInicio && report.horaFin) {
             const baseMs = report.timestamp || report.loginTime || Date.now();
             
-            const parseTime = (timeStr, baseDateMs) => {
-                if (typeof timeStr === 'string') {
-                    timeStr = timeStr.replace(/a\.\s*m\./i, 'AM').replace(/p\.\s*m\./i, 'PM');
-                }
-                let d = new Date(timeStr);
-                if (!isNaN(d.getTime())) return d.getTime();
-                
-                if (typeof timeStr === 'string' && timeStr.includes(':')) {
-                    const parts = timeStr.match(/(\d+):(\d+)/);
-                    if (parts) {
-                        const base = new Date(baseDateMs);
-                        let hours = parseInt(parts[1], 10);
-                        if (timeStr.toUpperCase().includes('PM') && hours < 12) hours += 12;
-                        if (timeStr.toUpperCase().includes('AM') && hours === 12) hours = 0;
-                        base.setHours(hours, parseInt(parts[2], 10), 0, 0);
-                        return base.getTime();
-                    }
-                }
-                return NaN;
-            };
+            const parseTime = (timeStr, baseDateMs) => RiskOps.kpiMetrics.parseTime(timeStr, baseDateMs); // [LAB-INTEGRACION] RiskOps.kpiMetrics
 
             const startMs = parseTime(report.horaInicio, baseMs);
             const endMs = parseTime(report.horaFin, baseMs);
@@ -5967,11 +3658,10 @@ async function calcularIndicadores() {
                 if (diffMins < 0) diffMins += 1440; // Cruzó la medianoche
                 
                 if (diffMins > 0 && diffMins <= 1440) {
-                    let almuerzo = report.tiempoAlmuerzoMins || 0;
-                    let desayuno = report.tiempoDesayunoMins || 0;
-                    let pausaTurno = report.tiempoPausaTurnoMins || 0;
-                    let tiempoEfectivo = diffMins - almuerzo - desayuno - pausaTurno;
-                    if (tiempoEfectivo < 0) tiempoEfectivo = 0;
+                    // [LAB-INTEGRACION] D1: fórmula única de tiempo efectivo, la misma del correo de cierre (RiskOps.effectiveTime):
+                    // duración - almuerzo - desayuno - Pausa de Turno - inactividad (inactividadTotalMins; en reportes
+                    // antiguos, penalidad - excesos). La penalidad de conectividad es informativa y no se resta.
+                    let tiempoEfectivo = RiskOps.effectiveTime.computeSavedReportEffectiveMinutes(report, diffMins);
                     
                     totalMinutosConectados += tiempoEfectivo;
                     turnosValidosParaTiempo++;
@@ -6446,66 +4136,10 @@ async function calcularIndicadores() {
     resultsContainer.style.display = 'flex';
 }
 
-// Modal de Detalle de Tareas (KPIs)
-function openKpiTaskDetails(tipo) {
-    const modal = document.getElementById('kpiTaskDetailsModal');
-    const title = document.getElementById('kpiModalTitle');
-    const icon = document.getElementById('kpiModalIcon');
-    const list = document.getElementById('kpiModalTaskList');
-    
-    if (!window.kpiTaskLists) return;
-    
-    const tasks = window.kpiTaskLists[tipo] || [];
-    
-    // Configurar cabecera
-    if (tipo === 'finalizadas') {
-        title.textContent = 'Tareas Finalizadas';
-        icon.className = 'bx bx-check-double';
-        icon.style.color = 'var(--success)';
-    } else if (tipo === 'no_realizadas') {
-        title.textContent = 'Tareas No Realizadas';
-        icon.className = 'bx bx-x-circle';
-        icon.style.color = 'var(--danger)';
-    } else if (tipo === 'pendientes') {
-        title.textContent = 'Tareas Pendientes';
-        icon.className = 'bx bx-time';
-        icon.style.color = 'var(--warning)';
-    }
-    
-    list.innerHTML = '';
-    
-    if (tasks.length === 0) {
-        list.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 20px;">No hay tareas en este estado.</div>';
-    } else {
-        tasks.forEach(t => {
-            const tTypeColor = t.type === 'adicional' ? 'var(--warning)' : 'var(--accent-primary)';
-            const tTypeBadge = `<span style="font-size: 10px; background: ${tTypeColor}20; color: ${tTypeColor}; padding: 2px 6px; border-radius: 10px; margin-left: 8px;">${t.type === 'adicional' ? 'Adicional' : 'Set'}</span>`;
-            
-            list.innerHTML += `
-                <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); padding: 10px 15px; border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div style="font-size: 13px; color: var(--text-primary); font-weight: 500;">
-                            ${escapeHTML(t.name)}
-                            ${tTypeBadge}
-                        </div>
-                        <div style="font-size: 11px; color: var(--text-secondary);">
-                            <i class='bx bx-calendar'></i> ${escapeHTML(t.date)}
-                        </div>
-                    </div>
-                    <div style="font-size: 11px; color: var(--text-secondary); background: rgba(0,0,0,0.2); padding: 6px 10px; border-radius: 4px; border-left: 2px solid ${tTypeColor};">
-                        <strong>Nota:</strong> ${escapeHTML(t.observation)}
-                    </div>
-                </div>
-            `;
-        });
-    }
-    
-    modal.classList.add('active');
-}
+// Modal de Detalle de Tareas (KPIs) — [LAB-INTEGRACION] RiskOps.kpiController
+function openKpiTaskDetails(tipo) { return __kpiController().openKpiTaskDetails(tipo); }
 
-function closeKpiTaskDetails() {
-    document.getElementById('kpiTaskDetailsModal').classList.remove('active');
-}
+function closeKpiTaskDetails() { return __kpiController().closeKpiTaskDetails(); }
 
 // Inicialización al cargar el DOM
 document.addEventListener('DOMContentLoaded', () => {
@@ -6517,35 +4151,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof initAtomicApprovedCounterListener === 'function') initAtomicApprovedCounterListener();
     if (typeof startIncidentsRealtimeListener === 'function') startIncidentsRealtimeListener();
     
-    // Restaurar botones de pausas
-    const btnLunch = document.getElementById('toggleLunchBtn');
-    if (btnLunch && isLunchBreak) {
-        btnLunch.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Almuerzo/Cena";
-        btnLunch.classList.remove('btn-outline');
-        btnLunch.style.backgroundColor = "rgba(0, 188, 212, 0.15)";
-        btnLunch.style.color = "#00bcd4";
-        btnLunch.style.borderColor = "rgba(0, 188, 212, 0.5)";
-        btnLunch.style.boxShadow = "0 0 15px rgba(0, 188, 212, 0.2)";
-    }
-    const btnBreak = document.getElementById('toggleBreakfastBtn');
-    if (btnBreak && isBreakfastBreak) {
-        btnBreak.innerHTML = "<i class='bx bx-check-circle'></i> Volver del Desayuno";
-        btnBreak.classList.remove('btn-outline');
-        btnBreak.style.backgroundColor = "rgba(255, 152, 0, 0.15)";
-        btnBreak.style.color = "#ff9800";
-        btnBreak.style.borderColor = "rgba(255, 152, 0, 0.5)";
-        btnBreak.style.boxShadow = "0 0 15px rgba(255, 152, 0, 0.2)";
-    }
-    const btnSplitShift = document.getElementById('toggleSplitShiftBtn');
-    if (btnSplitShift && isSplitShiftBreak) {
-        btnSplitShift.innerHTML = "<i class='bx bx-check-circle'></i> Retomar Turno";
-        btnSplitShift.classList.remove('btn-outline');
-        btnSplitShift.style.backgroundColor = "rgba(139, 92, 246, 0.15)";
-        btnSplitShift.style.color = "#8b5cf6";
-        btnSplitShift.style.borderColor = "rgba(139, 92, 246, 0.5)";
-        btnSplitShift.style.boxShadow = "0 0 15px rgba(139, 92, 246, 0.2)";
-    }
-    
+    // Restaurar botones de pausas — [LAB-INTEGRACION]
+    __shiftController().restoreOnLoad();
+
     const periodoSelect = document.getElementById('kpiPeriodoSelect');
     if (periodoSelect) {
         periodoSelect.addEventListener('change', function(e) {
@@ -6587,1844 +4195,135 @@ window.addEventListener('keydown', function(event) {
 // --- MÓDULO DE COMUNICADOS ---
 let globalComunicados = {};
 
-function initComunicadosListener() {
-    database.ref('announcements').on('value', snapshot => {
-        globalComunicados = snapshot.val() || {};
-        updateUnreadBadge();
-        checkUnreadUrgentAnnouncements();
-        
-        // Re-render views if they are open
-        const viewGestor = document.getElementById('view-comunicados');
-        if (viewGestor && viewGestor.style.display === 'block') {
-            renderGestorComunicados();
-        }
-        
-        const viewAdmin = document.getElementById('view-gestion-comunicados');
-        if (viewAdmin && viewAdmin.style.display === 'block') {
-            renderAdminComunicados();
-        }
+// [LAB-INTEGRACION:COMUNICADOS-INICIO]
+// [LAB-INTEGRACION] Comunicados: RiskOps.announcementsController (src/controllers/announcements-controller.js)
+let __labAnnouncementsController = null;
+function __labAnnouncements() {
+    if (__labAnnouncementsController) return __labAnnouncementsController;
+    __labAnnouncementsController = RiskOps.announcementsController.createAnnouncementsController({
+        repository: RiskOps.announcementRepository.createAnnouncementRepository({ database }),
+        document,
+        getUser: () => currentUser,
+        getAuthUser: () => firebase.auth().currentUser,
+        getAnnouncements: () => globalComunicados,
+        setAnnouncements: (map) => { globalComunicados = map; },
+        now: () => Date.now(),
+        alert: (m) => alert(m),
+        closeModal: (id) => closeModal(id),
+        setTimeout: (fn, ms) => setTimeout(fn, ms),
+        logger: console,
+        helpers: { escapeHTML, encodeInlineHandlerArg, sanitizeAnnouncementHTML }
     });
+    return __labAnnouncementsController;
 }
 
-function openNewComunicadoModal() {
-    if (!currentUser || !canPublishComunicados(currentUser.role)) {
-        console.warn('openNewComunicadoModal: rol no autorizado', currentUser && currentUser.role);
-        return;
-    }
-    document.getElementById('comunicadoTitle').value = '';
-    document.getElementById('comunicadoContent').innerHTML = '';
-    document.getElementById('newComunicadoModal').classList.add('active');
-}
+function initComunicadosListener() { __labAnnouncements().initListener(); } // [LAB-INTEGRACION]
 
-async function saveNewComunicado() {
-    if (!currentUser || !canPublishComunicados(currentUser.role)) {
-        console.warn('saveNewComunicado: rol no autorizado', currentUser && currentUser.role);
-        alert("No tienes permiso para publicar comunicados.");
-        return;
-    }
-    const title = document.getElementById('comunicadoTitle').value.trim();
-    const content = sanitizeAnnouncementHTML(document.getElementById('comunicadoContent').innerHTML).trim();
+function openNewComunicadoModal() { __labAnnouncements().openNewModal(); } // [LAB-INTEGRACION]
 
-    if (!title || !content) {
-        alert("Por favor llena todos los campos.");
-        return;
-    }
-    
-    try {
-        const newRef = database.ref('announcements').push();
-        await newRef.set({
-            title: title,
-            content: content,
-            date: new Date().toISOString(),
-            // Never hardcode a role name here: falling back to 'Admin' would misattribute
-            // a Supervisor's own announcement. Fall back to email, then role, before a
-            // generic label — never to another role's name.
-            author: currentUser.name || currentUser.email || currentUser.role || 'Usuario',
-            authorUid: firebase.auth().currentUser.uid
-        });
+async function saveNewComunicado() { return __labAnnouncements().save(); } // [LAB-INTEGRACION]
 
-        alert("Comunicado publicado exitosamente.");
-        closeModal('newComunicadoModal');
-    } catch(e) {
-        console.error(e);
-        alert("Error al publicar.");
-    }
-}
+function updateUnreadBadge() { __labAnnouncements().updateUnreadBadge(); } // [LAB-INTEGRACION]
 
-function updateUnreadBadge() {
-    if (!currentUser || currentUser.role === 'Admin' || currentUser.role === 'Supervisor') {
-        const badge = document.getElementById('unreadAnnouncementsBadge');
-        if (badge) badge.style.display = 'none';
-        return;
-    }
-    
-    let unreadCount = 0;
-    const uid = (currentUser && currentUser.uid) ? currentUser.uid : (firebase.auth().currentUser ? firebase.auth().currentUser.uid : 'unknown');
-    
-    Object.keys(globalComunicados).forEach(key => {
-        const c = globalComunicados[key];
-        if (!c.readBy || !c.readBy[uid]) {
-            unreadCount++;
-        }
+function renderGestorComunicados() { __labAnnouncements().renderGestor(); } // [LAB-INTEGRACION]
+
+async function markComunicadoAsRead(id) { await __labAnnouncements().markAsRead(id); } // [LAB-INTEGRACION]
+
+function checkUnreadUrgentAnnouncements() { __labAnnouncements().checkUnreadUrgent(); } // [LAB-INTEGRACION]
+
+async function markUrgentComunicadoAsRead(id) { return __labAnnouncements().markUrgentAsRead(id); } // [LAB-INTEGRACION]
+// [LAB-INTEGRACION:COMUNICADOS-FIN]
+
+// [LAB-INTEGRACION:CONFIG-GESTORES-INICIO]
+// === CONFIGURACIÓN DE GESTORES === [LAB-INTEGRACION] RiskOps.configGestoresController (src/controllers/config-gestores-controller.js)
+let __labConfigGestoresController = null;
+function __labConfigGestores() {
+    if (__labConfigGestoresController) return __labConfigGestoresController;
+    __labConfigGestoresController = RiskOps.configGestoresController.createConfigGestoresController({
+        repository: RiskOps.configRepository.createConfigRepository({ database }),
+        document,
+        confirm: (m) => confirm(m),
+        alert: (m) => alert(m),
+        logger: console
     });
-    
-    const badge = document.getElementById('unreadAnnouncementsBadge');
-    if (badge) {
-        if (unreadCount > 0) {
-            badge.textContent = unreadCount;
-            badge.style.display = 'inline-block';
-        } else {
-            badge.style.display = 'none';
-        }
-    }
+    return __labConfigGestoresController;
 }
 
-function renderGestorComunicados() {
-    const list = document.getElementById('gestorComunicadosList');
-    if (!list) return;
-    
-    list.innerHTML = '';
-    const keys = Object.keys(globalComunicados).sort((a,b) => {
-        return new Date(globalComunicados[b].date) - new Date(globalComunicados[a].date);
-    });
-    
-    if (keys.length === 0) {
-        list.innerHTML = `<div class="glass-panel" style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay comunicados activos.</div>`;
-        return;
-    }
-    
-    const uid = (currentUser && currentUser.uid) ? currentUser.uid : (firebase.auth().currentUser ? firebase.auth().currentUser.uid : 'unknown');
-    
-    keys.forEach(key => {
-        const c = globalComunicados[key];
-        const isRead = c.readBy && c.readBy[uid];
-        const formattedDate = new Date(c.date).toLocaleString('es-CO');
-        
-        let actionsHtml = '';
-        if (isRead) {
-            actionsHtml = `<div style="color: var(--success); font-size: 13px; margin-top: 15px; font-weight: 500;"><i class='bx bx-check-double'></i> Leído el ${new Date(c.readBy[uid].readAt).toLocaleString('es-CO')}</div>`;
-        } else {
-            actionsHtml = `<button class="btn btn-primary" style="margin-top: 15px; width: 100%; max-width: 300px; background: var(--success); border-color: var(--success);" onclick="markComunicadoAsRead(decodeURIComponent('${encodeInlineHandlerArg(key)}'))"><i class='bx bx-check'></i> Marcar como Leído y Entendido</button>`;
-        }
-        
-        list.innerHTML += `
-            <div class="glass-panel" style="padding: 20px; border-left: 4px solid ${isRead ? 'var(--glass-border)' : 'var(--danger)'};">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-                    <h3 style="color: ${isRead ? 'var(--text-primary)' : 'var(--danger)'}; margin: 0; font-size: 18px;">${escapeHTML(c.title)}</h3>
-                    <span style="font-size: 11px; color: var(--text-secondary); background: rgba(0,0,0,0.1); padding: 3px 8px; border-radius: 10px;">${formattedDate} por ${escapeHTML(c.author)}</span>
-                </div>
-                <div class="rich-text" style="font-size: 14px; color: var(--text-secondary); margin-top: 10px; line-height: 1.5; overflow-wrap: break-word; white-space: pre-wrap;">${sanitizeAnnouncementHTML(c.content)}</div>
-                ${actionsHtml}
-            </div>
-        `;
-    });
-}
+function renderConfigGestores() { __labConfigGestores().render(); } // [LAB-INTEGRACION]
 
-async function markComunicadoAsRead(id) {
-    try {
-        const uid = (currentUser && currentUser.uid) ? currentUser.uid : (firebase.auth().currentUser ? firebase.auth().currentUser.uid : 'unknown');
-        await database.ref(`announcements/${id}/readBy/${uid}`).set({
-            name: currentUser.name,
-            readAt: new Date().toISOString()
-        });
-    } catch(e) {
-        console.error(e);
-        alert("Error al marcar como leído.");
-    }
-}
+function toggleGestorSplitShift(uid, isChecked) { __labConfigGestores().toggle(uid, isChecked); } // [LAB-INTEGRACION]
+// [LAB-INTEGRACION:CONFIG-GESTORES-FIN]
 
-function checkUnreadUrgentAnnouncements() {
-    if (!currentUser || !currentUser.uid) return;
-    const uid = currentUser.uid;
-    
-    const modal = document.getElementById('urgentAnnouncementModal');
-    if (modal && modal.classList.contains('active')) return;
-    
-    const keys = Object.keys(globalComunicados).sort((a,b) => {
-        return new Date(globalComunicados[a].date) - new Date(globalComunicados[b].date);
-    });
-    
-    for (let key of keys) {
-        const c = globalComunicados[key];
-        const isRead = c.readBy && c.readBy[uid];
-        
-        if (!isRead) {
-            document.getElementById('urgentAnnouncementTitle').innerText = c.title || '';
-            document.getElementById('urgentAnnouncementAuthor').innerText = c.author || '';
-            document.getElementById('urgentAnnouncementDate').innerText = new Date(c.date).toLocaleString('es-CO');
-            document.getElementById('urgentAnnouncementBody').innerHTML = sanitizeAnnouncementHTML(c.content);
-            
-            const btn = document.getElementById('btnUrgentUnderstand');
-            btn.onclick = () => markUrgentComunicadoAsRead(key);
-            
-            modal.classList.add('active');
-            return;
-        }
-    }
-}
+// [LAB-INTEGRACION:COMUNICADOS-ADMIN-INICIO]
+function renderAdminComunicados() { __labAnnouncements().renderAdmin(); } // [LAB-INTEGRACION]
 
-async function markUrgentComunicadoAsRead(id) {
-    const btn = document.getElementById('btnUrgentUnderstand');
-    btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Registrando...";
-    btn.disabled = true;
-    
-    try {
-        await markComunicadoAsRead(id);
-        
-        document.getElementById('urgentAnnouncementModal').classList.remove('active');
-        btn.innerHTML = "<i class='bx bx-check-double'></i> He leído y entendido este comunicado";
-        btn.disabled = false;
-        
-        setTimeout(() => {
-            checkUnreadUrgentAnnouncements();
-        }, 500);
-        
-    } catch(e) {
-        btn.innerHTML = "<i class='bx bx-check-double'></i> He leído y entendido este comunicado";
-        btn.disabled = false;
-    }
-}
+function viewComunicadoContent(id) { __labAnnouncements().viewContent(id); } // [LAB-INTEGRACION]
 
-// === CONFIGURACIÓN DE GESTORES ===
-function renderConfigGestores() {
-    const tbody = document.getElementById('configGestoresTableBody');
-    if (!tbody) return;
+async function viewComunicadoLecturas(id) { return __labAnnouncements().viewLecturas(id); } // [LAB-INTEGRACION]
 
-    database.ref('users').once('value').then(snap => {
-        tbody.innerHTML = '';
-        if (!snap.exists()) {
-            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-secondary); padding: 20px;">No hay gestores registrados.</td></tr>';
-            return;
-        }
+function deleteComunicado(id) { __labAnnouncements().requestDelete(id); } // [LAB-INTEGRACION]
 
-        const usersMap = {};
-        snap.forEach(child => {
-            const u = child.val();
-            // Mostrar solo Gestores (excluir Supervisores como Sara y Camilo)
-            if (u.role === 'Gestor' && u.email && !u.email.toLowerCase().includes('pruebas')) {
-                const email = u.email.toLowerCase();
-                // Si hay duplicados, preferimos el que tenga loginTime mas reciente o simplemente guardamos uno
-                if (!usersMap[email] || (u.loginTime && (!usersMap[email].loginTime || new Date(u.loginTime) > new Date(usersMap[email].loginTime)))) {
-                    u.uid = child.key;
-                    usersMap[email] = u;
-                }
-            }
-        });
-        
-        const users = Object.values(usersMap);
-
-        if (users.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-secondary); padding: 20px;">No hay gestores registrados.</td></tr>';
-            return;
-        }
-
-        // Ordenar alfabéticamente
-        users.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-
-        users.forEach(u => {
-            const hasSplitShift = u.hasSplitShift === true;
-            const row = document.createElement('tr');
-            row.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
-            row.innerHTML = `
-                <td style="padding: 15px; display: flex; align-items: center; gap: 10px;">
-                    <div style="width: 30px; height: 30px; background: var(--glass-border); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--accent-primary);"><i class='bx bx-user'></i></div>
-                    <div>
-                        <div style="font-weight: 500; color: var(--text-primary);">${u.name || 'Desconocido'}</div>
-                        <div style="font-size: 11px; color: var(--text-secondary);">${u.role}</div>
-                    </div>
-                </td>
-                <td style="padding: 15px; color: var(--text-secondary); font-size: 13px;">${u.email}</td>
-                <td style="padding: 15px; text-align: center;">
-                    <label for="splitShiftToggle_${u.uid}" class="switch" style="position: relative; display: inline-block; width: 44px; height: 22px;">
-                        <input type="checkbox" id="splitShiftToggle_${u.uid}" name="splitShiftToggle_${u.uid}" aria-label="Turno Partido para ${escapeHTML(u.name || 'Gestor')}" onchange="toggleGestorSplitShift('${u.uid}', this.checked)" ${hasSplitShift ? 'checked' : ''} style="opacity: 0; width: 0; height: 0;">
-                        <span class="slider round" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: ${hasSplitShift ? 'var(--success)' : 'var(--glass-border)'}; transition: .4s; border-radius: 22px;">
-                            <span style="position: absolute; height: 16px; width: 16px; left: ${hasSplitShift ? '24px' : '3px'}; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
-                        </span>
-                    </label>
-                </td>
-            `;
-            tbody.appendChild(row);
-        });
-    }).catch(err => {
-        console.error('Error cargando gestores:', err);
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--danger); padding: 20px;">Error al cargar datos.</td></tr>';
-    });
-}
-
-function toggleGestorSplitShift(uid, isChecked) {
-    if(confirm(`¿Estás segura de que quieres ${isChecked ? 'habilitar' : 'deshabilitar'} la Pausa de Turno para este usuario?`)) {
-        database.ref('users/' + uid + '/hasSplitShift').set(isChecked).then(() => {
-            renderConfigGestores(); // Refrescar vista
-        }).catch(err => {
-            console.error('Error actualizando permiso de turno partido:', err);
-            alert("Hubo un error al guardar. Intenta de nuevo.");
-            renderConfigGestores(); // Revertir toggle
-        });
-    } else {
-        renderConfigGestores(); // Revertir toggle si cancela
-    }
-}
-
-function renderAdminComunicados() {
-    const tbody = document.getElementById('adminComunicadosTableBody');
-    if (!tbody) return;
-    
-    tbody.innerHTML = '';
-    const keys = Object.keys(globalComunicados).sort((a,b) => {
-        return new Date(globalComunicados[b].date) - new Date(globalComunicados[a].date);
-    });
-    
-    if (keys.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay comunicados creados.</td></tr>`;
-        return;
-    }
-    
-    const showDelete = canDeleteComunicados(currentUser && currentUser.role);
-
-    keys.forEach(key => {
-        const c = globalComunicados[key];
-        const formattedDate = new Date(c.date).toLocaleString('es-CO');
-        const readCount = c.readBy ? Object.keys(c.readBy).length : 0;
-        const deleteBtnHtml = showDelete
-            ? `<button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px; margin-left: 5px;" onclick="deleteComunicado(decodeURIComponent('${encodeInlineHandlerArg(key)}'))"><i class='bx bx-trash'></i></button>`
-            : '';
-
-        tbody.innerHTML += `
-            <tr style="border-bottom: 1px solid var(--glass-border);">
-                <td style="padding: 12px; font-size: 13px;">${formattedDate}</td>
-                <td style="padding: 12px; font-weight: 500;">
-                    <a href="javascript:void(0)" onclick="viewComunicadoContent(decodeURIComponent('${encodeInlineHandlerArg(key)}'))" style="color: var(--accent-primary); text-decoration: none; cursor: pointer; transition: color 0.2s;" onmouseover="this.style.textDecoration='underline'; this.style.color='var(--text-primary)'" onmouseout="this.style.textDecoration='none'; this.style.color='var(--accent-primary)'">${escapeHTML(c.title)}</a>
-                </td>
-                <td style="padding: 12px; color: var(--text-secondary); font-size: 13px;">${escapeHTML(c.author)}</td>
-                <td style="padding: 12px; text-align: center;"><span class="badge" style="background: var(--success);">${readCount} lecturas</span></td>
-                <td style="padding: 12px; text-align: center;">
-                    <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px;" onclick="viewComunicadoContent(decodeURIComponent('${encodeInlineHandlerArg(key)}'))"><i class='bx bx-book-open'></i> Leer</button>
-                    <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px; margin-left: 5px;" onclick="viewComunicadoLecturas(decodeURIComponent('${encodeInlineHandlerArg(key)}'))"><i class='bx bx-user-check'></i> Lecturas</button>
-                    ${deleteBtnHtml}
-                </td>
-            </tr>
-        `;
-    });
-}
-
-function viewComunicadoContent(id) {
-    const c = globalComunicados[id];
-    if (!c) return;
-    
-    document.getElementById('viewComunicadoContentTitle').innerText = c.title || '';
-    document.getElementById('viewComunicadoContentAuthor').innerText = c.author || '';
-    document.getElementById('viewComunicadoContentDate').innerText = new Date(c.date).toLocaleString('es-CO');
-    document.getElementById('viewComunicadoContentBody').innerHTML = sanitizeAnnouncementHTML(c.content);
-    
-    document.getElementById('viewComunicadoContentModal').classList.add('active');
-}
-
-async function viewComunicadoLecturas(id) {
-    if (!currentUser || !canViewComunicadoLecturas(currentUser.role)) {
-        console.warn('viewComunicadoLecturas: rol no autorizado', currentUser && currentUser.role);
-        return;
-    }
-    const c = globalComunicados[id];
-    if (!c) return;
-
-    document.getElementById('comunicadoLecturasModal').classList.add('active');
-    const readList = document.getElementById('comunicadoReadList');
-    const unreadList = document.getElementById('comunicadoUnreadList');
-    
-    readList.innerHTML = '';
-    unreadList.innerHTML = '<li style="color: var(--text-secondary);">Cargando usuarios...</li>';
-    
-    // Poblar leídos
-    const readers = c.readBy || {};
-    const readerUids = Object.keys(readers).sort((a,b) => new Date(readers[b].readAt) - new Date(readers[a].readAt));
-    
-    const readNames = new Set();
-    if (readerUids.length === 0) {
-        readList.innerHTML = '<li style="color: var(--text-secondary); margin-bottom: 5px;">Nadie ha leído esto aún.</li>';
-    } else {
-        readerUids.forEach(uid => {
-            const r = readers[uid];
-            if (r.name) readNames.add(r.name.trim().toLowerCase());
-            readList.innerHTML += `<li style="margin-bottom: 8px; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
-                <div style="font-weight: 500; font-size: 13px;">${escapeHTML(r.name)}</div>
-                <div style="font-size: 11px; color: var(--text-secondary);">${new Date(r.readAt).toLocaleString('es-CO')}</div>
-            </li>`;
-        });
-    }
-    
-    // Fetch all active gestores to find who hasn't read
-    try {
-        const snap = await database.ref('users').once('value');
-        if (snap.exists()) {
-            const allUsers = snap.val();
-            unreadList.innerHTML = '';
-            
-            let unreadCount = 0;
-            Object.keys(allUsers).forEach(uKey => {
-                const u = allUsers[uKey];
-                // Solo listamos como pendientes a los gestores aprobados
-                if (u.approved === true && (u.role === 'Gestor' || u.role === undefined)) {
-                    const uName = (u.name || '').trim().toLowerCase();
-                    // Verificar que el UID no haya leído Y que el nombre no esté en la lista de los que ya leyeron (evita duplicados de cuentas)
-                    if (!readers[uKey] && !readNames.has(uName)) {
-                        unreadCount++;
-                        unreadList.innerHTML += `<li style="margin-bottom: 8px; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px;">
-                            <div style="font-weight: 500; color: var(--danger); font-size: 13px;"><i class='bx bx-x'></i> ${escapeHTML(u.name || 'Sin nombre')}</div>
-                        </li>`;
-                        // Añadimos el nombre al set para evitar imprimir al mismo usuario varias veces si tiene múltiples cuentas viejas
-                        if (uName) readNames.add(uName);
-                    }
-                }
-            });
-            
-            if (unreadCount === 0) {
-                unreadList.innerHTML = '<li style="color: var(--success); margin-bottom: 5px; text-align: center; font-weight: 500;"><i class="bx bx-check-double"></i> ¡Todos han leído!</li>';
-            }
-        }
-    } catch(e) {
-        console.error(e);
-        unreadList.innerHTML = '<li style="color: var(--danger);">Error al cargar usuarios.</li>';
-    }
-}
-
-let pendingDeleteComunicadoId = null;
-
-function deleteComunicado(id) {
-    if (!currentUser || !canDeleteComunicados(currentUser.role)) {
-        console.warn('deleteComunicado: rol no autorizado', currentUser && currentUser.role);
-        alert("No tienes permiso para eliminar comunicados.");
-        return;
-    }
-    pendingDeleteComunicadoId = id;
-    document.getElementById('confirmDeleteModal').classList.add('active');
-}
-
-document.getElementById('confirmDeleteBtn')?.addEventListener('click', async () => {
-    if (!pendingDeleteComunicadoId) return;
-    if (!currentUser || !canDeleteComunicados(currentUser.role)) {
-        console.warn('confirmDeleteBtn: rol no autorizado', currentUser && currentUser.role);
-        pendingDeleteComunicadoId = null;
-        closeModal('confirmDeleteModal');
-        return;
-    }
-
-    const btn = document.getElementById('confirmDeleteBtn');
-    const prevText = btn.innerHTML;
-    btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Eliminando...";
-    btn.disabled = true;
-    
-    try {
-        await database.ref('announcements/' + pendingDeleteComunicadoId).remove();
-        closeModal('confirmDeleteModal');
-    } catch(e) {
-        console.error(e);
-        alert("No se pudo eliminar.");
-    } finally {
-        btn.innerHTML = prevText;
-        btn.disabled = false;
-        pendingDeleteComunicadoId = null;
-    }
-});
+document.getElementById('confirmDeleteBtn')?.addEventListener('click', () => __labAnnouncements().confirmDelete()); // [LAB-INTEGRACION]
+// [LAB-INTEGRACION:COMUNICADOS-ADMIN-FIN]
 
 // ==========================================
 // CONTROL OPERATIVO Y EFICIENCIA EN RETIROS
 // ==========================================
 let controlOperativoCharts = {};
 
-function destroyChart(id) {
-    if (controlOperativoCharts[id]) {
-        controlOperativoCharts[id].destroy();
-        delete controlOperativoCharts[id];
-    }
-}
+function destroyChart(id) { return __kpiController().destroyChart(id); } // [LAB-INTEGRACION] RiskOps.kpiController (mismo registro controlOperativoCharts)
 
 window.controlOperativoRawData = null;
 
-function toggleOperativoCustomDates() {
-    const val = document.getElementById('filtroFechaOperativo').value;
-    const container = document.getElementById('operativoCustomDateContainer');
-    if (val === 'custom') {
-        container.style.display = 'flex';
-    } else {
-        container.style.display = 'none';
-    }
-}
+function toggleOperativoCustomDates() { return __kpiController().toggleOperativoCustomDates(); } // [LAB-INTEGRACION] RiskOps.kpiController
 
 // ==========================================
 // Función para Generar Análisis Textual IA
 // ==========================================
-function generarAnalisisTextual() {
-    if (!window.controlOperativoRawData) {
-        alert("Aún no se han cargado los datos. Por favor, espera un momento o haz clic en Actualizar Datos.");
-        return;
-    }
-    
-    const excludedGestores = SUPERVISORES_NOMBRES;
-    const selectedGestoresPDF = getSelectedMultiSelectValues('operativoGestorMultiSelect');
-    const filtroGestor = selectedGestoresPDF.length === 1 ? selectedGestoresPDF[0] : (selectedGestoresPDF.length === 0 ? 'Todos' : 'Varios');
-    
-    // Calcular fechas del filtro actual (reutilizando la lógica existente o leyendo las fechas)
-    const filtroFecha = document.getElementById('filtroFechaOperativo').value;
-    const isCustom = filtroFecha === 'custom';
-    const dateStart = isCustom ? document.getElementById('operativoDateStart').value : null;
-    const dateEnd = isCustom ? document.getElementById('operativoDateEnd').value : null;
+function generarAnalisisTextual() { return __kpiController().generarAnalisisTextual(); } // [LAB-INTEGRACION] RiskOps.kpiController
 
-    let totalProcesados = 0;
-    let totalAprobados = 0;
-    let totalRechazados = 0;
-    let gestoresStats = {};
-    let excludedCount = 0;
-
-    // First pass: aggregate data
-    for (const gestor in window.controlOperativoRawData) {
-        if (selectedGestoresPDF.length > 0 && !selectedGestoresPDF.includes(gestor)) continue;
-        
-        // Exclude specific users if we are looking at "Todos"
-        if (selectedGestoresPDF.length === 0 && excludedGestores.some(ex => gestor.includes(ex))) {
-            excludedCount++;
-            continue;
-        }
-
-        let gProcesados = 0;
-        let gAprobados = 0;
-        let gRechazados = 0;
-        let gARTTotal = 0;
-        let gARTCount = 0;
-
-        for (const date in window.controlOperativoRawData[gestor]) {
-            // Apply date filter logic (simplified for the analysis generator)
-            let includeDate = true;
-            const itemDate = new Date(date + 'T00:00:00');
-            const today = new Date();
-            today.setHours(0,0,0,0);
-            
-            if (filtroFecha === 'today') {
-                if (itemDate.getTime() !== today.getTime()) includeDate = false;
-            } else if (filtroFecha === 'yesterday') {
-                const yesterday = new Date(today);
-                yesterday.setDate(yesterday.getDate() - 1);
-                if (itemDate.getTime() !== yesterday.getTime()) includeDate = false;
-            } else if (filtroFecha === '7') {
-                const sevenDaysAgo = new Date(today);
-                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-                if (itemDate < sevenDaysAgo) includeDate = false;
-            } else if (filtroFecha === '30') {
-                const thirtyDaysAgo = new Date(today);
-                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                if (itemDate < thirtyDaysAgo) includeDate = false;
-            } else if (filtroFecha === 'thisMonth') {
-                if (itemDate.getMonth() !== today.getMonth() || itemDate.getFullYear() !== today.getFullYear()) includeDate = false;
-            } else if (filtroFecha === 'lastMonth') {
-                const lastMonth = new Date(today);
-                lastMonth.setMonth(lastMonth.getMonth() - 1);
-                if (itemDate.getMonth() !== lastMonth.getMonth() || itemDate.getFullYear() !== lastMonth.getFullYear()) includeDate = false;
-            } else if (isCustom && dateStart && dateEnd) {
-                const startObj = new Date(dateStart + 'T00:00:00');
-                const endObj = new Date(dateEnd + 'T23:59:59');
-                if (itemDate < startObj || itemDate > endObj) includeDate = false;
-            }
-
-            if (!includeDate) continue;
-
-            const dayData = window.controlOperativoRawData[gestor][date];
-            gProcesados += dayData.Retiros_Procesados || 0;
-            gAprobados += dayData.Retiros_Aprobados || 0;
-            gRechazados += dayData.Retiros_Rechazados || 0;
-            if (dayData.ART_Desde_Creacion_Minutos > 0) {
-                gARTTotal += dayData.ART_Desde_Creacion_Minutos;
-                gARTCount++;
-            }
-        }
-
-        if (gProcesados > 0) {
-            totalProcesados += gProcesados;
-            totalAprobados += gAprobados;
-            totalRechazados += gRechazados;
-            gestoresStats[gestor] = {
-                procesados: gProcesados,
-                aprobados: gAprobados,
-                rechazados: gRechazados,
-                artPromedio: gARTCount > 0 ? (gARTTotal / gARTCount) : 0
-            };
-        }
-    }
-
-    let html = ``;
-    
-    if (Object.keys(gestoresStats).length === 0) {
-        html = `<p>No hay suficientes datos procesados para el periodo o gestor seleccionado para generar un análisis.</p>`;
-    } else if (filtroGestor !== 'Todos') {
-        const stats = gestoresStats[filtroGestor];
-        const tasaAprobacion = stats.procesados > 0 ? ((stats.aprobados / stats.procesados) * 100).toFixed(1) : 0;
-        const tasaRechazo = stats.procesados > 0 ? ((stats.rechazados / stats.procesados) * 100).toFixed(1) : 0;
-
-        html += `<h3 style="color: var(--accent-primary); border-bottom: 2px solid var(--accent-primary); padding-bottom: 5px; margin-bottom: 15px;">Reporte Individual: ${filtroGestor}</h3>`;
-        html += `<p>Resumen de rendimiento operativo para el periodo seleccionado. A continuación se presentan las métricas clave evaluadas:</p>`;
-        
-        html += `
-        <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
-            <thead>
-                <tr style="background-color: var(--accent-primary); color: white;">
-                    <th style="padding: 10px; border: 1px solid #ddd;">Métrica</th>
-                    <th style="padding: 10px; border: 1px solid #ddd;">Valor Alcanzado</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>Total Retiros Procesados</strong></td>
-                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; font-size: 16px;">${stats.procesados}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 10px; border: 1px solid #ddd;">Retiros Aprobados</td>
-                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center; color: var(--success);">${stats.aprobados} (${tasaAprobacion}%)</td>
-                </tr>
-                <tr>
-                    <td style="padding: 10px; border: 1px solid #ddd;">Retiros Rechazados</td>
-                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center; color: var(--danger);">${stats.rechazados} (${tasaRechazo}%)</td>
-                </tr>
-                <tr style="background-color: #f9f9f9;">
-                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>Tiempo Promedio de Resolución (ART)</strong></td>
-                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; font-size: 16px;">${stats.artPromedio.toFixed(2)} min</td>
-                </tr>
-            </tbody>
-        </table>`;
-
-        if (stats.artPromedio > 1200) {
-            html += `<div style="background: rgba(239, 68, 68, 0.1); border-left: 4px solid var(--danger); padding: 15px; margin-top: 15px;">
-                <strong>⚠️ Área de Oportunidad:</strong> El tiempo de resolución es significativamente alto (más de 20 horas). Se sugiere revisar si hay bloqueos o si los casos asignados son de alta complejidad.
-            </div>`;
-        } else if (stats.artPromedio < 900) {
-            html += `<div style="background: rgba(16, 185, 129, 0.1); border-left: 4px solid var(--success); padding: 15px; margin-top: 15px;">
-                <strong>🏆 Excelente Velocidad:</strong> El gestor mantiene tiempos de respuesta altamente competitivos, por debajo del estándar de 15 horas.
-            </div>`;
-        } else {
-            html += `<div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-primary); padding: 15px; margin-top: 15px;">
-                <strong>📊 Rendimiento Estable:</strong> El gestor mantiene tiempos de respuesta dentro de los promedios esperados de la operación.
-            </div>`;
-        }
-    } else {
-        html += `<h3 style="color: var(--accent-primary);">Resumen Ejecutivo del Equipo</h3>`;
-        html += `<p>El equipo procesó un volumen total de <strong>${totalProcesados} solicitudes</strong> en el periodo evaluado. La tasa global de aprobación es altísima (${((totalAprobados/totalProcesados)*100).toFixed(1)}%), sugiriendo flujos estables y predecibles.</p>`;
-        
-        const sortedByVol = Object.entries(gestoresStats).sort((a,b) => b[1].procesados - a[1].procesados);
-        const sortedByART = Object.entries(gestoresStats).filter(a => a[1].artPromedio > 0).sort((a,b) => a[1].artPromedio - b[1].artPromedio);
-        
-        if (sortedByVol.length > 0) {
-            html += `<h4>🏆 Liderazgo en Volumen</h4>`;
-            html += `<p>El gestor con mayor carga operativa es <strong>${escapeHTML(sortedByVol[0][0])}</strong> con ${sortedByVol[0][1].procesados} procesados.`;
-            if (sortedByVol.length > 1) {
-                html += ` Le sigue <strong>${escapeHTML(sortedByVol[1][0])}</strong> con ${sortedByVol[1][1].procesados}.</p>`;
-            } else {
-                html += `</p>`;
-            }
-        }
-
-        if (sortedByART.length > 0) {
-            html += `<h4>⚡ Rendimiento en Velocidad (ART)</h4>`;
-            html += `<p>El gestor más ágil en resolución es <strong>${escapeHTML(sortedByART[0][0])}</strong> con un tiempo promedio de <strong>${sortedByART[0][1].artPromedio.toFixed(2)} minutos</strong>.`;
-            if (sortedByART.length > 1) {
-                html += ` En segundo lugar destaca <strong>${escapeHTML(sortedByART[1][0])}</strong> con ${sortedByART[1][1].artPromedio.toFixed(2)} mins.</p>`;
-            } else {
-                html += `</p>`;
-            }
-
-            const slowest = sortedByART[sortedByART.length - 1];
-            if (slowest[1].artPromedio > 1200) {
-                html += `<div style="background: rgba(239, 68, 68, 0.1); border-left: 4px solid var(--danger); padding: 15px; margin-top: 15px;">
-                    <strong>⚠️ Cuello de Botella Detectado:</strong> <strong>${escapeHTML(slowest[0])}</strong> registra un tiempo promedio elevado (${slowest[1].artPromedio.toFixed(2)} min). Se recomienda una intervención para revisar bloqueos operativos o desbalance de cargas.
-                </div>`;
-            }
-        }
-    }
-
-    document.getElementById('analysisModalBody').innerHTML = html;
-    document.getElementById('analysisModal').classList.add('active');
-}
 
 // ==========================================
 // Función para Generar Informe Ejecutivo en PDF
 // ==========================================
-function generarReporteEjecutivoPDF() {
-    const selectedGestoresPDF = getSelectedMultiSelectValues('operativoGestorMultiSelect');
-    const gestorText = selectedGestoresPDF.length > 0 ? selectedGestoresPDF.join(', ') : 'Todos los gestores';
-    
-    const periodoSelect = document.getElementById('filtroFechaOperativo');
-    let periodoText = periodoSelect.options[periodoSelect.selectedIndex].text;
-    
-    if (periodoSelect.value === 'custom') {
-        const start = document.getElementById('operativoDateStart').value;
-        const end = document.getElementById('operativoDateEnd').value;
-        periodoText = `Personalizado (${start || 'Inicio'} a ${end || 'Fin'})`;
-    }
-
-    const now = new Date();
-    document.getElementById('printReportMeta').innerText = `Fecha de generación: ${now.toLocaleString()} | Gestor(es): ${gestorText} | Periodo: ${periodoText}`;
-
-    // 2. Copiar el análisis de IA
-    const analisisHtml = document.getElementById('analysisModalBody').innerHTML;
-    document.getElementById('printAnalysisText').innerHTML = analisisHtml;
-
-    // 3. Capturar gráficas como imágenes
-    const chartExcelencia = controlOperativoCharts['chartTardanzasMejores'];
-    const chartPeores = controlOperativoCharts['chartTardanzasPeores'];
-    const chartAprobaciones = controlOperativoCharts['chartAprobacionesDia'];
-    const chartInactividad = controlOperativoCharts['chartInactividad'];
-    const chartEficiencia = controlOperativoCharts['chartEficiencia'];
-
-    const imgChart1 = document.getElementById('printChart1'); // Excelencia
-    const imgChart2 = document.getElementById('printChart2'); // Aprobaciones
-    const imgChart3 = document.getElementById('printChart3'); // Inactividad
-    const imgChart4 = document.getElementById('printChart4'); // Eficiencia
-    const imgChart5 = document.getElementById('printChart5'); // Peores
-
-    // Función auxiliar para imprimir chart
-    const renderPrintChart = (chartObj, imgEl, titleText) => {
-        if (chartObj && imgEl) {
-            try {
-                imgEl.src = chartObj.toBase64Image();
-                imgEl.style.display = 'block';
-                if (imgEl.previousElementSibling) {
-                    imgEl.previousElementSibling.innerText = titleText;
-                    imgEl.previousElementSibling.style.display = 'block';
-                }
-                imgEl.parentElement.style.display = 'block';
-            } catch (e) {
-                console.error("Error capturando chart:", titleText, e);
-            }
-        } else if (imgEl) {
-            imgEl.style.display = 'none';
-            if (imgEl.previousElementSibling) imgEl.previousElementSibling.style.display = 'none';
-            imgEl.parentElement.style.display = 'none';
-        }
-    };
-
-    renderPrintChart(chartPeores, imgChart5, "Top Alerta Tardanzas (Peores)");
-    renderPrintChart(chartExcelencia, imgChart1, "Top Excelencia Puntualidad (Mejores)");
-    renderPrintChart(chartAprobaciones, imgChart2, "Evolución Diaria de Retiros");
-    renderPrintChart(chartInactividad, imgChart3, "Promedio Inactividad Diaria (Min)");
-    renderPrintChart(chartEficiencia, imgChart4, "Eficiencia y Volumen de Retiros");
-
-    // 3.5. Tabla de Resumen
-    const printTableContainer = document.getElementById('printTableContainer');
-    if (printTableContainer) {
-        const tableDiv = document.getElementById('tablaResumenOperativo').parentElement;
-        printTableContainer.innerHTML = `<h3 style="color: #000; text-align: center; margin-bottom: 10px; font-size: 14pt; font-weight: bold; page-break-after: avoid;">Resumen de Retiros por Gestor</h3>` + tableDiv.outerHTML;
-        printTableContainer.style.display = 'block';
-    }
-
-    // 4. Llamar a imprimir
-    setTimeout(() => {
-        window.print();
-    }, 800);
-}
+function generarReporteEjecutivoPDF() { return __kpiController().generarReporteEjecutivoPDF(); } // [LAB-INTEGRACION] RiskOps.kpiController
 
 
 
-async function loadControlOperativoData() {
-    try {
-        const data = await fetchKpiOperativosData();
-        window.controlOperativoRawData = data;
-        
-        // Merge Inactividad from Firebase shift_reports
-        try {
-            if (database) {
-                // Ensure kpiUsersData is populated
-                if (!window.kpiUsersData || Object.keys(window.kpiUsersData).length === 0) {
-                    const usersSnap = await database.ref('users').once('value');
-                    if (usersSnap.exists()) {
-                        window.kpiUsersData = {};
-                        Object.values(usersSnap.val()).forEach(u => {
-                            if (u && u.email && u.name) {
-                                window.kpiUsersData[u.email.toLowerCase()] = u.name.trim();
-                            }
-                        });
-                    }
-                }
-                
-                const snapshot = await database.ref('shift_reports').once('value');
-                if (snapshot.exists()) {
-                    const shifts = snapshot.val();
-                    Object.values(shifts).forEach(report => {
-                        if (report.rol !== 'Gestor') return;
-                        const gestorName = report.gestor;
-                        if (!gestorName) return;
-                        
-                        const reportDate = report.timestamp ? new Date(report.timestamp) : new Date();
-                        const reportDateStr = reportDate.toISOString().split('T')[0];
-                        
-                        // Encontrar el nombre real en controlOperativoRawData ignorando mayúsculas y acentos
-                        const rawKeys = Object.keys(window.controlOperativoRawData);
-                        const searchName = gestorName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                        let realGestor = rawKeys.find(k => k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === searchName);
-                        
-                        // Fallback: Si no coincide exacto, buscar si contiene al menos el primer nombre y apellido
-                        if (!realGestor) {
-                            const parts = searchName.split(' ');
-                            if (parts.length >= 2) {
-                                realGestor = rawKeys.find(k => {
-                                    const normK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                                    return normK.includes(parts[0]) && normK.includes(parts[1]);
-                                });
-                            }
-                        }
-                        
-                        if (!realGestor) {
-                            realGestor = gestorName;
-                            window.controlOperativoRawData[realGestor] = {};
-                        }
+async function loadControlOperativoData() { return __kpiController().loadControlOperativoData(); } // [LAB-INTEGRACION] RiskOps.kpiController
 
-                        if (realGestor) {
-                            // Ensure date object exists
-                            if (!window.controlOperativoRawData[realGestor][reportDateStr]) {
-                                window.controlOperativoRawData[realGestor][reportDateStr] = {
-                                    Dias_Laborados: 0,
-                                    Minutos_Inactividad_Total: 0,
-                                    Retiros_Procesados: 0,
-                                    Retiros_Aprobados: 0,
-                                    Retiros_Rechazados: 0,
-                                    ART_Desde_Creacion_Minutos: 0
-                                };
-                            }
-                            
-                            // Calculate inactivity for this report using timeline directly to enforce 10-hour max shift
-                            let inactMins = 0;
-                            let shiftLoginDate = report.loginTime ? new Date(report.loginTime) : (report.timestamp ? new Date(report.timestamp) : null);
-                            const maxEndTime = shiftLoginDate ? shiftLoginDate.getTime() + (10 * 60 * 60 * 1000) : Date.now() + 99999999;
-                            
-                            if (report.timeline && report.timeline.length > 0) {
-                                const now = Date.now();
-                                report.timeline.forEach(ev => {
-                                    if (ev.type === 'Inactividad') {
-                                        if (shiftLoginDate && ev.start > maxEndTime) return; // Skip if after 10h
-                                        let eTime = ev.end ? ev.end : now;
-                                        if (shiftLoginDate && eTime > maxEndTime) eTime = maxEndTime; // Cap if overlaps 10h limit
-                                        let mins = (eTime - ev.start) / (1000 * 60);
-                                        if (mins > 0) inactMins += mins;
-                                    }
-                                });
-                            } else if (report.inactividadTotalMins !== undefined) {
-                                inactMins = report.inactividadTotalMins; // Fallback only if no timeline
-                            }
-                            
-                            // Calculate tardanza
-                            // Calculate tardanza
-                            let tardMins = 0;
-                            let isFueraDeHorario = false;
-                            let loginDate = report.loginTime ? new Date(report.loginTime) : null;
-                            if (report.tardanzaMins !== undefined) {
-                                tardMins = report.tardanzaMins;
-                            } else {
-                                if (!loginDate && report.horaInicio) {
-                                    try {
-                                        let parts = report.horaInicio.split(',');
-                                        if (parts.length > 0) {
-                                            let dParts = parts[0].trim().split('/');
-                                            if (dParts.length === 3) {
-                                                let day = parseInt(dParts[0]);
-                                                let month = parseInt(dParts[1]);
-                                                let year = parseInt(dParts[2]);
-                                                if (month > 12) { let t = day; day = month; month = t; }
-                                                let tStr = parts.length > 1 ? parts[1].trim().replace(/\./g, '').replace(/a\s*m/i, 'AM').replace(/p\s*m/i, 'PM') : "00:00:00";
-                                                loginDate = new Date(`${month}/${day}/${year} ${tStr}`);
-                                            } else {
-                                                loginDate = new Date(report.horaInicio);
-                                            }
-                                        }
-                                    } catch(e) {}
-                                }
-                                
-                                if (loginDate && !isNaN(loginDate.getTime()) && report.turnoProgramado) {
-                                    const shiftStr = report.turnoProgramado.toLowerCase().trim();
-                                    const match = shiftStr.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
-                                    if (match) {
-                                        let hour = parseInt(match[1], 10);
-                                        let minute = match[2] ? parseInt(match[2], 10) : 0;
-                                        const ampm = match[3].toLowerCase();
-                                        
-                                        if (ampm === 'pm' && hour < 12) hour += 12;
-                                        if (ampm === 'am' && hour === 12) hour = 0;
-                                        
-                                        const expected = new Date(loginDate);
-                                        expected.setHours(hour, minute, 0, 0);
-                                        
-                                        let diffMinutes = (loginDate - expected) / 60000;
-                                        
-                                        if (diffMinutes < -12 * 60) {
-                                            expected.setDate(expected.getDate() - 1);
-                                            diffMinutes = (loginDate - expected) / 60000;
-                                        } else if (diffMinutes > 12 * 60) {
-                                            expected.setDate(expected.getDate() + 1);
-                                            diffMinutes = (loginDate - expected) / 60000;
-                                        }
-                                        
-                                        if (diffMinutes > 240) {
-                                            isFueraDeHorario = true;
-                                        }
-                                        
-                                        if (diffMinutes > 5 && !isFueraDeHorario) {
-                                            tardMins = Math.round(diffMinutes);
-                                        }
-                                    }
-                                }
-                            }
-                            
-                            // Add to raw data
-                            if (!isFueraDeHorario) {
-                                // Cap inactivity to max 8 hours (480 mins) per shift to prevent infinite sessions from exploding stats
-                                let cappedInactMins = Math.min(inactMins, 480);
-                                window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Inactividad_Total = (window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Inactividad_Total || 0) + cappedInactMins;
-                            }
-                            
-                            // Guardar la tardanza considerando el primer ingreso del día (o si reporta tardanza mayor a 0)
-                            const currentStoredTard = window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Tarde_Total;
-                            if (currentStoredTard === undefined || (tardMins > 0 && currentStoredTard === 0)) {
-                                window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Tarde_Total = tardMins;
-                                window.controlOperativoRawData[realGestor][reportDateStr].Dias_Tarde = tardMins > 0 ? 1 : 0;
-                                if (loginDate) window.controlOperativoRawData[realGestor][reportDateStr]._earliestLogin = loginDate;
-                            } else if (loginDate && window.controlOperativoRawData[realGestor][reportDateStr]._earliestLogin && loginDate < window.controlOperativoRawData[realGestor][reportDateStr]._earliestLogin) {
-                                window.controlOperativoRawData[realGestor][reportDateStr].Minutos_Tarde_Total = tardMins;
-                                window.controlOperativoRawData[realGestor][reportDateStr].Dias_Tarde = tardMins > 0 ? 1 : 0;
-                                window.controlOperativoRawData[realGestor][reportDateStr]._earliestLogin = loginDate;
-                            }
-                            
-                            window.controlOperativoRawData[realGestor][reportDateStr].Dias_Laborados = 1; // Un turno reportado = 1 día laborado
-                        }
-                    });
-                }
-            }
-        } catch (fbErr) {
-            console.error("Error fetching shift_reports for inactivity:", fbErr);
-        }
-        
-        // Populate dropdowns
-        const gestores = Object.keys(window.controlOperativoRawData).sort();
-        setupCustomMultiSelect('operativoGestorMultiSelect', gestores, () => {
-            renderControlOperativoFiltered();
-        });
-        
-        renderControlOperativoFiltered();
-    } catch (error) {
-        console.error("Error loading Control Operativo:", error);
-        alert("Error cargando datos operativos. Detalle: " + error.message);
-    }
-}
+// [LAB-INTEGRACION] Tabla/tarjetas/gráficas del Control Operativo: RiskOps.kpiController (kpiMetrics, kpiChartPlan, kpiChartConfigs)
+function renderControlOperativoFiltered() { return __kpiController().renderControlOperativoFiltered(); }
 
-function renderControlOperativoFiltered() {
-    if (!window.controlOperativoRawData) return;
-    
-    const selectedGestores = getSelectedMultiSelectValues('operativoGestorMultiSelect');
-    const selectedFecha = document.getElementById('filtroFechaOperativo').value;
-    
-    const getLocalYYYYMMDD = (d) => {
-        const tzOffset = d.getTimezoneOffset() * 60000;
-        return new Date(d.getTime() - tzOffset).toISOString().split('T')[0];
-    };
-    
-    const todayStr = getLocalYYYYMMDD(new Date());
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = getLocalYYYYMMDD(yesterday);
-    
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const sevenDaysAgoStr = getLocalYYYYMMDD(sevenDaysAgo);
+function renderControlOperativoCharts(data, dailyData, selectedGestor) { return __kpiController().renderControlOperativoCharts(data, dailyData, selectedGestor); }
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const thirtyDaysAgoStr = getLocalYYYYMMDD(thirtyDaysAgo);
-    
-    const thisMonth = todayStr.substring(0, 7);
-    
-    const nowD = new Date();
-    const lastMonthDate = new Date(nowD.getFullYear(), nowD.getMonth() - 1, 1);
-    const lastMonth = getLocalYYYYMMDD(lastMonthDate).substring(0, 7);
+function drawPunctualDatesChart(id, dates, dataArr, bgColors) { return __kpiController().drawPunctualDatesChart(id, dates); } // dataArr y bgColors los ignora el original
 
-    const customStart = document.getElementById('operativoDateStart')?.value;
-    const customEnd = document.getElementById('operativoDateEnd')?.value;
-    
-    // Aggregation logic
-    let aggregatedData = {};
-    let aggregatedDataGlobal = {};
-    let dailyData = {};
-    
-    const checkGestorMatch = (mstrGestor) => {
-        if (selectedGestores.length === 0) return true;
-        if (selectedGestores.includes(mstrGestor)) return true;
-        const normMstr = mstrGestor.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        return selectedGestores.some(sel => {
-            const normSel = sel.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            if (normMstr === normSel) return true;
-            const parts = normSel.split(' ').filter(Boolean);
-            if (parts.every(p => normMstr.includes(p))) return true;
-            const mstrParts = normMstr.split(' ').filter(Boolean);
-            if (parts.length >= 2 && mstrParts.length >= 2) {
-                return normMstr.includes(parts[0]) && normMstr.includes(parts[1]);
-            }
-            return false;
-        });
-    };
-    
-    for (const gestor in window.controlOperativoRawData) {
-        
-        aggregatedDataGlobal[gestor] = {
-            Retiros_Aprobados: 0,
-            Retiros_Rechazados: 0,
-            Tiempo_Total_Desde_Creacion_Segundos: 0,
-            Dias_Tarde: 0,
-            Minutos_Tarde_Total: 0,
-            Minutos_Inactividad_Total: 0,
-            Dias_Laborados: 0
-        };
+function drawChart(id, type, labels, dataArr, labelStr, bgColor, borderColor, extraOptions = {}) { return __kpiController().drawChart(id, type, labels, dataArr, labelStr, bgColor, borderColor, extraOptions); }
 
-        if (checkGestorMatch(gestor)) {
-            aggregatedData[gestor] = {
-                Retiros_Aprobados: 0,
-                Retiros_Rechazados: 0,
-                Tiempo_Total_Desde_Creacion_Segundos: 0,
-                Dias_Tarde: 0,
-                Minutos_Tarde_Total: 0,
-                Minutos_Inactividad_Total: 0,
-                Dias_Laborados: 0
-            };
-        }
-        
-        for (const fecha in window.controlOperativoRawData[gestor]) {
-            let inRange = false;
-            if (selectedFecha === 'Todas') {
-                inRange = true;
-            } else if (selectedFecha === 'today' && fecha === todayStr) {
-                inRange = true;
-            } else if (selectedFecha === 'yesterday' && fecha === yesterdayStr) {
-                inRange = true;
-            } else if (selectedFecha === '7' && fecha >= sevenDaysAgoStr && fecha <= todayStr) {
-                inRange = true;
-            } else if (selectedFecha === '30' && fecha >= thirtyDaysAgoStr && fecha <= todayStr) {
-                inRange = true;
-            } else if (selectedFecha === 'thisMonth' && fecha.substring(0, 7) === thisMonth) {
-                inRange = true;
-            } else if (selectedFecha === 'lastMonth' && fecha.substring(0, 7) === lastMonth) {
-                inRange = true;
-            } else if (selectedFecha === 'custom' && customStart && customEnd && fecha >= customStart && fecha <= customEnd) {
-                inRange = true;
-            }
-            
-            if (inRange) {
-                const d = window.controlOperativoRawData[gestor][fecha];
-                const procesadosEnDia = (d.Retiros_Procesados !== undefined)
-                    ? d.Retiros_Procesados
-                    : ((d.Retiros_Aprobados || 0) + (d.Retiros_Rechazados || 0));
-                const esDiaActivo = (d.Dias_Laborados && d.Dias_Laborados > 0) ? d.Dias_Laborados : (procesadosEnDia > 0 ? 1 : 0);
-                
-                // Add to Global Data
-                aggregatedDataGlobal[gestor].Retiros_Aprobados += d.Retiros_Aprobados || 0;
-                aggregatedDataGlobal[gestor].Retiros_Rechazados += d.Retiros_Rechazados || 0;
-                aggregatedDataGlobal[gestor].Tiempo_Total_Desde_Creacion_Segundos += d.Tiempo_Total_Desde_Creacion_Segundos || 0;
-                aggregatedDataGlobal[gestor].Dias_Tarde += d.Dias_Tarde || 0;
-                aggregatedDataGlobal[gestor].Minutos_Tarde_Total += d.Minutos_Tarde_Total || 0;
-                aggregatedDataGlobal[gestor].Minutos_Inactividad_Total += d.Minutos_Inactividad_Total || 0;
-                aggregatedDataGlobal[gestor].Dias_Laborados += esDiaActivo;
+function drawCombinedChart(id, labels, data) { return __kpiController().drawCombinedChart(id, labels, data); }
 
-                // Add to Filtered Data (only if this gestor is selected)
-                if (checkGestorMatch(gestor)) {
-                    if (!dailyData[fecha]) {
-                        dailyData[fecha] = { Aprobados: 0, Rechazados: 0 };
-                    }
-                    dailyData[fecha].Aprobados += d.Retiros_Aprobados || 0;
-                    dailyData[fecha].Rechazados += d.Retiros_Rechazados || 0;
-                    
-                    aggregatedData[gestor].Retiros_Aprobados += d.Retiros_Aprobados || 0;
-                    aggregatedData[gestor].Retiros_Rechazados += d.Retiros_Rechazados || 0;
-                    aggregatedData[gestor].Tiempo_Total_Desde_Creacion_Segundos += d.Tiempo_Total_Desde_Creacion_Segundos || 0;
-                    aggregatedData[gestor].Dias_Tarde += d.Dias_Tarde || 0;
-                    aggregatedData[gestor].Minutos_Tarde_Total += d.Minutos_Tarde_Total || 0;
-                    aggregatedData[gestor].Minutos_Inactividad_Total += d.Minutos_Inactividad_Total || 0;
-                    aggregatedData[gestor].Dias_Laborados += esDiaActivo;
-                }
-            }
-        }
-    }
-    
-    // Calculate final metrics per gestor
-    for (const gestor in aggregatedData) {
-        const d = aggregatedData[gestor];
-        const dl = d.Dias_Laborados > 0 ? d.Dias_Laborados : 1;
-        
-        d.Prom_Minutos_Tarde = Math.round((d.Minutos_Tarde_Total / dl) * 100) / 100;
-        d.Prom_Inactividad_Diaria = Math.round((d.Minutos_Inactividad_Total / dl) * 100) / 100;
-        d.Retiros_Procesados = d.Retiros_Aprobados + d.Retiros_Rechazados;
-        d.ART_Desde_Creacion_Minutos = d.Retiros_Procesados > 0 ? Math.round((d.Tiempo_Total_Desde_Creacion_Segundos / d.Retiros_Procesados) / 60 * 100) / 100 : 0;
-        d.Porcentaje_Rechazos = d.Retiros_Procesados > 0 ? Math.round((d.Retiros_Rechazados / d.Retiros_Procesados) * 100 * 100) / 100 : 0;
-        d.Tasa_Aprobacion_Dia = Math.round((d.Retiros_Aprobados / dl) * 100) / 100;
-    }
+function drawCombinedChartDaily(id, sortedDates, selectedGestor) { return __kpiController().drawCombinedChartDaily(id, sortedDates, selectedGestor); }
 
-    // Calculate final metrics per gestor GLOBAL
-    for (const gestor in aggregatedDataGlobal) {
-        const d = aggregatedDataGlobal[gestor];
-        const dl = d.Dias_Laborados > 0 ? d.Dias_Laborados : 1;
-        
-        d.Prom_Minutos_Tarde = Math.round((d.Minutos_Tarde_Total / dl) * 100) / 100;
-        d.Prom_Inactividad_Diaria = Math.round((d.Minutos_Inactividad_Total / dl) * 100) / 100;
-        d.Retiros_Procesados = d.Retiros_Aprobados + d.Retiros_Rechazados;
-        d.ART_Desde_Creacion_Minutos = d.Retiros_Procesados > 0 ? Math.round((d.Tiempo_Total_Desde_Creacion_Segundos / d.Retiros_Procesados) / 60 * 100) / 100 : 0;
-        d.Porcentaje_Rechazos = d.Retiros_Procesados > 0 ? Math.round((d.Retiros_Rechazados / d.Retiros_Procesados) * 100 * 100) / 100 : 0;
-        d.Tasa_Aprobacion_Dia = Math.round((d.Retiros_Aprobados / dl) * 100) / 100;
-    }
-    
-    // Render table
-    const tbody = document.querySelector('#tablaResumenOperativo tbody');
-    tbody.innerHTML = '';
-    
-    let globalProcesados = 0;
-    let globalAprobados = 0;
-    let globalRechazados = 0;
-    let globalARTTotal = 0;
-    let gestoresContados = 0;
-
-    const gestoresArray = Object.keys(aggregatedData).map(gestor => ({ gestor, ...aggregatedData[gestor] }));
-    gestoresArray.sort((a, b) => b.Retiros_Aprobados - a.Retiros_Aprobados);
-
-    for (const d of gestoresArray) {
-        const gestor = d.gestor;
-        if (d.Retiros_Procesados === 0 && d.Dias_Laborados === 0) continue; // Skip empty rows if filtered out
-        
-        globalProcesados += d.Retiros_Procesados;
-        globalAprobados += d.Retiros_Aprobados;
-        globalRechazados += d.Retiros_Rechazados;
-        globalARTTotal += d.ART_Desde_Creacion_Minutos;
-        if (d.Retiros_Procesados > 0) gestoresContados++;
-        
-        const tr = document.createElement('tr');
-        tr.style.borderBottom = '1px solid rgba(0,0,0,0.05)';
-        tr.style.transition = 'background 0.2s ease, transform 0.1s ease';
-        tr.style.cursor = 'pointer';
-        tr.title = 'Haz clic para filtrar o quitar filtro de este gestor';
-        tr.onmouseover = () => tr.style.background = 'var(--bg-secondary, #f8f9fa)';
-        tr.onmouseout = () => tr.style.background = 'transparent';
-        
-        tr.onclick = () => {
-            const selectId = 'operativoGestorMultiSelect';
-            const currentSelected = getSelectedMultiSelectValues(selectId);
-            
-            // Si el gestor ya está seleccionado de manera única, lo deseleccionamos (Filtro Todos)
-            if (currentSelected.length === 1 && currentSelected[0] === gestor) {
-                setCustomMultiSelectValues(selectId, []);
-            } else {
-                // De lo contrario, seleccionamos solo este gestor
-                setCustomMultiSelectValues(selectId, [gestor]);
-            }
-            
-            if (typeof renderControlOperativoFiltered === 'function') {
-                renderControlOperativoFiltered();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-        };
-        
-        const badgeAprobados = `<span style="background: rgba(16, 185, 129, 0.15); color: var(--success); padding: 4px 10px; border-radius: 20px; font-weight: 700;">${d.Retiros_Aprobados}</span>`;
-        const badgeRechazados = `<span style="background: rgba(239, 68, 68, 0.15); color: var(--danger); padding: 4px 10px; border-radius: 20px; font-weight: 700;">${d.Retiros_Rechazados}</span>`;
-        
-        tr.innerHTML = `
-            <td style="padding: 16px 20px; font-weight: 600; color: var(--text-primary);">${escapeHTML(gestor)}</td>
-            <td style="padding: 16px 20px;">${badgeAprobados}</td>
-            <td style="padding: 16px 20px;">${badgeRechazados}</td>
-            <td style="padding: 16px 20px; font-weight: 600; color: var(--text-secondary);">${d.Retiros_Procesados}</td>
-            <td style="padding: 16px 20px; font-weight: 600; color: var(--text-secondary);">${d.Porcentaje_Rechazos}%</td>
-            <td style="padding: 16px 20px; font-weight: 600; color: var(--text-secondary);">${d.Tasa_Aprobacion_Dia}</td>
-        `;
-        tbody.appendChild(tr);
-    }
-    
-    // Update summary widgets
-    const avgArt = gestoresContados > 0 ? (globalARTTotal / gestoresContados).toFixed(1) : 0;
-    const wTotal = document.getElementById('operativoWidgetTotal');
-    const wAprob = document.getElementById('operativoWidgetAprobados');
-    const wRech = document.getElementById('operativoWidgetRechazados');
-    const wArt = document.getElementById('operativoWidgetART');
-    
-    if(wTotal) wTotal.textContent = globalProcesados;
-    if(wAprob) wAprob.textContent = globalAprobados;
-    if(wRech) wRech.textContent = globalRechazados;
-    if(wArt) wArt.innerHTML = `${escapeHTML(String(avgArt))}<span style="font-size: 16px; font-weight: 600; margin-left: 4px;">min</span>`;
-    
-    // Render charts
-    // Filter out empty gestores for global charts
-    const globalForCharts = {};
-    const excludedGestoresGlobal = SUPERVISORES_NOMBRES;
-    for (const gestor in aggregatedDataGlobal) {
-        if (excludedGestoresGlobal.some(ex => gestor.includes(ex) || gestor.includes('Sara Santamar'))) continue;
-        if (aggregatedDataGlobal[gestor].Retiros_Procesados > 0 || aggregatedDataGlobal[gestor].Dias_Laborados > 0) {
-            globalForCharts[gestor] = aggregatedDataGlobal[gestor];
-        }
-    }
-    
-    // We pass globalForCharts to the charts so rankings always compare the whole team.
-    // However, we pass dailyData which is specific to the selected gestor so the line chart is filtered.
-    const selectedGestor = selectedGestores.length === 1 ? selectedGestores[0] : (selectedGestores.length === 0 ? 'Todos' : `${selectedGestores.length} Gestores`);
-    renderControlOperativoCharts(globalForCharts, dailyData, selectedGestor);
-    
-    // Auto-refresh KPI rings every time filters change
-    calcularIndicadores();
-}
-
-function renderControlOperativoCharts(data, dailyData, selectedGestor) {
-    const isGlobal = (selectedGestor === 'Todos' || selectedGestor.includes('Gestores'));
-    
-    let realSelectedGestor = null;
-    if (!isGlobal && selectedGestor) {
-        const rawKeys = Object.keys(window.controlOperativoRawData || {});
-        realSelectedGestor = rawKeys.find(k => k === selectedGestor);
-        if (!realSelectedGestor) {
-            const parts = selectedGestor.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(' ');
-            realSelectedGestor = rawKeys.find(k => {
-                const normK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                return parts.every(p => normK.includes(p));
-            });
-        }
-        if (!realSelectedGestor) realSelectedGestor = selectedGestor;
-    }
-
-    // UI titles update
-    const elTitlePeores = document.getElementById('titleTardanzasPeores');
-    const elTitleMejores = document.getElementById('titleTardanzasMejores');
-    const elTitleInactividad = document.getElementById('titleInactividad');
-    const elTitleEficiencia = document.getElementById('titleEficiencia');
-    const elTitleMatriz = document.getElementById('titleMatrizFuga');
-
-    if (isGlobal) {
-        if (elTitlePeores) elTitlePeores.innerHTML = `<i class='bx bx-alarm-exclamation'></i> Top Alerta Tardanzas (Peores 5)`;
-        if (elTitleMejores) elTitleMejores.innerHTML = `<i class='bx bx-medal'></i> Top Excelencia Puntualidad (Mejores 5)`;
-        if (elTitleInactividad) elTitleInactividad.innerHTML = `<i class='bx bx-coffee-togo'></i> Promedio Inactividad Diaria (Min)`;
-        if (elTitleEficiencia) elTitleEficiencia.innerHTML = `<i class='bx bx-layer'></i> Eficiencia y Volumen de Retiros`;
-        if (elTitleMatriz) elTitleMatriz.innerHTML = `<i class='bx bx-bar-chart-alt-2'></i> Ranking de Porcentaje de Rechazos`;
-    } else {
-        if (elTitlePeores) elTitlePeores.innerHTML = `<i class='bx bx-alarm-exclamation'></i> Fechas con Llegada Tarde - ${escapeHTML(selectedGestor)}`;
-        if (elTitleMejores) elTitleMejores.innerHTML = `<i class='bx bx-check-double'></i> Fechas de Conexión a Tiempo - ${escapeHTML(selectedGestor)}`;
-        if (elTitleInactividad) elTitleInactividad.innerHTML = `<i class='bx bx-coffee-togo'></i> Inactividad Diaria por Fecha - ${escapeHTML(selectedGestor)}`;
-        if (elTitleEficiencia) elTitleEficiencia.innerHTML = `<i class='bx bx-layer'></i> Evolución Diaria de Retiros - ${escapeHTML(selectedGestor)}`;
-        if (elTitleMatriz) elTitleMatriz.innerHTML = `<i class='bx bx-target-lock'></i> % Rechazos: ${escapeHTML(selectedGestor)}`;
-    }
-
-    let activeData = {};
-    const selectedGestoresList = getSelectedMultiSelectValues('operativoGestorMultiSelect');
-    if (isGlobal || selectedGestoresList.length === 0) {
-        activeData = data;
-    } else {
-        const rawKeys = Object.keys(data);
-        selectedGestoresList.forEach(g => {
-            let realGestor = rawKeys.find(k => k === g);
-            if (!realGestor) {
-                const parts = g.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(' ');
-                realGestor = rawKeys.find(k => {
-                    const normK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                    return parts.every(p => normK.includes(p));
-                });
-            }
-            if (realGestor && data[realGestor]) {
-                activeData[realGestor] = data[realGestor];
-            } else if (data[g]) {
-                activeData[g] = data[g];
-            }
-        });
-    }
-    
-    const gestores = Object.keys(activeData);
-    const sortedDates = Object.keys(dailyData).sort();
-    const sortBy = (key, asc=false) => [...gestores].sort((a,b) => asc ? activeData[a][key] - activeData[b][key] : activeData[b][key] - activeData[a][key]);
-
-    if (isGlobal) {
-        // 1. Top Alerta Tardanzas (Peores 5)
-        let peoresTardanzas = sortBy('Prom_Minutos_Tarde').filter(g => activeData[g].Prom_Minutos_Tarde > 0).slice(0, 5);
-        let peoresColors, peoresBorders, peoresData;
-        if (peoresTardanzas.length === 0) {
-            peoresTardanzas = ['Equipo 100% Puntual'];
-            peoresData = [0];
-            peoresColors = ['rgba(103, 194, 58, 0.7)'];
-            peoresBorders = ['rgba(103, 194, 58, 1)'];
-        } else {
-            peoresData = peoresTardanzas.map(g => activeData[g].Prom_Minutos_Tarde);
-            peoresColors = peoresTardanzas.map(() => 'rgba(245, 108, 108, 0.7)');
-            peoresBorders = peoresTardanzas.map(() => 'rgba(245, 108, 108, 1)');
-        }
-        drawChart('chartTardanzasPeores', 'bar', peoresTardanzas, peoresData, 'Minutos Tarde (Promedio)', peoresColors, peoresBorders, { indexAxis: 'y' });
-        
-        // 2. Top Excelencia Puntualidad (Mejores 5)
-        let mejoresTardanzas = sortBy('Prom_Minutos_Tarde', true).slice(0, 5).reverse();
-        const mejoresColors = mejoresTardanzas.map(() => 'rgba(103, 194, 58, 0.7)');
-        const mejoresBorders = mejoresTardanzas.map(() => 'rgba(103, 194, 58, 1)');
-        drawChart('chartTardanzasMejores', 'bar', mejoresTardanzas, mejoresTardanzas.map(g => activeData[g].Prom_Minutos_Tarde), 'Minutos Tarde (Promedio)', mejoresColors, mejoresBorders, { indexAxis: 'y' });
-
-        // 3. Promedio Inactividad Diaria
-        const inactividadTop = sortBy('Prom_Inactividad_Diaria').slice(0, 10);
-        const bgColors = inactividadTop.map(g => {
-            let v = activeData[g].Prom_Inactividad_Diaria;
-            return v > 45 ? 'rgba(245, 108, 108, 0.7)' : (v > 20 ? 'rgba(230, 162, 60, 0.7)' : 'rgba(103, 194, 58, 0.7)');
-        });
-        drawChart('chartInactividad', 'bar', inactividadTop, inactividadTop.map(g => activeData[g].Prom_Inactividad_Diaria), 'Minutos Inactividad', bgColors, bgColors);
-    
-    } else {
-        // SINGLE GESTOR:
-        if (!realSelectedGestor) realSelectedGestor = selectedGestor;
-
-        // 1. Fechas con Llegadas Tarde (Show all dates in sortedDates with red bars for late minutes)
-        const dailyLateMins = sortedDates.map(date => {
-            const raw = window.controlOperativoRawData[realSelectedGestor]?.[date];
-            return (raw && (raw.Minutos_Tarde_Total || 0) > 0) ? raw.Minutos_Tarde_Total : 0;
-        });
-
-        const hasLate = dailyLateMins.some(v => v > 0);
-
-        if (!hasLate) {
-            drawChart('chartTardanzasPeores', 'bar', ['Sin Llegadas Tardes en el Periodo'], [0], 'Minutos Tarde', ['rgba(103, 194, 58, 0.7)'], ['rgba(103, 194, 58, 1)'], {
-                maxBarThickness: 36,
-                plugins: {
-                    datalabels: {
-                        formatter: function() { return "🎉 ¡Sin tardanzas!"; },
-                        anchor: 'center', align: 'center', color: 'var(--success)', font: { size: 12, weight: 'bold' }
-                    }
-                }
-            });
-        } else {
-            const lateColors = dailyLateMins.map(v => v > 0 ? 'rgba(245, 108, 108, 0.85)' : 'rgba(0,0,0,0)');
-            drawChart('chartTardanzasPeores', 'bar', sortedDates, dailyLateMins, 'Minutos Tarde', lateColors, lateColors, {
-                maxBarThickness: 36,
-                plugins: {
-                    datalabels: {
-                        formatter: function(val) { return val > 0 ? `+${val}m` : ''; },
-                        anchor: 'end', align: 'top', color: 'var(--danger)', font: { size: 10, weight: 'bold' }
-                    }
-                },
-                scales: {
-                    x: { ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 45, minRotation: 0, font: { size: 10 } } },
-                    y: { beginAtZero: true, grace: '20%' }
-                }
-            });
-        }
-
-        // 2. Fechas de Conexión a Tiempo (Dates where Dias_Laborados > 0 AND Minutos_Tarde_Total === 0)
-        const punctualDates = [];
-        sortedDates.forEach(date => {
-            const raw = window.controlOperativoRawData[realSelectedGestor]?.[date];
-            if (raw && raw.Dias_Laborados > 0 && (raw.Minutos_Tarde_Total || 0) === 0) {
-                punctualDates.push(date);
-            }
-        });
-
-        if (punctualDates.length === 0) {
-            drawChart('chartTardanzasMejores', 'bar', ['Sin Conexiones a Tiempo en el Periodo'], [0], 'Conexión a Tiempo', ['rgba(245, 108, 108, 0.7)'], ['rgba(245, 108, 108, 1)'], { maxBarThickness: 36 });
-        } else {
-            const punctualData = punctualDates.map(() => 0);
-            const punctualColors = punctualDates.map(() => 'rgba(103, 194, 58, 0.8)');
-            drawPunctualDatesChart('chartTardanzasMejores', punctualDates, punctualData, punctualColors);
-        }
-
-        // 3. Inactividad Diaria por Fecha
-        const dailyInactivityValues = sortedDates.map(date => {
-            return window.controlOperativoRawData[realSelectedGestor]?.[date]?.Minutos_Inactividad_Total || 0;
-        });
-        const dailyBgColors = dailyInactivityValues.map(v => {
-            return v > 45 ? 'rgba(245, 108, 108, 0.7)' : (v > 20 ? 'rgba(230, 162, 60, 0.7)' : 'rgba(103, 194, 58, 0.7)');
-        });
-        drawChart('chartInactividad', 'bar', sortedDates, dailyInactivityValues, `Inactividad (Min)`, dailyBgColors, dailyBgColors, {
-            maxBarThickness: 36,
-            scales: {
-                x: { ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 45, minRotation: 0, font: { size: 10 } } }
-            }
-        });
-    }
-
-    // 4. Aprobaciones por Día Chart
-    const dailyAprobados = sortedDates.map(date => dailyData[date].Aprobados);
-    const dailyRechazados = sortedDates.map(date => dailyData[date].Rechazados);
-    
-    destroyChart('chartAprobacionesDia');
-    const ctxAprobDia = document.getElementById('chartAprobacionesDia').getContext('2d');
-    
-    const datalabelsDaily = {
-        formatter: function(value) {
-            if (value === 0 || value === "0") return "";
-            return value.toLocaleString('es-CO');
-        },
-        anchor: 'end', align: 'top', color: '#666', font: { size: 10, weight: 'bold' }
-    };
-
-    controlOperativoCharts['chartAprobacionesDia'] = new Chart(ctxAprobDia, {
-        type: 'line',
-        plugins: [typeof ChartDataLabels !== 'undefined' ? ChartDataLabels : {}],
-        data: {
-            labels: sortedDates,
-            datasets: [
-                {
-                    label: 'Aprobados',
-                    data: dailyAprobados,
-                    borderColor: 'rgba(103, 194, 58, 1)',
-                    backgroundColor: 'rgba(103, 194, 58, 0.2)',
-                    fill: true,
-                    tension: 0.3,
-                    datalabels: { align: 'top', anchor: 'end', color: '#fff', textStrokeColor: 'rgba(103, 194, 58, 1)', textStrokeWidth: 3 }
-                },
-                {
-                    label: 'Rechazados',
-                    data: dailyRechazados,
-                    borderColor: 'rgba(245, 108, 108, 1)',
-                    backgroundColor: 'rgba(245, 108, 108, 0.2)',
-                    fill: true,
-                    tension: 0.3,
-                    datalabels: { align: 'top', anchor: 'end', color: '#fff', textStrokeColor: 'rgba(245, 108, 108, 1)', textStrokeWidth: 3 }
-                }
-            ]
-        },
-        options: {
-            animation: false,
-            responsive: true,
-            maintainAspectRatio: false,
-            layout: { padding: { top: 30 } },
-            plugins: {
-                datalabels: datalabelsDaily,
-                tooltip: { mode: 'index', intersect: false }
-            },
-            scales: {
-                x: { ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 45, minRotation: 0, font: { size: 10 } } },
-                y: { beginAtZero: true, grace: '15%' }
-            }
-        }
-    });
-    
-    // 5. Eficiencia y Volumen de Retiros
-    if (isGlobal) {
-        const volTop = sortBy('Retiros_Procesados');
-        drawCombinedChart('chartEficiencia', volTop, activeData);
-    } else {
-        drawCombinedChartDaily('chartEficiencia', sortedDates, realSelectedGestor);
-    }
-    
-    // 6. Matriz de Riesgo: % Rechazos vs Tasa Aprobación
-    drawScatterMatriz('chartMatrizFuga', gestores, activeData, isGlobal);
-}
-
-function drawPunctualDatesChart(id, dates, dataArr, bgColors) {
-    destroyChart(id);
-    const ctx = document.getElementById(id).getContext('2d');
-    
-    const datalabelsConfig = {
-        formatter: function() {
-            return "✓ 0 min";
-        },
-        anchor: 'center',
-        align: 'center',
-        color: '#ffffff',
-        font: { size: 10, weight: 'bold' }
-    };
-
-    controlOperativoCharts[id] = new Chart(ctx, {
-        type: 'bar',
-        plugins: [typeof ChartDataLabels !== 'undefined' ? ChartDataLabels : {}],
-        data: {
-            labels: dates,
-            datasets: [{
-                label: 'Conexión a Tiempo',
-                data: dates.map(() => 100),
-                backgroundColor: 'rgba(103, 194, 58, 0.8)',
-                borderColor: 'rgba(103, 194, 58, 1)',
-                borderWidth: 1,
-                maxBarThickness: 36
-            }]
-        },
-        options: {
-            animation: false,
-            responsive: true,
-            maintainAspectRatio: false,
-            layout: {
-                padding: { top: 25 }
-            },
-            plugins: {
-                datalabels: datalabelsConfig,
-                tooltip: {
-                    callbacks: {
-                        label: function(ctx) {
-                            return `${ctx.label}: Conexión a Tiempo (0 min tarde)`;
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 45, minRotation: 0, font: { size: 10 } }
-                },
-                y: {
-                    beginAtZero: true,
-                    max: 120,
-                    ticks: {
-                        callback: function(v) { return v === 100 ? 'A tiempo' : ''; }
-                    }
-                }
-            }
-        }
-    });
-}
-
-function drawChart(id, type, labels, dataArr, labelStr, bgColor, borderColor, extraOptions = {}) {
-    destroyChart(id);
-    const ctx = document.getElementById(id).getContext('2d');
-    
-    const isHorizontal = extraOptions.indexAxis === 'y';
-    const datalabelsConfig = {
-        formatter: function(value) {
-            if (value === 0 || value === "0") return "0 min";
-            const num = Number(value);
-            const isInt = Number.isInteger(num);
-            return num.toLocaleString('es-CO', { 
-                minimumFractionDigits: isInt ? 0 : 2, 
-                maximumFractionDigits: isInt ? 0 : 2 
-            });
-        },
-        anchor: 'end',
-        align: isHorizontal ? 'right' : 'top',
-        color: '#666',
-        font: { size: 10, weight: 'bold' }
-    };
-
-    if (!extraOptions.plugins) extraOptions.plugins = {};
-    if (!extraOptions.plugins.datalabels) extraOptions.plugins.datalabels = datalabelsConfig;
-
-    controlOperativoCharts[id] = new Chart(ctx, {
-        type: type,
-        plugins: [typeof ChartDataLabels !== 'undefined' ? ChartDataLabels : {}],
-        data: {
-            labels: labels,
-            datasets: [{
-                label: labelStr,
-                data: dataArr,
-                backgroundColor: bgColor,
-                borderColor: borderColor,
-                borderWidth: 1
-            }]
-        },
-        options: {
-            animation: false,
-            responsive: true,
-            maintainAspectRatio: false,
-            layout: {
-                padding: {
-                    top: isHorizontal ? 0 : 20,
-                    right: isHorizontal ? 40 : 0
-                }
-            },
-            ...extraOptions
-        }
-    });
-}
-
-function drawCombinedChart(id, labels, data) {
-    destroyChart(id);
-    const ctx = document.getElementById(id).getContext('2d');
-    
-    const datalabelsConfig = {
-        formatter: function(value) {
-            if (value === 0 || value === "0") return "";
-            const num = Number(value);
-            const isInt = Number.isInteger(num);
-            return num.toLocaleString('es-CO', { 
-                minimumFractionDigits: isInt ? 0 : 2, 
-                maximumFractionDigits: isInt ? 0 : 2 
-            });
-        },
-        anchor: 'end',
-        align: 'top',
-        color: '#666',
-        font: { size: 11, weight: 'bold' }
-    };
-
-    controlOperativoCharts[id] = new Chart(ctx, {
-        type: 'bar',
-        plugins: [typeof ChartDataLabels !== 'undefined' ? ChartDataLabels : {}],
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: 'Aprobados',
-                    data: labels.map(g => data[g].Retiros_Aprobados),
-                    backgroundColor: 'rgba(103, 194, 58, 0.7)',
-                    datalabels: { align: 'center', anchor: 'center', color: '#fff', textStrokeColor: 'rgba(0,0,0,0.5)', textStrokeWidth: 3 }
-                },
-                {
-                    label: 'Rechazados',
-                    data: labels.map(g => data[g].Retiros_Rechazados),
-                    backgroundColor: 'rgba(245, 108, 108, 0.7)',
-                    datalabels: { align: 'center', anchor: 'center', color: '#fff', textStrokeColor: 'rgba(0,0,0,0.6)', textStrokeWidth: 3 }
-                },
-                {
-                    label: 'Tasa Aprobación / Día',
-                    data: labels.map(g => data[g].Tasa_Aprobacion_Dia),
-                    type: 'line',
-                    borderColor: 'rgba(64, 158, 255, 1)',
-                    backgroundColor: 'rgba(64, 158, 255, 1)',
-                    yAxisID: 'y1',
-                    datalabels: { align: 'top', anchor: 'end', color: '#fff', textStrokeColor: 'rgba(64, 158, 255, 1)', textStrokeWidth: 3 }
-                }
-            ]
-        },
-        options: {
-            animation: false,
-            responsive: true,
-            maintainAspectRatio: false,
-            layout: { padding: { top: 30 } },
-            plugins: {
-                datalabels: datalabelsConfig,
-                tooltip: { mode: 'index', intersect: false }
-            },
-            scales: {
-                x: { stacked: true },
-                y: { stacked: true, position: 'left', grace: '10%' },
-                y1: { position: 'right', grid: { drawOnChartArea: false }, grace: '15%' }
-            }
-        }
-    });
-}
-
-function drawCombinedChartDaily(id, sortedDates, selectedGestor) {
-    destroyChart(id);
-    const ctx = document.getElementById(id).getContext('2d');
-
-    const aprobadosData = sortedDates.map(d => window.controlOperativoRawData[selectedGestor]?.[d]?.Retiros_Aprobados || 0);
-    const rechazadosData = sortedDates.map(d => window.controlOperativoRawData[selectedGestor]?.[d]?.Retiros_Rechazados || 0);
-    const tasaData = sortedDates.map(d => window.controlOperativoRawData[selectedGestor]?.[d]?.Retiros_Aprobados || 0);
-
-    const datalabelsConfig = {
-        formatter: function(value) {
-            if (value === 0 || value === "0") return "";
-            return Number(value).toLocaleString('es-CO');
-        },
-        anchor: 'end',
-        align: 'top',
-        color: '#666',
-        font: { size: 11, weight: 'bold' }
-    };
-
-    controlOperativoCharts[id] = new Chart(ctx, {
-        type: 'bar',
-        plugins: [typeof ChartDataLabels !== 'undefined' ? ChartDataLabels : {}],
-        data: {
-            labels: sortedDates,
-            datasets: [
-                {
-                    label: 'Aprobados',
-                    data: aprobadosData,
-                    backgroundColor: 'rgba(103, 194, 58, 0.7)',
-                    datalabels: { align: 'center', anchor: 'center', color: '#fff', textStrokeColor: 'rgba(0,0,0,0.5)', textStrokeWidth: 3 }
-                },
-                {
-                    label: 'Rechazados',
-                    data: rechazadosData,
-                    backgroundColor: 'rgba(245, 108, 108, 0.7)',
-                    datalabels: { align: 'center', anchor: 'center', color: '#fff', textStrokeColor: 'rgba(0,0,0,0.6)', textStrokeWidth: 3 }
-                },
-                {
-                    label: 'Aprobaciones del Día',
-                    data: tasaData,
-                    type: 'line',
-                    borderColor: 'rgba(64, 158, 255, 1)',
-                    backgroundColor: 'rgba(64, 158, 255, 1)',
-                    yAxisID: 'y1',
-                    datalabels: { align: 'top', anchor: 'end', color: '#fff', textStrokeColor: 'rgba(64, 158, 255, 1)', textStrokeWidth: 3 }
-                }
-            ]
-        },
-        options: {
-            animation: false,
-            responsive: true,
-            maintainAspectRatio: false,
-            layout: { padding: { top: 30 } },
-            plugins: {
-                datalabels: datalabelsConfig,
-                tooltip: { mode: 'index', intersect: false }
-            },
-            scales: {
-                x: { stacked: true },
-                y: { stacked: true, position: 'left', grace: '10%' },
-                y1: { position: 'right', grid: { drawOnChartArea: false }, grace: '15%' }
-            }
-        }
-    });
-}
-
-function drawScatterMatriz(id, gestores, data, isGlobal = true) {
-    destroyChart(id);
-    const ctx = document.getElementById(id).getContext('2d');
-    
-    if (isGlobal) {
-        const sortedGestores = [...gestores].sort((a,b) => (data[b].Porcentaje_Rechazos || 0) - (data[a].Porcentaje_Rechazos || 0));
-        const rechazosData = sortedGestores.map(g => data[g].Porcentaje_Rechazos || 0);
-        const colors = rechazosData.map(v => v > 5 ? 'rgba(245, 108, 108, 0.8)' : (v > 2 ? 'rgba(230, 162, 60, 0.8)' : 'rgba(103, 194, 58, 0.8)'));
-
-        const datalabelsConfig = {
-            formatter: function(value) {
-                return `${value}%`;
-            },
-            anchor: 'end',
-            align: 'top',
-            color: '#666',
-            font: { size: 11, weight: 'bold' }
-        };
-
-        controlOperativoCharts[id] = new Chart(ctx, {
-            type: 'bar',
-            plugins: [typeof ChartDataLabels !== 'undefined' ? ChartDataLabels : {}],
-            data: {
-                labels: sortedGestores,
-                datasets: [{
-                    label: 'Porcentaje de Rechazos (%)',
-                    data: rechazosData,
-                    backgroundColor: colors,
-                    borderColor: colors,
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                animation: false,
-                responsive: true,
-                maintainAspectRatio: false,
-                layout: { padding: { top: 30 } },
-                plugins: {
-                    datalabels: datalabelsConfig,
-                    tooltip: {
-                        callbacks: {
-                            label: function(ctx) {
-                                return `% Rechazos: ${ctx.raw}%`;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: { beginAtZero: true, grace: '15%', title: { display: true, text: '% Rechazos' } }
-                }
-            }
-        });
-    } else {
-        const gestor = gestores[0];
-        const gData = data[gestor];
-        const rawTasa = gData ? (typeof gData.Tasa_Aprobacion_Dia === 'string' ? parseFloat(gData.Tasa_Aprobacion_Dia.replace('%', '')) : (gData.Tasa_Aprobacion_Dia || 0)) : 0;
-        const rawRechazos = gData ? (typeof gData.Porcentaje_Rechazos === 'string' ? parseFloat(gData.Porcentaje_Rechazos.replace('%', '')) : (gData.Porcentaje_Rechazos || 0)) : 0;
-        const scatterPoint = gData ? [{
-            x: isNaN(rawTasa) ? 0 : rawTasa,
-            y: isNaN(rawRechazos) ? 0 : rawRechazos,
-            name: gestor
-        }] : [];
-
-        const datalabelsConfig = {
-            formatter: function(value) {
-                return `${value.name}
-(Tasa: ${value.x}/día, Rechazos: ${value.y}%)`;
-            },
-            anchor: 'center',
-            align: 'top',
-            color: '#409EFF',
-            font: { size: 11, weight: 'bold' }
-        };
-
-        controlOperativoCharts[id] = new Chart(ctx, {
-            type: 'scatter',
-            plugins: [typeof ChartDataLabels !== 'undefined' ? ChartDataLabels : {}],
-            data: {
-                datasets: [{
-                    label: gestor || 'Gestor',
-                    data: scatterPoint,
-                    backgroundColor: 'rgba(64, 158, 255, 0.9)',
-                    borderColor: 'rgba(64, 158, 255, 1)',
-                    pointRadius: 10,
-                    pointHoverRadius: 12
-                }]
-            },
-            options: {
-                animation: false,
-                responsive: true,
-                maintainAspectRatio: false,
-                layout: { padding: { top: 45, right: 45 } },
-                plugins: {
-                    datalabels: datalabelsConfig,
-                    tooltip: {
-                        callbacks: {
-                            label: function(ctx) {
-                                let item = ctx.raw;
-                                return `${item.name}: Tasa Aprob.= ${item.x}/día, % Rechazos= ${item.y}%`;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: { beginAtZero: true, title: { display: true, text: 'Tasa Aprobación / Día' }, grace: '25%' },
-                    y: { beginAtZero: true, title: { display: true, text: 'Porcentaje Rechazos (%)' }, grace: '25%' }
-                }
-            }
-        });
-    }
-}
+function drawScatterMatriz(id, gestores, data, isGlobal = true) { return __kpiController().drawScatterMatriz(id, gestores, data, isGlobal); }
 
 // ==========================================
 // ACTIVE SUPERVISOR BADGE LOGIC
 // ==========================================
-function updateActiveSupervisorBadge() {
-    if (typeof globalScheduleRows === 'undefined' || !globalScheduleRows || globalScheduleRows.length === 0) return;
-    
-    const badge = document.getElementById('activeSupervisorBadge');
-    if (!badge) return;
-    
-    let activeSups = [];
-    let now = new Date();
-    let currentHour = now.getHours();
-    let currentMin = now.getMinutes();
-    let timeFloat = currentHour + (currentMin / 60);
-
-    const supervisors = [
-        {name: 'Maria', full: 'Maria Sanchez'}, 
-        {name: 'Sara', full: 'Sara Santamaría'},
-        {name: 'Oriana', full: 'Oriana Borja'}
-    ];
-
-    for (let sup of supervisors) {
-        let shiftStr = typeof getShiftForDate === 'function' ? getShiftForDate(globalScheduleRows, globalScheduleBlocks, sup.name, now) : null;
-        
-        if (shiftStr && typeof shiftStr === 'string' && shiftStr !== 'Descansa' && shiftStr !== 'Por Asignar' && shiftStr !== 'Vacaciones') {
-            let match = shiftStr.match(/(\d+)(am|pm|a\.m\.|p\.m\.)\s*-\s*(\d+)(am|pm|a\.m\.|p\.m\.)/i);
-            if (match) {
-                let startH = parseInt(match[1]);
-                let startMeridiem = match[2].toLowerCase().replace(/\./g, '');
-                if (startMeridiem === 'pm' && startH !== 12) startH += 12;
-                if (startMeridiem === 'am' && startH === 12) startH = 0;
-                
-                let endH = parseInt(match[3]);
-                let endMeridiem = match[4].toLowerCase().replace(/\./g, '');
-                if (endMeridiem === 'pm' && endH !== 12) endH += 12;
-                if (endMeridiem === 'am' && endH === 12) endH = 0;
-                
-                let startFloat = startH;
-                let endFloat = endH;
-                
-                let isActive = false;
-                if (endFloat <= startFloat) {
-                    if (timeFloat >= startFloat || timeFloat < endFloat) isActive = true;
-                } else {
-                    if (timeFloat >= startFloat && timeFloat < endFloat) isActive = true;
-                }
-                
-                if (isActive) {
-                    if (!activeSups.includes(sup.name)) activeSups.push(sup.name);
-                }
-            } else if (shiftStr.toLowerCase().includes('turno')) {
-                if (!activeSups.includes(sup.name)) activeSups.push(sup.name);
-            }
-        }
+// [LAB-INTEGRACION:SUPERVISOR-BADGE-INICIO]
+let __labSupervisorBadgeController = null;
+function updateActiveSupervisorBadge() { // [LAB-INTEGRACION] RiskOps.supervisorBadgeController
+    if (!__labSupervisorBadgeController) {
+        __labSupervisorBadgeController = RiskOps.supervisorBadgeController.createSupervisorBadgeController({
+            document,
+            getScheduleRows: () => (typeof globalScheduleRows === 'undefined' ? null : globalScheduleRows),
+            getScheduleBlocks: () => globalScheduleBlocks,
+            getShiftForDate: (rows, blocks, name, date) => (typeof getShiftForDate === 'function' ? getShiftForDate(rows, blocks, name, date) : null)
+        });
     }
-    
-    if (activeSups.length > 0) {
-        let formattedSups = '';
-if (activeSups.length === 1) formattedSups = activeSups[0];
-else if (activeSups.length === 2) formattedSups = activeSups.join(' y ');
-else formattedSups = activeSups.slice(0, -1).join(', ') + ' y ' + activeSups[activeSups.length - 1];
-badge.innerHTML = `<i class='bx bx-support'></i> Sup: ${formattedSups}`;
-    } else {
-        badge.innerHTML = `<i class='bx bx-support'></i> Sup: Ninguna (Fuera de turno)`;
-    }
-    badge.style.display = 'inline-flex';
+    __labSupervisorBadgeController.update();
 }
+// [LAB-INTEGRACION:SUPERVISOR-BADGE-FIN]
 
 setInterval(updateActiveSupervisorBadge, 60000); // Check every minute
 setTimeout(updateActiveSupervisorBadge, 3000); // Initial check after loading
@@ -8433,229 +4332,27 @@ setTimeout(updateActiveSupervisorBadge, 3000); // Initial check after loading
 // ==========================================
 // HISTORIAL DE ACCESOS LOGIC
 // ==========================================
-let allLoginHistoryRecords = [];
-
-async function openLoginHistoryModal() {
-    const modal = document.getElementById('loginHistoryModal');
-    if (!modal) return;
-
-    modal.classList.add('active');
-    const tbody = document.getElementById('loginHistoryTableBody');
-    if (tbody) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 30px; color: var(--text-secondary);"><i class='bx bx-loader-alt bx-spin' style="font-size: 24px; margin-bottom: 8px;"></i><br>Cargando historial de accesos...</td></tr>`;
-    }
-
-    try {
-        const snapActive = await database.ref('active_sessions').once('value');
-        const snapReports = await database.ref('shift_reports').once('value');
-        const snapLogs = await database.ref('login_history').once('value');
-
-        allLoginHistoryRecords = [];
-        const seenKeys = new Set();
-
-        // 1. Current Active Sessions
-        if (snapActive.exists()) {
-            const activeData = snapActive.val();
-            for (let uid in activeData) {
-                const s = activeData[uid];
-                if (!s || !s.name) continue;
-                const loginTimeStr = s.loginTime || s.startTime || (s.lastActive ? new Date(s.lastActive).toISOString() : new Date().toISOString());
-                const key = `${s.name.trim().toLowerCase()}_${loginTimeStr.substring(0, 16)}`;
-                seenKeys.add(key);
-
-                let isOnline = s.lastActive ? ((Date.now() - s.lastActive) < 120000) : false;
-                if (s.status === 'En Almuerzo' || s.status === 'En Desayuno' || s.status === 'Inactivo') isOnline = false;
-
-                allLoginHistoryRecords.push({
-                    name: s.name,
-                    email: s.email || '',
-                    shift: s.shift || 'Mañana',
-                    loginTime: loginTimeStr,
-                    lastActive: s.lastActive ? new Date(s.lastActive).toLocaleString('es-CO') : 'Reciente',
-                    isOnline: isOnline,
-                    status: s.status || (isOnline ? 'En Línea' : 'Inactivo'),
-                    source: 'En Vivo'
-                });
-            }
-        }
-
-        // 2. Login History Logs
-        if (snapLogs.exists()) {
-            const logData = snapLogs.val();
-            for (let id in logData) {
-                const l = logData[id];
-                if (!l || !l.name) continue;
-                const key = `${l.name.trim().toLowerCase()}_${(l.loginTime||'').substring(0, 16)}`;
-                if (seenKeys.has(key)) continue;
-                seenKeys.add(key);
-
-                allLoginHistoryRecords.push({
-                    name: l.name,
-                    email: l.email || '',
-                    shift: l.shift || 'General',
-                    loginTime: l.loginTime || l.timestamp,
-                    lastActive: l.lastActive ? new Date(l.lastActive).toLocaleString('es-CO') : 'Finalizado',
-                    isOnline: false,
-                    status: l.status || 'Finalizado',
-                    source: 'Historial'
-                });
-            }
-        }
-
-        // 3. Past Shift Reports (Bitácoras)
-        if (snapReports.exists()) {
-            const reportsData = snapReports.val();
-            for (let id in reportsData) {
-                const r = reportsData[id];
-                if (!r) continue;
-                const gestorName = (r.gestor || r.name || r.userName || '').trim();
-                if (!gestorName) continue;
-
-                const shiftStr = r.turnoProgramado || r.shift || 'General';
-                const loginTimeStr = r.horaInicio || r.loginTime || r.startTime || r.reportDate || (r.timestamp ? new Date(r.timestamp).toISOString() : '');
-                const endTimeStr = r.horaFin || r.endTime || (r.timestamp ? new Date(r.timestamp).toLocaleString('es-CO') : 'Turno Finalizado');
-
-                const key = `${gestorName.toLowerCase()}_${loginTimeStr.substring(0, 16)}`;
-                if (seenKeys.has(key)) continue;
-                seenKeys.add(key);
-
-                let statusLabel = 'Turno Completado';
-                if (shiftStr.toLowerCase().includes('descansa')) {
-                    statusLabel = 'Ingreso en Día de Descanso';
-                }
-
-                allLoginHistoryRecords.push({
-                    name: gestorName,
-                    email: r.email || '',
-                    shift: shiftStr,
-                    loginTime: loginTimeStr,
-                    lastActive: endTimeStr,
-                    isOnline: false,
-                    status: statusLabel,
-                    source: 'Bitácora'
-                });
-            }
-        }
-
-        // Sort descending by loginTime
-        allLoginHistoryRecords.sort((a, b) => new Date(b.loginTime || 0) - new Date(a.loginTime || 0));
-
-        renderLoginHistoryTable(allLoginHistoryRecords);
-
-    } catch (e) {
-        console.error("Error cargando historial de accesos:", e);
-        if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--danger);">Error cargando los accesos. Por favor intenta de nuevo.</td></tr>`;
-        }
-    }
-}
-
-function renderLoginHistoryTable(records) {
-    const tbody = document.getElementById('loginHistoryTableBody');
-    if (!tbody) return;
-
-    if (records.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 30px; color: var(--text-secondary);">No se encontraron registros de accesos.</td></tr>`;
-        return;
-    }
-
-    let html = '';
-    records.forEach(r => {
-        const loginDateObj = r.loginTime ? new Date(r.loginTime) : null;
-        const formattedLogin = loginDateObj && !isNaN(loginDateObj) ? loginDateObj.toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'medium' }) : (r.loginTime || 'N/A');
-        
-        let delayBadge = '';
-        if (r.shift && r.shift.toLowerCase().includes('descansa')) {
-            delayBadge = `<span style="background: rgba(139,92,246,0.15); color: #8b5cf6; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; margin-left: 6px;">Descanso</span>`;
-        } else if (loginDateObj && !isNaN(loginDateObj) && r.shift) {
-            const shiftStr = r.shift.toLowerCase().trim();
-            const match = shiftStr.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
-            if (match) {
-                let hour = parseInt(match[1], 10);
-                let minute = match[2] ? parseInt(match[2], 10) : 0;
-                const ampm = match[3].toLowerCase();
-                if (ampm === 'pm' && hour < 12) hour += 12;
-                if (ampm === 'am' && hour === 12) hour = 0;
-                
-                const expected = new Date(loginDateObj);
-                expected.setHours(hour, minute, 0, 0);
-                let diffMin = (loginDateObj - expected) / (1000 * 60);
-
-                if (diffMin < -12 * 60) {
-                    expected.setDate(expected.getDate() - 1);
-                    diffMin = (loginDateObj - expected) / (1000 * 60);
-                } else if (diffMin > 12 * 60) {
-                    expected.setDate(expected.getDate() + 1);
-                    diffMin = (loginDateObj - expected) / (1000 * 60);
-                }
-
-                if (diffMin <= 5) {
-                    delayBadge = `<span style="background: rgba(16,185,129,0.15); color: var(--success); padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; margin-left: 6px;">A tiempo</span>`;
-                } else if (diffMin > 240) {
-                    delayBadge = `<span style="background: rgba(139,92,246,0.15); color: #8b5cf6; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; margin-left: 6px;">Fuera de Horario</span>`;
-                } else {
-                    const tardanza = Math.round(diffMin);
-                    delayBadge = `<span style="background: rgba(239,68,68,0.15); color: var(--danger); padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; margin-left: 6px;">+${tardanza}m Tarde</span>`;
-                }
-            }
-        }
-
-        let statusBadge = `<span style="background: rgba(59,130,246,0.15); color: var(--accent-primary); padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">${escapeHTML(r.status)}</span>`;
-        if (r.isOnline) {
-            statusBadge = `<span style="background: rgba(16,185,129,0.15); color: var(--success); padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700;"><i class='bx bx-radio-circle-marked'></i> En Línea</span>`;
-        } else if (r.status === 'Ingreso en Día de Descanso') {
-            statusBadge = `<span style="background: rgba(139,92,246,0.15); color: #8b5cf6; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">Ingreso en Descanso</span>`;
-        }
-
-        html += `
-            <tr style="border-bottom: 1px solid rgba(0,0,0,0.05);">
-                <td style="padding: 12px 16px; font-weight: 600; color: var(--text-primary);">
-                    ${escapeHTML(r.name)}
-                    ${r.email ? `<div style="font-size: 11px; color: var(--text-secondary); font-weight: 400;">${escapeHTML(r.email)}</div>` : ''}
-                </td>
-                <td style="padding: 12px 16px; color: var(--text-secondary); font-size: 13px;">${escapeHTML(r.shift)}</td>
-                <td style="padding: 12px 16px; color: var(--text-primary); font-size: 13px; font-weight: 500;">
-                    ${formattedLogin} ${delayBadge}
-                </td>
-                <td style="padding: 12px 16px;">${statusBadge}</td>
-                <td style="padding: 12px 16px; color: var(--text-secondary); font-size: 12px;">${escapeHTML(r.lastActive)}</td>
-            </tr>
-        `;
+// [LAB-INTEGRACION:LOGIN-HISTORY-INICIO]
+// [LAB-INTEGRACION] Historial de accesos: RiskOps.loginHistoryController (src/controllers/login-history-controller.js)
+let __labLoginHistoryController = null;
+function __labLoginHistory() {
+    if (__labLoginHistoryController) return __labLoginHistoryController;
+    __labLoginHistoryController = RiskOps.loginHistoryController.createLoginHistoryController({
+        repository: RiskOps.loginHistoryRepository.createLoginHistoryRepository({ database }),
+        document,
+        now: () => Date.now(),
+        logger: console,
+        helpers: { escapeHTML }
     });
-
-    tbody.innerHTML = html;
+    return __labLoginHistoryController;
 }
 
-function filterLoginHistoryTable() {
-    const searchInput = document.getElementById('loginHistorySearch');
-    const dateFilter = document.getElementById('loginHistoryDateFilter');
-    
-    const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
-    const dateVal = dateFilter ? dateFilter.value : 'todos';
+async function openLoginHistoryModal() { return __labLoginHistory().open(); } // [LAB-INTEGRACION]
 
-    const now = new Date();
-    const todayStr = now.toISOString().substring(0, 10);
-    const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
-    const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+function renderLoginHistoryTable(records) { __labLoginHistory().render(records); } // [LAB-INTEGRACION]
 
-    const filtered = allLoginHistoryRecords.filter(r => {
-        if (query && !r.name.toLowerCase().includes(query) && !(r.email && r.email.toLowerCase().includes(query))) {
-            return false;
-        }
-
-        if (dateVal !== 'todos' && r.loginTime) {
-            const rDate = new Date(r.loginTime);
-            const rDateStr = rDate.toISOString().substring(0, 10);
-            if (dateVal === 'hoy' && rDateStr !== todayStr) return false;
-            if (dateVal === '7d' && rDate < sevenDaysAgo) return false;
-            if (dateVal === '30d' && rDate < thirtyDaysAgo) return false;
-        }
-
-        return true;
-    });
-
-    renderLoginHistoryTable(filtered);
-}
+function filterLoginHistoryTable() { __labLoginHistory().filter(); } // [LAB-INTEGRACION]
+// [LAB-INTEGRACION:LOGIN-HISTORY-FIN]
 
 window.openLoginHistoryModal = openLoginHistoryModal;
 window.filterLoginHistoryTable = filterLoginHistoryTable;
@@ -8686,158 +4383,80 @@ function calculateEffectiveApprovalTime(creacionTime, aprobacionTime, inicioTurn
 /**
  * 2. Monitoreo y Presencia en Tiempo Real con Firebase Realtime Database
  */
-function setupUserPresence(uid) {
-    if (!uid || typeof database === 'undefined') return;
-    const connectedRef = database.ref('.info/connected');
-    const userSessionRef = database.ref(`active_sessions/${uid}`);
-
-    connectedRef.on('value', (snap) => {
-        if (snap.val() === true) {
-            userSessionRef.onDisconnect().update({
-                status: 'offline',
-                lastHeartbeat: firebase.database.ServerValue.TIMESTAMP
-            }).then(() => {
-                userSessionRef.update({
-                    status: 'online',
-                    lastHeartbeat: firebase.database.ServerValue.TIMESTAMP
-                });
-            });
+// [LAB-INTEGRACION:PRESENCIA-CONTADOR-INCIDENTES-INICIO]
+// [LAB-INTEGRACION] Presencia, contador atómico y novedades: RiskOps.presenceService / approvedCounterService / approvedCountView / incidentsController
+// [LAB-INTEGRACION] D6: presencia y contador INACTIVOS (predeterminado enabled: false de los servicios): las llamadas son no-op y no
+// abren conexiones ni consumen cuota de Realtime Database. NO pasar enabled: true sin reglas "metrics" y rediseño.
+function __labPresence() {
+    return RiskOps.presenceService.createPresenceService({
+        database,
+        serverTimestamp: firebase.database.ServerValue.TIMESTAMP,
+        onSessionsChanged: () => {
+            if (typeof renderActiveSessionsDashboard === 'function') {
+                renderActiveSessionsDashboard();
+            }
         }
     });
+}
+
+function setupUserPresence(uid) {
+    if (!uid || typeof database === 'undefined') return;
+    __labPresence().setupUserPresence(uid); // [LAB-INTEGRACION]
 }
 
 function startMonitoringPresence() {
     if (typeof database === 'undefined') return;
-    database.ref('active_sessions').on('value', (snapshot) => {
-        if (typeof renderActiveSessionsDashboard === 'function') {
-            renderActiveSessionsDashboard();
-        }
-    });
+    __labPresence().startMonitoringPresence(); // [LAB-INTEGRACION]
 }
 
-/**
- * 3. Contador Operacional Atómico (ServerValue.increment)
- */
+function __labApprovedCounter() {
+    return RiskOps.approvedCounterService.createApprovedCounterService({ database, onCount: (count) => updateApprovedCountUI(count) });
+}
+
 function incrementApprovedWithdrawal(uid, amount = 1) {
     if (typeof database === 'undefined') return;
-    const counterRef = database.ref('metrics/approvedCount');
-    counterRef.transaction((currentValue) => {
-        return (currentValue || 0) + amount;
-    }, (error, committed, snapshot) => {
-        if (!error && committed) {
-            updateApprovedCountUI(snapshot.val());
-        }
-    });
+    __labApprovedCounter().incrementApprovedWithdrawal(uid, amount); // [LAB-INTEGRACION]
 }
 
 function initAtomicApprovedCounterListener() {
     if (typeof database === 'undefined') return;
-    database.ref('metrics/approvedCount').on('value', (snapshot) => {
-        if (snapshot.exists()) {
-            updateApprovedCountUI(snapshot.val());
-        }
-    });
+    __labApprovedCounter().initAtomicApprovedCounterListener(); // [LAB-INTEGRACION]
 }
 
 function updateApprovedCountUI(count) {
-    if (window.isFilteredByGestor) return; // Prevent overwriting filtered value with global realtime updates
-    const countEl = document.getElementById('metric-approved-count');
-    if (countEl) {
-        countEl.textContent = count || 0;
-        countEl.style.transform = 'scale(1.25)';
-        setTimeout(() => countEl.style.transform = 'scale(1)', 300);
-    }
+    RiskOps.approvedCountView.renderApprovedCount({ // [LAB-INTEGRACION]
+        count,
+        isFiltered: window.isFilteredByGestor,
+        element: window.isFilteredByGestor ? null : document.getElementById('metric-approved-count'),
+        schedule: (fn, ms) => setTimeout(fn, ms)
+    });
 }
 
-/**
- * 4. Módulo de Novedades, Comentarios e Incidentes (/logs)
- */
-async function handleNewIncidentSubmit(event) {
-    event.preventDefault();
-    if (!currentUser) {
-        alert("Debes iniciar sesión para registrar una novedad.");
-        return;
-    }
-    
-    const type = document.getElementById('incidentType')?.value || 'Novedad Operativa';
-    const title = document.getElementById('incidentTitle')?.value?.trim();
-    const assignee = document.getElementById('incidentAssignee')?.value?.trim() || currentUser.name;
-    const detail = document.getElementById('incidentDetail')?.value?.trim();
-
-    if (!title || !detail) {
-        alert("Por favor completa el título y el detalle de la novedad.");
-        return;
-    }
-
-    try {
-        const newLogRef = database.ref('logs').push();
-        await newLogRef.set({
-            uid: currentUser.uid || firebase.auth().currentUser.uid,
-            type: type,
-            title: title,
-            assignedTo: assignee,
-            detail: detail,
-            reportedBy: currentUser.name,
-            reportedByEmail: currentUser.email || '',
-            timestamp: Date.now(),
-            status: 'Abierto'
-        });
-
-        const form = document.getElementById('incidentForm');
-        if (form) form.reset();
-        alert("¡Novedad/Incidente registrada exitosamente!");
-    } catch(err) {
-        console.error("Error registrando novedad en /logs:", err);
-        alert("Ocurrió un error al registrar la novedad.");
-    }
+let __labIncidentsController = null;
+function __labIncidents() {
+    if (__labIncidentsController) return __labIncidentsController;
+    __labIncidentsController = RiskOps.incidentsController.createIncidentsController({
+        repository: RiskOps.incidentRepository.createIncidentRepository({ database }),
+        document,
+        getUser: () => currentUser,
+        getAuthUser: () => firebase.auth().currentUser,
+        now: () => Date.now(),
+        alert: (m) => alert(m),
+        logger: console,
+        helpers: { escapeHTML }
+    });
+    return __labIncidentsController;
 }
+
+async function handleNewIncidentSubmit(event) { return __labIncidents().handleSubmit(event); } // [LAB-INTEGRACION]
 
 function startIncidentsRealtimeListener() {
     if (typeof database === 'undefined') return;
-    database.ref('logs').orderByChild('timestamp').limitToLast(50).on('value', (snapshot) => {
-        const incidents = [];
-        if (snapshot.exists()) {
-            snapshot.forEach((childSnap) => {
-                incidents.unshift({ id: childSnap.key, ...childSnap.val() });
-            });
-        }
-        renderIncidentsTable(incidents);
-    });
+    __labIncidents().startListener(); // [LAB-INTEGRACION]
 }
 
-function renderIncidentsTable(incidents) {
-    const tbody = document.getElementById('incidentsTableBody');
-    if (!tbody) return;
-
-    if (!incidents || incidents.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--text-secondary);">No hay novedades ni incidentes registrados.</td></tr>`;
-        return;
-    }
-
-    let html = '';
-    incidents.forEach(inc => {
-        const dateStr = inc.timestamp ? new Date(inc.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'N/A';
-        const typeBadge = `<span class="badge pending" style="font-size: 10px;">${escapeHTML(inc.type || 'Soporte')}</span>`;
-        const statusBadge = inc.status === 'Cerrado' 
-            ? `<span class="badge status-completed" style="font-size: 10px; background: var(--success); color: white;">Cerrado</span>`
-            : `<span class="badge in-progress" style="font-size: 10px; background: var(--warning); color: white;">Abierto</span>`;
-
-        html += `
-            <tr style="border-bottom: 1px solid var(--glass-border);">
-                <td style="padding: 10px; font-size: 12px; color: var(--text-secondary);">${dateStr}</td>
-                <td style="padding: 10px;">${typeBadge}</td>
-                <td style="padding: 10px;">
-                    <div style="font-weight: 600; color: var(--text-primary); font-size: 13px;">${escapeHTML(inc.title || '')}</div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${escapeHTML(inc.detail || '')}</div>
-                    ${inc.assignedTo ? `<div style="font-size: 10px; color: var(--accent-primary); margin-top: 2px;">Resp: ${escapeHTML(inc.assignedTo)}</div>` : ''}
-                </td>
-                <td style="padding: 10px; font-size: 12px; color: var(--text-primary);">${escapeHTML(inc.reportedBy || 'Anónimo')}</td>
-                <td style="padding: 10px; text-align: center;">${statusBadge}</td>
-            </tr>
-        `;
-    });
-    tbody.innerHTML = html;
-}
+function renderIncidentsTable(incidents) { __labIncidents().renderTable(incidents); } // [LAB-INTEGRACION]
+// [LAB-INTEGRACION:PRESENCIA-CONTADOR-INCIDENTES-FIN]
 
 /**
  * 5. Filtro por Responsable Asignado (#filter-assignee)

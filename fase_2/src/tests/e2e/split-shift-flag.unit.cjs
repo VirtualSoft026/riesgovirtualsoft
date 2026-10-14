@@ -43,7 +43,12 @@ function between(startMarker, endMarker) {
 const STATE_BLOCK = between('let lastLocalActivityTimestamp', 'window.idleDetectorStarted = false;');
 const INTEGRATED = SRC.includes('// [LAB-INTEGRACION:INICIO]');
 if (INTEGRATED && !BUNDLE) { console.error('app.js integrado: falta --riskops <bundle>'); process.exit(2); }
-const HELPER = INTEGRATED ? between('// [LAB-INTEGRACION:INICIO]', '// [LAB-INTEGRACION:FIN]') : '';
+// 2026-10-14: el paso de inactividad (lab/integracion/pasos/inactividad-shift-activity.mjs) agrega su propio
+// bloque de ayudantes (__shiftActivityController), que updateActivity() y applyIdleStateChange() usan.
+const ACTIVITY_HELPER = SRC.includes('// [LAB-INTEGRACION:ACTIVIDAD-INICIO]')
+    ? '\n' + between('// [LAB-INTEGRACION:ACTIVIDAD-INICIO]', '// [LAB-INTEGRACION:ACTIVIDAD-FIN]')
+    : '';
+const HELPER = INTEGRATED ? between('// [LAB-INTEGRACION:INICIO]', '// [LAB-INTEGRACION:FIN]') + ACTIVITY_HELPER : '';
 const LISTENER = between("database.ref(`users/${currentUser.uid}/hasSplitShift`).on('value'", '\n            });');
 
 // ------------------------------------------------------------------ entorno simulado

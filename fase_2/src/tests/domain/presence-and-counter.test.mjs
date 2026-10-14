@@ -401,8 +401,11 @@ test('D6 aislamiento estático: ningún módulo de src (fuera de las pruebas) cr
         }
     };
     walk(srcDir);
+    // 2026-10-14: se ignoran los comentarios. bootstrap.js (Fase 3) solo menciona presence-service en un import
+    // COMENTADO, que no crea nada; antes contaba como infracción.
+    const withoutComments = (code) => code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
     const offenders = files.filter((f) => !/presence-service\.js$|approved-counter-service\.js$|approved-counter\.js$|entry[^/]*\.js$/.test(f))
-        .filter((f) => /from\s+['"][^'"]*(presence-service|approved-counter-service)\.js['"]|create(Presence|ApprovedCounter)Service\s*\(/.test(fs.readFileSync(f, 'utf8')));
+        .filter((f) => /from\s+['"][^'"]*(presence-service|approved-counter-service)\.js['"]|create(Presence|ApprovedCounter)Service\s*\(/.test(withoutComments(fs.readFileSync(f, 'utf8'))));
     assert.deepEqual(offenders.map((f) => path.relative(srcDir, f)), []);
 });
 

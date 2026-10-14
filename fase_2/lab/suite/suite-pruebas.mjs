@@ -143,10 +143,27 @@ for (const file of unitFiles) {
 log('');
 
 // ---------- 3 y 4. Integración + E2E ----------
-const integrated = path.join(OUT, 'app.integrado.js');
-const original = path.join(REPO, 'app.js');
+// 2026-10-14: si app.js de la rama ya trae la integración, se prueba TAL CUAL (lo que se va a subir) contra la
+// referencia congelada fase_2/lab/referencia/app.pre-integracion.js (app.js antes de conectarlo a src, con el
+// parche de la Pausa de Turno). Si no, se genera el integrado en una copia fuera del repo, como antes.
+const branchApp = path.join(REPO, 'app.js');
+const branchIntegrated = fs.readFileSync(branchApp, 'utf8').includes('[LAB-INTEGRACION]');
+const reference = path.join(LAB, 'referencia', 'app.pre-integracion.js');
+const integrated = branchIntegrated ? branchApp : path.join(OUT, 'app.integrado.js');
+const original = branchIntegrated ? reference : branchApp;
 let integrationOk = false;
-if (!ARGS.has('--solo-unitarias')) {
+if (!ARGS.has('--solo-unitarias') && branchIntegrated) {
+    log('[3/5] app.js de la rama ya conectado a fase_2/src: se prueba tal cual');
+    if (fs.existsSync(reference)) {
+        integrationOk = true;
+        rows.push({ group: 'Integración', name: 'app.js de la rama (ya integrado)', status: 'OK', passed: 1, failed: 0, gaps: 0, network: 0, ms: 0 });
+        log(`  [OK     ] integrado = ${rel(branchApp)}  |  referencia = ${rel(reference)}`);
+    } else {
+        rows.push({ group: 'Integración', name: 'referencia app.pre-integracion.js', status: 'FALLA', passed: 0, failed: 1, gaps: 0, network: 0, ms: 0 });
+        log(`  [FALLA  ] falta la referencia ${rel(reference)}: las e2e de paridad no tienen contra qué comparar.`);
+    }
+    log('');
+} else if (!ARGS.has('--solo-unitarias')) {
     log('[3/5] Integración del laboratorio sobre el app.js actual de la rama (copia fuera del repo)');
     try {
         const { integrateApp, loadExtraSteps } = await import(pathToFileURL(path.join(LAB, 'integracion', 'aplicar-integracion.mjs')).href);
@@ -162,8 +179,9 @@ if (!ARGS.has('--solo-unitarias')) {
         log('             Un ancla de la integración ya no coincide con app.js (cambió en la rama). Las e2e integradas no se pueden correr hasta actualizar el paso.');
     }
     log('');
-
-    log('[4/5] E2E con el app.js real y el bundle real');
+}
+if (!ARGS.has('--solo-unitarias')) {
+    log('[4/5] E2E con el app.js real y el bundle real (+ parche de la Pausa de Turno en la referencia)');
     const E2E = path.join(TESTS, 'e2e');
     const idx = path.join(REPO, 'index.html');
     const rules = path.join(REPO, 'database.rules.json');
@@ -176,7 +194,10 @@ if (!ARGS.has('--solo-unitarias')) {
         ['historial-navegacion-integrado.e2e.cjs', [original, integrated, BUNDLE]],
         ['kpis-integrado.e2e.cjs', [integrated, '--riskops', BUNDLE, '--original', original]],
         ['comunicados-integrado.e2e.cjs', [integrated, '--riskops', BUNDLE, '--original', original]],
-        ['turno-avance-panel-horas-efectivas.e2e.cjs', [integrated, '--riskops', BUNDLE, '--original', original]]
+        ['turno-avance-panel-horas-efectivas.e2e.cjs', [integrated, '--riskops', BUNDLE, '--original', original]],
+        // Parche de la Pausa de Turno (2026-10-04) sobre el app.js SIN integrar (la referencia, o la rama si aún no
+        // está integrada): se perdió una vez del app.js de trabajo; esta prueba lo detecta.
+        ['parche-pausa-turno.unit.cjs', [original]]
     ];
     for (const [file, args] of cases) {
         if (!integrationOk) {

@@ -179,3 +179,6 @@ Integración 62/62 pasos. E2E: 4 de 9 en verde (`cierre-horas-efectivas` 19/19, 
 6. **Paso `integracion/pasos/inactividad-shift-activity.mjs` (2026-10-09)**: usa `__shiftActivityController`, que los arneses de `split-shift-flag.unit.cjs` no definen (`__shiftActivityController is not defined` en R2.5, R3.2, R3.3). Sin ese paso esas 3 pruebas pasan.
 7. `tareas-integrado` S6 (inactividad por IdleDetector: el integrado reporta `En Línea` donde el original reporta `Inactivo`) y `comunicados-integrado` C1b (D4) — pendientes de diagnóstico.
 
+### Conexión de `app.js` de la rama (2026-10-14) — suite en verde
+
+Desde este corte el laboratorio y la suite prueban **la rama tal cual**: `app.js` ya trae la integración (`stage.mjs` lo sirve sin parches) e `index.html` ya carga el bundle antes de `app.js`. Las e2e comparan contra `fase_2/lab/referencia/app.pre-integracion.js`. Resultado: bundle 71/71, unitarias 78/78 (1279 pruebas), e2e 10/10 (487), motor 4/4. Las fallas 2–7 de arriba quedaron resueltas; detalle en `fase_2/Docs/05-pruebas/2026-10-14-informe-conexion-app-js-fase2.md`.

@@ -51,6 +51,18 @@ export function createAnnouncementRepository({ database }) {
             await database.ref(`announcements/${id}/readBy/${uid}`).set(receipt);
         },
 
+        /**
+         * D4 (2026-10-14, restaurado): lee una vez `announcements/{id}/readBy/{uid}` para distinguir, tras un
+         * PERMISSION_DENIED al marcar como leído, una duplicidad (la lectura ya existe) de un permiso real.
+         * Devuelve el recibo o `null`. El propio usuario puede leer su lectura (regla de `announcements`).
+         */
+        async fetchReadReceipt(id, uid) {
+            const snapshot = await database.ref(`announcements/${id}/readBy/${uid}`).once('value');
+            const value = snapshot && typeof snapshot.val === 'function' ? snapshot.val() : null;
+
+            return value === undefined ? null : value;
+        },
+
         /** Elimina un comunicado completo. */
         async remove(id) {
             await database.ref('announcements/' + id).remove();

@@ -6,6 +6,7 @@
  * evitar colisiones de nombres.
  */
 export * as shiftController from './controllers/shift-controller.js';
+export * as shiftActivityController from './controllers/shift-activity-controller.js'; // 2026-10-14: lo usa el paso de inactividad (__shiftActivityController)
 export * as taskController from './controllers/task-controller.js';
 export * as authService from './domain/auth/auth-service.js';
 export * as appRouter from './app/app-router.js';

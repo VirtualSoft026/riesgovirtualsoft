@@ -204,12 +204,14 @@ test('onIdleChange(false): rol no-Gestor → no actúa', () => {
     assert.equal(e.timeline.length, 0);
 });
 
-test('onIdleChange(false): la pausa NO bloquea la restauración a Activo (solo bloquea la transición a Inactivo)', () => {
-    // Guard isOnBreak() aplica SOLO a onIdleChange(true). El original tampoco lo bloquea aquí.
+test('onIdleChange(false) en pausa: sin efecto, igual que app.js (la pausa bloquea ambas transiciones)', () => {
+    // 2026-10-14: corregida la expectativa. applyIdleStateChange() de app.js (líneas 517-537) hace
+    // `if (isLunchBreak || isBreakfastBreak || isSplitShiftBreak) return;` ANTES de evaluar la dirección, así que
+    // en pausa tampoco restaura a Activo. Coincide con la verificación 1:1 de idle-state-controller (2026-10-13).
     const e = setup({ user: { uid: 'g1', role: 'Gestor', status: 'Inactivo' }, onBreak: true });
     e.ctrl.onIdleChange(false);
-    assert.equal(e.user.status, 'Activo');
-    assert.deepEqual(e.timeline, [['Inactividad', 'end']]);
+    assert.equal(e.user.status, 'Inactivo');
+    assert.deepEqual(e.timeline, []);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

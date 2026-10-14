@@ -8,12 +8,10 @@ let screenLockTimer = null;
 let idleDetectorGranted = false;
 let idleDetectorStarted = false;
 
-// Inicializa las banderas en window para que app.js y el arnés de QA las lean
-// desde el primer momento (antes de que initIdleDetector() sea invocado).
-if (typeof window !== 'undefined') {
-    window.idleDetectorGranted = false;
-    window.idleDetectorStarted = false;
-}
+// 2026-10-14: sin efectos al importar. Antes se ponía window.idleDetectorGranted = false al cargar el
+// bundle; si el bundle se carga después de que app.js arrancó el detector, eso apagaba la detección de
+// inactividad. app.js ya inicializa esas banderas (window.idleDetectorGranted = false) y setDetectorStatus()
+// las actualiza cuando initIdleDetector() corre.
 
 let onIdleChange = () => {};
 let onWarning = () => {};
