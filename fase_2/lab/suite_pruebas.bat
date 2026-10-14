@@ -5,8 +5,8 @@ rem ======================================================================
 rem  suite_pruebas.bat  -  Suite de pruebas del laboratorio Fase 2
 rem
 rem  Corre sobre el codigo ACTUAL de la rama (lo que editaste localmente):
-rem    1. Compila el bundle (fase_2/build, npm run build)
-rem    2. Verifica window.RiskOps, las suites unitarias de fase_2/src/tests,
+rem    1. Compila el bundle (build, npm run build)
+rem    2. Verifica window.RiskOps, las suites unitarias de src/tests,
 rem       la integracion del laboratorio, las 9 pruebas e2e con el app.js
 rem       real y test_motor_operativo.py en un entorno hermetico
 rem    3. Muestra el resumen y guarda el log en %RISKOPS_LAB_ROOT%\pruebas
@@ -36,7 +36,7 @@ echo.
 where node >nul 2>nul || (echo ERROR: no se encontro Node.js en el PATH. Instala Node 20 o superior. & goto :fail)
 
 echo [1/3] Compilando el bundle de src/ con esbuild...
-pushd "%HERE%..\build" || goto :fail
+pushd "%HERE%..\..\build" || goto :fail
 if not exist node_modules (
     call npm.cmd install --no-audit --no-fund || (popd & goto :fail)
 )

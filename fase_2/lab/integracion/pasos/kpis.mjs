@@ -2,7 +2,7 @@
  * Paso de integración SOLO-LABORATORIO del corte "KPIs, analítica y gráficas".
  *
  * Sustituye, en la copia de staging de app.js (nunca en el original), los cuerpos de las funciones del Portal de KPIs y del
- * Control Operativo por llamadas a los módulos de `fase_2/src` (bundle `RiskOps`), conservando nombre, firma y orden de
+ * Control Operativo por llamadas a los módulos de `src` (bundle `RiskOps`), conservando nombre, firma y orden de
  * llamada de cada función global (los `onclick` del index.html y los demás bloques de app.js siguen resolviendo a ellas).
  * Todo el estado sigue siendo de app.js: `window.controlOperativoRawData`, `window.retirosGlobalData`, `window.kpiUsersData`,
  * `window.kpiTaskLists` y el registro `controlOperativoCharts` (el MISMO objeto lo comparten app.js y el controlador).

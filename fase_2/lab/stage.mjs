@@ -9,7 +9,7 @@ const INJECT_BUNDLE = process.env.RISKOPS_LAB_INJECT_BUNDLE !== '0';
 // Integración del refactor de turno (pausas/Pausa de Turno/cierre) SOLO en la copia de staging de app.js.
 const INTEGRATE = INJECT_BUNDLE && process.env.RISKOPS_LAB_INTEGRATE !== '0';
 const SITE = path.join(LAB_ROOT, 'site');
-const BUNDLE = path.resolve(here, '../build/dist/riskops.bundle.js');
+const BUNDLE = path.resolve(here, '../../build/dist/riskops.bundle.js');
 
 // Misma allowlist que .github/workflows/deploy-pages.yml (mantener sincronizadas).
 const ROOT_FILES = ['index.html', 'login.html', 'app.js', 'login.js', 'styles.css', 'login.css', 'firebase-config.js', 'procesos_list.json', 'kpi_operativos_v2.json'];
@@ -58,12 +58,12 @@ for (const file of [...ROOT_FILES, ...LOCAL_ONLY_FILES, ...OPTIONAL_FILES, ...OP
 say('OK', `${copied} elementos copiados a ${SITE}`);
 
 if (!fs.existsSync(BUNDLE)) {
-    say('FALLA', `Falta el bundle (${BUNDLE}). Ejecuta "npm run build" en fase_2/build.`);
+    say('FALLA', `Falta el bundle (${BUNDLE}). Ejecuta "npm run build" en build/.`);
     process.exit(1);
 }
 fs.copyFileSync(BUNDLE, path.join(SITE, 'riskops.bundle.js'));
 
-const smoke = fs.readFileSync(path.resolve(here, '../build/smoke.html'), 'utf8').replace('dist/riskops.bundle.js', 'riskops.bundle.js');
+const smoke = fs.readFileSync(path.resolve(here, '../../build/smoke.html'), 'utf8').replace('dist/riskops.bundle.js', 'riskops.bundle.js');
 fs.writeFileSync(path.join(SITE, 'smoke.html'), smoke);
 
 // Solo la copia de staging: el index.html del repo no se modifica.
@@ -89,7 +89,7 @@ if (INJECT_BUNDLE) {
 // el laboratorio sirve exactamente lo que se va a subir.
 const APP_YA_INTEGRADO = fs.readFileSync(path.join(SITE, 'app.js'), 'utf8').includes('[LAB-INTEGRACION]');
 if (APP_YA_INTEGRADO) {
-    say('OK', 'app.js de la rama ya está conectado a fase_2/src: se sirve tal cual, sin parches del laboratorio.');
+    say('OK', 'app.js de la rama ya está conectado a src: se sirve tal cual, sin parches del laboratorio.');
 } else if (INTEGRATE) {
     const { integrateApp, loadExtraSteps } = await import('./integracion/aplicar-integracion.mjs');
     const extraSteps = await loadExtraSteps(path.join(here, 'integracion', 'pasos'));

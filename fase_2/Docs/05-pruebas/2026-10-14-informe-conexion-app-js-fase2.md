@@ -56,3 +56,13 @@ Resultado: **todo en verde** sobre el código de la rama, también en el equipo 
 ## 5. Cierre en la rama (2026-10-14)
 
 Con la suite en verde en el equipo del responsable y la prueba manual aprobada, la Fase 2 queda **cerrada en la rama `backup/fase2-refactor-2026-10-03`**. Quedan fuera de este cierre y bloquean el paso a `main`: hallazgo 4 (`deploy-pages.yml`), hallazgo 6 (`Cronograma Octubre.xlsx`) y las decisiones D3/D7 de `database.rules.json`.
+
+## 6. Reorganización de carpetas y limpieza (2026-10-14, después del cierre)
+
+Autorizado por el responsable en el chat (estructura "src/ y build/ a la raíz" y las cuatro limpiezas propuestas).
+
+- **Movido con `git mv`:** `fase_2/src` → `src`, `fase_2/build` → `build` (propuesta-modular.md §4.2, paso 1).
+- **Rutas actualizadas:** `fase_2/lab/stage.mjs`, `suite/suite-pruebas.mjs`, `Iniciar_Laboratorio_Fase2.bat`, `suite_pruebas.bat`, `deploy-pages.yml.nuevo` (`working-directory: build`), 3 pruebas que leen `database.rules.json` (`../../../`) y la e2e del panel de avance (`fase_2/lab/integracion`). En comentarios y textos de uso, `fase_2/src` → `src`. `build/build.mjs` y `verify-bundle.mjs` no cambian (siguen siendo vecinos de `src/`).
+- **Borrado (`git rm`):** 25 archivos vacíos de `src/`; `patch.js`, `patch.py`, `read_excel.py` y `backend.py` (servidor local heredado con autenticación débil, ver `diagnostico-monolito.md`); `fase_2/lab/informe-estado-lab.html` (desactualizado) y `fase_2/lab/2026-10-03-informe-pruebas-utils.md` (duplicado de `Docs/05-pruebas`). El bundle compilado deja de versionarse (`build/dist/` en `.gitignore`). En cambio `build/package-lock.json` sí se versiona (excepción en `.gitignore`): el despliegue usa `npm ci`, que lo exige, y así compila siempre con las mismas versiones.
+- **Se conserva:** `fase_2/lab/integracion/` (lo usa la e2e del panel de avance y documenta cómo se conectó `app.js`) y `fase_2/lab/referencia/` (referencia de las e2e).
+- **Verificación:** la suite completa sobre la estructura nueva da bundle 71/71, unitarias 78/78 (1279), e2e 10/10 (487), motor 4/4; las pruebas que leen `database.rules.json` lo encuentran (ninguna "OMITIDA"). Log: `2026-10-14-log-reorganizacion-src.txt`.

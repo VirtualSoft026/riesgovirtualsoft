@@ -2,7 +2,7 @@
  * Paso de integración SOLO-LABORATORIO del corte "Tareas, persistencia y ciclo de aplicación".
  *
  * Sustituye, en la copia de staging de app.js (nunca en el original), cuerpos de funciones por llamadas a los módulos
- * de `fase_2/src` (bundle `RiskOps`), conservando nombre, firma y orden de llamada de cada función global (los `onclick`
+ * de `src` (bundle `RiskOps`), conservando nombre, firma y orden de llamada de cada función global (los `onclick`
  * del HTML generado y los demás bloques de app.js siguen resolviendo a ellas). Solo se conecta lo que una prueba
  * diferencial contra la copia LITERAL de app.js demostró idéntico; cada paso lleva la marca `[LAB-INTEGRACION]`.
  *

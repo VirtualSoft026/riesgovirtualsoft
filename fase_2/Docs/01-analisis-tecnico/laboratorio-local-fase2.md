@@ -182,3 +182,7 @@ Integración 62/62 pasos. E2E: 4 de 9 en verde (`cierre-horas-efectivas` 19/19, 
 ### Conexión de `app.js` de la rama (2026-10-14) — suite en verde
 
 Desde este corte el laboratorio y la suite prueban **la rama tal cual**: `app.js` ya trae la integración (`stage.mjs` lo sirve sin parches) e `index.html` ya carga el bundle antes de `app.js`. Las e2e comparan contra `fase_2/lab/referencia/app.pre-integracion.js`. Resultado: bundle 71/71, unitarias 78/78 (1279 pruebas), e2e 10/10 (487), motor 4/4. Las fallas 2–7 de arriba quedaron resueltas; detalle en `fase_2/Docs/05-pruebas/2026-10-14-informe-conexion-app-js-fase2.md`.
+
+### Reorganización (2026-10-14): `src/` y `build/` en la raíz
+
+Desde este corte el código vive en `src/` y el compilador en `build/`, en la raíz del repositorio (propuesta-modular.md §4.2). Los `.bat`, `stage.mjs` y la suite ya usan las rutas nuevas (`build\` en lugar de `fase_2\build\`); `fase_2/lab/` sigue siendo el laboratorio. Suite tras la reorganización: bundle 71/71, unitarias 78/78 (1279), e2e 10/10 (487), motor 4/4.

@@ -1,0 +1,127 @@
+=====================================================================
+ SUITE DE PRUEBAS — LABORATORIO RISKOPS FASE 2
+=====================================================================
+Fecha:        14/10/2026, 2:39:07 p. m.
+Repositorio:  <repo>
+Resultados:   C:\riskops-lab-fase2/pruebas
+Node:         v22.22.2
+Red:          BLOQUEADA en todos los procesos de prueba
+
+[1/5] Bundle window.RiskOps
+  [OK     ] verify-bundle.mjs  (71 pasan, 0 fallan) 0.1 s
+
+[2/5] Suites unitarias (78 archivos en src/tests)
+  [OK     ] config/doc-links.test.mjs  (12 pasan, 0 fallan) 0.1 s
+  [OK     ] controllers/announcements-controller.test.mjs  (37 pasan, 0 fallan) 0.2 s
+  [OK     ] controllers/app-router.test.mjs  (9 pasan, 0 fallan) 0.1 s
+  [OK     ] controllers/approvals-controller.test.mjs  (84 pasan, 0 fallan) 0.3 s
+  [OK     ] controllers/approvals-decisiones.test.mjs  (27 pasan, 0 fallan) 0.2 s
+  [OK     ] controllers/config-gestores-controller.test.mjs  (13 pasan, 0 fallan) 0.2 s
+  [OK     ] controllers/idle-state-controller.test.mjs  (17 pasan, 0 fallan) 0.1 s
+  [OK     ] controllers/incidents-controller.test.mjs  (9 pasan, 0 fallan) 0.2 s
+  [OK     ] controllers/kpi-controller.test.mjs  (23 pasan, 0 fallan) 0.5 s
+  [OK     ] controllers/login-history-controller.test.mjs  (6 pasan, 0 fallan) 0.1 s
+  [OK     ] controllers/monitoring-controller.test.mjs  (13 pasan, 0 fallan) 0.1 s
+  [OK     ] controllers/profile-notifications-controller.test.mjs  (9 pasan, 0 fallan) 0.1 s
+  [OK     ] controllers/shift-activity-controller.test.mjs  (20 pasan, 0 fallan) 0.1 s
+  [OK     ] controllers/shift-controller.test.mjs  (21 pasan, 0 fallan) 0.1 s
+  [OK     ] controllers/shift-reports-controller.test.mjs  (10 pasan, 0 fallan) 0.1 s
+  [OK     ] controllers/task-controller.test.mjs  (18 pasan, 0 fallan) 0.2 s
+  [OK     ] controllers/task-loaders-controller.test.mjs  (8 pasan, 0 fallan) 0.4 s
+  [OK     ] domain/active-session-payload.test.mjs  (6 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/active-session-status.test.mjs  (6 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/active-supervisors.test.mjs  (10 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/announcement-capabilities.test.mjs  (22 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/announcement-service.test.mjs  (29 pasan, 0 fallan) 0.2 s
+  [OK     ] domain/approval-policy.test.mjs  (43 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/auth-service.test.mjs  (16 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/break-state-ownership.test.mjs  (10 pasan, 0 fallan) 0.2 s
+  [OK     ] domain/break-state-timeline-coherence.test.mjs  (15 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/break-transitions.test.mjs  (22 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/extra-task.test.mjs  (11 pasan, 0 fallan) 0.2 s
+  [OK     ] domain/firebase-approvals-repository.test.mjs  (12 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/firebase-shift-repository.test.mjs  (9 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/gestor-config.test.mjs  (14 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/historial-repositories.test.mjs  (7 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/incident-service.test.mjs  (9 pasan, 0 fallan) 0.2 s
+  [OK     ] domain/kpi-data-sources.test.mjs  (12 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/kpi-metrics-calculator.test.mjs  (32 pasan, 0 fallan) 0.8 s
+  [OK     ] domain/kpi-operativo-analysis.test.mjs  (18 pasan, 0 fallan) 1.3 s
+  [OK     ] domain/kpi-service.test.mjs  (20 pasan, 0 fallan) 0.3 s
+  [OK     ] domain/kpi-supervisor-directory.test.mjs  (6 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/login-history.test.mjs  (13 pasan, 0 fallan) 0.2 s
+  [OK     ] domain/monitoring-view.test.mjs  (16 pasan, 0 fallan) 0.9 s
+  [OK     ] domain/permission-service.test.mjs  (12 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/presence-and-counter.test.mjs  (20 pasan, 0 fallan) 0.2 s
+  [OK     ] domain/schedule-parser.test.mjs  (11 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/schedules/cronogram-parser.test.mjs  (30 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/schedules/cronogram-preload-assignments.test.mjs  (16 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/schedules/schedule-service.test.mjs  (16 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/shift-closure-calculations.test.mjs  (8 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/shift-closure-rules.test.mjs  (11 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/shift-closure-times-split.test.mjs  (12 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/shift-effective-hours-split.test.mjs  (7 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/shift-effective-time-d1.test.mjs  (18 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/shift-report-builder.test.mjs  (10 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/shift-report-view.test.mjs  (16 pasan, 0 fallan) 0.2 s
+  [OK     ] domain/split-shift-policy.test.mjs  (8 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/task-pure-rules.test.mjs  (23 pasan, 0 fallan) 0.2 s
+  [OK     ] domain/task-reconciler.test.mjs  (27 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/task-report.test.mjs  (35 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/task-repository.test.mjs  (21 pasan, 0 fallan) 0.2 s
+  [OK     ] domain/timeline-service.test.mjs  (30 pasan, 0 fallan) 0.1 s
+  [OK     ] domain/user-approval-list.test.mjs  (12 pasan, 0 fallan) 0.2 s
+  [OK     ] domain/withdrawal-metrics.test.mjs  (20 pasan, 0 fallan) 0.1 s
+  [OK     ] services/browser/idle-detector-adapter.test.mjs  (15 pasan, 0 fallan) 0.1 s
+  [OK     ] services/external/formsubmit-notification-adapter.test.mjs  (9 pasan, 0 fallan) 0.1 s
+  [OK     ] services/local-session-storage.test.mjs  (23 pasan, 0 fallan) 0.1 s
+  [OK     ] services/xlsx-schedule-adapter.test.mjs  (12 pasan, 0 fallan) 0.1 s
+  [OK     ] ui/approvals-components.test.mjs  (29 pasan, 0 fallan) 0.2 s
+  [OK     ] ui/break-button.test.mjs  (9 pasan, 0 fallan) 0.1 s
+  [OK     ] ui/components/multi-select.test.mjs  (13 pasan, 0 fallan) 0.1 s
+  [OK     ] ui/kpi-chart-configs.test.mjs  (19 pasan, 0 fallan) 0.6 s
+  [OK     ] ui/shift-reports-view.test.mjs  (7 pasan, 0 fallan) 0.1 s
+  [OK     ] ui/task-views.test.mjs  (12 pasan, 0 fallan) 0.2 s
+  [OK     ] utils/constants.test.mjs  (6 pasan, 0 fallan) 0.1 s
+  [OK     ] utils/date-time.test.mjs  (15 pasan, 0 fallan) 0.1 s
+  [OK     ] utils/excel.test.mjs  (13 pasan, 0 fallan) 0.1 s
+  [OK     ] utils/normalize.test.mjs  (14 pasan, 0 fallan) 0.1 s
+  [OK     ] utils/result.test.mjs  (5 pasan, 0 fallan) 0.1 s
+  [OK     ] utils/sanitization.test.mjs  (14 pasan, 0 fallan) 0.1 s
+  [OK     ] utils/validation.test.mjs  (7 pasan, 0 fallan) 0.1 s
+
+[3/5] app.js de la rama ya conectado a src: se prueba tal cual
+  [OK     ] integrado = app.js  |  referencia = fase_2/lab/referencia/app.pre-integracion.js
+
+[4/5] E2E con el app.js real y el bundle real (+ parche de la Pausa de Turno en la referencia)
+  [OK     ] split-shift-flag.unit.cjs  (23 pasan, 0 fallan) 0.3 s
+  [OK     ] cierre-horas-efectivas.e2e.cjs  (19 pasan, 0 fallan) 0.2 s
+  [OK     ] monitoreo-render.e2e.cjs  (7 pasan, 0 fallan) 0.1 s
+  [OK     ] tareas-integrado.e2e.cjs  (236 pasan, 0 fallan) 1.2 s
+  [OK     ] modales-permisos-integrado.e2e.cjs  (78 pasan, 0 fallan) 0.4 s
+  [OK     ] historial-navegacion-integrado.e2e.cjs  (51 pasan, 0 fallan) 0.6 s
+  [OK     ] kpis-integrado.e2e.cjs  (20 pasan, 0 fallan) 1.4 s
+  [OK     ] comunicados-integrado.e2e.cjs  (18 pasan, 0 fallan) 1.2 s
+  [OK     ] turno-avance-panel-horas-efectivas.e2e.cjs  (9 pasan, 0 fallan) 0.2 s
+  [OK     ] parche-pausa-turno.unit.cjs  (26 pasan, 0 fallan) 0.2 s
+
+[5/5] Motor operativo — test_motor_operativo.py en entorno hermético (sin red, sin credenciales reales)
+  [OK     ] test_motor_operativo.py + contrato de seguridad  (4 pasan, 0 fallan) 0.8 s
+
+=====================================================================
+ RESUMEN
+=====================================================================
+Grupo          Archivos  OK   Falla  Omitida   Pruebas OK   Pruebas falla
+Bundle                1    1      0        0           71               0
+Unitarias            78   78      0        0         1279               0
+Integración           1    1      0        0            1               0
+E2E                  10   10      0        0          487               0
+Motor                 1    1      0        0            4               0
+
+Marcas [Fase 2] (delegaciones) en app.js: 6 | referencias a window.RiskOps: 16
+Intentos de red bloqueados durante la suite: 0
+
+RESULTADO: TODO EN VERDE — el código actual de la rama pasa la suite del laboratorio. Siguiente paso: prueba manual con Iniciar_Laboratorio_Fase2.bat.
+Duración total: 21.6 s
+
+Log guardado en: C:\riskops-lab-fase2/pruebas/resultado-2026-10-14-19-39-07.txt

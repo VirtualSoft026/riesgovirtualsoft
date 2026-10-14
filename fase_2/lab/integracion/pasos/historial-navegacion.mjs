@@ -36,7 +36,7 @@ export const BLOCK_START = '// [LAB-INTEGRACION:HISTORIAL-NAVEGACION:INICIO]';
 export const BLOCK_END = '// [LAB-INTEGRACION:HISTORIAL-NAVEGACION:FIN]';
 
 const REPLACEMENT_A = `${BLOCK_START}
-// ${MARK} Historial de turnos, notificaciones y perfil: delegan en RiskOps (fase_2/src/controllers/*).
+// ${MARK} Historial de turnos, notificaciones y perfil: delegan en RiskOps (src/controllers/*).
 // Mismos nombres y firmas que las funciones originales (los onclick de index.html y del HTML generado siguen funcionando).
 let __labHistNav = null;
 function __histNav() {

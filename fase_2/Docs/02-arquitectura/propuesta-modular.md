@@ -421,6 +421,12 @@ Antes de que la Fase 3 ("Reorganización de Archivos" de `hoja-de-ruta.md`) muev
 2. Actualizar `ALLOWED_ROOT_FILES` y el set `allowed` del script Python en `deploy-pages.yml` para incluir `src/**`.
 3. Verificar que el workflow `phase1-compatibility-qa.yml` siga pasando con la nueva ubicación antes de mergear a `main`.
 
+**Estado (2026-10-14):**
+
+1. **Hecho.** `src/` y `build/` se movieron a la raíz del repositorio (`git mv`, conserva el historial). `fase_2/` queda solo con `Docs/` (historia del refactor) y `lab/` (laboratorio y suite de pruebas). Se borraron los 25 archivos vacíos de `src/` (11 con nombres viejos ya reemplazados y 14 previstos en la sección 1 para Fase 3; se crean cuando tengan código).
+2. **Reemplazado por la decisión del bundle (§4.1, opción b).** No se publica `src/**`: el despliegue compila `src/entry.js` en CI (`build/`: `npm ci`, `npm run build`, `verify-bundle.mjs`) y publica solo `riskops.bundle.js`. Es más seguro: el código fuente y las pruebas no quedan expuestos en el sitio. El bundle compilado ya no se versiona (`build/dist/` en `.gitignore`).
+3. **Pendiente antes de `main`:** correr `phase1-compatibility-qa.yml` (`.github/qa-infra`, `npm run check`) contra el `app.js` conectado y colocar el `deploy-pages.yml` corregido (`fase_2/lab/deploy-pages.yml.nuevo`).
+
 ### 4.3 Ubicación de APIs de navegador (presencia / detección de inactividad)
 
 La estructura de la sección 1 no tenía un lugar explícito para adapters de APIs del navegador que no encajan en `domain/` (que no debe conocer DOM ni SDKs externos) ni en las subcarpetas ya definidas de `services/`. Se añadió `services/browser/idle-detector-adapter.js` (sección 1) para el código que hoy vive en `fase_2/src/services/idleDetector.js` (`IdleDetector` API, `navigator.permissions`, `document.visibilityState`/`hasFocus`).

@@ -21,7 +21,10 @@ venv/
 node_modules/
 package-lock.json
 !.github/qa-infra/package-lock.json
+# build/: el lockfile se versiona para que el despliegue compile con npm ci (versiones exactas)
+!build/package-lock.json
 _site/
+build/dist/
 
 # Temporary files, dumps & logs
 temp_*

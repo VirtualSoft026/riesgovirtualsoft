@@ -3,7 +3,7 @@
  *
  * Responde "¿qué tan lejos estoy del cierre del refactor?" corriendo, sobre el código ACTUAL de la rama:
  *   1. Bundle: verificación de window.RiskOps (build/verify-bundle.mjs).
- *   2. Suites unitarias: todos los *.test.mjs de fase_2/src/tests (sin e2e ni helpers).
+ *   2. Suites unitarias: todos los *.test.mjs de src/tests (sin e2e ni helpers).
  *   3. Integración: genera el app.js integrado del laboratorio (mismos pasos que stage.mjs) FUERA del repo.
  *   4. E2E: las 9 pruebas que ejecutan el app.js real (original e integrado) con el bundle real.
  *   5. Motor operativo: test_motor_operativo.py en entorno hermético (sin red, sin credenciales reales).
@@ -26,9 +26,9 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const LAB = path.resolve(here, '..');
 const FASE2 = path.resolve(LAB, '..');
 const REPO = path.resolve(FASE2, '..');
-const SRC = path.join(FASE2, 'src');
+const SRC = path.join(REPO, 'src'); // src/ y build/ en la raíz desde 2026-10-14 (propuesta-modular.md §4.2)
 const TESTS = path.join(SRC, 'tests');
-const BUILD = path.join(FASE2, 'build');
+const BUILD = path.join(REPO, 'build');
 const BUNDLE = path.join(BUILD, 'dist', 'riskops.bundle.js');
 const GUARD = path.join(here, 'bloqueo-red.cjs');
 const LAB_ROOT = path.resolve(process.env.RISKOPS_LAB_ROOT || 'C:\\riskops-lab-fase2');
@@ -136,7 +136,7 @@ log('');
 
 // ---------- 2. Suites unitarias ----------
 const unitFiles = walk(TESTS);
-log(`[2/5] Suites unitarias (${unitFiles.length} archivos en fase_2/src/tests)`);
+log(`[2/5] Suites unitarias (${unitFiles.length} archivos en src/tests)`);
 for (const file of unitFiles) {
     record('Unitarias', path.relative(TESTS, file).split(path.sep).join('/'), run(process.execPath, [file]));
 }
@@ -153,7 +153,7 @@ const integrated = branchIntegrated ? branchApp : path.join(OUT, 'app.integrado.
 const original = branchIntegrated ? reference : branchApp;
 let integrationOk = false;
 if (!ARGS.has('--solo-unitarias') && branchIntegrated) {
-    log('[3/5] app.js de la rama ya conectado a fase_2/src: se prueba tal cual');
+    log('[3/5] app.js de la rama ya conectado a src: se prueba tal cual');
     if (fs.existsSync(reference)) {
         integrationOk = true;
         rows.push({ group: 'Integración', name: 'app.js de la rama (ya integrado)', status: 'OK', passed: 1, failed: 0, gaps: 0, network: 0, ms: 0 });

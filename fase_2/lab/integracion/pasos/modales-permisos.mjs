@@ -32,7 +32,7 @@ export const BLOCK_END = '// [LAB-INTEGRACION:MODALES-PERMISOS:FIN]';
 
 const REPLACEMENT = `${BLOCK_START}
 // ${MARK} Modales, tareas extra, usuarios y permisos: delegan en RiskOps.approvalsController
-// (fase_2/src/controllers/approvals-controller.js). Mismos nombres y firmas que las funciones originales.
+// (src/controllers/approvals-controller.js). Mismos nombres y firmas que las funciones originales.
 let __labApprovalsController = null;
 function __approvals() {
     if (__labApprovalsController) return __labApprovalsController;

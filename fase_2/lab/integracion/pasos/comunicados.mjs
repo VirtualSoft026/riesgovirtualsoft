@@ -2,7 +2,7 @@
  * Paso de integración SOLO-LABORATORIO del corte "Comunicados, configuración e incidencias".
  *
  * Sustituye, en la copia de staging de app.js (nunca en el original), los cuerpos de 26 funciones globales por
- * delegaciones a `RiskOps.*` (bundle de `fase_2/src`), conservando nombre, firma y orden de llamada (los `onclick`
+ * delegaciones a `RiskOps.*` (bundle de `src`), conservando nombre, firma y orden de llamada (los `onclick`
  * del HTML generado y `window.<función> = ...` siguen resolviendo a ellas). Cada controlador recibe de app.js SUS
  * propios `escapeHTML`, `encodeInlineHandlerArg` y `sanitizeAnnouncementHTML` (el sanitizador de app.js usa el DOM),
  * así que el HTML producido es el mismo byte a byte. Todo lleva la marca `[LAB-INTEGRACION]`.

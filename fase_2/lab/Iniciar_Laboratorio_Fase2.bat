@@ -36,7 +36,7 @@ echo (Los datos se guardan en %RISKOPS_LAB_ROOT%\emulator_data; la semilla del r
 echo ========================================================
 echo.
 echo [1/6] Compilando el bundle de src/ con esbuild...
-pushd "%HERE%..\build" || goto :fail
+pushd "%HERE%..\..\build" || goto :fail
 if not exist node_modules call npm.cmd install --no-audit --no-fund || goto :fail
 call npm.cmd run build || goto :fail
 popd

@@ -2835,7 +2835,7 @@ initApp();
 
 // [LAB-INTEGRACION:MODALES-PERMISOS:INICIO]
 // [LAB-INTEGRACION] Modales, tareas extra, usuarios y permisos: delegan en RiskOps.approvalsController
-// (fase_2/src/controllers/approvals-controller.js). Mismos nombres y firmas que las funciones originales.
+// (src/controllers/approvals-controller.js). Mismos nombres y firmas que las funciones originales.
 let __labApprovalsController = null;
 function __approvals() {
     if (__labApprovalsController) return __labApprovalsController;
@@ -2917,7 +2917,7 @@ async function updatePermissionStatus(fb_id, newStatus, reason = null) { return 
 // [LAB-INTEGRACION:MODALES-PERMISOS:FIN]
 
 // [LAB-INTEGRACION:HISTORIAL-NAVEGACION:INICIO]
-// [LAB-INTEGRACION] Historial de turnos, notificaciones y perfil: delegan en RiskOps (fase_2/src/controllers/*).
+// [LAB-INTEGRACION] Historial de turnos, notificaciones y perfil: delegan en RiskOps (src/controllers/*).
 // Mismos nombres y firmas que las funciones originales (los onclick de index.html y del HTML generado siguen funcionando).
 let __labHistNav = null;
 function __histNav() {

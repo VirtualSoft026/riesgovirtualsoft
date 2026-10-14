@@ -30,16 +30,16 @@ jobs:
         with:
           node-version: '20'
 
-      # Fase 2: app.js depende de window.RiskOps (fase_2/src/entry.js). Se compila con la misma versión fija de
-      # esbuild y la misma configuración del laboratorio (fase_2/build/build.mjs), se verifica y se copia a la raíz.
-      # No usar fase_2/src/app/bootstrap.js: es la entrada de la Fase 3 y no expone los espacios de nombres de app.js.
-      - name: Build riskops bundle (fase_2/src/entry.js)
-        working-directory: fase_2/build
+      # Fase 2: app.js depende de window.RiskOps (src/entry.js). Se compila con la misma versión fija de
+      # esbuild y la misma configuración del laboratorio (build/build.mjs), se verifica y se copia a la raíz.
+      # No usar src/app/bootstrap.js: es la entrada de la Fase 3 y no expone los espacios de nombres de app.js.
+      - name: Build riskops bundle (src/entry.js)
+        working-directory: build
         run: |
           npm ci --no-audit --no-fund
           npm run build
           node verify-bundle.mjs
-          cp dist/riskops.bundle.js ../../riskops.bundle.js
+          cp dist/riskops.bundle.js ../riskops.bundle.js
 
       - name: Build strict public artifact
         shell: bash
