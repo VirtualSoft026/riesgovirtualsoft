@@ -313,11 +313,15 @@ window.idleDetectorGranted = false;
 window.idleDetectorStarted = false;
 
 function saveBreakState() {
-    localStorage.setItem('riskOps_breakState', JSON.stringify({
+    // [HOTFIX-PAUSA] el estado se guarda con el uid de su dueño (ownerUid) para no heredarlo entre usuarios
+    const state = {
         isLunchBreak, lunchStartTime, totalLunchTimeMs,
         isBreakfastBreak, breakfastStartTime, totalBreakfastTimeMs,
         isSplitShiftBreak, splitShiftStartTime, totalSplitShiftTimeMs
-    }));
+    };
+    const ownerUid = __pausaCurrentUid();
+    if (ownerUid) state.ownerUid = ownerUid;
+    localStorage.setItem('riskOps_breakState', JSON.stringify(state));
 }
 
 function loadBreakState() {
@@ -325,6 +329,13 @@ function loadBreakState() {
         const savedState = localStorage.getItem('riskOps_breakState');
         if (savedState) {
             const parsed = JSON.parse(savedState);
+            // [HOTFIX-PAUSA] un estado de pausas guardado por OTRO usuario se descarta (no se hereda).
+            // Un estado sin ownerUid (versión anterior) se acepta para no perder una pausa en curso.
+            const ownerUid = __pausaCurrentUid();
+            if (parsed && parsed.ownerUid && ownerUid && parsed.ownerUid !== ownerUid) {
+                localStorage.removeItem('riskOps_breakState');
+                return;
+            }
             isLunchBreak = parsed.isLunchBreak || false;
             lunchStartTime = parsed.lunchStartTime || null;
             totalLunchTimeMs = parsed.totalLunchTimeMs || 0;
@@ -338,11 +349,97 @@ function loadBreakState() {
     } catch(e) {}
 }
 
+// [HOTFIX-PAUSA:INICIO] Pausa de Turno: utilidades (equivalentes a src/controllers/shift-controller.js)
+function __pausaCurrentUid() {
+    try {
+        const u = JSON.parse(localStorage.getItem('riskOps_currentUser'));
+        return u && u.uid ? u.uid : null;
+    } catch (e) { return null; }
+}
+
+// RN-1/RN-2/RN-3: el botón se ve si el Gestor tiene el flag o si ya tiene la pausa en curso.
+function isSplitShiftButtonVisible() {
+    if (typeof currentUser === 'undefined' || !currentUser || currentUser.role !== 'Gestor') return false;
+    return currentUser.hasSplitShift === true || isSplitShiftBreak === true;
+}
+
+function refreshSplitShiftButton() {
+    const visible = isSplitShiftButtonVisible();
+    const btn = document.getElementById('toggleSplitShiftBtn');
+    if (btn) btn.style.display = visible ? 'flex' : 'none';
+    return visible;
+}
+
+const __PAUSA_BUTTON_VIEWS = {
+    toggleBreakfastBtn: {
+        activeHtml: "<i class='bx bx-check-circle'></i> Volver del Desayuno",
+        inactiveHtml: "<i class='bx bx-coffee'></i> Tomar Desayuno",
+        rgb: '255, 152, 0', color: '#ff9800'
+    },
+    toggleLunchBtn: {
+        activeHtml: "<i class='bx bx-check-circle'></i> Volver del Almuerzo/Cena",
+        inactiveHtml: "<i class='bx bx-restaurant'></i> Tomar Almuerzo/Cena",
+        rgb: '0, 188, 212', color: '#00bcd4'
+    },
+    toggleSplitShiftBtn: {
+        activeHtml: "<i class='bx bx-check-circle'></i> Retomar Turno",
+        inactiveHtml: "<i class='bx bx-pause-circle'></i> Pausa de Turno",
+        rgb: '139, 92, 246', color: '#8b5cf6'
+    }
+};
+
+// Pinta un botón de pausa igual que los toggles (mismos textos y estilos).
+function __pausaPaintButton(id, active) {
+    const btn = document.getElementById(id);
+    const view = __PAUSA_BUTTON_VIEWS[id];
+    if (!btn || !view) return;
+    if (active) {
+        btn.innerHTML = view.activeHtml;
+        btn.classList.remove('btn-outline');
+        btn.style.backgroundColor = 'rgba(' + view.rgb + ', 0.15)';
+        btn.style.color = view.color;
+        btn.style.borderColor = 'rgba(' + view.rgb + ', 0.5)';
+        btn.style.boxShadow = '0 0 15px rgba(' + view.rgb + ', 0.2)';
+    } else {
+        btn.innerHTML = view.inactiveHtml;
+        btn.classList.add('btn-outline');
+        btn.style.backgroundColor = '';
+        btn.style.color = 'var(--text-primary)';
+        btn.style.borderColor = 'rgba(255,255,255,0.2)';
+        btn.style.boxShadow = '';
+    }
+}
+
+function __pausaRenderBreakButtons() {
+    __pausaPaintButton('toggleBreakfastBtn', isBreakfastBreak === true);
+    __pausaPaintButton('toggleLunchBtn', isLunchBreak === true);
+    __pausaPaintButton('toggleSplitShiftBtn', isSplitShiftBreak === true);
+}
+
+// Deuda 5: aviso visible cuando el latido hacia el supervisor no se pudo enviar.
+function __pausaSetSyncWarning(failed) {
+    try {
+        let el = document.getElementById('riskOpsSyncWarning');
+        if (!el && failed) {
+            el = document.createElement('div');
+            el.id = 'riskOpsSyncWarning';
+            el.style.cssText = 'position:fixed;bottom:12px;right:12px;z-index:99999;background:#b45309;color:#fff;padding:8px 12px;border-radius:8px;font-size:13px;';
+            el.textContent = 'Sin sincronizar con el supervisor. Reintentando...';
+            document.body.appendChild(el);
+        }
+        if (el) el.style.display = failed ? 'block' : 'none';
+    } catch (e) {}
+}
+// [HOTFIX-PAUSA:FIN]
+
 loadBreakState();
 
 window.addEventListener('storage', (e) => {
     if (e.key === 'riskOps_breakState') {
         loadBreakState();
+        // [HOTFIX-PAUSA] otra pestaña cambió la pausa: repintar botones y visibilidad
+        __pausaRenderBreakButtons();
+        refreshSplitShiftButton();
     }
 });
 
@@ -684,10 +781,8 @@ try {
                 if (currentUser.hasSplitShift !== newVal) {
                     currentUser.hasSplitShift = newVal;
                     localStorage.setItem('riskOps_currentUser', JSON.stringify(currentUser));
-                    const toggleSplitShiftBtn = document.getElementById('toggleSplitShiftBtn');
-                    if (toggleSplitShiftBtn) {
-                        toggleSplitShiftBtn.style.display = newVal ? 'flex' : 'none';
-                    }
+                    // [HOTFIX-PAUSA] si se revoca con la pausa en curso, "Retomar Turno" sigue visible
+                    refreshSplitShiftButton();
                     if (typeof setupSidebar === 'function') {
                         setupSidebar();
                     }
@@ -2507,8 +2602,12 @@ function syncActiveSessionToFirebase() {
 
     // No se atrapa el error de forma que oculte el fallo: se devuelve la
     // Promise real (rechazada si falla) y, aparte, se registra en consola.
+    // [HOTFIX-PAUSA] inicio y acumulado de la Pausa de Turno (null limpia el dato al retomar)
+    sessionMetadata.splitShiftStartTime = (isSplitShiftBreak === true && Number.isFinite(splitShiftStartTime)) ? splitShiftStartTime : null;
+    sessionMetadata.totalSplitShiftTimeMs = Number.isFinite(totalSplitShiftTimeMs) ? totalSplitShiftTimeMs : 0;
     const syncPromise = database.ref(`active_sessions/${uid}`).update(sessionMetadata);
     syncPromise.catch(e => console.error("Error syncing active session via SDK:", e));
+    syncPromise.then(() => __pausaSetSyncWarning(false), () => __pausaSetSyncWarning(true)); // [HOTFIX-PAUSA]
     return syncPromise;
 }
 
@@ -3664,6 +3763,12 @@ function toggleSplitShiftBreak() {
     const btn = document.getElementById('toggleSplitShiftBtn');
     
     if (!isSplitShiftBreak) {
+        // [HOTFIX-PAUSA] RN-1: iniciar la pausa exige users/{uid}/hasSplitShift === true (retomar siempre se permite)
+        if (currentUser.hasSplitShift !== true) {
+            alert("La Pausa de Turno no está habilitada para tu usuario. Pídele a tu supervisor que la active.");
+            refreshSplitShiftButton();
+            return;
+        }
         if (isBreakfastBreak || isLunchBreak) { alert("Debes volver del descanso actual primero."); return; }
         isSplitShiftBreak = true;
         splitShiftStartTime = Date.now();
@@ -3694,6 +3799,7 @@ function toggleSplitShiftBreak() {
             btn.style.borderColor = "rgba(255,255,255,0.2)";
             btn.style.boxShadow = "";
         }
+        refreshSplitShiftButton(); // [HOTFIX-PAUSA] si el flag se revocó durante la pausa, el botón se oculta al retomar
         updateActivity();
         syncActiveSessionToFirebase();
     }
@@ -3783,6 +3889,7 @@ async function handleEndShift() {
             // Calculo de tiempos tomados
             const lunchMinutes = parseFloat((totalLunchTimeMs / (1000 * 60)).toFixed(1));
             const breakfastMinutes = parseFloat((totalBreakfastTimeMs / (1000 * 60)).toFixed(1));
+            const splitShiftMinutes = parseFloat(((totalSplitShiftTimeMs || 0) / (1000 * 60)).toFixed(1)); // [HOTFIX-PAUSA]
             
             // Calculo de penalidades (excesos)
             const allowedLunch = 60;
@@ -3806,7 +3913,8 @@ async function handleEndShift() {
             // Calculo de tiempo efectivo
             const totalShiftMs = endDate.getTime() - loginDate.getTime();
             // Restamos TODAS las pausas, pero además la penalidad adicional sobre las horas efectivas
-            const effectiveShiftMs = totalShiftMs - totalLunchTimeMs - totalBreakfastTimeMs - (penalidadConectividadMins * 60 * 1000);
+            // [HOTFIX-PAUSA] RN-4: la Pausa de Turno tampoco es tiempo trabajado (sí queda en el reporte para KPIs)
+            const effectiveShiftMs = totalShiftMs - totalLunchTimeMs - totalBreakfastTimeMs - (totalSplitShiftTimeMs || 0) - (penalidadConectividadMins * 60 * 1000);
             const effectiveHours = Math.max(0, (effectiveShiftMs / (1000 * 60 * 60))).toFixed(2);
             
             formData.append("Usuario", localUser.name);
@@ -3816,6 +3924,7 @@ async function handleEndShift() {
             formData.append("Hora_Fin_Turno", endDate.toLocaleString());
             formData.append("Tiempo_Almuerzo_Descontado", lunchMinutes + " minutos");
             formData.append("Tiempo_Desayuno_Descontado", breakfastMinutes + " minutos");
+            if (totalSplitShiftTimeMs > 0) formData.append("Tiempo_Pausa_Turno_Descontado", splitShiftMinutes + " minutos"); // [HOTFIX-PAUSA]
             formData.append("Exceso_Pausas_Penalidad", penalidadConectividadMins + " minutos");
             formData.append("Horas_Efectivas_Trabajadas", effectiveHours + " hrs");
             
@@ -5162,8 +5271,8 @@ function setupSidebar() {
         }
 
         const toggleSplitShiftBtn = document.getElementById('toggleSplitShiftBtn');
-        if (toggleSplitShiftBtn && currentUser.hasSplitShift === true) {
-            toggleSplitShiftBtn.style.display = 'flex';
+        if (toggleSplitShiftBtn) {
+            refreshSplitShiftButton(); // [HOTFIX-PAUSA] visible con flag o con pausa en curso
         }
     }
 
@@ -5173,7 +5282,7 @@ function setupSidebar() {
 function updateNavigation() {
     const toggleSplitShiftBtn = document.getElementById('toggleSplitShiftBtn');
     if (toggleSplitShiftBtn && typeof currentUser !== 'undefined' && currentUser) {
-        toggleSplitShiftBtn.style.display = (currentUser.hasSplitShift === true) ? 'flex' : 'none';
+        refreshSplitShiftButton(); // [HOTFIX-PAUSA] visible con flag o con pausa en curso
     }
     if (typeof setupSidebar === 'function') {
         setupSidebar();
@@ -5283,7 +5392,7 @@ function renderActiveSessionsDashboard() {
         const excludedMonitoreo = SUPERVISORES_NOMBRES;
         if (excludedMonitoreo.some(ex => fullName.toLowerCase().includes(ex.toLowerCase()))) return false;
 
-        if (session.status === 'En Almuerzo' || session.status === 'En Desayuno' || session.status === 'Inactivo') {
+        if (session.status === 'En Almuerzo' || session.status === 'En Desayuno' || session.status === 'En Pausa de Turno' || session.status === 'Inactivo') {
             isOnline = false;
         }
 
@@ -5325,7 +5434,7 @@ function renderActiveSessionsDashboard() {
         let isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
         
         // Fix: If they stopped pinging Firebase for over 2 minutes and aren't on break, force them to Inactivo locally
-        if (!isOnline && session.status !== 'En Almuerzo' && session.status !== 'En Desayuno') {
+        if (!isOnline && session.status !== 'En Almuerzo' && session.status !== 'En Desayuno' && session.status !== 'En Pausa de Turno') {
             session.status = 'Inactivo';
         }
 
@@ -5342,6 +5451,10 @@ function renderActiveSessionsDashboard() {
             statusBadge = '<span style="background: rgba(255,193,7,0.2); color: #ffc107; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;"><i class="bx bx-coffee"></i> Desayuno</span>';
             displayStatus = 'En Desayuno ☕';
             statusDot = '<div style="width: 8px; height: 8px; border-radius: 50%; background: #ffc107; margin-right: 6px;"></div>';
+        } else if (session.status === 'En Pausa de Turno') {
+            statusBadge = '<span style="background: rgba(139,92,246,0.2); color: #8b5cf6; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;"><i class="bx bx-pause-circle"></i> Pausa de Turno</span>';
+            displayStatus = 'En Pausa de Turno ⏸️';
+            statusDot = '<div style="width: 8px; height: 8px; border-radius: 50%; background: #8b5cf6; margin-right: 6px;"></div>';
         } else if (session.status === 'Inactivo') {
             isOnline = false;
             displayStatus = 'Inactivo 💤';
@@ -5516,7 +5629,7 @@ function viewTimelineInMonitoreo(uid) {
     // Inyectar dinámicamente el bloque de inactividad actual si el gestor perdió conexión (PC suspendido) y no está en pausa
     const lastPing = session.lastActive ? new Date(session.lastActive).getTime() : 0;
     const now = Date.now();
-    if (lastPing && (now - lastPing) > 120000 && session.status !== 'En Almuerzo' && session.status !== 'En Desayuno') { // más de 2 minutos sin dar señal y no está en break
+    if (lastPing && (now - lastPing) > 120000 && session.status !== 'En Almuerzo' && session.status !== 'En Desayuno' && session.status !== 'En Pausa de Turno') { // más de 2 minutos sin dar señal y no está en break
         const hasOngoingInactividad = validTimeline.some(ev => ev.type === 'Inactividad' && !ev.end);
         if (!hasOngoingInactividad) {
             validTimeline.push({
@@ -5544,6 +5657,7 @@ function viewTimelineInMonitoreo(uid) {
             if (ev.type === 'Almuerzo') icon = "<i class='bx bx-restaurant' style='color: var(--success)'></i>";
             if (ev.type === 'Desayuno') icon = "<i class='bx bx-coffee' style='color: var(--warning)'></i>";
             if (ev.type === 'Inactividad') icon = "<i class='bx bx-sleepy' style='color: var(--danger)'></i>";
+            if (ev.type === 'Pausa de Turno') icon = "<i class='bx bx-pause-circle' style='color: #8b5cf6'></i>"; // [HOTFIX-PAUSA]
 
             tbody.innerHTML += `
                 <tr style="border-bottom: 1px solid var(--glass-border);">
@@ -6550,6 +6664,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnSplitShift.style.borderColor = "rgba(139, 92, 246, 0.5)";
         btnSplitShift.style.boxShadow = "0 0 15px rgba(139, 92, 246, 0.2)";
     }
+    refreshSplitShiftButton(); // [HOTFIX-PAUSA]
     
     const periodoSelect = document.getElementById('kpiPeriodoSelect');
     if (periodoSelect) {
@@ -8469,7 +8584,7 @@ async function openLoginHistoryModal() {
                 seenKeys.add(key);
 
                 let isOnline = s.lastActive ? ((Date.now() - s.lastActive) < 120000) : false;
-                if (s.status === 'En Almuerzo' || s.status === 'En Desayuno' || s.status === 'Inactivo') isOnline = false;
+                if (s.status === 'En Almuerzo' || s.status === 'En Desayuno' || s.status === 'En Pausa de Turno' || s.status === 'Inactivo') isOnline = false;
 
                 allLoginHistoryRecords.push({
                     name: s.name,
