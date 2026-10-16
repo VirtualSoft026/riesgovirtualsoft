@@ -227,6 +227,44 @@ test('D9b: excludedNames (lista fija) se rechaza; legacyExcludedNames reproduce 
     assert.equal(legacy.grid.children.length, 1, 'el original oculta a Maria Sanchez Y a Mariana Ruiz');
 });
 
+test('listener: iniciar dos veces no duplica la suscripción; detener la libera una sola vez; se puede reiniciar', () => {
+    let subs = 0; let offs = 0;
+    const document = createFakeDocument({ monitoreoGrid: createElement('monitoreoGrid') });
+    const ctl = createMonitoringController({
+        document,
+        repository: { listenActiveSessions: () => { subs += 1; return () => { offs += 1; }; }, fetchApprovedGestorNames: async () => [] },
+        getSessions: () => ({}), setSessions() {}, hasCronograma: () => false, getAssignedTasksForGestor: () => [],
+        reconcileTask: () => ({}), resolveTaskName: () => '', getShiftCategory: () => 'Mañana', now: () => NOW, logger: { error() {} },
+        supervisorDirectory: DIR
+    });
+    assert.equal(ctl.isActiveSessionsListening(), false);
+    const stop = ctl.startActiveSessionsListener();
+    ctl.startActiveSessionsListener();
+    assert.equal(subs, 1, 'la segunda llamada no abre otra suscripción');
+    assert.equal(ctl.isActiveSessionsListening(), true);
+    stop();
+    assert.equal(offs, 1);
+    assert.equal(ctl.isActiveSessionsListening(), false);
+    ctl.stopActiveSessionsListener();
+    assert.equal(offs, 1, 'detener dos veces no vuelve a desuscribir');
+    ctl.startActiveSessionsListener();
+    assert.equal(subs, 2, 'tras detener, iniciar abre una suscripción nueva');
+});
+
+test('XSS: nombre, correo, estado y tipo de bitácora con HTML se escapan en tarjeta, bitácora y detalle', () => {
+    const payload = '<img src=x onerror="alert(1)">';
+    const t = setup({ sessions: { u1: { name: payload, email: payload, shift: '8am - 4pm', status: 'En Línea', lastActive: NOW, timeline: [{ type: payload, start: NOW - 3600000, end: NOW - 1800000 }] } } });
+    t.ctl.renderActiveSessionsDashboard();
+    const card = t.grid.children[0].innerHTML;
+    assert.ok(!card.includes('<img src=x'), 'la tarjeta no inyecta el marcado');
+    assert.ok(card.includes('&lt;img'), 'la tarjeta muestra el texto escapado');
+    t.ctl.viewTimelineInMonitoreo('u1');
+    assert.ok(!t.els.timelineTableBody.innerHTML.includes('<img src=x'), 'la bitácora escapa el tipo');
+    assert.ok(t.els.timelineTableBody.innerHTML.includes('&lt;img'));
+    t.ctl.openMonitoreoDetails('u1');
+    assert.equal(t.els.monitoreoModalName.textContent, 'Detalle de Tareas: ' + payload, 'el nombre del detalle se escribe como texto (textContent), no como HTML');
+});
+
 function setupWith(extra) {
     const grid = createElement('monitoreoGrid');
     const document = createFakeDocument({ monitoreoGrid: grid });

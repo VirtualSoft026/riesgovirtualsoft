@@ -107,7 +107,7 @@ export function buildTeleworkWeekOptionsHTML(blocks, escape = defaultEscapeHTML)
 /** Encabezado de la tabla (app.js 1852-1858). */
 export const TELEWORK_TABLE_HEAD_HTML = `
                     <tr style="border-bottom: 1px solid var(--glass-border);">
-                        <th style="padding: 12px; color: var(--accent-primary); text-align: left; position: sticky; left: 0; background: var(--bg-panel); z-index: 2;">GESTOR <i class='bx bx-refresh' style='cursor:pointer; margin-left:5px;' onclick='loadTeletrabajo()' title='Refrescar Teletrabajo'></i></th>
+                        <th style="padding: 12px; color: var(--accent-primary); text-align: left; position: sticky; left: 0; background: var(--bg-panel); z-index: 2;">GESTOR <i class='bx bx-refresh' style='cursor:pointer; margin-left:5px;' data-action="load-teletrabajo" title='Refrescar Teletrabajo'></i></th>
                         <th style="padding: 12px; color: var(--accent-primary); text-align: center;">DÍA</th>
                         <th style="padding: 12px; color: var(--accent-primary); text-align: center;">MODALIDAD</th>
                     </tr>

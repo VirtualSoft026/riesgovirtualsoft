@@ -1,14 +1,20 @@
-const FORM_SUBMIT_CC =
+/**
+ * Copia a supervisión de los correos de FormSubmit (permisos y cierre de turno).
+ *
+ * W-40: única declaración de la dirección de copia (app.js l. 3 la repetía).
+ */
+export const FORM_SUBMIT_CC =
     'sara.santamaria@virtualsoft.tech,oriana.borja@virtualsoft.tech';
 
 /**
- * Creates a copy of FormData and appends the configured carbon-copy address.
+ * Agrega la copia (`_cc`) al MISMO `FormData` y lo devuelve (W-13, NOTA_3).
  *
- * The original FormData instance is not mutated.
+ * Contrato de app.js (l. 5-7): muta el formulario recibido, así que sirve a los llamadores que ignoran el valor
+ * devuelto y a los que lo usan. Es idempotente: si el formulario ya tiene esa copia, no la repite.
  *
  * @param {FormData} formData
  * @param {string} [carbonCopy=FORM_SUBMIT_CC]
- * @returns {FormData}
+ * @returns {FormData} el mismo objeto recibido
  */
 export function appendFormSubmitCc(
     formData,
@@ -18,13 +24,9 @@ export function appendFormSubmitCc(
         throw new TypeError('formData must be an instance of FormData');
     }
 
-    const result = new FormData();
-
-    for (const [key, value] of formData.entries()) {
-        result.append(key, value);
+    if (!formData.getAll('_cc').includes(carbonCopy)) {
+        formData.append('_cc', carbonCopy);
     }
 
-    result.append('_cc', carbonCopy);
-
-    return result;
+    return formData;
 }

@@ -13,41 +13,9 @@
  *  - El parseo de tareas desde `report.reporte` (legacy) se mantiene aquí porque
  *    es lógica de dominio, no de presentación.
  */
+import { parseTime } from './metrics-calculator.js';
+import { computeSavedReportEffectiveMinutes } from '../shifts/effective-time.js';
 
-// ─────────────────────────── parseShiftTime (helper interno) ────────────────────────────────
-
-/**
- * Convierte un string/timestamp de hora de turno a milisegundos epoch (app.js 5910-5928).
- * Soporta Date ISO, "HH:MM AM/PM" y formatos similares.
- *
- * @param {string|number} timeStr
- * @param {number}        baseDateMs  Epoch del día base para strings de hora sola
- * @returns {number}  ms epoch, o NaN si no se puede parsear
- */
-export function parseShiftTime(timeStr, baseDateMs) {
-    if (typeof timeStr === 'string') {
-        timeStr = timeStr
-            .replace(/a\.\s*m\./i, 'AM')
-            .replace(/p\.\s*m\./i, 'PM');
-    }
-
-    const direct = new Date(timeStr);
-    if (!isNaN(direct.getTime())) return direct.getTime();
-
-    if (typeof timeStr === 'string' && timeStr.includes(':')) {
-        const parts = timeStr.match(/(\d+):(\d+)/);
-        if (parts) {
-            const base = new Date(baseDateMs);
-            let hours = parseInt(parts[1], 10);
-            if (timeStr.toUpperCase().includes('PM') && hours < 12) hours += 12;
-            if (timeStr.toUpperCase().includes('AM') && hours === 12) hours = 0;
-            base.setHours(hours, parseInt(parts[2], 10), 0, 0);
-            return base.getTime();
-        }
-    }
-
-    return NaN;
-}
 
 // ─────────────────────────── Duraciones de turno ────────────────────────────────────────────
 
@@ -77,8 +45,8 @@ export function computeShiftDurations(shiftReports) {
         if (!report.horaInicio || !report.horaFin) return;
 
         const baseMs = report.timestamp || report.loginTime || Date.now();
-        const startMs = parseShiftTime(report.horaInicio, baseMs);
-        const endMs   = parseShiftTime(report.horaFin,    baseMs);
+        const startMs = parseTime(report.horaInicio, baseMs);
+        const endMs = parseTime(report.horaFin, baseMs);
 
         if (isNaN(startMs) || isNaN(endMs)) return;
 
@@ -87,12 +55,8 @@ export function computeShiftDurations(shiftReports) {
 
         if (diffMins <= 0 || diffMins > 1440) return;
 
-        const almuerzo  = report.tiempoAlmuerzoMins    || 0;
-        const desayuno  = report.tiempoDesayunoMins    || 0;
-        const pausaTurno = report.tiempoPausaTurnoMins || 0;
-        const efectivo  = Math.max(0, diffMins - almuerzo - desayuno - pausaTurno);
-
-        totalMinutosConectados += efectivo;
+        // D1: tiempo efectivo = turno − almuerzo − desayuno − Pausa de Turno − inactividad (una sola fórmula).
+        totalMinutosConectados += computeSavedReportEffectiveMinutes(report, diffMins);
         turnosValidosParaTiempo++;
     });
 
@@ -495,10 +459,22 @@ export function computeAvgShiftDuration(totalMinutosConectados, turnosValidosPar
     if (turnosValidosParaTiempo <= 0) {
         return { promedioHoras: 0, promedioMinutos: 0, label: 'N/A' };
     }
-    const avgMinutos      = totalMinutosConectados / turnosValidosParaTiempo;
-    const promedioHoras   = Math.floor(avgMinutos / 60);
-    const promedioMinutos = Math.round(avgMinutos % 60);
+    const avgMinutos = totalMinutosConectados / turnosValidosParaTiempo;
+    const { horas: promedioHoras, minutos: promedioMinutos } = dividirMinutosRedondeados(avgMinutos);
     return { promedioHoras, promedioMinutos, label: `${promedioHoras}h ${promedioMinutos}m` };
+}
+
+/**
+ * Redondea los minutos al entero más cercano y los parte en horas y minutos con ACARREO: si el redondeo llega a 60
+ * minutos se suma una hora y los minutos quedan en 0 (119.6 min → 2h 0m, no "1h 60m"). Equivale a
+ * `floor(x/60)` + `round(x % 60)` cuando no hay acarreo, por lo que los valores sin el bug no cambian.
+ *
+ * @param {number} totalMinutos
+ * @returns {{horas: number, minutos: number}}
+ */
+function dividirMinutosRedondeados(totalMinutos) {
+    const redondeados = Math.round(totalMinutos);
+    return { horas: Math.floor(redondeados / 60), minutos: redondeados % 60 };
 }
 
 // ─────────────────────────── Inactividad formateada ─────────────────────────────────────────
@@ -511,7 +487,164 @@ export function computeAvgShiftDuration(totalMinutosConectados, turnosValidosPar
  */
 export function formatInactividadLabel(totalInactividadMins) {
     if (totalInactividadMins <= 0) return '0h 0m';
-    const horas   = Math.floor(totalInactividadMins / 60);
-    const minutos = Math.round(totalInactividadMins % 60);
+    const { horas, minutos } = dividirMinutosRedondeados(totalInactividadMins);
     return `${horas}h ${minutos}m`;
+}
+
+// ─────────────────────────── Periodo, filtros y gestor (calcularIndicadores) ───────────────────
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Fecha local "YYYY-MM-DD" (idéntica a la de calcularIndicadores). */
+export function formatLocalYYYYMMDD(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+/**
+ * Periodo interno a partir del valor del `<select>` de fecha (app.js calcularIndicadores). 'Todas' y valores
+ * desconocidos => 'general'.
+ *
+ * @param {string} selectedFecha
+ * @returns {'hoy'|'ayer'|'semanal'|'30dias'|'mes'|'lastMonth'|'custom'|'general'}
+ */
+export function resolveKpiPeriodo(selectedFecha) {
+    switch (selectedFecha) {
+        case 'today': return 'hoy';
+        case 'yesterday': return 'ayer';
+        case '7': return 'semanal';
+        case '30': return '30dias';
+        case 'thisMonth': return 'mes';
+        case 'lastMonth': return 'lastMonth';
+        case 'custom': return 'custom';
+        default: return 'general';
+    }
+}
+
+/**
+ * Filtra los reportes de turno por periodo (ventanas de calcularIndicadores). Un reporte sin marca de tiempo no
+ * entra en ningún periodo filtrado. 'general' no filtra. 'custom' exige `custom` = { startMs, endMs } (fin exclusivo).
+ *
+ * @param {Array<object>} shiftReports
+ * @param {string} periodo
+ * @param {{ nowMs?: number, custom?: {startMs: number, endMs: number}|null }} [opts]
+ * @returns {Array<object>}
+ */
+export function filterShiftReportsByPeriodo(shiftReports, periodo, { nowMs = Date.now(), custom = null } = {}) {
+    const now = new Date(nowMs);
+    const hoyStart = new Date(nowMs).setHours(0, 0, 0, 0);
+    const mesStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    const lastStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
+    const lastEnd = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+    const predicates = {
+        hoy: (t) => t >= hoyStart,
+        ayer: (t) => t >= hoyStart - DAY_MS && t < hoyStart,
+        semanal: (t) => t >= nowMs - 7 * DAY_MS,
+        '30dias': (t) => t >= nowMs - 30 * DAY_MS,
+        mes: (t) => t >= mesStart,
+        lastMonth: (t) => t >= lastStart && t < lastEnd,
+        custom: (t) => (custom ? t >= custom.startMs && t < custom.endMs : false)
+    };
+    const predicate = predicates[periodo];
+    if (!predicate) return shiftReports;
+
+    return shiftReports.filter((r) => {
+        let t = r.timestamp || r.loginTime;
+        if (typeof t === 'string') t = new Date(t).getTime();
+        return Boolean(t) && predicate(t);
+    });
+}
+
+/**
+ * ¿El gestor de un reporte de turno coincide con alguno de los seleccionados? Es la regla de calcularIndicadores
+ * (app.js 5862-5876), que NO es la de `matchesGestorSelection` (la del Control Operativo, app.js 7555): las dos
+ * difieren en el orden de la comparación por nombre y apellido. La diferencia queda pendiente como DE-15; aquí se
+ * conserva la regla original para no cambiar ninguna cifra sin decisión.
+ *
+ * @param {string|null|undefined} fbGestor
+ * @param {string[]} selectedGestores
+ * @returns {boolean}
+ */
+export function matchesShiftReportGestor(fbGestor, selectedGestores) {
+    if (!fbGestor) return false;
+    const normFb = fbGestor.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return selectedGestores.some((sel) => {
+        const normMstr = sel.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (normFb === normMstr) return true;
+        const mstrParts = normMstr.split(' ').filter(Boolean);
+        if (mstrParts.every((p) => normFb.includes(p))) return true;
+        const fbParts = normFb.split(' ').filter(Boolean);
+        if (mstrParts.length >= 2 && fbParts.length >= 2) {
+            return normMstr.includes(fbParts[0]) && normMstr.includes(fbParts[1]);
+        }
+        return false;
+    });
+}
+
+/**
+ * Fechas "YYYY-MM-DD" que cubre un periodo para los retiros (calcularIndicadores, app.js 6207-6253).
+ * `customStartStr`/`customEndStr` solo se usan con periodo 'custom'.
+ *
+ * @param {string} periodo
+ * @param {{ nowMs?: number, customStartStr?: string|null, customEndStr?: string|null }} [opts]
+ * @returns {string[]}
+ */
+export function buildRetirosTargetDates(periodo, { nowMs = Date.now(), customStartStr = null, customEndStr = null } = {}) {
+    const targetDates = [];
+    const now = new Date(nowMs);
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const add = (d) => targetDates.push(formatLocalYYYYMMDD(d));
+
+    if (periodo === 'hoy') {
+        add(todayStart);
+    } else if (periodo === 'ayer') {
+        add(new Date(todayStart.getTime() - DAY_MS));
+    } else if (periodo === 'semanal') {
+        for (let i = 0; i < 7; i++) add(new Date(todayStart.getTime() - i * DAY_MS));
+    } else if (periodo === '30dias') {
+        for (let i = 0; i < 30; i++) add(new Date(todayStart.getTime() - i * DAY_MS));
+    } else if (periodo === 'mes') {
+        for (let i = 1; i <= 31; i++) {
+            const dt = new Date(todayStart.getFullYear(), todayStart.getMonth(), i);
+            if (dt.getMonth() === todayStart.getMonth() && dt <= todayStart) add(dt);
+        }
+    } else if (periodo === 'lastMonth') {
+        const firstLast = new Date(todayStart.getFullYear(), todayStart.getMonth() - 1, 1);
+        const lastLast = new Date(todayStart.getFullYear(), todayStart.getMonth(), 0);
+        for (let d = new Date(firstLast); d <= lastLast; d.setDate(d.getDate() + 1)) add(new Date(d));
+    } else if (periodo === 'custom' && customStartStr && customEndStr) {
+        const sp = customStartStr.split('-').map(Number);
+        const ep = customEndStr.split('-').map(Number);
+        const start = new Date(sp[0], sp[1] - 1, sp[2]);
+        const end = new Date(ep[0], ep[1] - 1, ep[2]);
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) add(new Date(d));
+    }
+    return targetDates;
+}
+
+/** Normaliza texto para comparar nombres (sin tildes, minúsculas), como en calcularIndicadores. */
+function normalizeGestorText(text) {
+    return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+/**
+ * Claves reales de `controlOperativoRawData` para la selección del multiselect (calcularIndicadores, app.js 6226-6240):
+ * coincidencia exacta; si no, por todas las palabras del nombre seleccionado. Sin coincidencia se conserva el nombre.
+ *
+ * @param {string[]} selectedGestores
+ * @param {string[]} rawKeys
+ * @returns {string[]}
+ */
+export function resolveRawGestorKeys(selectedGestores, rawKeys) {
+    return selectedGestores.map((g) => {
+        let realGestor = rawKeys.find((k) => k === g);
+        if (!realGestor) {
+            const parts = normalizeGestorText(g).split(' ');
+            realGestor = rawKeys.find((k) => {
+                const normK = normalizeGestorText(k);
+                return parts.every((p) => normK.includes(p));
+            });
+        }
+        return realGestor || g;
+    });
 }

@@ -1,7 +1,8 @@
 # 05. Informes de Pruebas
 
-Carpeta para los informes de cada corte de pruebas que se ejecute sobre `fase_2/src/` (y, más
-adelante, sobre los flujos ya conectados a producción). Es la contraparte documental de la
+Carpeta para los informes de cada corte de pruebas que se ejecute sobre `src/` (en la raíz del
+repositorio desde la reorganización del 2026-10-14; los informes anteriores dicen `fase_2/src/`) y,
+más adelante, sobre los flujos ya conectados a producción. Es la contraparte documental de la
 Fase 4 ("Pruebas de Regresión") de `../03-plan-migracion/hoja-de-ruta.md`.
 
 ## Convención de nombres
@@ -64,3 +65,10 @@ Cada informe de esta carpeta sigue las mismas ocho secciones, en este orden:
 | 2026-10-06 | **Consolidado: refactorización completa del paso 6** (99 funciones, 58 pasos de laboratorio, bundle de 108 espacios) | 827/827 en 59 suites; 8 e2e en verde; `app.js` de producción **sin tocar** | [`2026-10-06-informe-refactorizacion-completa-paso-6.md`](2026-10-06-informe-refactorizacion-completa-paso-6.md) |
 | 2026-10-06 | **Aplicación de las decisiones D1–D9** (horas efectivas únicas, XSS, modal urgente, KPIs/fechas locales, presencia inactiva, doble clic/rol, avance, rechazados, supervisores por rol) | 953/953 en 62 suites; 10 e2e en verde; integración de 59 pasos; reglas D3/D7 solo como propuesta; producción **sin tocar** | [`2026-10-06-informe-aplicacion-decisiones-d1-d9.md`](2026-10-06-informe-aplicacion-decisiones-d1-d9.md) |
 | 2026-10-13 | **Cierre Fase 2: B-3, Opción A y tanda 3** — verificación 1:1 `applyIdleStateChange`/`updateActivity`, resolución Opción A `riskOps_timeline`, pruebas `preloadCronograma`/`loadCronogramaAssignments` | 33 tests nuevos (17 + 16) en verde; **0 Migrada-sin-prueba, 0 Verificar-1:1**; 153/164 Hecha+probadas; producción **sin tocar** | [`2026-10-13-informe-cierre-refactorizacion-fase2.md`](2026-10-13-informe-cierre-refactorizacion-fase2.md) |
+| 2026-10-14 | **Conexión de `app.js` de la rama a `src/`** (bundle antes de `app.js`, parche de la Pausa de Turno restaurado, 62 pasos de integración) | Bundle 71, unitarias 1279 en 78 archivos, e2e 487 en 10 archivos, motor operativo 4: todo en verde; prueba manual aprobada por el responsable | [`2026-10-14-informe-conexion-app-js-fase2.md`](2026-10-14-informe-conexion-app-js-fase2.md) |
+| 2026-10-15 | **Funciones duplicadas entre `app.js` y `src/`** (prueba diferencial de las 56 funciones con lógica propia) | 41 equivalentes, 6 con resultado distinto, 6 no intercambiables (detector de inactividad), 3 sin par; decisiones NOTA_1 a NOTA_4 | [`2026-10-15-informe-duplicados-app-js-vs-src.md`](2026-10-15-informe-duplicados-app-js-vs-src.md) |
+| 2026-10-15 | **Fase 3, paso 3.0**: `bootstrap.js` compila, sesión y rol desde `users/{uid}`, ids estables y purga de huérfanas de `main` | Compuerta cumplida: `riskops.app.js` compila; sesión 17/17; 80/80 archivos de pruebas unitarias en verde; `tsc` 159 → 148 | [`2026-10-15-informe-fase3-paso-3-0.md`](2026-10-15-informe-fase3-paso-3-0.md) |
+
+## Criterios de cierre de la refactorización
+
+Los criterios para dar por terminada la refactorización (factores infranqueables FI-1 a FI-8 y criterios CF-0 a CF-6) están en [`../03-plan-migracion/criterios-de-finalizacion.md`](../03-plan-migracion/criterios-de-finalizacion.md). La evidencia de cierre (salida de la auditoría, suite y plan manual firmado) se archiva en esta carpeta.

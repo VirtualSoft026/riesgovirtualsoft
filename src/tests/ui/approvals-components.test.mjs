@@ -35,11 +35,12 @@ import {
 } from '../../ui/components/pending-permissions-table.js';
 import { resolvePermissionCreatedTimeText } from '../../domain/permissions/permission-service.js';
 import { formatApprovalDate, formatRegistrationDate } from '../../domain/permissions/user-approval-list.js';
+import { normalizeLegacyHtml } from '../helpers/w50-delegation.mjs';
 
 const { test, testAsync, summarizeAsync } = createRunner('componentes de aprobaciones (HTML idéntico al de app.js 4111-4448 + cajas, modales y avisos + decisiones D2/D7/D9a)');
 
-/** Opciones que reproducen el HTML de app.js (D2 `escapeRole` y D9a `rejectedActions` apagadas). */
-const LEGACY_ROW = { escapeRole: false, rejectedActions: false };
+/** Opción que reproduce el HTML de app.js (D9a `rejectedActions` apagada). El rol se escapa siempre (D2, W-52). */
+const LEGACY_ROW = { rejectedActions: false };
 
 // ---------------------------------------------------------------------------------------------
 // Ejecuta el renderizado ORIGINAL de app.js y devuelve el HTML que produce, para compararlo con los constructores
@@ -63,7 +64,8 @@ async function originalHtml(kind, record) {
     if (kind === 'users') await app.renderPendingUsers();
     else await app.renderPendingPermissions();
 
-    return kind === 'history' ? history.innerHTML : body.innerHTML;
+    // W-50: el "Aprobar" del original (onclick) se compara en su forma delegada; el resto, byte a byte.
+    return normalizeLegacyHtml(kind === 'history' ? history.innerHTML : body.innerHTML);
 }
 
 const userRecord = (extra) => ({ id: 'u1', name: 'Ana <Gómez>', email: 'ana@virtualsoft.tech', role: 'Gestor', approved: false, registrationDate: '2026-10-01T10:00:00.000Z', ...extra });
@@ -98,10 +100,11 @@ test('acciones de usuario: pendiente -> botones con los mismos manejadores y ids
     assert.ok(pending.includes('id="user-action-btns-u 1"'));
     assert.ok(pending.includes('id="user-reject-box-u 1"'));
     assert.ok(pending.includes('id="user-reason-u 1"'));
-    assert.ok(pending.includes(`onclick="approveUser(decodeURIComponent('u%201'))"`));
-    assert.ok(pending.includes(`onclick="showUserRejectBox(decodeURIComponent('u%201'))"`));
-    assert.ok(pending.includes(`onclick="confirmRejectUser(decodeURIComponent('u%201'))"`));
-    assert.ok(pending.includes(`onclick="cancelRejectUser(decodeURIComponent('u%201'))"`));
+    assert.ok(pending.includes('data-action="approve-user" data-user-id="u 1"'));
+    assert.ok(pending.includes('data-action="show-user-reject-box" data-user-id="u 1"'));
+    assert.ok(pending.includes('data-action="confirm-reject-user" data-user-id="u 1"'));
+    assert.ok(pending.includes('data-action="cancel-reject-user" data-user-id="u 1"'));
+    assert.ok(!pending.includes('onclick='), 'ningún onclick inline');
     assert.ok(buildUserActionHtml({ id: 'x', approved: true }).includes('Aprobado'));
     assert.equal(
         buildUserActionHtml({ id: 'x', approved: 'Rechazado' }, { rejectedActions: false }),
@@ -114,14 +117,15 @@ test('el id con comillas/menor-que se escapa en el id y se codifica en el maneja
     const html = buildUserActionHtml({ id: `a'"<b>`, approved: false });
 
     assert.ok(html.includes('id="user-action-btns-a&#039;&quot;&lt;b&gt;"'));
-    assert.ok(html.includes(`decodeURIComponent('a%27%22%3Cb%3E')`));
+    assert.ok(html.includes('data-user-id="a&#039;&quot;&lt;b&gt;"'));
     assert.ok(!html.includes(`'a'"<b>'`));
 });
 
-test('D2 insignia del rol: ESCAPADA por defecto; { escapeRole: false } reproduce app.js (sin escapar)', () => {
+test('D2 / W-52 insignia del rol: ESCAPADA siempre; ninguna opción la apaga', () => {
     assert.ok(buildUserRoleBadgeHtml({ approved: true, role: '<i>' }).includes('&lt;i&gt;'));
     assert.ok(!buildUserRoleBadgeHtml({ approved: true, role: '<i>' }).includes('<i>'));
-    assert.ok(buildUserRoleBadgeHtml({ approved: true, role: '<i>' }, { escapeRole: false }).includes('<i>'));
+    assert.ok(!buildUserRoleBadgeHtml({ approved: true, role: '<i>' }, /** @type {any} */ ({ escapeRole: false })).includes('<i>'));
+    assert.ok(!buildUserRowHtml({ id: 'u', approved: true, role: '<i>' }, /** @type {any} */ ({ regDateStr: '', appDateStr: '', escapeRole: false })).includes('<i>'));
     assert.equal(buildUserRoleBadgeHtml({ approved: false, role: undefined }), '<span class="badge pending"></span>');
     assert.ok(buildUserRoleBadgeHtml({ approved: false, role: 'Gestor' }).includes('class="badge pending"'));
     assert.ok(buildUserRoleBadgeHtml({ approved: true, role: 'Gestor' }).includes('rgba(16, 185, 129, 0.2)'));
@@ -153,9 +157,11 @@ test('filas vacías de permisos: textos del original', () => {
 test('permiso pendiente: manejadores y ids de las tres cajas (acciones, aprobar, rechazar)', () => {
     const html = buildPendingPermissionRowHtml(permRecord({ fb_id: 'p1' }), 'hora');
 
-    for (const handler of ['showPermApproveBox', 'showPermRejectBox', 'confirmApprovePerm', 'cancelApprovePerm', 'confirmRejectPerm', 'cancelRejectPerm']) {
-        assert.ok(html.includes(`onclick="${handler}(decodeURIComponent('p1'))"`), handler);
+    const actions = ['show-perm-approve-box', 'show-perm-reject-box', 'confirm-approve-perm', 'cancel-approve-perm', 'confirm-reject-perm', 'cancel-reject-perm'];
+    for (const action of actions) {
+        assert.ok(html.includes(`data-action="${action}" data-fb-id="p1"`), action);
     }
+    assert.ok(!html.includes('onclick='), 'ningún onclick inline');
     for (const id of ['perm-action-btns-p1', 'perm-approve-box-p1', 'perm-approve-reason-p1', 'perm-reject-box-p1', 'perm-reason-p1']) {
         assert.ok(html.includes(`id="${id}"`), id);
     }
@@ -349,8 +355,8 @@ test('D9a acción de rechazado: etiqueta, motivo escapado (o "No especificado") 
     assert.ok(html.includes(`<i class='bx bx-x'></i> Rechazado`));
     assert.ok(html.includes('Motivo: Falta &lt;b&gt;cargo&lt;/b&gt;'));
     assert.ok(html.includes(`id="${USER_REJECTED_ACTIONS_PREFIX}u 1"`));
-    assert.ok(html.includes(`onclick="revertRejectedUser(decodeURIComponent('u%201'))"`));
-    assert.ok(html.includes(`onclick="approveUser(decodeURIComponent('u%201'))"`));
+    assert.ok(html.includes('data-action="revert-rejected-user" data-user-id="u 1"'));
+    assert.ok(html.includes('data-action="approve-user" data-user-id="u 1"'));
     assert.equal(buildUserActionHtml({ id: 'u 1', approved: 'Rechazado', rejectionReason: 'Falta <b>cargo</b>' }), html, 'por defecto');
 
     for (const empty of [undefined, null, '']) {

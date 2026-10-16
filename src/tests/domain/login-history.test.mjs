@@ -317,12 +317,15 @@ test('diferencial aleatorio: 300 conjuntos de las tres fuentes (con semilla), in
     }
 });
 
-test('diferencial (escapeRawLoginTime: false explícito = plantilla original): la tabla (HTML) es idéntica byte a byte a app.js: vacía, fija y 200 aleatorias', () => {
-    const LEGACY = { escapeRawLoginTime: false };
+test('diferencial: la tabla (HTML) es idéntica byte a byte a app.js: vacía, fija y 200 aleatorias', () => {
     const { active, logs, reports } = fixtures();
     const records = buildLoginHistoryRecords({ activeSessions: active, loginLogs: logs, shiftReports: reports }, NOW);
-    assert.equal(buildLoginHistoryTableHtml(records, LEGACY), legacyRender(records));
-    assert.equal(buildLoginHistoryTableHtml([], LEGACY), legacyRender([]));
+    // W-52: la única diferencia con app.js es la celda de un loginTime inválido, que ahora llega escapada
+    const withEscapedRawTime = (recs) => recs.map((r) => (r.loginTime && isNaN(new Date(r.loginTime)) ? { ...r, loginTime: escapeHTML(r.loginTime) } : r));
+    assert.ok(records.some((r) => r.loginTime === EVIL_TIME), 'el fixture incluye un loginTime malicioso');
+    assert.equal(buildLoginHistoryTableHtml(records), legacyRender(withEscapedRawTime(records)));
+    assert.notEqual(buildLoginHistoryTableHtml(records), legacyRender(records));
+    assert.equal(buildLoginHistoryTableHtml([]), legacyRender([]));
     assert.equal(buildLoginHistoryTableHtml([]), LOGIN_HISTORY_EMPTY_HTML);
 
     const rng = makeRng(808);
@@ -342,9 +345,8 @@ test('diferencial (escapeRawLoginTime: false explícito = plantilla original): l
                 source: 'En Vivo'
             });
         }
-        assert.equal(buildLoginHistoryTableHtml(recs, LEGACY), legacyRender(recs));
-        // D2: con el predeterminado solo cambia la celda de un loginTime inválido; aquí ('rota', '') no lleva
-        // caracteres especiales, así que el HTML coincide también
+        // D2 / W-52: solo cambiaría la celda de un loginTime inválido con caracteres especiales; aquí ('rota', '') no
+        // los lleva, así que el HTML coincide byte a byte
         assert.equal(buildLoginHistoryTableHtml(recs), legacyRender(recs));
     }
 });
@@ -420,20 +422,19 @@ test('HALLAZGO: una fecha inválida hace lanzar al filtro por fecha (RangeError,
     assert.equal(filterLoginHistoryRecords(recs, { dateVal: 'todos' }, now).length, 2, 'sin filtro de fecha no se evalúa');
 });
 
-test('XSS: nombre, correo, turno, estado y última actividad se escapan; D2: el loginTime inválido se escapa POR DEFECTO; el original solo con escapeRawLoginTime: false', () => {
+test('XSS: nombre, correo, turno, estado y última actividad se escapan; D2 / W-52: el loginTime inválido se escapa SIEMPRE (app.js lo pintaba crudo)', () => {
     const rec = { name: '<script>alert(1)</script>', email: '"><svg onload=alert(2)>', shift: '<img src=x onerror=alert(3)>', loginTime: EVIL_TIME, lastActive: 'javascript:alert(4)<b>', isOnline: false, status: '<script>alert(5)</script>' };
-    const legacy = buildLoginHistoryTableHtml([rec], { escapeRawLoginTime: false });
+    const legacy = legacyRender([rec]);
     assert.ok(!legacy.includes('<script') && !legacy.includes('<svg'));
-    assert.ok(!legacy.includes('<img src=x onerror=alert(3)>'), 'el turno sí se escapa');
-    assert.ok(legacy.includes(EVIL_TIME), 'HALLAZGO (solo con la opción legada): loginTime inválido sin escapar');
-    assert.equal(legacy, legacyRender([rec]));
-    for (const safe of [buildLoginHistoryTableHtml([rec]), buildLoginHistoryTableHtml([rec], {}), buildLoginHistoryTableHtml([rec], { escapeRawLoginTime: true })]) {
+    assert.ok(!legacy.includes('<img src=x onerror=alert(3)>'), 'el turno sí se escapaba en app.js');
+    assert.ok(legacy.includes(EVIL_TIME), 'HALLAZGO de app.js: loginTime inválido sin escapar');
+    for (const safe of [buildLoginHistoryTableHtml([rec]), buildLoginHistoryTableHtml([rec], {}), buildLoginHistoryTableHtml([rec], /** @type {any} */ ({ escapeRawLoginTime: false }))]) {
         assert.ok(!safe.includes('<img') && !safe.includes('<script') && !safe.includes('<svg'), 'ninguna etiqueta de usuario');
         assert.ok(safe.includes('&lt;img src=x onerror=alert(1)&gt;'));
     }
-    // un loginTime válido no cambia con la decisión
+    // con un loginTime válido la fila es idéntica a app.js
     const ok = { ...rec, loginTime: '2026-10-06T13:00:00.000Z' };
-    assert.equal(buildLoginHistoryTableHtml([ok]), buildLoginHistoryTableHtml([ok], { escapeRawLoginTime: false }));
+    assert.equal(buildLoginHistoryTableHtml([ok]), legacyRender([ok]));
 });
 
 test('D2: loginTime inválido con <script>, comillas simples/dobles o entidades queda como texto (escapeHTML de app.js o de utils)', () => {

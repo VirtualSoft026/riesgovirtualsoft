@@ -20,23 +20,10 @@ import { isSessionOnlineForFilter, resolveSessionDisplay } from './active-sessio
 import { assertSupervisorDirectory, isSupervisorEntry } from '../schedules/supervisor-directory.js';
 import { formatProgress } from '../tasks/task-progress.js';
 
-/** Lista de avatares disponibles en `assets/src/img/` (app.js 5145-5160). Copia: app.js mantiene la suya. */
-export const AVAILABLE_AVATARS = Object.freeze([
-    'Alexander Villada.png',
-    'Camilo Espinosa.png',
-    'Daniel Benavides.png',
-    'Josue Alvarez.png',
-    'Juan Jose Diaz.png',
-    'Luis Fuentes.png',
-    'Maria Sanchez.png',
-    'Marilyn Jimenez.png',
-    'Oriana Borja.png',
-    'Samuel Cruz.png',
-    'Sara Santamaria.png',
-    'Sebastian Arango.png',
-    'Sebastian Hincapie.png',
-    'Yefferson Giraldo.png'
-]);
+/** Lista de avatares disponibles (W-41: una sola fuente, `domain/tasks/app-init-rules.js`). */
+import { AVAILABLE_AVATARS } from '../tasks/app-init-rules.js';
+import { TASK_STATUS } from '../../utils/constants.js';
+export { AVAILABLE_AVATARS };
 
 /** Avatar de respaldo cuando la imagen local no existe o falla (app.js 5322, 5533). */
 export function buildFallbackAvatarSrc(fullName) {
@@ -201,8 +188,8 @@ export function computeTaskProgress(session, { legacy = false } = {}) {
 
     // Fallback for older sessions that haven't synced the new variables yet
     if (session.completedTasks === undefined && session.tasks) {
-        completedCount = Object.values(session.tasks).filter((t) => t.status === 'Finalizada').length;
-        notDoneCount = Object.values(session.tasks).filter((t) => t.status === 'No Realizada').length;
+        completedCount = Object.values(session.tasks).filter((t) => t.status === TASK_STATUS.DONE).length;
+        notDoneCount = Object.values(session.tasks).filter((t) => t.status === TASK_STATUS.NOT_DONE).length;
     }
 
     const compPct = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
@@ -258,13 +245,13 @@ export function buildTasksListHtml(displayTasks, hasCronograma) {
             let icon = "<i class='bx bx-radio-circle' style='color: var(--text-secondary)'></i>";
 
             let textStyle = '';
-            if (t.status === 'Finalizada') {
+            if (t.status === TASK_STATUS.DONE) {
                 icon = "<i class='bx bx-check-circle' style='color: var(--success)'></i>";
                 textStyle = 'color: var(--success); font-weight: bold;';
-            } else if (t.status === 'En Proceso') {
+            } else if (t.status === TASK_STATUS.IN_PROGRESS) {
                 icon = "<i class='bx bx-time-five' style='color: var(--warning)'></i>";
                 textStyle = 'color: var(--warning);';
-            } else if (t.status === 'No Realizada') {
+            } else if (t.status === TASK_STATUS.NOT_DONE) {
                 icon = "<i class='bx bx-x-circle' style='color: var(--danger)'></i>";
                 textStyle = 'color: var(--danger); text-decoration: line-through;';
             }
@@ -355,7 +342,7 @@ export function buildSessionCardHtml(model) {
                 </div>
                 <div class="status-indicator-badge ${isOnline ? 'status-online' : 'status-offline'}">
                     <div class="pulse-dot ${isOnline ? '' : 'offline'}"></div>
-                    ${displayStatus}
+                    ${escapeHTML(displayStatus)}
                 </div>
             </div>
             
@@ -391,10 +378,10 @@ export function buildSessionCardHtml(model) {
             ${tasksHtml}
 
             <div style="margin-top: 15px; display: flex; gap: 5px; justify-content: flex-end;">
-                <button class="btn btn-outline" style="flex: 1; padding: 6px 10px; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="openMonitoreoDetails(decodeURIComponent('${encodeInlineHandlerArg(uid)}'))">
+                <button class="btn btn-outline" style="flex: 1; padding: 6px 10px; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px;" data-action="open-monitoreo-details" data-uid="${escapeHTML(uid)}">
                     <i class='bx bx-search-alt-2'></i> Detalles
                 </button>
-                <button class="btn btn-outline" style="flex: 1; padding: 6px 10px; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px; border-color: var(--warning); color: var(--warning);" onclick="viewTimelineInMonitoreo(decodeURIComponent('${encodeInlineHandlerArg(uid)}'))">
+                <button class="btn btn-outline" style="flex: 1; padding: 6px 10px; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px; border-color: var(--warning); color: var(--warning);" data-action="view-timeline-monitoreo" data-uid="${escapeHTML(uid)}">
                     <i class='bx bx-time'></i> Bitácora
                 </button>
             </div>
@@ -443,6 +430,9 @@ export const EMPTY_TIMELINE_ROW_HTML = '<tr><td colspan="3" style="text-align: c
 /**
  * Fila <tr> de un evento de la bitácora (app.js 5499-5519).
  *
+ * W-52: `ev.type` viene de `active_sessions/{uid}/timeline` (lo escribe el cliente del gestor) y se escapa; app.js
+ * lo insertaba crudo. Para los tipos del catálogo (Almuerzo, Desayuno, Inactividad, Pausa de Turno) no cambia nada.
+ *
  * @param {{type: string, start: number, end?: number|null}} ev
  * @returns {string}
  */
@@ -465,7 +455,7 @@ export function buildTimelineRowHtml(ev) {
 
     return `
                 <tr style="border-bottom: 1px solid var(--glass-border);">
-                    <td style="padding: 10px; font-weight: 500;">${icon} ${ev.type}</td>
+                    <td style="padding: 10px; font-weight: 500;">${icon} ${escapeHTML(ev.type)}</td>
                     <td style="padding: 10px; font-size: 13px;">${s} - ${eTime}</td>
                     <td style="padding: 10px; text-align: center;"><span class="badge" style="background: rgba(255,255,255,0.05);">${durationStr}</span></td>
                 </tr>
@@ -524,7 +514,7 @@ export function buildDetailDisplayTasks(session, { assignedTasks, reconcileTask,
         if (key.startsWith('extra_') && tasks[key]) {
             displayTasks.push({
                 name: tasks[key].name,
-                status: tasks[key].status || 'Pendiente',
+                status: tasks[key].status || TASK_STATUS.PENDING,
                 observation: tasks[key].observation || 'Tarea extra agregada durante el turno.'
             });
         }
@@ -537,7 +527,7 @@ export function buildDetailDisplayTasks(session, { assignedTasks, reconcileTask,
             const isExtra = key.startsWith('extra_');
             displayTasks.push({
                 name: isExtra ? (tasks[key].name || key) : resolveTaskName(key, tasks[key]),
-                status: tasks[key].status || 'Pendiente',
+                status: tasks[key].status || TASK_STATUS.PENDING,
                 observation: tasks[key].observation || ''
             });
         }
@@ -565,13 +555,13 @@ export function resolveTaskBadge(status) {
     let badgeClass = 'pending';
     let badgeStyle = 'background: rgba(148,163,184,0.15); color: #94a3b8;';
 
-    if (status === 'Finalizada') {
+    if (status === TASK_STATUS.DONE) {
         badgeClass = 'completed';
         badgeStyle = 'background: rgba(16,185,129,0.15); color: var(--success);';
-    } else if (status === 'En Proceso') {
+    } else if (status === TASK_STATUS.IN_PROGRESS) {
         badgeClass = 'in-progress';
         badgeStyle = 'background: rgba(245,158,11,0.15); color: var(--warning);';
-    } else if (status === 'No Realizada') {
+    } else if (status === TASK_STATUS.NOT_DONE) {
         badgeClass = 'not-done';
         badgeStyle = 'background: rgba(239,68,68,0.15); color: var(--danger);';
     }

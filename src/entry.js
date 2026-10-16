@@ -6,6 +6,7 @@
  * evitar colisiones de nombres.
  */
 export * as shiftController from './controllers/shift-controller.js';
+export * as shiftClosureController from './controllers/shift-closure-controller.js'; // W-17 (paso 3.2): handleEndShift
 export * as shiftActivityController from './controllers/shift-activity-controller.js'; // 2026-10-14: lo usa el paso de inactividad (__shiftActivityController)
 export * as taskController from './controllers/task-controller.js';
 export * as authService from './domain/auth/auth-service.js';
@@ -16,6 +17,7 @@ export * as shiftExpiration from './domain/auth/shift-expiration.js';
 export * as timeMetrics from './domain/analytics/time-metrics.js';
 export * as withdrawalMetrics from './domain/analytics/withdrawal-metrics.js';
 export * as cronogramParser from './domain/schedules/cronogram-parser.js';
+export * as scheduleParser from './domain/schedules/schedule-parser.js'; // W-14 (paso 3.1): getShiftCategory
 export * as scheduleService from './domain/schedules/schedule-service.js';
 export * as activeSessionStatus from './domain/analytics/active-session-status.js';
 export * as activeSessionPayload from './domain/shifts/active-session-payload.js';
@@ -37,10 +39,13 @@ export * as roles from './config/roles.js';
 export * as routes from './config/routes.js';
 
 export * as idleDetector from './services/browser/idle-detector-adapter.js';
+export * as idleWarningView from './ui/components/idle-warning.js'; // W-24 (paso 3.3): banner del detector de inactividad
 export * as formSubmit from './services/external/formsubmit-notification-adapter.js';
 export * as localSessionStorage from './services/storage/local-session-storage.js';
 
 export * as breakButton from './ui/components/break-button.js';
+export * as endShiftButton from './ui/components/end-shift-button.js'; // W-09 (paso 3.1): restoreEndShiftButton
+export * as shiftRepository from './services/firebase/firebase-shift-repository.js'; // W-09 (paso 3.1): persistShiftClosureCore
 export * as multiSelect from './ui/components/multi-select.js';
 
 export * as constants from './utils/constants.js';
@@ -53,6 +58,9 @@ export * as validation from './utils/validation.js';
 
 // Cortes del paso 6 (cada uno en su archivo para no pisarse)
 export * from './entry-tareas.js';
+export * from './entry-login.js'; // paso 3.4 (W-29): controlador de la página de login
+export * from './entry-control-tiempos.js'; // paso 3.4 (W-28): Control de Tiempos
+export * from './entry-actions.js'; // paso 3.4 (W-54 b): registro de acciones data-action
 export * from './entry-modales-permisos.js';
 export * from './entry-historial-navegacion.js';
 export * from './entry-kpis.js';

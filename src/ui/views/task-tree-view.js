@@ -2,13 +2,15 @@
  * HTML del árbol de tareas por Set (`renderTree()`, app.js 2063-2115) y de la tarjeta de KPI
  * (`updateKPI()`, app.js 2474-2517). Solo genera cadenas: dibujarlas en el DOM es del controlador.
  *
- * Los handlers inline (`toggleTree`, `selectTask`) siguen siendo globales de app.js; el id de la tarea se
- * serializa con `encodeInlineHandlerArg` para que un apóstrofe no rompa el atributo.
+ * El encabezado de cada Set se expande por delegación (`data-action="toggle-tree"`, W-50); `selectTask` se delega (`data-action="select-task"`, W-54 b)
+ * (`onclick`) y el id de la tarea se serializa con `encodeInlineHandlerArg` para que un apóstrofe no rompa el atributo.
  */
 
 import { canonicalTaskId } from '../../domain/tasks/task-report.js';
 import { TASK_STATUS } from '../../utils/constants.js';
-import { escapeHTML as defaultEscapeHTML, encodeInlineHandlerArg as defaultEncode } from '../../utils/sanitization.js';
+import { escapeHTML as defaultEscapeHTML } from '../../utils/sanitization.js';
+import { normalizeName } from '../../utils/normalize.js';
+import { TOGGLE_TREE_ACTION } from '../components/tree-toggle.js';
 
 /**
  * Clase del indicador de estado de una tarea según su entrada en el caché (app.js 2085-2093).
@@ -60,21 +62,20 @@ export function shouldAutoExpandTree(sets) {
  *   taskStateCache: Record<string, {status?: string}>,
  *   shouldAutoExpand: boolean,
  *   escape?: (value: unknown) => string,
- *   encodeArg?: (value: unknown) => string
  * }} input
  * @returns {string}
  */
 export function buildTreeSetHTML(input) {
     const {
         set, tasks, taskStateCache, shouldAutoExpand,
-        escape = defaultEscapeHTML, encodeArg = defaultEncode
+        escape = defaultEscapeHTML
     } = input;
     const total = tasks.length;
     const headerClass = shouldAutoExpand ? 'tree-header open' : 'tree-header';
     const childrenClass = shouldAutoExpand ? 'tree-children show' : 'tree-children';
 
     return `
-            <div class="${headerClass}" onclick="toggleTree(this)">
+            <div class="${headerClass}" data-action="${TOGGLE_TREE_ACTION}">
                 <i class='bx bx-chevron-right'></i>
                 <span>${escape(set)}</span>
                 <span class="badge pending">${total} Tareas</span>
@@ -86,7 +87,7 @@ export function buildTreeSetHTML(input) {
                     const statusClass = getTaskStatusClass(taskEntry);
 
                     return `
-                    <div class="task-item" onclick="selectTask(decodeURIComponent('${encodeArg(task.id)}'), event)">
+                    <div class="task-item" data-action="select-task" data-task-id="${escape(task.id)}">
                         <i class='bx bx-file-blank'></i> ${escape(task.name)}
                         <div class="task-status ${statusClass}"></div>
                     </div>
@@ -124,4 +125,20 @@ export function buildTaskKpiHTML(figures) {
                 <p><strong>${pending}</strong> Pendientes</p>
             </div>
         `;
+}
+
+/**
+ * Filtro "Filtrar por Responsable" (app.js `renderAssignedTasksFilter`, W-22): muestra las tareas cuyo `data-assignee`
+ * contiene el responsable elegido (normalizado: sin acentos ni mayúsculas); "Todos" muestra todas. Solo cambia
+ * `style.display` de los `.task-item` del documento recibido.
+ *
+ * @param {{ querySelectorAll: Function }} doc documento inyectado
+ * @param {string} selectedAssignee valor del `<select id="filter-assignee">`
+ */
+export function filterTasksByAssignee(doc, selectedAssignee) {
+    doc.querySelectorAll('.task-item').forEach((taskItem) => {
+        const assigneeAttr = taskItem.getAttribute('data-assignee') || '';
+        const visible = selectedAssignee === 'Todos' || normalizeName(assigneeAttr).includes(normalizeName(selectedAssignee));
+        taskItem.style.display = visible ? '' : 'none';
+    });
 }

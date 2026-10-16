@@ -5,6 +5,7 @@ import { createConfigRepository } from '../../services/firebase/firebase-config-
 import { createConfigGestoresController } from '../../controllers/config-gestores-controller.js';
 import { canWriteHasSplitShift } from '../../domain/users/gestor-config.js';
 import { escapeHTML } from '../../utils/sanitization.js';
+import { normalizeLegacyHtml } from '../helpers/w50-delegation.mjs';
 
 const { test, testAsync, summarizeAsync } = createRunner('config-gestores-controller (interruptor de Pausa de Turno con base y DOM simulados)');
 
@@ -129,7 +130,16 @@ function tableState(document) {
     return { html: tbody.innerHTML, rows: tbody.children.map((r) => ({ borderBottom: r.style.borderBottom, html: r.innerHTML })) };
 }
 
-testAsync('diferencial (escapeUserFields: false explícito = plantilla original): la tabla es idéntica a la de app.js (varios conjuntos, incluido vacío y sin gestores)', async () => {
+/**
+ * W-52 y paso 3.4: el escape ya no se apaga. Para comparar con app.js se usan datos sin caracteres especiales, y el
+ * ORIGINAL (con sus `onchange`/`onclick` en línea) se lleva a la forma delegada con el normalizador general
+ * (src/tests/helpers/legacy-action-migration.mjs). El resto del HTML se compara byte a byte.
+ */
+function delegatedLegacyState(state) {
+    return { html: normalizeLegacyHtml(state.html), rows: state.rows.map((r) => ({ ...r, html: normalizeLegacyHtml(r.html) })) };
+}
+
+testAsync('diferencial (datos sin caracteres especiales): la tabla es idéntica a la de app.js (varios conjuntos, incluido vacío y sin gestores)', async () => {
     const datasets = [
         { users: USERS() },
         {},
@@ -137,13 +147,13 @@ testAsync('diferencial (escapeUserFields: false explícito = plantilla original)
         { users: { x: { name: 'Dup', role: 'Gestor', email: 'dup@v.tech' }, y: { name: 'Dup', role: 'Gestor', email: 'DUP@v.tech', loginTime: '2026-10-05T00:00:00.000Z' } } }
     ];
     for (const data of datasets) {
-        const a = setup({ data, options: { escapeUserFields: false } });
+        const a = setup({ data });
         await a.controller.render();
         const b = setup({ data });
         const legacy = makeLegacy({ database: b.db, document: b.document, confirm: b.confirm, alert: b.alert, console: b.logger });
         legacy.renderConfigGestores();
         await flush();
-        assert.deepEqual(tableState(a.document), tableState(b.document), JSON.stringify(Object.keys(data)));
+        assert.deepEqual(tableState(a.document), delegatedLegacyState(tableState(b.document)), JSON.stringify(Object.keys(data)));
     }
 });
 
@@ -217,13 +227,13 @@ testAsync('FALLO DE ESCRITURA: un Gestor tampoco puede activarse el flag a sí m
     }
 });
 
-testAsync('diferencial (escapeUserFields: false explícito): toggle (confirmar, cancelar, escritura rechazada) produce las mismas escrituras, avisos, mensajes y tabla final que app.js', async () => {
+testAsync('diferencial (datos sin caracteres especiales): toggle (confirmar, cancelar, escritura rechazada) produce las mismas escrituras, avisos, mensajes y tabla final que app.js', async () => {
     for (const scenario of [
         { name: 'confirmar', actor: { uid: 'a1', role: 'Admin', approved: true }, confirmAnswer: true },
         { name: 'cancelar', actor: { uid: 'a1', role: 'Admin', approved: true }, confirmAnswer: false },
         { name: 'rechazo', actor: { uid: 's1', role: 'Supervisor', approved: true }, confirmAnswer: true }
     ]) {
-        const a = setup({ ...scenario, options: { escapeUserFields: false } });
+        const a = setup(scenario);
         await a.controller.toggle('g3', true);
         await flush();
         const b = setup(scenario);
@@ -235,7 +245,7 @@ testAsync('diferencial (escapeUserFields: false explícito): toggle (confirmar, 
         assert.deepEqual(a.errors.map((e) => e[0]), b.errors.map((e) => e[0]), scenario.name);
         assert.deepEqual(a.db.log, b.db.log, scenario.name);
         assert.deepEqual(a.db.snapshot('users'), b.db.snapshot('users'), scenario.name);
-        assert.deepEqual(tableState(a.document), tableState(b.document), scenario.name);
+        assert.deepEqual(tableState(a.document), delegatedLegacyState(tableState(b.document)), scenario.name);
     }
 });
 
@@ -260,14 +270,16 @@ testAsync('D2 (predeterminado): nombre, rol y correo con <script>, <img onerror>
     assert.ok(html.includes('O&#039;Brien &quot;Bob&quot; &lt;b&gt;x&lt;/b&gt;'), 'comillas simples y dobles escapadas');
     assert.ok(html.includes('o&#039;brien@virtualsoft.tech'));
     // el interruptor sigue funcionando igual (uid alfanumérico: mismo argumento)
-    assert.ok(html.includes(`onchange="toggleGestorSplitShift(decodeURIComponent('g1'), this.checked)"`));
+    assert.ok(html.includes(`data-action="toggle-gestor-split-shift" data-uid="g1"`) && !html.includes('onchange'));
 });
 
-testAsync('D2: el comportamiento original (stored XSS) solo aparece con escapeUserFields: false EXPLÍCITO', async () => {
-    const legacy = setup({ data: { users: EVIL_USERS() }, options: { escapeUserFields: false } });
-    await legacy.controller.render();
-    assert.ok(legacy.document.el('configGestoresTableBody').children.some((r) => r.innerHTML.includes('<img src=x onerror=alert(1)>')), 'HALLAZGO reproducido solo con la opción legada');
-    for (const options of [{}, { escapeUserFields: true }, { escapeUserFields: undefined }]) {
+testAsync('W-52: app.js pintaba el stored XSS; el controlador no tiene opción para reproducirlo', async () => {
+    const b = setup({ data: { users: EVIL_USERS() } });
+    const legacy = makeLegacy({ database: b.db, document: b.document, confirm: b.confirm, alert: b.alert, console: b.logger });
+    legacy.renderConfigGestores();
+    await flush();
+    assert.ok(b.document.el('configGestoresTableBody').children.some((r) => r.innerHTML.includes('<img src=x onerror=alert(1)>')), 'HALLAZGO de app.js');
+    for (const options of [{}, { escapeUserFields: false }]) {
         const t = setup({ data: { users: EVIL_USERS() }, options });
         await t.controller.render();
         assert.ok(!t.document.el('configGestoresTableBody').children.some((r) => r.innerHTML.includes('<img')), JSON.stringify(options));

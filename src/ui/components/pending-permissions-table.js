@@ -40,23 +40,23 @@ export function buildPendingPermissionRowHtml(p, createdTimeText) {
                 </td>
                 <td style="padding: 12px; text-align: center; min-width: 220px;">
                     <div id="perm-action-btns-${escapeHTML(p.fb_id)}" style="display:flex; justify-content:center; gap:8px;">
-                        <button class="btn btn-success" style="padding: 6px 14px; font-size: 12px; display:inline-flex; align-items:center; gap:4px;" onclick="showPermApproveBox(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))"><i class='bx bx-check' style="font-size:16px;"></i> Aprobar</button>
-                        <button class="btn btn-danger" style="padding: 6px 14px; font-size: 12px; display:inline-flex; align-items:center; gap:4px;" onclick="showPermRejectBox(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))"><i class='bx bx-x' style="font-size:16px;"></i> Rechazar</button>
+                        <button class="btn btn-success" style="padding: 6px 14px; font-size: 12px; display:inline-flex; align-items:center; gap:4px;" data-action="show-perm-approve-box" data-fb-id="${escapeHTML(p.fb_id)}"><i class='bx bx-check' style="font-size:16px;"></i> Aprobar</button>
+                        <button class="btn btn-danger" style="padding: 6px 14px; font-size: 12px; display:inline-flex; align-items:center; gap:4px;" data-action="show-perm-reject-box" data-fb-id="${escapeHTML(p.fb_id)}"><i class='bx bx-x' style="font-size:16px;"></i> Rechazar</button>
                     </div>
                     <div id="perm-approve-box-${escapeHTML(p.fb_id)}" style="display:none; flex-direction:column; gap:8px; margin-top:5px; background: rgba(16, 185, 129, 0.08); padding: 10px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
                         <label for="perm-approve-reason-${escapeHTML(p.fb_id)}" style="font-size:11px; font-weight:600; color:var(--success); text-align:left;">Observación de aprobación:</label>
                         <textarea id="perm-approve-reason-${escapeHTML(p.fb_id)}" name="perm-approve-reason-${escapeHTML(p.fb_id)}" placeholder="Escribe un comentario u observación para el gestor..." class="modern-input" style="padding:8px; font-size:12px; width:100%; min-height:60px; resize:vertical; box-sizing:border-box; border-radius:6px; font-family:inherit;"></textarea>
                         <div style="display:flex; gap:6px; justify-content:flex-end;">
-                            <button class="btn btn-success" style="padding: 5px 12px; font-size: 11px;" onclick="confirmApprovePerm(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))">Confirmar Aprobar</button>
-                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;" onclick="cancelApprovePerm(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))">Cancelar</button>
+                            <button class="btn btn-success" style="padding: 5px 12px; font-size: 11px;" data-action="confirm-approve-perm" data-fb-id="${escapeHTML(p.fb_id)}">Confirmar Aprobar</button>
+                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;" data-action="cancel-approve-perm" data-fb-id="${escapeHTML(p.fb_id)}">Cancelar</button>
                         </div>
                     </div>
                     <div id="perm-reject-box-${escapeHTML(p.fb_id)}" style="display:none; flex-direction:column; gap:8px; margin-top:5px; background: rgba(239, 68, 68, 0.08); padding: 10px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
                         <label for="perm-reason-${escapeHTML(p.fb_id)}" style="font-size:11px; font-weight:600; color:var(--danger); text-align:left;">Motivo de rechazo:</label>
                         <textarea id="perm-reason-${escapeHTML(p.fb_id)}" name="perm-reason-${escapeHTML(p.fb_id)}" placeholder="Escribe la razón por la cual se rechaza..." class="modern-input" style="padding:8px; font-size:12px; width:100%; min-height:60px; resize:vertical; box-sizing:border-box; border-radius:6px; font-family:inherit;"></textarea>
                         <div style="display:flex; gap:6px; justify-content:flex-end;">
-                            <button class="btn btn-danger" style="padding: 5px 12px; font-size: 11px;" onclick="confirmRejectPerm(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))">Confirmar Rechazo</button>
-                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;" onclick="cancelRejectPerm(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))">Cancelar</button>
+                            <button class="btn btn-danger" style="padding: 5px 12px; font-size: 11px;" data-action="confirm-reject-perm" data-fb-id="${escapeHTML(p.fb_id)}">Confirmar Rechazo</button>
+                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 11px;" data-action="cancel-reject-perm" data-fb-id="${escapeHTML(p.fb_id)}">Cancelar</button>
                         </div>
                     </div>
                 </td>

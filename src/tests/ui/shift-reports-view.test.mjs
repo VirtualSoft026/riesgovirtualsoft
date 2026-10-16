@@ -93,8 +93,9 @@ test('fila de la tabla: escapa gestor/set/horas, codifica el id del botón y con
     const html = buildShiftReportRowHtml(REPORT, TEXT);
     assert.ok(html.includes('Ana &lt;Pérez&gt;'));
     assert.ok(html.includes('SET &quot;A&quot;'));
-    assert.ok(html.includes("openShiftDetailModal(decodeURIComponent('k%271'))"));
-    assert.ok(html.includes("exportShiftReport(decodeURIComponent('k%271'))"));
+    assert.ok(html.includes('data-action="open-shift-detail-modal" data-fb-id="k&#039;1"'));
+    assert.ok(html.includes('data-action="export-shift-report" data-fb-id="k&#039;1"'));
+    assert.ok(!html.includes('onclick='), 'ningún onclick inline');
     assert.ok(html.includes('Ver Todo') && html.includes('PDF'));
     assert.ok(html.includes('<strong>[ FINALIZADA ]</strong>'));
     assert.ok(html.includes('Ver Bitácora de Tiempos'));

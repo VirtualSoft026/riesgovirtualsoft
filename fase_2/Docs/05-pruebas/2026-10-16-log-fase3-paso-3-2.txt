@@ -1,0 +1,85 @@
+Log — Fase 3, paso 3.2: verticales de tareas, turno y cierre, monitoreo, KPIs y navegación/modales (2026-10-16)
+Rama: backup/fase2-refactor-2026-10-03 (sin commit, push, merge ni rebase)
+Informe: 2026-10-16-informe-fase3-paso-3-2.md
+Reconstrucción: el orden sale de las marcas de tiempo de las copias de respaldo y de las carpetas de paquete (paso-3.2-w19, paso-3.2-w19-limpieza, paso-3.2-w17, paso-monitoreo, paso-kpis, paso-navegacion, paso-w50-delegacion). Las cifras de pruebas salen de los logs de cada corrida.
+
+== 0. Punto de partida
+- app.js copiado antes del borrado de cuerpos heredados: app.before-del-legacy.js (3626 líneas).
+- Fuera de alcance del paso: presence-service.js (congelado, D6); rama shift_break (intocable).
+
+== 1. Vertical 1 — Tareas (W-19)
+- Copia previa: app.before-w19.js (10:58).
+- syncActiveSessionToFirebase: el latido de la sesión activa pasa a RiskOps.taskController.createSessionSyncController con __tareasRepo().syncSessionMetadata(uid, metadata). El payload no lleva "tasks".
+- Retirado: migrateLocalTasksToActiveSession (sin llamadas en app.js; la migración la ejecuta el controlador). Se dejó un envoltorio de prueba en el arnés integrado.
+- Arnés: tareas-integrado.e2e.cjs con paridad contra el original. Resultado final: 238/238.
+- Paquetes: paso-3.2-w19 (app.js, split-shift-flag.unit.cjs) y paso-3.2-w19-limpieza (app.js, tareas-integrado.e2e.cjs).
+- Verificación de la vertical: tareas-w19.txt "236 pasaron, 0 fallaron" (corrida intermedia); unit-w19.txt "pass 81 / fail 0"; suite-w19b.txt TODO EN VERDE.
+
+== 2. Vertical 2 — Turno y cierre (W-17, W-21)
+- Copia previa: app.before-w17.js (11:24).
+- handleEndShift: validación de tareas y SET, limpieza de localStorage, signOut, envío por FormSubmit y redirección pasan a src/controllers/shift-closure-controller.js. app.js conserva un envoltorio.
+- Pausas: toggleBreakfastBreak, toggleLunchBreak y toggleSplitShiftBreak quedan como envoltorios hacia el controlador de turno (W-21).
+- Paquete paso-3.2-w17: 13 archivos (controlador, entry.js, tests de controlador, cierre-turno-integrado, cierre-horas-efectivas, split-shift-flag.unit.cjs, referencia pre-w17, suite, bundle y plan).
+- Verificación: cierre-w17.txt "Pasan: 40 | Fallan: 0"; split-w19.txt "Pasan: 23 | Fallan: 0 | Brechas abiertas: 0"; suite-w17b.txt E2E 11/11 sin fallas.
+
+== 3. Vertical 3 — Monitoreo (W-18, W-42 parcial, W-50 parcial)
+- Copia previa: app.pre-monitoreo.js (3286 líneas).
+- Monitoreo: renderActiveSessionsDashboard y viewTimelineInMonitoreo pasan a RiskOps.monitoringController. Se borraron los dos cuerpos de respaldo y SUPERVISORES_NOMBRES (regla D9b).
+- listener de active_sessions único: se desuscribe con stopActiveSessionsListener y no se duplica al reiniciarse.
+- Escapes XSS en tarjeta, bitácora y detalle.
+- W-42 (tardanza): calculateShiftDelay retirado de app.js; queda el envoltorio de buildShiftDelayBadgeHtml de monitoring-view.js (ya comparada, 0 diferencias).
+- W-50 (monitoreo): se quitó el addEventListener duplicado de closeMonitoreoModalBtn (el HTML ya tiene onclick).
+- Paquete paso-monitoreo: 10 archivos.
+- Arnés: monitoreo-render.e2e.cjs 7/7; monitoring-controller.test.mjs 15/15.
+
+== 4. Vertical 4 — KPIs (W-16)
+- Copia previa: app.pre-kpi.js (2969 líneas).
+- calcularIndicadores vive en src/controllers/kpi-controller.js. app.js conserva __kpiController().calcularIndicadores().
+- Zombis de gráficas retirados: destroyChart, renderControlOperativoCharts, drawChart, drawPunctualDatesChart, drawCombinedChart, drawCombinedChartDaily, drawScatterMatriz. Cierre parseTime inline retirado.
+- D1 unificado en computeShiftDurations (duración − almuerzo − desayuno − Pausa de Turno − inactividad; penalidad informativa).
+- Prueba diferencial kpi-calculo-diferencial.e2e.cjs contra fase_2/lab/referencia/app.pre-paso-3-3-kpi.js: 637 comparaciones, 0 diferencias. Resultado en suite: 91/91.
+- kpis-integrado.e2e.cjs 22/22; kpi-controller.test.mjs 23/23; kpi-indicators-service.test.mjs 43/43 (incluye el acarreo de minutos, ver sección 8).
+- Paquete paso-kpis: 12 archivos.
+- Corrección de redondeo (posterior al balance de KPIs, 2026-10-16): computeAvgShiftDuration y formatInactividadLabel acarrean minutos ≥ 60 a la hora ("1h 60m" → "2h 0m"). Ningún caso de las pruebas diferenciales cae en el acarreo.
+- Divergencia de DE-15 (regla de gestor de calcularIndicadores vs Control Operativo) se mantiene separada; sin decisión.
+
+== 5. Vertical 5 — Navegación y modales (W-20, W-22, W-23 parcial)
+- Copia previa: scratch-kpi/app.pre-nav.js (2327 líneas).
+- W-20: setupSidebar completo y unifyHorarioAndTeletrabajo en src/app/app-router.js. app.js conserva envoltorios hacia __appRouter().
+- W-22: cierre de modales por fondo y Escape en src/ui/components/modal.js (bindModalDismissal, devuelve la función de desenlace). Filtro de responsable en src/ui/views/task-tree-view.js (filterTasksByAssignee). Rama permisoModal retirada (el id no existe en index.html). renderAssignedTasksFilter queda como envoltorio porque el onchange de index.html lo llama.
+- W-23 (parcial): __labModalDismissalUnbind guarda el desenlace; el shutdown real espera el paso 3.6.
+- Zombis retirados de app.js (16): sanitizeAnnouncementHref, excelToJSDate, isSameDate, cleanText, normalizeTaskName, parseSheetRange, getWeekSheet, fetchCronogramaRowsForDate, getCronogramaColumnsForToday, migrateLocalTasksToActiveSession, updatePermissionStatus, toggleProfilePassword, updateUnreadBadge, checkUnreadUrgentAnnouncements, markUrgentComunicadoAsRead, renderLoginHistoryTable. Antes de borrar cada uno se verificó que no tuviera llamadas en app.js, HTML ni onclick.
+- Arneses ajustados (solo de prueba) para que la extracción no busque funciones retiradas: split-shift-flag.unit.cjs (23/23), historial-navegacion-integrado.e2e.cjs (51/51), modales-permisos-integrado.e2e.cjs, tareas-integrado.e2e.cjs, comunicados-integrado.e2e.cjs (18/18).
+- Pruebas nuevas: src/tests/ui/navigation-dismissal.test.mjs (5/5).
+- Paquete paso-navegacion: 14 archivos.
+
+== 6. Corrección posterior al balance: delegación de approveUser y toggleTree (W-50)
+- Autorizada por el responsable en el chat (2026-10-16).
+- Nuevo módulo src/utils/action-delegation.js: bindActionDelegation(doc, acción, onMatch). Un listener por documento y acción; enlazar de nuevo sustituye al anterior.
+- pending-users-table.js: el botón Aprobar (pendientes y rechazados) lleva data-action="approve-user" y data-user-id escapado. Exporta APPROVE_USER_ACTION.
+- approvals-controller.js: enlaza la acción al cargar el controlador; llama approveUser con fireAndLog (un error queda registrado; antes era una promesa sin capturar).
+- tree-toggle.js: exporta TOGGLE_TREE_ACTION y bindTreeToggleDelegation; task-tree-view.js marca el encabezado con data-action="toggle-tree"; task-controller.js enlaza la acción.
+- app.js: retiradas las líneas de approveUser (envoltorio) y toggleTree (envoltorio). app.js queda en 2187 líneas.
+- Pruebas: src/tests/ui/action-delegation.test.mjs (8/8); approvals-components, task-views y approvals-decisiones actualizados a la nueva marca; approvals-controller.test.mjs compara el original con la forma delegada mediante src/tests/helpers/w50-delegation.mjs (diferencia intencional documentada en el archivo).
+- Paquete paso-w50-delegacion: 20 archivos.
+
+== 7. Verificación final (2026-10-16, tras la corrección W-50 y el acarreo)
+- node build/build.mjs: BUNDLE_OK, 125 módulos (124 en el balance de navegación + action-delegation.js).
+- node build/verify-bundle.mjs: BUNDLE_VERIFY=PASS (71 comprobaciones).
+- RISKOPS_LAB_ROOT=/home/claude/repro/lab-root node fase_2/lab/suite/suite-pruebas.mjs: TODO EN VERDE.
+  Bundle 71/71 · Unitarias 85 archivos, 1384 pruebas · Integración 1 · E2E 12 archivos, 624 pruebas · Motor 4/4 · Intentos de red bloqueados: 0.
+  Log: lab-root/pruebas/resultado-2026-10-16-17-27-44.txt.
+- Byte a byte del dispositivo contra los paquetes: 20 de 20 archivos iguales (13 comprobados tras la escritura; 7 de pruebas comprobados con una segunda lectura).
+
+== 8. Acarreo de minutos (W-16, corrección posterior al balance de KPIs)
+- Antes: computeAvgShiftDuration(119.6, 1) → "1h 60m"; formatInactividadLabel(119.6) → "1h 60m".
+- Después: "2h 0m" en ambos casos. Sin acarreo los valores no cambian (verificado con 125.4 → "2h 5m", 1000/3 → "5h 33m").
+- Pruebas nuevas en kpi-indicators-service.test.mjs: 43/43.
+
+== 9. Cambios de numeración en el plan
+- Las filas W-16, W-20, W-22, W-23 y W-42 decían "paso 3.3" o "paso 3.4" donde el balance del responsable dice 3.2. Se corrigieron en plan-fase-3.md (ver el informe, sección 5).
+
+== 10. Lo que no se hizo
+- No hubo commit, push, merge ni rebase.
+- No se ejecutaron los planes manuales de cada vertical en un navegador real (requieren Firebase y sesión de usuario).
+- No se tocó presence-service.js ni la rama shift_break.

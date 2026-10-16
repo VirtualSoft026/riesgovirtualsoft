@@ -102,15 +102,31 @@ export function createMonitoringController(deps) {
         return legacyExcludedNames ? { legacyExcludedNames } : { supervisorDirectory };
     }
 
-    /** app.js 5162-5173 */
+    // Una sola suscripción a `active_sessions` a la vez: iniciar de nuevo no duplica el listener, y detenerlo la libera.
+    let unsubscribeSessions = null;
+
+    /** app.js 5162-5173. Idempotente: si ya escucha, devuelve el mismo `stopActiveSessionsListener`. */
     function startActiveSessionsListener() {
         ensureSupervisorDirectory({ retry: true });
-        return repository.listenActiveSessions((sessions) => {
+        if (unsubscribeSessions) return stopActiveSessionsListener;
+        unsubscribeSessions = repository.listenActiveSessions((sessions) => {
             setSessions(sessions);
             renderActiveSessionsDashboard();
         }, (error) => {
             logger.error('Error cargando monitoreo en tiempo real:', error);
         });
+        return stopActiveSessionsListener;
+    }
+
+    /** Desuscribe `active_sessions` si había listener. Puede llamarse varias veces sin efecto adicional. */
+    function stopActiveSessionsListener() {
+        const off = unsubscribeSessions;
+        unsubscribeSessions = null;
+        if (typeof off === 'function') off();
+    }
+
+    function isActiveSessionsListening() {
+        return unsubscribeSessions !== null;
     }
 
     /** app.js 5215-5457 */
@@ -247,6 +263,8 @@ export function createMonitoringController(deps) {
         ensureSupervisorDirectory,
         getSupervisorDirectory: () => supervisorDirectory,
         startActiveSessionsListener,
+        stopActiveSessionsListener,
+        isActiveSessionsListening,
         renderActiveSessionsDashboard,
         viewTimelineInMonitoreo,
         openMonitoreoDetails,

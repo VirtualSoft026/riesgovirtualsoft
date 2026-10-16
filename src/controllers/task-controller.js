@@ -26,7 +26,7 @@ import { findCatalogTask, isTaskReviewerRole, buildReviewerTaskDetailText } from
 import { formatClockTime } from '../domain/tasks/clock-format.js';
 import { buildTreeSetHTML, sortedSetKeys, shouldAutoExpandTree, buildTaskKpiHTML } from '../ui/views/task-tree-view.js';
 import { buildQuickDocsHTML } from '../ui/views/quick-docs-view.js';
-import { toggleTreeElement } from '../ui/components/tree-toggle.js';
+import { bindTreeToggleDelegation, toggleTreeElement } from '../ui/components/tree-toggle.js';
 
 /**
  * Cuenta las tareas pintadas en el DOM (app.js 2474-2476 y 2398-2400).
@@ -509,6 +509,9 @@ export function createTaskWorkspaceController(deps) {
             doc.querySelectorAll('.btn-status').forEach((el) => el.classList.remove('active'));
         }
     }
+
+    // W-50: los encabezados del árbol (`data-action="toggle-tree"`) se expanden por delegación desde el documento.
+    bindTreeToggleDelegation(doc);
 
     return { updateClock, updateKPI, renderTree, toggleTree, renderQuickDocs, selectTask };
 }

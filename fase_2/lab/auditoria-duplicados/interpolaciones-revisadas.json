@@ -1,0 +1,447 @@
+[
+ {
+  "archivo": "app.js",
+  "expresion": "bg",
+  "motivo": "Constante de presentación definida en el módulo (CSS o literal fijo)"
+ },
+ {
+  "archivo": "app.js",
+  "expresion": "bgLight",
+  "motivo": "Constante de presentación definida en el módulo (CSS o literal fijo)"
+ },
+ {
+  "archivo": "app.js",
+  "expresion": "compPct",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "app.js",
+  "expresion": "completedCount",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "app.js",
+  "expresion": "durationStr",
+  "motivo": "Minutos numéricos o literal \"En curso...\""
+ },
+ {
+  "archivo": "app.js",
+  "expresion": "eTime",
+  "motivo": "Hora formateada o literal constante de estado (\"No regresó\", \"En Pausa\")"
+ },
+ {
+  "archivo": "app.js",
+  "expresion": "horaF",
+  "motivo": "Ya escapada en su origen (escapeHTML o encodeInlineHandlerArg) antes de llegar a la plantilla o literal constante de estado"
+ },
+ {
+  "archivo": "app.js",
+  "expresion": "horaI",
+  "motivo": "Ya escapada en su origen (escapeHTML o encodeInlineHandlerArg) antes de llegar a la plantilla o fecha formateada"
+ },
+ {
+  "archivo": "app.js",
+  "expresion": "loginTimeStr",
+  "motivo": "Hora o fecha formateada con toLocaleTimeString/toLocaleDateString/toLocaleString, o literal constante"
+ },
+ {
+  "archivo": "app.js",
+  "expresion": "notDoneCount",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "app.js",
+  "expresion": "notDonePct",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "app.js",
+  "expresion": "periodoText",
+  "motivo": "Mapeo fijo de literales (Hoy/Ayer/Últimos 7 días…)"
+ },
+ {
+  "archivo": "app.js",
+  "expresion": "s",
+  "motivo": "Hora o fecha formateada con toLocaleTimeString/toLocaleDateString/toLocaleString, o literal constante"
+ },
+ {
+  "archivo": "app.js",
+  "expresion": "shiftDateStr",
+  "motivo": "Hora o fecha formateada con toLocaleTimeString/toLocaleDateString/toLocaleString, o literal constante"
+ },
+ {
+  "archivo": "app.js",
+  "expresion": "totalPct",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "app.js",
+  "expresion": "totalTasks",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "js/tiempos.js",
+  "expresion": "m.Dias_Laborados",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "js/tiempos.js",
+  "expresion": "totalScore",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo (suma de puntajes)"
+ },
+ {
+  "archivo": "src/domain/analytics/monitoring-view.js",
+  "expresion": "compPct",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "src/domain/analytics/monitoring-view.js",
+  "expresion": "completedCount",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "src/domain/analytics/monitoring-view.js",
+  "expresion": "durationStr",
+  "motivo": "Minutos numéricos o literal \"En curso...\""
+ },
+ {
+  "archivo": "src/domain/analytics/monitoring-view.js",
+  "expresion": "eTime",
+  "motivo": "Hora formateada o literal constante de estado (\"No regresó\", \"En Pausa\")"
+ },
+ {
+  "archivo": "src/domain/analytics/monitoring-view.js",
+  "expresion": "limit",
+  "motivo": "Hora o fecha formateada con toLocaleTimeString/toLocaleDateString/toLocaleString, o literal constante"
+ },
+ {
+  "archivo": "src/domain/analytics/monitoring-view.js",
+  "expresion": "loginTimeStr",
+  "motivo": "Hora o fecha formateada con toLocaleTimeString/toLocaleDateString/toLocaleString, o literal constante"
+ },
+ {
+  "archivo": "src/domain/analytics/monitoring-view.js",
+  "expresion": "notDoneCount",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "src/domain/analytics/monitoring-view.js",
+  "expresion": "notDonePct",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "src/domain/analytics/monitoring-view.js",
+  "expresion": "observationText",
+  "motivo": "Ya escapada con escapeHTML en su origen (monitoring-view.js:579)"
+ },
+ {
+  "archivo": "src/domain/analytics/monitoring-view.js",
+  "expresion": "s",
+  "motivo": "Hora o fecha formateada con toLocaleTimeString/toLocaleDateString/toLocaleString, o literal constante"
+ },
+ {
+  "archivo": "src/domain/analytics/monitoring-view.js",
+  "expresion": "tardanza",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo (Math.round)"
+ },
+ {
+  "archivo": "src/domain/analytics/monitoring-view.js",
+  "expresion": "totalPct",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "src/domain/analytics/monitoring-view.js",
+  "expresion": "totalTasks",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "src/domain/announcements/announcement-service.js",
+  "expresion": "encode(key)",
+  "motivo": "encodeInlineHandlerArg (codificado para el argumento de onclick)"
+ },
+ {
+  "archivo": "src/domain/announcements/announcement-service.js",
+  "expresion": "formattedDate",
+  "motivo": "Hora o fecha formateada con toLocaleTimeString/toLocaleDateString/toLocaleString, o literal constante"
+ },
+ {
+  "archivo": "src/domain/announcements/announcement-service.js",
+  "expresion": "new Date(c.readBy[uid].readAt).toLocaleString('es-CO')",
+  "motivo": "Hora o fecha formateada con toLocaleTimeString/toLocaleDateString/toLocaleString, o literal constante"
+ },
+ {
+  "archivo": "src/domain/announcements/announcement-service.js",
+  "expresion": "new Date(r.readAt).toLocaleString('es-CO')",
+  "motivo": "Hora o fecha formateada con toLocaleTimeString/toLocaleDateString/toLocaleString, o literal constante"
+ },
+ {
+  "archivo": "src/domain/announcements/announcement-service.js",
+  "expresion": "readCount",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "src/domain/auth/login-history.js",
+  "expresion": "delay.minutes",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo (minutos de retraso)"
+ },
+ {
+  "archivo": "src/domain/auth/login-history.js",
+  "expresion": "formattedLogin",
+  "motivo": "Fecha formateada o rawLogin pasado por esc()"
+ },
+ {
+  "archivo": "src/domain/tasks/schedule-sheet.js",
+  "expresion": "dateParsed",
+  "motivo": "Fecha formateada por formatExcelDate (serial o ISO → \"d Mes\")"
+ },
+ {
+  "archivo": "src/domain/tasks/schedule-sheet.js",
+  "expresion": "subText",
+  "motivo": "Fragmento HTML construido a partir de dateParsed (fecha formateada)"
+ },
+ {
+  "archivo": "src/domain/users/gestor-config.js",
+  "expresion": "email",
+  "motivo": "Ya escapada en su origen (escapeHTML o encodeInlineHandlerArg) antes de llegar a la plantilla"
+ },
+ {
+  "archivo": "src/domain/users/gestor-config.js",
+  "expresion": "name",
+  "motivo": "Ya escapada en su origen (escapeHTML o encodeInlineHandlerArg) antes de llegar a la plantilla"
+ },
+ {
+  "archivo": "src/domain/users/gestor-config.js",
+  "expresion": "role",
+  "motivo": "Ya escapada en su origen (escapeHTML o encodeInlineHandlerArg) antes de llegar a la plantilla"
+ },
+ {
+  "archivo": "src/domain/users/gestor-config.js",
+  "expresion": "uidArg",
+  "motivo": "encodeInlineHandlerArg dentro de decodeURIComponent (argumento de onclick)"
+ },
+ {
+  "archivo": "src/domain/users/gestor-config.js",
+  "expresion": "uidAttr",
+  "motivo": "Ya escapada en su origen (escapeHTML o encodeInlineHandlerArg) antes de llegar a la plantilla"
+ },
+ {
+  "archivo": "src/ui/components/multi-select.js",
+  "expresion": "containerId",
+  "motivo": "Id de contenedor fijado por el código (literales en los controladores), no por datos del usuario"
+ },
+ {
+  "archivo": "src/ui/components/pending-users-table.js",
+  "expresion": "USER_REJECTED_ACTIONS_PREFIX",
+  "motivo": "Constante de presentación definida en el módulo (CSS o literal fijo)"
+ },
+ {
+  "archivo": "src/ui/components/pending-users-table.js",
+  "expresion": "role",
+  "motivo": "Ya escapada en su origen (escapeHTML o encodeInlineHandlerArg) antes de llegar a la plantilla"
+ },
+ {
+  "archivo": "src/ui/views/incidents-view.js",
+  "expresion": "dateStr",
+  "motivo": "Hora o fecha formateada con toLocaleTimeString/toLocaleDateString/toLocaleString, o literal constante"
+ },
+ {
+  "archivo": "src/ui/views/kpi-indicators-view.js",
+  "expresion": "bgLight",
+  "motivo": "Constante de presentación definida en el módulo (CSS o literal fijo)"
+ },
+ {
+  "archivo": "src/ui/views/kpi-indicators-view.js",
+  "expresion": "eTime",
+  "motivo": "Hora formateada o literal constante de estado (\"No regresó\", \"En Pausa\")"
+ },
+ {
+  "archivo": "src/ui/views/kpi-indicators-view.js",
+  "expresion": "horaF",
+  "motivo": "Ya escapada en su origen (escapeHTML o encodeInlineHandlerArg) antes de llegar a la plantilla o literal constante de estado"
+ },
+ {
+  "archivo": "src/ui/views/kpi-indicators-view.js",
+  "expresion": "horaI",
+  "motivo": "Ya escapada en su origen (escapeHTML o encodeInlineHandlerArg) antes de llegar a la plantilla o fecha formateada"
+ },
+ {
+  "archivo": "src/ui/views/kpi-indicators-view.js",
+  "expresion": "periodoText",
+  "motivo": "Mapeo fijo de literales (Hoy/Ayer/Últimos 7 días…)"
+ },
+ {
+  "archivo": "src/ui/views/kpi-indicators-view.js",
+  "expresion": "s",
+  "motivo": "Hora o fecha formateada con toLocaleTimeString/toLocaleDateString/toLocaleString, o literal constante"
+ },
+ {
+  "archivo": "src/ui/views/kpi-indicators-view.js",
+  "expresion": "shiftDateStr",
+  "motivo": "Hora o fecha formateada con toLocaleTimeString/toLocaleDateString/toLocaleString, o literal constante"
+ },
+ {
+  "archivo": "src/ui/views/operativo-analysis-view.js",
+  "expresion": "((totalAprobados/totalProcesados)*100).toFixed(1)",
+  "motivo": "Porcentaje numérico con toFixed(1)"
+ },
+ {
+  "archivo": "src/ui/views/operativo-analysis-view.js",
+  "expresion": "slowest[1].artPromedio.toFixed(2)",
+  "motivo": "Promedio numérico con toFixed(2)"
+ },
+ {
+  "archivo": "src/ui/views/operativo-analysis-view.js",
+  "expresion": "sortedByART[0][1].artPromedio.toFixed(2)",
+  "motivo": "Promedio numérico con toFixed(2)"
+ },
+ {
+  "archivo": "src/ui/views/operativo-analysis-view.js",
+  "expresion": "sortedByART[1][1].artPromedio.toFixed(2)",
+  "motivo": "Promedio numérico con toFixed(2)"
+ },
+ {
+  "archivo": "src/ui/views/operativo-analysis-view.js",
+  "expresion": "sortedByVol[0][1].procesados",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "src/ui/views/operativo-analysis-view.js",
+  "expresion": "sortedByVol[1][1].procesados",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "src/ui/views/operativo-analysis-view.js",
+  "expresion": "stats.aprobados",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "src/ui/views/operativo-analysis-view.js",
+  "expresion": "stats.artPromedio.toFixed(2)",
+  "motivo": "Promedio numérico con toFixed(2)"
+ },
+ {
+  "archivo": "src/ui/views/operativo-analysis-view.js",
+  "expresion": "stats.procesados",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "src/ui/views/operativo-analysis-view.js",
+  "expresion": "stats.rechazados",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "src/ui/views/operativo-analysis-view.js",
+  "expresion": "tasaAprobacion",
+  "motivo": "Porcentaje numérico con toFixed(1)"
+ },
+ {
+  "archivo": "src/ui/views/operativo-analysis-view.js",
+  "expresion": "tasaRechazo",
+  "motivo": "Porcentaje numérico con toFixed(1)"
+ },
+ {
+  "archivo": "src/ui/views/operativo-analysis-view.js",
+  "expresion": "totalProcesados",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "src/ui/views/operativo-table-view.js",
+  "expresion": "d.Porcentaje_Rechazos",
+  "motivo": "Número calculado en metrics-calculator.js:155"
+ },
+ {
+  "archivo": "src/ui/views/operativo-table-view.js",
+  "expresion": "d.Retiros_Aprobados",
+  "motivo": "Número calculado en metrics-calculator.js"
+ },
+ {
+  "archivo": "src/ui/views/operativo-table-view.js",
+  "expresion": "d.Retiros_Procesados",
+  "motivo": "Número calculado en metrics-calculator.js"
+ },
+ {
+  "archivo": "src/ui/views/operativo-table-view.js",
+  "expresion": "d.Retiros_Rechazados",
+  "motivo": "Número calculado en metrics-calculator.js"
+ },
+ {
+  "archivo": "src/ui/views/operativo-table-view.js",
+  "expresion": "d.Tasa_Aprobacion_Dia",
+  "motivo": "Número calculado en metrics-calculator.js"
+ },
+ {
+  "archivo": "src/ui/views/permission-history-view.js",
+  "expresion": "bg",
+  "motivo": "Constante de presentación definida en el módulo (CSS o literal fijo)"
+ },
+ {
+  "archivo": "src/ui/views/shift-reports-view.js",
+  "expresion": "bitacoraContent",
+  "motivo": "Cada línea pasa por escapeHTML antes de unirse con <br>"
+ },
+ {
+  "archivo": "src/ui/views/shift-reports-view.js",
+  "expresion": "formattedReportText",
+  "motivo": "formatReportTextHtml escapa el texto antes de resaltar"
+ },
+ {
+  "archivo": "src/ui/views/shift-reports-view.js",
+  "expresion": "generatedOn",
+  "motivo": "Hora o fecha formateada con toLocaleTimeString/toLocaleDateString/toLocaleString, o literal constante"
+ },
+ {
+  "archivo": "src/ui/views/shift-reports-view.js",
+  "expresion": "safeReport",
+  "motivo": "formatReportTextHtml y buildBitacoraDetailsHtml escapan el texto del reporte"
+ },
+ {
+  "archivo": "src/ui/views/task-tree-view.js",
+  "expresion": "completedPercentage",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "src/ui/views/task-tree-view.js",
+  "expresion": "completedTasks",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "src/ui/views/task-tree-view.js",
+  "expresion": "encodeArg(task.id)",
+  "motivo": "encodeInlineHandlerArg (argumento de onclick)"
+ },
+ {
+  "archivo": "src/ui/views/task-tree-view.js",
+  "expresion": "notDonePercentage",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "src/ui/views/task-tree-view.js",
+  "expresion": "notDoneTasks",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "src/ui/views/task-tree-view.js",
+  "expresion": "pending",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "src/ui/views/task-tree-view.js",
+  "expresion": "total",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "src/ui/views/task-tree-view.js",
+  "expresion": "totalPercentage",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "src/ui/views/task-tree-view.js",
+  "expresion": "totalTasks",
+  "motivo": "Contador o porcentaje numérico calculado en el propio módulo"
+ },
+ {
+  "archivo": "src/utils/sanitization.js",
+  "expresion": "attributes",
+  "motivo": "Atributos serializados por serializeAttribute del propio sanitizador (cleanTag de allowlist)"
+ }
+]

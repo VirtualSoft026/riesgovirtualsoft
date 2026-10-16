@@ -1,0 +1,125 @@
+LOG — Fase 3, paso 3.0 — 2026-10-15T22:08Z (entorno: Linux, v22.22.2, esbuild 0.28.2, typescript 5.6.3)
+
+== 1. Compuerta: esbuild src/app/bootstrap.js
+
+  build/dist/riskops.app.js  19.5kb
+
+⚡ Done in 6ms
+APP_BUNDLE_OK build/dist/riskops.app.js (8 módulos)
+
+== 2. Bundle actual (riskops.bundle.js) sigue compilando y verificando
+BUNDLE_OK build/dist/riskops.bundle.js (117 módulos)
+Espacios de nombres: 111 (entry.js + 5 entry-*.js)
+BUNDLE_VERIFY=PASS (71 comprobaciones, 469.7 KB)
+
+== 3. Suites unitarias de src/tests (sin e2e ni helpers)
+src/tests/app/session.test.mjs :: sesión y rol desde users/{uid} + bootstrap (paso 3.0): 17 passed, 0 failed.
+src/tests/config/doc-links.test.mjs :: doc-links: 12 passed, 0 failed.
+src/tests/controllers/announcements-controller.test.mjs :: announcements-controller (comunicados con base y DOM simulados): 37 passed, 0 failed.
+src/tests/controllers/app-router.test.mjs :: app-router (navegación por rol: diferencial vs setupSidebar, alignAdministrativeControlsByRole, updateNavigation): 9 passed, 0 failed.
+src/tests/controllers/approvals-controller.test.mjs :: approvals-controller.js (diferencial vs app.js 3975-4448 + opciones propias): 84 passed, 0 failed.
+src/tests/controllers/approvals-decisiones.test.mjs :: approvals-controller.js (decisiones D2, D7 y D9a por defecto): 27 passed, 0 failed.
+src/tests/controllers/config-gestores-controller.test.mjs :: config-gestores-controller (interruptor de Pausa de Turno con base y DOM simulados): 13 passed, 0 failed.
+src/tests/controllers/idle-state-controller.test.mjs :: idle-state-controller — resolveIdleStateChange / resolveActivityUpdate: 17 passed, 0 failed.
+src/tests/controllers/incidents-controller.test.mjs :: incidents-controller (novedades con base y DOM simulados): 9 passed, 0 failed.
+src/tests/controllers/kpi-controller.test.mjs :: kpi-controller (orquestación de KPIs y Control Operativo): 23 passed, 0 failed.
+src/tests/controllers/login-history-controller.test.mjs :: login-history-controller (modal de accesos con base y DOM simulados): 6 passed, 0 failed.
+src/tests/controllers/monitoring-controller.test.mjs :: monitoring-controller (listener, tarjetas, bitácora, detalle y desplegable de gestores): 13 passed, 0 failed.
+src/tests/controllers/profile-notifications-controller.test.mjs :: profile-controller / notifications-controller (perfil, contraseña y notificaciones): 9 passed, 0 failed.
+src/tests/controllers/shift-activity-controller.test.mjs :: shift-activity-controller.js: 20 passed, 0 failed.
+src/tests/controllers/shift-controller.test.mjs :: shift-controller.js (RN-1..RN-4, deuda 2/4/5): 21 passed, 0 failed.
+src/tests/controllers/shift-reports-controller.test.mjs :: shift-reports-controller (historial de turnos: carga, filtros, modal y PDF): 10 passed, 0 failed.
+src/tests/controllers/task-controller.test.mjs :: task-controller.js (recuperación, latido, guardado, selección, arranque; diferencial vs app.js): 18 passed, 0 failed.
+src/tests/controllers/task-loaders-controller.test.mjs :: task-loaders-controller.js (loadExcelTasks, loadSchedule, loadTeletrabajo, loadPermisos, detalle de permiso; diferencial vs app.js): 8 passed, 0 failed.
+src/tests/domain/active-session-payload.test.mjs :: active-session-payload (latido: estado y campos de la Pausa de Turno): 6 passed, 0 failed.
+src/tests/domain/active-session-status.test.mjs :: active-session-status.js (bug: Pausa de Turno invisible al supervisor): 6 passed, 0 failed.
+src/tests/domain/active-supervisors.test.mjs :: active-supervisors (insignia de supervisor activo; diferencial vs app.js 8329-8396): 10 passed, 0 failed.
+src/tests/domain/announcement-capabilities.test.mjs :: announcement-capabilities: 22 passed, 0 failed.
+src/tests/domain/announcement-service.test.mjs :: announcement-service (comunicados: lógica pura, diferencial vs app.js 6555-6965): 29 passed, 0 failed.
+src/tests/domain/approval-policy.test.mjs :: approval-policy.js (política de aprobaciones + contraste con database.rules.json): 43 passed, 0 failed.
+src/tests/domain/auth-service.test.mjs :: auth-service / notification-rules (política de navegación, controles administrativos, contraseña, notificaciones): 16 passed, 0 failed.
+src/tests/domain/break-state-ownership.test.mjs :: break-state-ownership (estado de pausas por usuario): 10 passed, 0 failed.
+src/tests/domain/break-state-timeline-coherence.test.mjs :: break-state-timeline-coherence: 15 passed, 0 failed.
+src/tests/domain/break-transitions.test.mjs :: break-transitions.js: 22 passed, 0 failed.
+src/tests/domain/extra-task.test.mjs :: extra-task.js + exception-justification.js (diferencial vs app.js 4001-4109): 11 passed, 0 failed.
+src/tests/domain/firebase-approvals-repository.test.mjs :: firebase-approvals-repository.js (rutas y payloads de app.js 4115-4441): 12 passed, 0 failed.
+src/tests/domain/firebase-shift-repository.test.mjs :: firebase-shift-repository.js + end-shift-button.js: 9 passed, 0 failed.
+src/tests/domain/gestor-config.test.mjs :: gestor-config (configuración de gestores y flag hasSplitShift; diferencial vs app.js 6757-6834): 14 passed, 0 failed.
+src/tests/domain/historial-repositories.test.mjs :: repositorios Firebase del corte historial/navegación (base inyectada, sin red): 7 passed, 0 failed.
+src/tests/domain/incident-service.test.mjs :: incident-service + incidents-view (novedades; diferencial vs app.js 8724-8815): 9 passed, 0 failed.
+src/tests/domain/kpi-data-sources.test.mjs :: kpi-data-sources (JSON operativo y lecturas de Firebase): 12 passed, 0 failed.
+src/tests/domain/kpi-metrics-calculator.test.mjs :: metrics-calculator (KPIs y Control Operativo): 32 passed, 0 failed.
+src/tests/domain/kpi-operativo-analysis.test.mjs :: operativo-analysis (Análisis Textual del Control Operativo): 18 passed, 0 failed.
+src/tests/domain/kpi-service.test.mjs :: kpi-service (fusión de reportes, gestores de KPIs, retiros): 20 passed, 0 failed.
+src/tests/domain/kpi-supervisor-directory.test.mjs :: supervisor-directory (D9b: supervisores por rol en users, sin lista fija): 6 passed, 0 failed.
+src/tests/domain/login-history.test.mjs :: login-history (historial de accesos; diferencial vs app.js 8402-8628): 13 passed, 0 failed.
+src/tests/domain/monitoring-view.test.mjs :: monitoring-view (tarjetas de Monitoreo: filtros, estado, retraso, tareas, bitácora y detalle): 16 passed, 0 failed.
+src/tests/domain/permission-service.test.mjs :: permission-service.js (diferencial vs app.js 4267-4448): 12 passed, 0 failed.
+src/tests/domain/presence-and-counter.test.mjs :: presence-service + approved-counter (base simulada con transacciones y desconexiones; diferencial vs app.js 8654-8721): 20 passed, 0 failed.
+src/tests/domain/schedule-parser.test.mjs :: schedule-parser.js: 11 passed, 0 failed.
+src/tests/domain/schedules/cronogram-parser.test.mjs :: cronogram-parser: 27 passed, 0 failed.
+src/tests/domain/schedules/cronogram-preload-assignments.test.mjs :: cronogram-parser — preloadCronograma / loadCronogramaAssignments: 0 passed, 0 failed.
+src/tests/domain/schedules/schedule-service.test.mjs :: schedule-service: 16 passed, 0 failed.
+src/tests/domain/shift-closure-calculations.test.mjs :: shift-closure-calculations (diferencial vs app.js): 8 passed, 0 failed.
+src/tests/domain/shift-closure-rules.test.mjs :: shift-closure-rules.js: 11 passed, 0 failed.
+src/tests/domain/shift-closure-times-split.test.mjs :: shift-closure-times-split (RN: la pausa no es tiempo trabajado): 12 passed, 0 failed.
+src/tests/domain/shift-effective-hours-split.test.mjs :: shift-effective-hours-split (Pausa de Turno no es tiempo trabajado): 7 passed, 0 failed.
+src/tests/domain/shift-effective-time-d1.test.mjs :: shift-effective-time-d1 (fórmula única de horas efectivas: correo = panel): 18 passed, 0 failed.
+src/tests/domain/shift-report-builder.test.mjs :: shift-report-builder.js: 10 passed, 0 failed.
+src/tests/domain/shift-report-view.test.mjs :: shift-report-view (filtros, bitácora, PDF y tiempo efectivo del panel de reportes): 16 passed, 0 failed.
+src/tests/domain/split-shift-policy.test.mjs :: split-shift-policy (RN-1..RN-3): 8 passed, 0 failed.
+src/tests/domain/task-catalog-main-sync.test.mjs :: W-26 ids estables y purga de huérfanas en Firebase (diferencial vs main): 5 passed, 0 failed.
+src/tests/domain/task-pure-rules.test.mjs :: reglas puras de tareas (reloj, progreso, latido, recuperación, guardado, selección, catálogo; diferencial vs app.js): 23 passed, 0 failed.
+src/tests/domain/task-reconciler.test.mjs :: task-reconciler: 27 passed, 0 failed.
+src/tests/domain/task-report.test.mjs :: task-report: 35 passed, 0 failed.
+src/tests/domain/task-repository.test.mjs :: firebase-task-repository.js (persistencia de tareas del gestor; diferencial vs app.js): 21 passed, 0 failed.
+src/tests/domain/timeline-service.test.mjs :: timeline-service — pushTimelineEvent / cleanupStoredTimeline / consolidateTimeline: 30 passed, 0 failed.
+src/tests/domain/user-approval-list.test.mjs :: user-approval-list.js (diferencial vs app.js 4111-4219): 12 passed, 0 failed.
+src/tests/domain/withdrawal-metrics.test.mjs :: withdrawal-metrics — calculateEffectiveApprovalTime: 20 passed, 0 failed.
+src/tests/services/browser/idle-detector-adapter.test.mjs :: idle-detector-adapter: 15 passed, 0 failed.
+src/tests/services/external/formsubmit-notification-adapter.test.mjs :: formsubmit-notification-adapter: 9 passed, 0 failed.
+src/tests/services/local-session-storage.test.mjs :: local-session-storage — save / load / timeline / migrate: 23 passed, 0 failed.
+src/tests/services/xlsx-schedule-adapter.test.mjs :: xlsx-schedule-adapter — fetchScheduleWorkbook / findGestorShiftForDate: 12 passed, 0 failed.
+src/tests/ui/approvals-components.test.mjs :: componentes de aprobaciones (HTML idéntico al de app.js 4111-4448 + cajas, modales y avisos + decisiones D2/D7/D9a): 29 passed, 0 failed.
+src/tests/ui/break-button.test.mjs :: break-button.js (puerto 1:1 de los estilos de app.js): 9 passed, 0 failed.
+src/tests/ui/components/multi-select.test.mjs :: multi-select: 13 passed, 0 failed.
+src/tests/ui/kpi-chart-configs.test.mjs :: operativo-chart-configs (gráficas del Control Operativo): 19 passed, 0 failed.
+src/tests/ui/shift-reports-view.test.mjs :: shift-reports-view (HTML de la tabla, el modal "Ver Todo" y el PDF del historial de turnos): 7 passed, 0 failed.
+src/tests/ui/task-views.test.mjs :: vistas de tareas y permisos (árbol, KPI, documentos rápidos, notificaciones; diferencial vs app.js): 12 passed, 0 failed.
+src/tests/utils/constants.test.mjs :: constants.js: 6 passed, 0 failed.
+src/tests/utils/date-time.test.mjs :: date-time.js: 15 passed, 0 failed.
+src/tests/utils/excel.test.mjs :: excel.js: 13 passed, 0 failed.
+src/tests/utils/normalize.test.mjs :: normalize.js: 14 passed, 0 failed.
+src/tests/utils/result.test.mjs :: result.js: 5 passed, 0 failed.
+src/tests/utils/sanitization.test.mjs :: sanitization.js: 14 passed, 0 failed.
+src/tests/utils/validation.test.mjs :: validation.js: 7 passed, 0 failed.
+
+== 4. Pruebas nuevas del paso 3.0 (detalle)
+  [PASS] validateUserProfile: acepta solo approved === true y roles del catálogo
+  [PASS] mergeSessionProfile: identidad y permisos del servidor; del caché solo datos de la sesión en curso
+  [PASS] isSameLocalDay y política móvil
+  [PASS] perfil aprobado: onReady con el rol del SERVIDOR aunque localStorage diga Admin (CF-4.1, CF-4.3)
+  [PASS] cambio de rol en el servidor: onProfileChange; hasSplitShift solo para Gestor, con el valor inicial
+  [PASS] initApp: aplica navegación y bloqueo móvil con el rol del servidor; shutdown limpia
+  [PASS] sin sesión local: va a login.html sin escuchar auth (app.js 119-121)
+  [PASS] caché corrupto se trata como sin sesión
+  [PASS] Gestor con sesión de otro día: limpia todas las claves de sesión y vuelve al login (app.js 672-687)
+  [PASS] Supervisor con loginTime de otro día NO se expulsa por fecha (solo aplica a Gestor)
+  [PASS] sin usuario de Firebase Auth: cierra la sesión aunque exista caché local
+  [PASS] uid de Auth distinto al del caché: cierra la sesión
+  [PASS] rechazado DURANTE la sesión: se expulsa, signOut y se borran las claves (CF-4.1, CF-4.4)
+  [PASS] error de lectura del perfil: cierra la sesión (sin rol verificable no hay acceso)
+  [PASS] logout y shutdown: quitan los listeners; el cierre ocurre una sola vez
+  [PASS] initApp: sin sesión local redirige a login.html
+  [PASS] perfil borrado, pendiente o con rol inválido: no arranca la app
+sesión y rol desde users/{uid} + bootstrap (paso 3.0): 17 passed, 0 failed.
+  [PASS] assignMasterRowIds: mismos ids que main en 500 maestros aleatorios (con choques y filas repetidas)
+  [PASS] assignMasterRowIds: el id no depende de la posición de la fila (insertar o reordenar no deja huérfano el progreso)
+  [PASS] reconcileGestorTaskCache: purga e ids purgados iguales a main; las extra_ nunca se purgan
+  [PASS] removeActiveSessionTasks: una sola escritura multirruta con null por cada tarea purgada
+  [PASS] removeActiveSessionTasks: sin uid o sin ids no escribe nada; un error de Firebase se propaga
+W-26 ids estables y purga de huérfanas en Firebase (diferencial vs main): 5 passed, 0 failed.
+
+== 5. tsc --checkJs (modo no estricto) sobre src/ sin tests
+errores totales: 148 (línea base 2026-10-15: 159)
+errores en archivos tocados por el paso 3.0: 0

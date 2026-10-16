@@ -1,0 +1,73 @@
+Log — Fase 3, paso 3.3: detector de inactividad, W-24 y W-25 (2026-10-16)
+Rama: backup/fase2-refactor-2026-10-03 (sin commit, push, merge ni rebase)
+Informe: 2026-10-16-informe-fase3-paso-3-3.md
+
+== 0. Punto de partida
+- app.js de referencia (fin del paso 3.2): 2187 líneas. Copia de trabajo guardada antes del cambio: app.pre-33.js.
+- Copias de respaldo del paso (carpeta de trabajo, no entregadas): app.pre-33.js, idle-detector-adapter.js, entry.js, idle-detector-adapter.test.mjs, split-shift-flag.unit.cjs.
+- Fuera de alcance: presence-service.js (congelado, D6); rama shift_break (intocable).
+
+== 1. Adaptador de inactividad (W-24)
+- src/services/browser/idle-detector-adapter.js: se agregan IDLE_ACTIVITY_DOCUMENT_EVENTS (mousemove, keydown, click, scroll, visibilitychange), IDLE_ACTIVITY_WINDOW_EVENTS (focus), DOM_IDLE_POLL_MS = 1000 y bindIdleActivityListeners({doc, win, onActivity, onDomFallback, pollMs, setIntervalFn, clearIntervalFn}).
+- bindIdleActivityListeners registra los escuchas, crea el sondeo y devuelve el desenlace. El sondeo llama a onDomFallback solo si shouldApplyDomIdleFallback() lo permite. Lanza TypeError si onActivity no es función.
+- Pruebas: idle-detector-adapter.test.mjs pasa de 15 a 23 pruebas (8 nuevas).
+
+== 2. Banner de inactividad (W-24)
+- src/ui/components/idle-warning.js (nuevo): setIdleDetectorWarning(doc, visible, message = ''). Escribe el texto si llega y muestra u oculta #idleDetectorWarning (flex/none).
+- src/tests/ui/idle-warning.test.mjs (nuevo): 6/6.
+
+== 3. Entrada del bundle
+- src/entry.js: export * as idleWarningView from './ui/components/idle-warning.js'.
+
+== 4. app.js conectado al adaptador (W-24)
+- Retirados: idleDetectorStartPromise, activeIdleDetector, screenLockTimer, setIdleDetectorWarning, checkAndStartIdleDetector, requestIdlePermission, startIdleDetectorLogic, shouldApplyDomIdleFallback, y los escuchas y el intervalo antiguos (líneas 655-663).
+- Nuevo cableado: applyIdleStateChange (→ __shiftActivityController().onIdleChange), RiskOps.idleDetector.initIdleDetector({onIdleChange, onWarning, getLastActivityTimestamp}), window.requestIdlePermissionManual (con las mismas alertas), updateActivity (→ onActivity), bindIdleActivityListeners (→ onDomFallback), y __labIdleActivityUnbind.
+- deps.idle.domFallback usa RiskOps.idleDetector.shouldApplyDomIdleFallback(nowMs).
+- Resultado: app.js 2069 líneas en esta fase (2187 al inicio); node --check OK.
+- Bundle: node build/build.mjs → BUNDLE_OK, 126 módulos. node build/verify-bundle.mjs → PASS, 71 comprobaciones. build/dist/riskops.bundle.js copiado a riskops.bundle.js (idénticos).
+
+== 5. Arnés del plan manual (W-24, W-25): src/tests/e2e/inactividad-integrado.e2e.cjs (nuevo)
+- 11 escenarios (P1 a P11) del bloque de inactividad de app.js dentro de un vm con reloj falso, IdleDetector falso, Permissions API falsa, documento y base de datos falsos.
+- Paridad contra fase_2/lab/referencia/app.pre-paso-3-3-inactividad.js (copia de app.pre-33.js).
+- Primera corrida: 0/22, por fallas del arnés y no del código:
+  a) el prelude declaraba `let shiftTimeline`, que el bloque de app.js ya declara → quitado del prelude.
+  b) currentUser se leía como ctx.currentUser; es una variable de script → se lee con vm.runInContext('currentUser.status', ctx).
+  c) la línea de tiempo guarda intervalos {type, start, end}; la expectativa de start/end se cambió a intervalo cerrado/abierto (P1: cerrado; P8: abierto).
+  d) P8: el bloqueo corto de 5 s se cancela y el bloqueo de 11 s escribe una sola vez ['Inactivo'] (no hay restauración porque el escenario termina bloqueado).
+  e) comillas simples dentro de la cadena del arnés → escapadas (error de sintaxis, corregido).
+- Corrida final: 22/22. Paridad con el app.js previo: 11/11 sin diferencias.
+
+== 6. Arnés split-shift-flag (W-25 y paso 3.2)
+- src/tests/e2e/split-shift-flag.unit.cjs: se quita fn('function shouldApplyDomIdleFallback(') porque la función ya no está en app.js. Se conservan updateActivity y el bloque STATE_BLOCK.
+- Corrida: 23/23, brechas abiertas 0.
+
+== 7. Suite de laboratorio: registro del arnés nuevo
+- fase_2/lab/suite/suite-pruebas.mjs: se agrega inactividad-integrado.e2e.cjs (integrado, --riskops, --original fase_2/lab/referencia/app.pre-paso-3-3-inactividad.js) antes de comunicados-integrado.
+- Primera corrida de la suite: 1 archivo con fallas: tareas-integrado.e2e.cjs (236 pasan, 2 fallan): S7 «latido: respaldo por DOM (sin IdleDetector) marca Inactivo» y su paridad.
+  Causa: app.js ya no llama a la función global shouldApplyDomIdleFallback; el latido llama a RiskOps.idleDetector.shouldApplyDomIdleFallback. El arnés alimentaba solo el stub antiguo.
+  Corrección del arnés (no del código): en el escenario domIdle, con el puente cargado, el arnés pone document.visibilityState = 'visible', document.hasFocus = () => true e inicializa RiskOps.idleDetector.initIdleDetector({getLastActivityTimestamp: () => 0, autoStart: false}). El stub se conserva para el original, que sí lo usa.
+  Corrida tras la corrección: 238/238, paridad con el original incluida.
+
+== 8. Verificación final (2026-10-16, tras las correcciones)
+- node src/tests/services/browser/idle-detector-adapter.test.mjs → 23 pasan, 0 fallan.
+- node src/tests/ui/idle-warning.test.mjs → 6 pasan, 0 fallan.
+- node build/build.mjs → BUNDLE_OK, 126 módulos. node build/verify-bundle.mjs → PASS, 71/71.
+- RISKOPS_LAB_ROOT=/home/claude/repro/lab-root node fase_2/lab/suite/suite-pruebas.mjs → TODO EN VERDE.
+  Bundle 71/71 · Unitarias 86 archivos, 1398 pruebas · Integración 1 · E2E 13 archivos, 646 pruebas · Motor 4/4 · Intentos de red bloqueados: 0.
+  Log: lab-root/pruebas/resultado-2026-10-16-17-44-52.txt.
+- E2E por archivo: split-shift-flag 23, cierre-horas-efectivas 19, cierre-turno-integrado 40, monitoreo-render 7, tareas-integrado 238, modales-permisos-integrado 80, historial-navegacion-integrado 51, kpis-integrado 22, kpi-calculo-diferencial 91, inactividad-integrado 22 (nuevo), comunicados-integrado 18, turno-avance-panel-horas-efectivas 9, parche-pausa-turno 26.
+
+== 9. W-25 (DE-11): un solo controlador de inactividad
+- Se queda shift-activity-controller.js (conectado en app.js).
+- idle-state-controller.js: sin importaciones en src/ ni en entry*.js. Solo lo importa su propia prueba (src/tests/controllers/idle-state-controller.test.mjs). Su lógica queda cubierta por shift-activity-controller (verificación 1:1 de 2026-10-13).
+- Copia en fase_2/src/controllers/idle-state-controller.js (árbol anterior, distinto del de src/, no usado por la suite). Pendiente de decisión del responsable.
+- Baja pendiente por el responsable: esta sesión no puede borrar archivos. La suite sigue ejecutando la prueba del huérfano hasta que se borre.
+
+== 10. Plan del paso
+- plan-fase-3.md: W-24 y W-25 marcados como hechos en el espacio de trabajo; avance del paso 3.3 actualizado; nota de avance del paso 3.3 agregada.
+
+== 11. Lo que no se hizo
+- No hubo commit, push, merge ni rebase.
+- No se ejecutó el plan manual en un navegador real (requiere Firebase y una sesión de Gestor): pendiente del responsable (informe, sección 5).
+- No se borró ningún archivo. No se tocaron presence-service.js ni la rama shift_break.
+- El desmontaje real de los escuchas y del temporizador del detector queda para el paso 3.6.

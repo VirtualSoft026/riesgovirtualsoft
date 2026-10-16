@@ -68,7 +68,8 @@ function fn(src, header) {
 }
 /** @param {string[]|null} oraculo lista que sustituye a SUPERVISORES_NOMBRES (solo en el original); null = la real. */
 function codeFor(src, oraculo = null) {
-    const supervisores = between(src, 'const SUPERVISORES_NOMBRES = [', '\n') + '\n';
+    // Monitoreo/KPIs ya no declaran la lista fija (D9b): el integrado no la tiene; solo el original la lleva.
+    const supervisores = src.includes('const SUPERVISORES_NOMBRES = [') ? between(src, 'const SUPERVISORES_NOMBRES = [', '\n') + '\n' : '';
     return [
         oraculo === null ? supervisores : `const SUPERVISORES_NOMBRES = ${JSON.stringify(oraculo)}; // ORÁCULO D9b (prueba)\n`,
         fn(src, 'function escapeHTML(str) {'),
@@ -174,12 +175,16 @@ function calcularIndicadores() { __calc.count += 1; }
 `;
     ctx.__selected = selected; ctx.__setups = setups; ctx.__calc = calc;
     window.kpiUsersData = opts.kpiUsersData ? clone(opts.kpiUsersData) : undefined; // el original lo inicializa con {}
+    // Zombis de gráficas (paso 3.3): el original los declara en app.js; el integrado ya no, y se invocan por el controlador.
+    const CHART_NAMES = ['destroyChart', 'renderControlOperativoCharts', 'drawPunctualDatesChart', 'drawChart', 'drawCombinedChart', 'drawCombinedChartDaily', 'drawScatterMatriz'];
+    const chartApi = mode === 'integrado'
+        ? CHART_NAMES.map((n) => `${n}: (...a) => __kpiController().${n}(...a)`).join(', ')
+        : CHART_NAMES.join(', ');
     vm.runInContext(prelude + codeFor(src, mode === 'integrado' ? null : oraculoSupervisores(opts)) + `
 this.api = {
-    fetchKpiOperativosData, loadRetirosData, loadGestoresForKPIs, openKpiTaskDetails, closeKpiTaskDetails, destroyChart,
+    fetchKpiOperativosData, loadRetirosData, loadGestoresForKPIs, openKpiTaskDetails, closeKpiTaskDetails,
     toggleOperativoCustomDates, generarAnalisisTextual, generarReporteEjecutivoPDF, loadControlOperativoData,
-    renderControlOperativoFiltered, renderControlOperativoCharts, drawPunctualDatesChart, drawChart, drawCombinedChart,
-    drawCombinedChartDaily, drawScatterMatriz, getCharts: () => controlOperativoCharts,
+    renderControlOperativoFiltered, ${chartApi}, getCharts: () => controlOperativoCharts,
     bridgeUsed: () => ${mode === 'integrado' ? '__labKpiController !== null' : 'false'}
 };`, ctx);
     if (opts.kpiUsersData) window.kpiUsersData = clone(opts.kpiUsersData);
@@ -241,26 +246,30 @@ const S = (id, name, setup, run, assertAbsolute, opts = {}) => scenarios.push({ 
 const eq = (actual, expected, msg) => assert.deepStrictEqual(clone(actual), expected, msg); // los objetos del vm son de otro "realm": se comparan por valor
 const asErr = async (f) => { try { await f(); return null; } catch (e) { return e.constructor.name + ': ' + e.message; } };
 
-S('K1', 'fetchKpiOperativosData: producción, localhost con semilla, 127.0.0.1, semilla vacía, sin semilla y semilla que falla', () => [
+S('K1', 'fetchKpiOperativosData en producción: ignora cualquier semilla y falla si el archivo estándar no es OK', () => [
     { hostname: 'riskops.example.com', raw: { A: {} }, seed: { S: {} } },
-    { hostname: 'localhost', raw: { A: {} }, seed: { S: { '2026-10-01': { Retiros_Aprobados: 1 } } } },
-    { hostname: '127.0.0.1', raw: { A: {} }, seed: { S: {} } },
-    { hostname: 'localhost', raw: { A: {} }, seed: {} },
-    { hostname: 'localhost', raw: { A: {} }, seed: null },
-    { hostname: 'localhost', raw: { A: {} }, seedThrows: true },
     { hostname: 'riskops.example.com', raw: { A: {} }, dataFail: true }
 ], async (envs) => {
     const out = [];
     for (const env of envs) { let r; const e = await asErr(async () => { r = await env.api.fetchKpiOperativosData(); }); out.push({ r, e, fetched: env.fetched, logs: env.logs }); }
     return out;
 }, (res) => {
-    assert.deepStrictEqual(res[0].r, { A: {} }, 'producción ignora la semilla');
-    eq(Object.keys(res[1].r), ['S'], 'localhost usa la semilla');
-    assert.deepStrictEqual(res[1].fetched, ['kpi_operativos_seed.json?v=T']);
-    assert.deepStrictEqual(res[3].fetched, ['kpi_operativos_seed.json?v=T', 'kpi_operativos_v2.json?v=T'], 'semilla vacía cae al archivo estándar');
-    assert.ok(res[5].logs.some((l) => l[0] === 'warn'), 'una semilla que falla avisa y sigue');
-    assert.ok(res[6].e.includes('No se pudo cargar kpi_operativos_v2.json'));
+    assert.deepStrictEqual(res[0].r, { A: {} }, 'producción usa el archivo estándar, no la semilla');
+    assert.deepStrictEqual(res[0].fetched, ['kpi_operativos_v2.json?v=T']);
+    assert.ok(res[1].e.includes('No se pudo cargar kpi_operativos_v2.json'));
 }, { bridgeless: true }); // delega directamente en RiskOps.kpiOperativosSource (no usa el controlador)
+
+// W-49 b (INTENCIONAL): el original pedía kpi_operativos_seed.json en localhost; el integrado ya no tiene rama de laboratorio.
+S('K1-LAB', 'fetchKpiOperativosData en localhost: nunca pide la semilla (W-49 b)', () => [
+    { hostname: 'localhost', raw: { A: {} }, seed: { S: { '2026-10-01': { Retiros_Aprobados: 1 } } } }
+], async (envs) => {
+    const out = [];
+    for (const env of envs) { let r; const e = await asErr(async () => { r = await env.api.fetchKpiOperativosData(); }); out.push({ r, e, fetched: env.fetched, logs: env.logs }); }
+    return out;
+}, (res) => {
+    assert.deepStrictEqual(res[0].r, { A: {} }, 'localhost usa el archivo estándar');
+    assert.deepStrictEqual(res[0].fetched, ['kpi_operativos_v2.json?v=T'], 'sin petición a la semilla');
+}, { bridgeless: true, intencional: true });
 
 S('K2', 'loadRetirosData: éxito y error', () => [{ raw: { A: { '2026-10-05': { Retiros_Aprobados: 1 } }, B: {} } }, { raw: {}, dataFail: true }],
     async (envs) => { for (const env of envs) await env.api.loadRetirosData(); },
@@ -291,7 +300,8 @@ S('K4', 'parseTime (cierre de calcularIndicadores): 4000 entradas con semilla + 
         const ctx = { Date: T.makeFixedDate(NOW), Math, parseInt, isNaN, String, Number };
         vm.createContext(ctx);
         if (mode === 'integrado') vm.runInContext(BUNDLE + '\nthis.RiskOps = RiskOps;', ctx);
-        vm.runInContext('function __mk() {\n' + parseTimeSnippet(src) + '\nreturn parseTime; }\nthis.parseTime = __mk();', ctx);
+        if (mode === 'integrado') vm.runInContext('this.parseTime = RiskOps.kpiMetrics.parseTime;', ctx); // el cierre inline se retiró: la fuente es el bundle
+        else vm.runInContext('function __mk() {\n' + parseTimeSnippet(src) + '\nreturn parseTime; }\nthis.parseTime = __mk();', ctx);
         const rng = T.makeRng(7);
         const res = [];
         const meridianos = ['', ' AM', ' PM', ' a. m.', ' p. m.', ' a.m.', ' p.m.', 'am', 'pm', ' P. M.'];
@@ -565,7 +575,13 @@ const record = (ok, name, err) => {
     try {
         const marcados = (INTEGRATED.match(/\[LAB-INTEGRACION\] Puente app\.js -> RiskOps \(corte "kpis"\)/g) || []).length;
         assert.strictEqual(marcados, 1, 'un único puente del corte kpis');
-        const funcs = ['fetchKpiOperativosData', 'loadRetirosData', 'loadGestoresForKPIs', 'openKpiTaskDetails', 'closeKpiTaskDetails', 'destroyChart', 'toggleOperativoCustomDates', 'generarAnalisisTextual', 'generarReporteEjecutivoPDF', 'loadControlOperativoData', 'renderControlOperativoFiltered', 'renderControlOperativoCharts', 'drawPunctualDatesChart', 'drawChart', 'drawCombinedChart', 'drawCombinedChartDaily', 'drawScatterMatriz'];
+        const zombisGraficas = ['destroyChart', 'renderControlOperativoCharts', 'drawPunctualDatesChart', 'drawChart', 'drawCombinedChart', 'drawCombinedChartDaily', 'drawScatterMatriz'];
+        for (const f of zombisGraficas) {
+            assert.ok(!new RegExp('^(async )?function ' + f + '\\(', 'm').test(INTEGRATED), `el zombi ${f} se retiró de app.js (paso 3.3): lo ejecuta el controlador`);
+            assert.ok(new RegExp('(^|[^.\\w])' + f + '\\b', 'm').test(ORIGINAL), `el original sí declara ${f}`);
+        }
+        record(true, `los ${zombisGraficas.length} zombis de gráficas se retiraron de app.js (solo el original los declara)`);
+        const funcs = ['fetchKpiOperativosData', 'loadRetirosData', 'loadGestoresForKPIs', 'openKpiTaskDetails', 'closeKpiTaskDetails', 'toggleOperativoCustomDates', 'generarAnalisisTextual', 'generarReporteEjecutivoPDF', 'loadControlOperativoData', 'renderControlOperativoFiltered'];
         for (const f of funcs) {
             const re = new RegExp('^(async )?function ' + f + '\\(', 'm');
             const m = INTEGRATED.match(re);
@@ -574,14 +590,15 @@ const record = (ok, name, err) => {
             assert.ok(cuerpo.includes('__kpiController()') || cuerpo.includes('RiskOps.'), `la función ${f} delega en RiskOps`);
             assert.ok(!ORIGINAL.slice(ORIGINAL.search(re), ORIGINAL.search(re) + 700).split('\n').slice(0, 3).join('\n').includes('RiskOps'), `el original de ${f} no usa RiskOps`);
         }
-        assert.ok(INTEGRATED.includes('const parseTime = (timeStr, baseDateMs) => RiskOps.kpiMetrics.parseTime(timeStr, baseDateMs);'), 'parseTime delega');
-        record(true, `las ${funcs.length} funciones + parseTime siguen declaradas y delegan en RiskOps (nombre y firma conservados)`);
+        assert.ok(INTEGRATED.includes('async function calcularIndicadores() { return __kpiController().calcularIndicadores(); }'), 'calcularIndicadores delega en el controlador');
+        assert.ok(!INTEGRATED.includes('const parseTime = (timeStr, baseDateMs) => {'), 'el cierre parseTime ya no vive en app.js');
+        record(true, `las ${funcs.length} funciones vivas siguen declaradas y delegan; calcularIndicadores delega; parseTime sale de app.js`);
     } catch (err) { record(false, 'las funciones siguen declaradas y delegan en RiskOps', err); }
 
     try {
         const ctx = vm.createContext({});
         vm.runInContext(BUNDLE + '\nthis.RiskOps = RiskOps;', ctx);
-        const nombres = ['kpiMetrics', 'kpiService', 'kpiOperativoAnalysis', 'kpiExecutiveReport', 'kpiOperativosSource', 'kpiRepository', 'kpiTaskDetails', 'kpiAnalysisView', 'kpiOperativoTableView', 'kpiChartConfigs', 'kpiChartPlan', 'kpiController'];
+        const nombres = ['kpiMetrics', 'kpiService', 'kpiOperativoAnalysis', 'kpiExecutiveReport', 'kpiOperativosSource', 'kpiRepository', 'kpiTaskDetails', 'kpiAnalysisView', 'kpiOperativoTableView', 'kpiChartConfigs', 'kpiChartPlan', 'kpiController', 'kpiIndicators'];
         for (const n of nombres) assert.ok(ctx.RiskOps[n] && Object.keys(ctx.RiskOps[n]).length > 0, `RiskOps.${n}`);
         record(true, `el bundle expone los ${nombres.length} espacios de nombres del corte`);
     } catch (err) { record(false, 'el bundle expone los espacios de nombres del corte', err); }
@@ -594,10 +611,10 @@ const record = (ok, name, err) => {
                 const own = clone(cfg === null ? [] : cfg);
                 const envs = (cfg === null ? [] : (Array.isArray(own) ? own : [own])).map((o) => makeEnv(mode, o));
                 const out = await sc.run(envs);
-                if (typeof sc.assertAbsolute === 'function') {
+                if (typeof sc.assertAbsolute === 'function' && (!sc.intencional || mode === 'integrado')) {
                     try { sc.assertAbsolute(out, envs); } catch (err) { throw new Error(`[${mode}] resultado absoluto: ${err.message}`); }
                 }
-                if (sc.intencional) { await macrotask(); result[mode] = 'intencional'; if (mode === 'integrado' && envs.length) assert.ok(envs.some((e) => e.api.bridgeUsed()), 'el integrado usó el puente RiskOps.kpiController'); continue; }
+                if (sc.intencional) { await macrotask(); result[mode] = 'intencional'; if (mode === 'integrado' && envs.length && !sc.bridgeless) assert.ok(envs.some((e) => e.api.bridgeUsed()), 'el integrado usó el puente RiskOps.kpiController'); continue; }
                 await macrotask();
                 result[mode] = { out: out === undefined ? null : JSON.parse(JSON.stringify(out === undefined ? null : out, (k, v) => (typeof v === 'number' && !Number.isFinite(v) ? String(v) : v))), obs: envs.map(observe), extra: envs.map((e) => [e.__ret === undefined ? 'undef' : 'val', e.__after, e.__over, e.__ms, e.__err, e.__e1, e.__e2]) };
                 if (mode === 'integrado' && envs.length && !sc.bridgeless) assert.ok(envs.some((e) => e.api.bridgeUsed()), 'el integrado usó el puente RiskOps.kpiController');

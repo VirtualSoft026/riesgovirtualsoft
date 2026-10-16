@@ -10,6 +10,7 @@ import {
     buildPermissionHistoryItemHTML, buildPermissionDetailHTML
 } from '../../ui/views/permission-history-view.js';
 import { escapeHTML, encodeInlineHandlerArg } from '../../utils/sanitization.js';
+import { normalizeLegacyHtml } from '../helpers/w50-delegation.mjs';
 import { getDocUrl } from '../../config/doc-links.js';
 import { computeKpiFigures, computeSyncPercentage } from '../../domain/tasks/task-progress.js';
 
@@ -54,7 +55,7 @@ function renderTree(tasksBySet) {
         const childrenClass = shouldAutoExpand ? 'tree-children show' : 'tree-children';
         
         setDiv.innerHTML = `
-            <div class="${headerClass}" onclick="toggleTree(this)">
+            <div class="${headerClass}" data-action="toggle-tree">
                 <i class='bx bx-chevron-right'></i>
                 <span>${escapeHTML(set)}</span>
                 <span class="badge pending">${total} Tareas</span>
@@ -534,7 +535,7 @@ test('renderTree: mismo DOM que app.js (200 escenarios aleatorios: 0..4 Sets, id
         syncCalls = 0;
         newWorkspace(doc, user, JSON.parse(JSON.stringify(cache))).renderTree(tasksBySet);
 
-        assert.deepEqual(snapshotDocument(doc), legacyShot, `escenario ${i}`);
+        assert.deepEqual(snapshotDocument(doc), normalizeLegacyHtml(legacyShot), `escenario ${i}`);
         assert.equal(syncCalls, legacySync);
         assert.equal(doc.created.length, document.created.length);
         if (Object.keys(tasksBySet).length === 1) autoExpanded += 1;
@@ -591,7 +592,7 @@ test('updateKPI: misma tarjeta que app.js para TODAS las combinaciones 0..12 y m
                     syncCalls = 0;
                     newWorkspace(doc, user, {}).updateKPI();
 
-                    assert.deepEqual(snapshotDocument(doc), legacyShot);
+                    assert.deepEqual(snapshotDocument(doc), normalizeLegacyHtml(legacyShot));
                     assert.equal(syncCalls, legacySync);
                     n += 1;
                 }
@@ -678,7 +679,7 @@ test('renderQuickDocs: mismo HTML que app.js sin tarea, con cada palabra clave y
         const doc = createFakeDocument();
         newWorkspace(doc, null, {}).renderQuickDocs(name);
 
-        assert.deepEqual(snapshotDocument(doc), legacyShot, String(name));
+        assert.deepEqual(snapshotDocument(doc), normalizeLegacyHtml(legacyShot), String(name));
         assert.equal(buildQuickDocsHTML(name, getDocUrl), doc.getElementById('quickDocsList').innerHTML);
     });
 
@@ -754,7 +755,7 @@ test('notificaciones de Admin/Supervisor y de Gestor: mismo HTML y no leídos qu
             legacyFn(snapshot, notifList, notifCount);
             const built = builder(exists ? data : null);
 
-            assert.equal(built.html, notifList.innerHTML, `escenario ${i}`);
+            assert.equal(built.html, normalizeLegacyHtml(notifList.innerHTML), `escenario ${i}`);
             assert.equal(built.unreadCount > 0 ? String(built.unreadCount) : '', String(notifCount.textContent));
             assert.equal(built.unreadCount > 0, notifCount.style.display === 'block');
         }
@@ -782,7 +783,7 @@ test('historial de permisos: visibilidad por rol, orden, uid de consulta y HTML 
             const container = { innerHTML: '' };
             legacyHistoryItem(container, p);
 
-            assert.equal(buildPermissionHistoryItemHTML(p), container.innerHTML);
+            assert.equal(buildPermissionHistoryItemHTML(p), normalizeLegacyHtml(container.innerHTML));
         });
     }
 
@@ -819,7 +820,7 @@ test('detalle de permiso: mismo HTML que openPermisoDetailModal (estados, rango 
     variants.forEach((perm, i) => {
         const body = { innerHTML: '' };
         legacyDetailBody(body, perm);
-        assert.equal(buildPermissionDetailHTML(perm), body.innerHTML, `variante ${i}`);
+        assert.equal(buildPermissionDetailHTML(perm), normalizeLegacyHtml(body.innerHTML), `variante ${i}`);
     });
 
     assert.equal(resolvePermissionCreatedText({ horaSolicitud: 'X', id: 5 }), 'X');

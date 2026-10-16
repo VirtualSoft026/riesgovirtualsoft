@@ -21,8 +21,7 @@ export const DATA_FILES = Object.freeze({
     TASK_CATALOG_WORKBOOK: 'Tareas Riesgo/Tareas de Riesgo.xlsx',
     TELEWORK_WORKBOOK: 'Teletrabajo/Teletrabajo.xlsx',
     CRONOGRAM_DIRECTORY: 'Cronograma de Tareas',
-    KPI_HISTORY: 'kpi_operativos_v2.json',
-    KPI_SEED: 'kpi_operativos_seed.json'
+    KPI_HISTORY: 'kpi_operativos_v2.json'
 });
 
 /**

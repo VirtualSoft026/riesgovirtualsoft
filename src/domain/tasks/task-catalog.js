@@ -1,5 +1,5 @@
 /**
- * Lógica pura de `loadExcelTasks()` (app.js 1343-1546): ids del catálogo maestro, filtro por asignaciones
+ * Lógica pura de `loadExcelTasks()` (app.js 1343-1546; ids estables y purga en Firebase según `main`): ids del catálogo maestro, filtro por asignaciones
  * del cronograma, tareas "mock" para asignaciones que no están en el maestro, agrupación por Set,
  * purga/inicialización del caché del Gestor y los textos del selector.
  *
@@ -47,15 +47,43 @@ export function buildTasksLoadErrorHTML(message, escape) {
     return `<div style="padding: 20px; color: var(--danger);"><i class="bx bx-error-circle"></i> Error cargando tareas: ${escape(message)}</div>`;
 }
 
+/** Tamaño del rango de ids de tareas del maestro (0-9999), separado del de tareas sintetizadas (10000-99998). */
+export const MASTER_TASK_ID_RANGE = 10000;
+
 /**
- * Asigna `id = índice` a cada fila del maestro (app.js 1356-1358). Muta las filas, como el original.
+ * Asigna a cada fila del maestro un id ESTABLE derivado de su contenido (Set + Tarea), no de su posición
+ * (W-26: comportamiento de `main`, `loadExcelTasks()`). Un id por posición cambia si alguien inserta, borra
+ * o reordena filas en `Tareas de Riesgo.xlsx` y deja huérfano el progreso ya guardado de las tareas
+ * posteriores al cambio.
+ *
+ * Hash de 32 bits de `set::tarea` en minúsculas, llevado al rango 0-9999; si dos filas chocan, la segunda
+ * avanza (módulo 10000) hasta un id libre. Muta las filas, como el original.
  *
  * @param {Array<Record<string, unknown>>} rows
  * @returns {Array<Record<string, unknown>>} las mismas filas
  */
 export function assignMasterRowIds(rows) {
-    rows.forEach((row, idx) => {
-        row.id = idx;
+    const usedMasterTaskIds = new Set();
+
+    rows.forEach((row) => {
+        const set = row['Set '] || row['Set'] || 'Otros';
+        const taskName = row['Tarea'] || '';
+        const raw = `${String(set).trim().toLowerCase()}::${String(taskName).trim().toLowerCase()}`;
+        let hash = 0;
+
+        for (let i = 0; i < raw.length; i++) {
+            hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+            hash |= 0;
+        }
+
+        let candidate = Math.abs(hash) % MASTER_TASK_ID_RANGE;
+
+        while (usedMasterTaskIds.has(candidate)) {
+            candidate = (candidate + 1) % MASTER_TASK_ID_RANGE;
+        }
+
+        usedMasterTaskIds.add(candidate);
+        row.id = candidate;
     });
 
     return rows;
@@ -68,7 +96,7 @@ export function assignMasterRowIds(rows) {
  * @returns {string}
  */
 export function getRowSet(row) {
-    return row['Set '] || row['Set'] || 'Otros';
+    return /** @type {string} */ (row['Set '] || row['Set'] || 'Otros');
 }
 
 /**
@@ -174,6 +202,7 @@ export function buildGestorTaskRows(masterRows, assignments, { taskNamesMatch, s
  * @returns {{tasksBySet: Record<string, Array<{id: unknown, name: unknown, detail: unknown, time: unknown, day: unknown}>>, allTasks: Array<Record<string, unknown>>}}
  */
 export function groupTasksBySet(processedRows) {
+    /** @type {Record<string, any[]>} */
     const tasksBySet = {};
     const allTasks = [];
 
@@ -205,15 +234,17 @@ export function groupTasksBySet(processedRows) {
 
 /**
  * Purga del caché local las tareas huérfanas y estampa "En Proceso" en las asignadas que no tienen
- * entrada (app.js 1466-1493). MUTA `cache` en el sitio, como el original (otras partes de app.js
- * conservan la referencia).
+ * entrada (`loadExcelTasks()` de `main`). MUTA `cache` en el sitio, como el original (otras partes de
+ * app.js conservan la referencia).
  *
- * Las entradas `extra_*` nunca se purgan. La purga es solo local: no borra nada en Firebase.
+ * Las entradas `extra_*` nunca se purgan. Devuelve los ids purgados para que el llamador borre también
+ * esas entradas en Firebase (`active_sessions/{uid}/tasks`, W-26); sin eso se acumulan para siempre y
+ * vuelven en cada recarga.
  *
  * @param {Record<string, object>} cache caché `taskStateCache`
  * @param {Array<Record<string, unknown>>} processedRows
  * @param {number} now
- * @returns {{hasNewTasksToSync: boolean, cacheWasPurged: boolean}}
+ * @returns {{hasNewTasksToSync: boolean, cacheWasPurged: boolean, purgedTaskIds: string[]}}
  */
 export function reconcileGestorTaskCache(cache, processedRows, now) {
     let hasNewTasksToSync = false;
@@ -221,11 +252,13 @@ export function reconcileGestorTaskCache(cache, processedRows, now) {
 
     // Purgar tareas huérfanas o desactualizadas del caché local (evita que tareas de turnos pasados bloqueen el cierre)
     let cacheWasPurged = false;
+    const purgedTaskIds = [];
 
     for (const cachedId in cache) {
         if (!validAssignedIds.has(cachedId) && !cachedId.startsWith(EXTRA_TASK_KEY_PREFIX)) {
             delete cache[cachedId];
             cacheWasPurged = true;
+            purgedTaskIds.push(cachedId);
         }
     }
 
@@ -244,7 +277,7 @@ export function reconcileGestorTaskCache(cache, processedRows, now) {
         }
     });
 
-    return { hasNewTasksToSync, cacheWasPurged };
+    return { hasNewTasksToSync, cacheWasPurged, purgedTaskIds };
 }
 
 /**
@@ -288,6 +321,7 @@ export function decideSetSelectorView(setsKeys) {
 export function selectTasksForSet(tasksBySet, value) {
     if (value === 'Todos') return tasksBySet;
 
+    /** @type {Record<string, Array<object>>} */
     const filtered = {};
     filtered[value] = tasksBySet[value];
 

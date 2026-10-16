@@ -13,6 +13,7 @@ import {
     selectConfigGestores
 } from '../../domain/users/gestor-config.js';
 import { escapeHTML } from '../../utils/sanitization.js';
+import { normalizeLegacyHtml } from '../helpers/w50-delegation.mjs';
 
 const { test, summarize } = createRunner('gestor-config (configuración de gestores y flag hasSplitShift; diferencial vs app.js 6757-6834)');
 
@@ -65,6 +66,20 @@ function legacyRow(u) {
             `;
 }
 
+/**
+ * W-52: el escape ya no se puede apagar. La paridad con la plantilla original se compara con datos SIN caracteres
+ * especiales; la única diferencia permitida es la forma del argumento del `onchange` (uid codificado, mismo valor) y
+ * que un campo ausente se pinta vacío en vez de "undefined".
+ */
+const SPECIAL_CHARS = /[&<>"']/;
+function legacyComparable(u) {
+    return { ...u, role: u.role ?? '', email: u.email ?? '' };
+}
+/** El original (literal) y la versión delegada se comparan con el normalizador general de manejadores. */
+function delegatedLegacyRow(u) {
+    return normalizeLegacyHtml(legacyRow(legacyComparable(u)));
+}
+
 function makeRng(seed) { let s = seed >>> 0; return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; }
 
 const ENTRIES = [
@@ -114,9 +129,10 @@ test('selectConfigGestores no modifica las entradas de entrada (copias)', () => 
     assert.equal(entries[0].value.uid, undefined);
 });
 
-test('diferencial (escapeUserFields: false explícito): la fila (HTML) es idéntica a app.js para cada caso, incluido el flag (estricto === true)', () => {
+test('diferencial (datos sin caracteres especiales): la fila (HTML) es idéntica a app.js para cada caso, incluido el flag (estricto === true)', () => {
     for (const u of selectConfigGestores(ENTRIES)) {
-        assert.equal(buildGestorConfigRowHtml(u, { escapeUserFields: false }), legacyRow(u));
+        assert.ok(![u.name, u.role, u.email, u.uid].some((v) => SPECIAL_CHARS.test(String(v ?? ''))), 'fixture sin caracteres especiales');
+        assert.equal(buildGestorConfigRowHtml(u), delegatedLegacyRow(u));
     }
     const on = buildGestorConfigRowHtml({ uid: 'x', name: 'N', role: 'Gestor', email: 'e', hasSplitShift: true });
     const off = buildGestorConfigRowHtml({ uid: 'x', name: 'N', role: 'Gestor', email: 'e', hasSplitShift: 'true' });
@@ -125,26 +141,41 @@ test('diferencial (escapeUserFields: false explícito): la fila (HTML) es idént
     assert.equal(GESTOR_ROW_BORDER, '1px solid rgba(255,255,255,0.05)');
 });
 
+test('W-52: un gestor sin correo se pinta con la celda vacía (app.js pintaba "undefined")', () => {
+    const html = buildGestorConfigRowHtml({ uid: 'u5', name: 'Sin correo', role: 'Gestor' });
+    assert.ok(!html.includes('undefined'));
+    assert.ok(legacyRow({ uid: 'u5', name: 'Sin correo', role: 'Gestor' }).includes('>undefined</td>'), 'comportamiento de app.js');
+});
+
+test('W-52: buildGestorConfigRowHtml no acepta opciones para apagar el escape', () => {
+    const evil = { uid: 'u', name: '<img src=x onerror=alert(1)>', role: 'Gestor', email: 'a@v.tech' };
+    for (const options of [undefined, {}, { escapeUserFields: false }]) {
+        assert.ok(!buildGestorConfigRowHtml(evil, /** @type {any} */ (options)).includes('<img'));
+    }
+    assert.equal(buildGestorConfigRowHtml.length, 1, 'un solo parámetro');
+});
+
 test('el interruptor conserva su texto y estilo: toggleGestorSplitShift(uid, this.checked), aria-label y colores', () => {
     const html = buildGestorConfigRowHtml({ uid: 'abc', name: 'Ana', role: 'Gestor', email: 'a@v.tech' });
-    assert.ok(html.includes(`onchange="toggleGestorSplitShift(decodeURIComponent('abc'), this.checked)"`), 'D2: uid codificado (mismo valor para uids alfanuméricos)');
-    assert.ok(buildGestorConfigRowHtml({ uid: 'abc', name: 'Ana', role: 'Gestor', email: 'a@v.tech' }, { escapeUserFields: false }).includes(`onchange="toggleGestorSplitShift('abc', this.checked)"`), 'plantilla original');
+    assert.ok(html.includes(`data-action="toggle-gestor-split-shift" data-uid="abc"`), 'el uid va escapado en data-uid (sin onchange)');
+    assert.ok(!html.includes('onchange'), 'ningún onchange inline');
+    assert.ok(legacyRow({ uid: 'abc', name: 'Ana', role: 'Gestor', email: 'a@v.tech' }).includes(`onchange="toggleGestorSplitShift('abc', this.checked)"`), 'plantilla original');
+    assert.ok(delegatedLegacyRow({ uid: 'abc', name: 'Ana', role: 'Gestor', email: 'a@v.tech' }).includes(`data-action="toggle-gestor-split-shift" data-uid="abc"`), 'la plantilla original normalizada');
     assert.ok(html.includes('aria-label="Turno Partido para Ana"'));
     assert.ok(html.includes('id="splitShiftToggle_abc"') && html.includes('name="splitShiftToggle_abc"'));
     assert.ok(buildGestorConfigRowHtml({ uid: 'abc', role: 'Gestor', email: 'a' }).includes('aria-label="Turno Partido para Gestor"'));
     assert.ok(buildGestorConfigRowHtml({ uid: 'abc', role: 'Gestor', email: 'a' }).includes('Desconocido'));
 });
 
-test('D2 (predeterminado): nombre/rol/correo con <script>, <img onerror> y comillas se escapan; el original solo con escapeUserFields: false', () => {
+test('D2 / W-52: nombre/rol/correo con <script>, <img onerror> y comillas se escapan SIEMPRE (app.js los insertaba crudos)', () => {
     const evil = { uid: 'u', name: '<img src=x onerror=alert(1)>', role: '<script>alert(3)</script>', email: '"><script>alert(2)</script>' };
-    const legacy = buildGestorConfigRowHtml(evil, { escapeUserFields: false });
-    assert.ok(legacy.includes('aria-label="Turno Partido para &lt;img src=x onerror=alert(1)&gt;"'), 'aria-label escapado también en el original');
-    assert.ok(legacy.includes('<img src=x onerror=alert(1)>'), 'HALLAZGO (solo con la opción legada): el nombre se inserta sin escapar');
-    assert.ok(legacy.includes('"><script>alert(2)</script>'), 'HALLAZGO (solo con la opción legada): el correo se inserta sin escapar');
-    for (const safe of [buildGestorConfigRowHtml(evil), buildGestorConfigRowHtml(evil, {}), buildGestorConfigRowHtml(evil, { escapeUserFields: true })]) {
-        assert.ok(!safe.includes('<img') && !safe.includes('<script'));
-        assert.ok(safe.includes('&lt;img src=x onerror=alert(1)&gt;') && safe.includes('&quot;&gt;&lt;script&gt;alert(2)&lt;/script&gt;') && safe.includes('&lt;script&gt;alert(3)&lt;/script&gt;'));
-    }
+    const legacy = legacyRow(evil);
+    assert.ok(legacy.includes('<img src=x onerror=alert(1)>'), 'HALLAZGO de app.js: el nombre se inserta sin escapar');
+    assert.ok(legacy.includes('"><script>alert(2)</script>'), 'HALLAZGO de app.js: el correo se inserta sin escapar');
+    const safe = buildGestorConfigRowHtml(evil);
+    assert.ok(safe.includes('aria-label="Turno Partido para &lt;img src=x onerror=alert(1)&gt;"'));
+    assert.ok(!safe.includes('<img') && !safe.includes('<script'));
+    assert.ok(safe.includes('&lt;img src=x onerror=alert(1)&gt;') && safe.includes('&quot;&gt;&lt;script&gt;alert(2)&lt;/script&gt;') && safe.includes('&lt;script&gt;alert(3)&lt;/script&gt;'));
     const quotes = buildGestorConfigRowHtml({ uid: 'u', name: `O'Brien "Bob"`, role: 'Gestor', email: `o'b"@v.tech` });
     assert.ok(quotes.includes('O&#039;Brien &quot;Bob&quot;') && quotes.includes('o&#039;b&quot;@v.tech'));
 });
@@ -155,12 +186,12 @@ test('D2: un uid con comillas o etiquetas no rompe los atributos ni el onchange 
     assert.ok(!html.includes("x'),alert(1)"), 'la comilla simple no cierra el argumento');
     assert.ok(!html.includes('<b>'));
     assert.ok(html.includes('id="splitShiftToggle_x&#039;),alert(1),(&#039;&quot;&lt;b&gt;"'));
-    const arg = /toggleGestorSplitShift\(decodeURIComponent\('([^']*)'\), this\.checked\)/.exec(html);
-    assert.ok(arg, 'el manejador conserva la forma toggleGestorSplitShift(decodeURIComponent(\'...\'), this.checked)');
-    assert.equal(decodeURIComponent(arg[1]), uid, 'el manejador recibe el uid original');
+    const arg = /data-action="toggle-gestor-split-shift" data-uid="([^"]*)"/.exec(html);
+    assert.ok(arg, 'el interruptor delega en toggle-gestor-split-shift con el uid en data-uid');
+    assert.equal(arg[1], escapeHTML(uid), 'el uid va escapado (ningún carácter cierra el atributo)');
     // fuera de nombre/rol/correo/uid, la fila no cambia respecto del original
     const plain = { uid: 'u', name: 'Ana', role: 'Gestor', email: 'a@v.tech', hasSplitShift: true };
-    assert.equal(buildGestorConfigRowHtml(plain).replace("decodeURIComponent('u')", "'u'"), buildGestorConfigRowHtml(plain, { escapeUserFields: false }));
+    assert.equal(buildGestorConfigRowHtml(plain), normalizeLegacyHtml(legacyRow(plain)));
 });
 
 test('confirmación: texto exacto de habilitar y deshabilitar (app.js 6824)', () => {

@@ -1,5 +1,5 @@
 import { createRunner, assert } from '../../test-harness.mjs';
-import { appendFormSubmitCc } from '../../../services/external/formsubmit-notification-adapter.js';
+import { appendFormSubmitCc, FORM_SUBMIT_CC } from '../../../services/external/formsubmit-notification-adapter.js';
 
 const { test, summarize } = createRunner('formsubmit-notification-adapter');
 
@@ -31,7 +31,7 @@ test('lanza TypeError para string', () => {
 
 // ── Copia de entradas ──────────────────────────────────────────────────────
 
-test('copia todas las entradas del FormData original', () => {
+test('conserva todas las entradas del FormData', () => {
     const original = new FormData();
     original.append('campo1', 'valor1');
     original.append('campo2', 'valor2');
@@ -60,14 +60,36 @@ test('agrega _cc con el valor de carbonCopy personalizado', () => {
     assert.strictEqual(result.get('_cc'), customCc);
 });
 
-test('no muta el FormData original', () => {
+test('W-13 (NOTA_3): muta y devuelve el MISMO FormData (contrato de app.js)', () => {
     const original = new FormData();
     original.append('campo', 'valor');
 
-    appendFormSubmitCc(original);
+    const result = appendFormSubmitCc(original);
 
-    // El original no debe tener _cc
-    assert.strictEqual(original.get('_cc'), null);
+    assert.strictEqual(result, original, 'mismo objeto');
+    assert.strictEqual(original.get('_cc'), DEFAULT_CC, 'el original lleva la copia aunque el llamador ignore el valor');
+});
+
+test('W-13: es idempotente (dos llamadas no duplican _cc); otra dirección sí se agrega', () => {
+    const fd = new FormData();
+    appendFormSubmitCc(fd);
+    appendFormSubmitCc(fd);
+    assert.deepStrictEqual(fd.getAll('_cc'), [DEFAULT_CC]);
+    appendFormSubmitCc(fd, 'otro@example.com');
+    assert.deepStrictEqual(fd.getAll('_cc'), [DEFAULT_CC, 'otro@example.com']);
+});
+
+test('W-13: mismo resultado que app.js (l. 5-7) para un llamador que ignora el valor devuelto', () => {
+    const legacyAppend = (formData) => { formData.append('_cc', DEFAULT_CC); };
+    const a = new FormData(); a.append('x', '1');
+    const b = new FormData(); b.append('x', '1');
+    legacyAppend(a);
+    appendFormSubmitCc(b);
+    assert.deepStrictEqual([...b.entries()], [...a.entries()]);
+});
+
+test('W-40: FORM_SUBMIT_CC es la única declaración y vale lo mismo que en app.js', () => {
+    assert.strictEqual(FORM_SUBMIT_CC, 'sara.santamaria@virtualsoft.tech,oriana.borja@virtualsoft.tech');
 });
 
 test('FormData vacío produce resultado solo con _cc', () => {

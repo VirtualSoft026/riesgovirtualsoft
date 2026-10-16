@@ -60,7 +60,7 @@ const REGIONS = (mode) => [
     [mode === 'integrado' ? '// [LAB-INTEGRACION:PRESENCIA-CONTADOR-INCIDENTES-INICIO]' : 'function setupUserPresence(uid) {', '/**\n * 5. Filtro por Responsable Asignado (#filter-assignee)']
 ];
 const CODE = (src, mode) => REGIONS(mode).map(([a, b]) => between(src, a, b)).join('\n');
-const HELPERS_SRC = (src) => [fn(src, 'function escapeHTML(str)'), fn(src, 'function encodeInlineHandlerArg(value)'), between(src, 'const COMUNICADOS_PUBLISH_ROLES', 'window.canManageComunicados = canManageComunicados;') + 'window.canManageComunicados = canManageComunicados;'].join('\n');
+const HELPERS_SRC = (src) => [fn(src, 'function escapeHTML(str)'), fn(src, 'function encodeInlineHandlerArg(value)'), (src.includes('const COMUNICADOS_PUBLISH_ROLES') ? between(src, 'const COMUNICADOS_PUBLISH_ROLES', 'window.canManageComunicados = canManageComunicados;') : between(src, 'function canPublishComunicados(', 'window.canManageComunicados = canManageComunicados;')) + 'window.canManageComunicados = canManageComunicados;'].join('\n');
 
 const NOW = Date.UTC(2026, 9, 6, 20, 0, 0);
 const flush = () => new Promise((resolve) => setTimeout(resolve, 8));
@@ -70,7 +70,8 @@ async function loadHelpers() {
     const base = path.join(__dirname, '..', 'helpers');
     const rtdb = await import(pathToFileURL(path.join(base, 'fake-rtdb-comunicados.mjs')).href);
     const dom = await import(pathToFileURL(path.join(base, 'fake-dom-comunicados.mjs')).href);
-    return { createFakeRtdb: rtdb.createFakeRtdb, TIMESTAMP: rtdb.TIMESTAMP, createFakeDocument: dom.createFakeDocument };
+    const nl = await import(pathToFileURL(path.join(base, 'legacy-action-migration.mjs')).href);
+    return { createFakeRtdb: rtdb.createFakeRtdb, TIMESTAMP: rtdb.TIMESTAMP, createFakeDocument: dom.createFakeDocument, normalizeLegacyActions: nl.normalizeLegacyActions };
 }
 
 /** Reglas de database.rules.json relevantes, como función (aprobados): announcements, readBy una vez, users, logs, metrics ausente. */
@@ -132,10 +133,14 @@ function makeEnv(H, mode, { user, data, rules = true, filtered = false }) {
     ctx.__closed = log.closed; ctx.__renders = log.renders; ctx.__shifts = {};
     vm.runInContext(prelude + '\n' + CODE(src, mode) + `
 this.api = {
-    initComunicadosListener, openNewComunicadoModal, saveNewComunicado, updateUnreadBadge, renderGestorComunicados,
-    markComunicadoAsRead, checkUnreadUrgentAnnouncements, markUrgentComunicadoAsRead, renderConfigGestores, toggleGestorSplitShift,
+    initComunicadosListener, openNewComunicadoModal, saveNewComunicado, renderGestorComunicados,
+    updateUnreadBadge: ${mode === 'integrado' ? '() => __labAnnouncements().updateUnreadBadge()' : 'updateUnreadBadge'},
+    checkUnreadUrgentAnnouncements: ${mode === 'integrado' ? '() => __labAnnouncements().checkUnreadUrgent()' : 'checkUnreadUrgentAnnouncements'},
+    markUrgentComunicadoAsRead: ${mode === 'integrado' ? '(id) => __labAnnouncements().markUrgentAsRead(id)' : 'markUrgentComunicadoAsRead'},
+    renderLoginHistoryTable: ${mode === 'integrado' ? '(r) => __labLoginHistory().render(r)' : 'renderLoginHistoryTable'},
+    markComunicadoAsRead, renderConfigGestores, toggleGestorSplitShift,
     renderAdminComunicados, viewComunicadoContent, viewComunicadoLecturas, deleteComunicado,
-    updateActiveSupervisorBadge, openLoginHistoryModal, renderLoginHistoryTable, filterLoginHistoryTable,
+    updateActiveSupervisorBadge, openLoginHistoryModal, filterLoginHistoryTable,
     setupUserPresence, startMonitoringPresence, incrementApprovedWithdrawal, initAtomicApprovedCounterListener, updateApprovedCountUI,
     handleNewIncidentSubmit, startIncidentsRealtimeListener, renderIncidentsTable,
     setUser: (u) => { currentUser = u; }, setSchedule: (r, b) => { globalScheduleRows = r; globalScheduleBlocks = b; }, getAnnouncements: () => globalComunicados,
@@ -318,7 +323,7 @@ S('C3', 'Supervisor: modal nuevo, publicar con contenido malicioso, tabla de adm
     const stored = Object.values(e.db.snapshot('announcements')).find((a) => a.title === 'Aviso nuevo');
     assert.ok(stored && stored.authorUid === 's1' && !stored.content.includes('<script') && !/onclick/.test(stored.content));
     assert.ok(e.log.alerts.includes('Comunicado publicado exitosamente.') && e.log.alerts.includes('No tienes permiso para eliminar comunicados.'));
-    assert.ok(!e.document.el('adminComunicadosTableBody').innerHTML.includes('deleteComunicado('), 'Supervisor no ve eliminar');
+    assert.ok(!/deleteComunicado\(|delete-comunicado/.test(e.document.el('adminComunicadosTableBody').innerHTML), 'Supervisor no ve eliminar');
     assert.ok(e.document.el('comunicadoUnreadList').innerHTML.includes('Ana'), 'lecturas: Ana no ha leído');
     assert.ok(!e.document.el('comunicadoReadList').innerHTML.includes('<i>Luis</i>'), 'nombre escapado');
 });
@@ -341,7 +346,7 @@ S('C4', 'Admin: eliminar con confirmación; rechazo de la base; gestor sin permi
     assert.strictEqual(e.db.snapshot('announcements/-A1'), null, 'se eliminó -A1');
     assert.notStrictEqual(e.db.snapshot('announcements/-A2'), null, 'el rechazo conservó -A2');
     assert.ok(e.log.alerts.includes('No se pudo eliminar.') && e.log.alerts.includes('No tienes permiso para eliminar comunicados.'));
-    assert.ok(e.document.el('adminComunicadosTableBody').innerHTML.includes('deleteComunicado('));
+    assert.ok(e.document.el('adminComunicadosTableBody').innerHTML.includes(e.mode === 'original' ? 'deleteComunicado(' : 'data-action="delete-comunicado"'));
 });
 
 S('C5', 'Configuración de gestores: pintar, habilitar, deshabilitar, cancelar y escritura rechazada (el interruptor vuelve)', () => ({ user: ADMIN, data: { users: USERS() } }), async (e) => {
@@ -583,16 +588,17 @@ S('C14', 'D9(c) Admin, Supervisor y Gestor: modal urgente bloqueante, confirmaci
     const record = (ok, label, err) => { if (ok) { pass += 1; console.log(`  [PASS] ${label}`); } else { fail += 1; console.log(`  [FAIL] ${label}\n         -> ${err && err.message ? err.message.split('\n').slice(0, 6).join('\n            ') : err}`); } };
 
     // Comprobaciones estáticas del integrado
-    const FUNCS = ['updateActiveSupervisorBadge', 'openLoginHistoryModal', 'renderLoginHistoryTable', 'filterLoginHistoryTable', 'setupUserPresence', 'startMonitoringPresence', 'incrementApprovedWithdrawal', 'initAtomicApprovedCounterListener', 'updateApprovedCountUI', 'handleNewIncidentSubmit', 'startIncidentsRealtimeListener', 'renderIncidentsTable', 'initComunicadosListener', 'openNewComunicadoModal', 'saveNewComunicado', 'updateUnreadBadge', 'renderGestorComunicados', 'markComunicadoAsRead', 'checkUnreadUrgentAnnouncements', 'markUrgentComunicadoAsRead', 'renderConfigGestores', 'toggleGestorSplitShift', 'renderAdminComunicados', 'viewComunicadoContent', 'viewComunicadoLecturas', 'deleteComunicado'];
+    const FUNCS = ['updateActiveSupervisorBadge', 'openLoginHistoryModal', 'filterLoginHistoryTable', 'setupUserPresence', 'startMonitoringPresence', 'incrementApprovedWithdrawal', 'initAtomicApprovedCounterListener', 'updateApprovedCountUI', 'handleNewIncidentSubmit', 'startIncidentsRealtimeListener', 'renderIncidentsTable', 'initComunicadosListener', 'openNewComunicadoModal', 'saveNewComunicado', 'renderGestorComunicados', 'markComunicadoAsRead', 'renderConfigGestores', 'toggleGestorSplitShift', 'renderAdminComunicados', 'viewComunicadoContent', 'viewComunicadoLecturas', 'deleteComunicado'];
     try {
-        assert.strictEqual(FUNCS.length, 26);
+        assert.strictEqual(FUNCS.length, 22);
+        for (const z of ['renderLoginHistoryTable', 'updateUnreadBadge', 'checkUnreadUrgentAnnouncements', 'markUrgentComunicadoAsRead']) assert.ok(!new RegExp(`function ${z}\\(`).test(INTEGRATED), `el zombi ${z} se retiró de app.js (paso 3.4)`);
         for (const f of FUNCS) {
             const re = new RegExp(`function ${f}\\(`);
             assert.ok(re.test(INTEGRATED), `la función ${f} sigue declarada en el integrado (los onclick la resuelven)`);
             const body = INTEGRATED.slice(INTEGRATED.search(re), INTEGRATED.search(re) + 400).split('\n').slice(0, 12).join('\n');
             assert.ok(body.includes('__lab') || body.includes('RiskOps'), `la función ${f} delega en RiskOps`);
         }
-        record(true, 'las 26 funciones siguen declaradas y delegan en RiskOps (nombre y firma conservados)');
+        record(true, 'las 22 funciones vivas siguen declaradas y delegan en RiskOps; los 4 zombis (paso 3.4) ya no están en app.js');
     } catch (err) { record(false, 'las 26 funciones siguen declaradas y delegan en RiskOps', err); }
 
     try {
@@ -613,7 +619,8 @@ S('C14', 'D9(c) Admin, Supervisor y Gestor: modal urgente bloqueante, confirmaci
                 await sc.run(env);
                 await flush();
                 try { sc.assertAbsolute(env); } catch (err) { throw new Error(`[${mode}] resultado absoluto: ${err.message}`); }
-                traces[mode] = trace(env);
+                // Paso 3.4: el original lleva onclick en línea; su traza se lleva a la forma delegada (normalizador general).
+                traces[mode] = mode === 'original' ? H.normalizeLegacyActions(trace(env), { strict: false }) : trace(env);
             } catch (err) { failed = true; record(false, `${sc.id} ${sc.name}`, err); break; }
         }
         if (failed) continue;

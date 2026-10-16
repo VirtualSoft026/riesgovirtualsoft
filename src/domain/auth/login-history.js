@@ -15,12 +15,12 @@
  *    `tolerateInvalidDates` (apagada por defecto) las excluye en vez de lanzar.
  *  - DECISIÓN D2 (plan maestro §4 ter): si `loginTime` no es una fecha válida, `app.js` lo inserta TAL CUAL
  *    en la celda (sin escapar) y esos datos los puede escribir cualquier gestor en `login_history`/
- *    `shift_reports` (stored XSS hacia Supervisor/Admin). `escapeRawLoginTime` es `true` POR DEFECTO: el
- *    valor crudo se escapa. Solo `escapeRawLoginTime: false` explícito reproduce el original (para la prueba
- *    diferencial); no lo use código nuevo. El resto de campos de la fila ya se escapaban.
+ *    `shift_reports` (stored XSS hacia Supervisor/Admin). Aquí el valor crudo se escapa SIEMPRE (W-52, paso
+ *    3.1: ya no hay opción para apagarlo). El resto de campos de la fila ya se escapaban.
  */
 
 import { escapeHTML } from '../../utils/sanitization.js';
+import { SESSION_STATUS } from '../analytics/active-session-status.js';
 
 export const LOGIN_HISTORY_LOADING_HTML = `<tr><td colspan="5" style="text-align: center; padding: 30px; color: var(--text-secondary);"><i class='bx bx-loader-alt bx-spin' style="font-size: 24px; margin-bottom: 8px;"></i><br>Cargando historial de accesos...</td></tr>`;
 export const LOGIN_HISTORY_ERROR_HTML = `<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--danger);">Error cargando los accesos. Por favor intenta de nuevo.</td></tr>`;
@@ -30,7 +30,7 @@ export const LOGIN_HISTORY_EMPTY_HTML = `<tr><td colspan="5" style="text-align: 
 export const ONLINE_THRESHOLD_MS = 120000;
 
 /** Estados en los que una sesión en vivo NO se considera en línea (app.js 8434). */
-export const NOT_ONLINE_STATUSES = Object.freeze(['En Almuerzo', 'En Desayuno', 'En Pausa de Turno', 'Inactivo']);
+export const NOT_ONLINE_STATUSES = Object.freeze([SESSION_STATUS.LUNCH, SESSION_STATUS.BREAKFAST, SESSION_STATUS.SHIFT_BREAK, SESSION_STATUS.INACTIVE]);
 
 /**
  * Une las tres fuentes en una sola lista ordenada por `loginTime` descendente (app.js 8417-8510).
@@ -59,7 +59,7 @@ export function buildLoginHistoryRecords({ activeSessions, loginLogs, shiftRepor
             seenKeys.add(key);
 
             let isOnline = s.lastActive ? ((nowMs - s.lastActive) < ONLINE_THRESHOLD_MS) : false;
-            if (s.status === 'En Almuerzo' || s.status === 'En Desayuno' || s.status === 'En Pausa de Turno' || s.status === 'Inactivo') isOnline = false;
+            if (s.status === SESSION_STATUS.LUNCH || s.status === SESSION_STATUS.BREAKFAST || s.status === SESSION_STATUS.SHIFT_BREAK || s.status === SESSION_STATUS.INACTIVE) isOnline = false;
 
             allLoginHistoryRecords.push({
                 name: s.name,
@@ -68,7 +68,7 @@ export function buildLoginHistoryRecords({ activeSessions, loginLogs, shiftRepor
                 loginTime: loginTimeStr,
                 lastActive: s.lastActive ? new Date(s.lastActive).toLocaleString('es-CO') : 'Reciente',
                 isOnline: isOnline,
-                status: s.status || (isOnline ? 'En Línea' : 'Inactivo'),
+                status: s.status || (isOnline ? SESSION_STATUS.ONLINE : SESSION_STATUS.INACTIVE),
                 source: 'En Vivo'
             });
         }
@@ -213,13 +213,11 @@ export function buildDelayBadgeHtml(delay) {
  * Contenido completo de `#loginHistoryTableBody` (app.js 8522-8596).
  *
  * @param {Array<object>} records
- * @param {{escapeHTML?: (value: unknown) => string, escapeRawLoginTime?: boolean}} [options]
- *   `escapeRawLoginTime` por defecto `true` (D2); `false` = plantilla original de app.js
+ * @param {{escapeHTML?: (value: unknown) => string}} [options]
  * @returns {string}
  */
 export function buildLoginHistoryTableHtml(records, options = {}) {
     const esc = options.escapeHTML || escapeHTML;
-    const escapeRaw = options.escapeRawLoginTime !== false;
 
     if (records.length === 0) {
         return LOGIN_HISTORY_EMPTY_HTML;
@@ -231,7 +229,7 @@ export function buildLoginHistoryTableHtml(records, options = {}) {
         const rawLogin = r.loginTime || 'N/A';
         const formattedLogin = loginDateObj && !isNaN(loginDateObj)
             ? loginDateObj.toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'medium' })
-            : (escapeRaw ? esc(rawLogin) : rawLogin);
+            : esc(rawLogin);
 
         const delayBadge = buildDelayBadgeHtml(computeLoginDelay(r.shift, r.loginTime));
 

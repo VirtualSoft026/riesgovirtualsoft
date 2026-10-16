@@ -294,7 +294,7 @@ testAsync('D7 el rol se lee en CADA acción (si cambia en vivo, la siguiente acc
 // =============================================================================================
 const PAYLOADS = ['<script>alert(1)</script>', '<img src=x onerror=alert(1)>', '" onmouseover="alert(1)', "' onfocus='alert(1)", '</td><svg onload=alert(1)>'];
 
-testAsync('D2 rol con <script>, <img onerror>, comillas y cierre de etiqueta: se escapa en la insignia (app.js no)', async () => {
+testAsync('D2 / W-52 rol con <script>, <img onerror>, comillas y cierre de etiqueta: se escapa en la insignia SIEMPRE, también con APPROVALS_LEGACY_OPTIONS (app.js no)', async () => {
     for (const role of PAYLOADS) {
         const tree = { users: { x1: { name: 'Ana', email: 'a@virtualsoft.tech', role, approved: false, registrationDate: '2026-10-01T10:00:00Z' }, x2: { name: 'Bo', role, approved: true } } };
         const w = makeWorld({ tree });
@@ -305,9 +305,11 @@ testAsync('D2 rol con <script>, <img onerror>, comillas y cierre de etiqueta: se
         assert.ok(!/<script|<img|<svg/i.test(out), 'sin etiquetas inyectadas: ' + role);
         assert.ok(!/" onmouseover="|' onfocus='/.test(out), 'sin atributos inyectados: ' + role);
 
+        // W-52: las opciones legadas ya no apagan el escape (la inserción cruda de app.js se prueba en
+        // approvals-controller.test.mjs contra la copia literal)
         const legacy = makeWorld({ tree, options: APPROVALS_LEGACY_OPTIONS });
         await legacy.api.renderPendingUsers();
-        assert.ok(html(legacy).includes(role), 'app.js (legacy) lo inserta crudo: ' + role);
+        assert.ok(!html(legacy).includes(role), 'con APPROVALS_LEGACY_OPTIONS tampoco aparece crudo: ' + role);
     }
 });
 
@@ -333,8 +335,9 @@ testAsync('D2 el id con comillas se codifica en los onclick de Revertir/Aprobar 
     const w = makeWorld({ tree, status: 'Rechazado' });
     await w.api.renderPendingUsers();
 
-    assert.ok(html(w).includes(`onclick="revertRejectedUser(decodeURIComponent('a%27b%22c'))"`));
-    assert.ok(html(w).includes(`onclick="approveUser(decodeURIComponent('a%27b%22c'))"`));
+    assert.ok(html(w).includes('data-action="revert-rejected-user" data-user-id="a&#039;b&quot;c"'));
+    assert.ok(!html(w).includes('onclick='), 'ningún onclick inline');
+    assert.ok(html(w).includes('data-action="approve-user" data-user-id="a&#039;b&quot;c"'));
     assert.ok(html(w).includes('id="user-rejected-actions-a&#039;b&quot;c"'));
 });
 
@@ -375,7 +378,7 @@ testAsync('D9a filtro "Rechazado": solo rechazados, más reciente primero, con m
     assert.ok(out.indexOf('Raúl Rechazado') < out.indexOf('Rita Rechazada'), 'orden por fecha de registro');
     assert.ok(!out.includes('u1@virtualsoft') && !out.includes('u2@virtualsoft'), 'sin pendientes ni aprobados');
     assert.ok(out.includes('Motivo: Datos incompletos') && out.includes('Motivo: No especificado'));
-    assert.ok(out.includes(`revertRejectedUser(decodeURIComponent('u3'))`) && out.includes(`approveUser(decodeURIComponent('u3'))`));
+    assert.ok(out.includes('data-action="revert-rejected-user" data-user-id="u3"') && out.includes('data-action="approve-user" data-user-id="u3"'));
 });
 
 testAsync('D9a filtro "Rechazado" con más de 5: no recorta ni muestra el aviso; la búsqueda aplica', async () => {

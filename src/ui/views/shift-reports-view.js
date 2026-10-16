@@ -94,10 +94,10 @@ export function buildShiftReportRowHtml(r, reportText) {
                 </td>
                 <td style="padding: 12px; text-align: center; white-space: nowrap;">
                     <div style="display: flex; gap: 6px; justify-content: center;">
-                        <button class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;" onclick="openShiftDetailModal(decodeURIComponent('${encodeInlineHandlerArg(r.fb_id)}'))" title="Ver todo el informe igual al correo">
+                        <button class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;" data-action="open-shift-detail-modal" data-fb-id="${escapeHTML(r.fb_id)}" title="Ver todo el informe igual al correo">
                             <i class='bx bx-show'></i> Ver Todo
                         </button>
-                        <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px;" onclick="exportShiftReport(decodeURIComponent('${encodeInlineHandlerArg(r.fb_id)}'))" title="Exportar PDF">
+                        <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px;" data-action="export-shift-report" data-fb-id="${escapeHTML(r.fb_id)}" title="Exportar PDF">
                             <i class='bx bx-file-blank'></i> PDF
                         </button>
                     </div>

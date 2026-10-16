@@ -17,6 +17,7 @@
  */
 
 import { buildSupervisorDirectory, isSupervisorDirectory, normalizeFullName } from './supervisor-directory.js';
+import { escapeHTML } from '../../utils/sanitization.js';
 
 /** Lista FIJA original de app.js 8346-8350 (solo comportamiento heredado explícito; no usar como predeterminado). */
 export const LEGACY_BADGE_SUPERVISORS = Object.freeze([
@@ -135,7 +136,8 @@ export function formatSupervisorNames(names) {
  */
 export function buildSupervisorBadgeHtml(activeSups) {
     if (activeSups.length > 0) {
-        return `<i class='bx bx-support'></i> Sup: ${formatSupervisorNames(activeSups)}`;
+        // W-52: los nombres vienen del cronograma cargado por Excel; se escapan (app.js los insertaba crudos).
+        return `<i class='bx bx-support'></i> Sup: ${escapeHTML(formatSupervisorNames(activeSups))}`;
     }
 
     return `<i class='bx bx-support'></i> Sup: Ninguna (Fuera de turno)`;

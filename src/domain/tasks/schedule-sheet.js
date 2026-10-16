@@ -226,7 +226,7 @@ export function resolveScheduleColumnCount(dateRow) {
  */
 export function buildScheduleHeadHTML(dateRow, dayRow, numCols, escape = defaultEscapeHTML) {
     let headHTML = '<tr style="border-bottom: 1px solid var(--glass-border);">';
-    headHTML += `<th style="padding: 12px; color: var(--accent-primary); text-align: left; position: sticky; left: 0; background: var(--bg-panel); z-index: 2;">GESTOR <i class='bx bx-refresh' style='cursor:pointer; margin-left:5px;' onclick='loadSchedule()' title='Refrescar Horario'></i></th>`;
+    headHTML += `<th style="padding: 12px; color: var(--accent-primary); text-align: left; position: sticky; left: 0; background: var(--bg-panel); z-index: 2;">GESTOR <i class='bx bx-refresh' style='cursor:pointer; margin-left:5px;' data-action="load-schedule" title='Refrescar Horario'></i></th>`;
 
     for (let i = 1; i <= numCols; i++) {
         const dayName = dayRow[i] || `Día ${i}`;

@@ -20,6 +20,8 @@
  */
 const fs = require('fs');
 const vm = require('vm');
+const path = require('path');
+const { pathToFileURL } = require('url');
 
 const [ORIG_PATH, INT_PATH, BUNDLE_PATH] = process.argv.slice(2);
 if (!ORIG_PATH || !INT_PATH || !BUNDLE_PATH) { console.error('Uso: node historial-navegacion-integrado.e2e.cjs <app.js> <app.integrado.js> <bundle.js>'); process.exit(2); }
@@ -31,7 +33,10 @@ const END = '// --- Lógica del Portal de Indicadores de Gestión (KPIs) ---';
 function span(src) {
     const s = src === INT ? src.indexOf('// [LAB-INTEGRACION:HISTORIAL-NAVEGACION:INICIO]') : src.indexOf(START); const e = src.indexOf(END);
     if (s < 0 || e < 0 || e < s) throw new Error('No se encontró el tramo del corte en ' + (src === ORIG ? 'el original' : 'el integrado'));
-    return src.slice(s, e);
+    // Integrado (W-20): setupSidebar/updateNavigation y su enrutador __appRouter() van después del tramo de historial.
+    const nav = src === INT ? src.slice(src.indexOf('// [LAB-INTEGRACION] Enrutador de navegación (W-20)'), src.indexOf('window.updateNavigation = updateNavigation;') + 'window.updateNavigation = updateNavigation;'.length) : '';
+    const tramo = src.slice(s, e);
+    return tramo + (nav && !tramo.includes('let __labAppRouter = null;') ? '\n' + nav : '');
 }
 function fn(src, header) {
     const s = src.indexOf(header);
@@ -139,7 +144,7 @@ function makeEnv(which, { role = 'Supervisor', tree = {}, auth = { currentUser: 
     vm.runInContext(span(which === 'orig' ? ORIG : INT) + `
 this.api = {
   get exportShiftReport() { return window.exportShiftReport; }, renderShiftReports, applyShiftReportsFilters, get openShiftDetailModal() { return window.openShiftDetailModal; },
-  toggleNotifications, markAllAsRead, openProfileModal, toggleProfilePassword, changePassword, alignAdministrativeControlsByRole, setupSidebar, updateNavigation,
+  toggleNotifications, markAllAsRead, openProfileModal, toggleProfilePassword: ${which === 'orig' ? 'toggleProfilePassword' : '(i) => __histNav().profile.toggleProfilePassword(i)'}, changePassword, alignAdministrativeControlsByRole, setupSidebar, updateNavigation,
   startActiveSessionsListener, renderActiveSessionsDashboard, viewTimelineInMonitoreo, get openMonitoreoDetails() { return window.openMonitoreoDetails; }, populateGestoresDropdown,
   setSessions: (s) => { allActiveSessions = s; }, getSessions: () => allActiveSessions, setCron: (v) => { globalCronogramaData = v; }, setUser: (v) => { currentUser = v; }
 };`, ctx);
@@ -344,12 +349,12 @@ T('Barra lateral: sin usuario (currentUser null) cae en el orden del Gestor y al
 // comprobaciones estructurales del integrado
 const structural = [
     ['el integrado delega con el bundle (marcadores y llamadas a RiskOps)', () => {
-        for (const needle of ['[LAB-INTEGRACION:HISTORIAL-NAVEGACION:INICIO]', 'RiskOps.shiftReportsController.createShiftReportsController', 'RiskOps.appRouter.createAppRouter({ document, getUser: () => currentUser }).applyRoleNavigation(sidebarNav)', "typeof RiskOps !== 'undefined' && typeof __histNav === 'function'"]) {
+        for (const needle of ['[LAB-INTEGRACION:HISTORIAL-NAVEGACION:INICIO]', 'RiskOps.shiftReportsController.createShiftReportsController', 'RiskOps.appRouter.createAppRouter({ document, getUser: () => currentUser })', "return __histNav().monitoring.renderActiveSessionsDashboard();"]) {
             if (!INT.includes(needle)) throw new Error('falta: ' + needle);
         }
     }],
     ['no se tocó el bloque del botón de Pausa de Turno ni las anclas del controlador de turno', () => {
-        if (!INT.includes("__shiftController().refreshSplitShiftButton(); // [LAB-INTEGRACION] visible con flag o con pausa en curso")) throw new Error('el ancla de la barra lateral ya no está');
+        if (!INT.includes("__shiftController().refreshSplitShiftButton() }); // [LAB-INTEGRACION] visible con flag o con pausa en curso")) throw new Error('el ancla de la barra lateral ya no está');
         if ((INT.match(/refreshSplitShiftButton\(\)/g) || []).length < 2) throw new Error('faltan las dos llamadas del controlador de turno');
     }],
     ['el global allShiftReports y el cuerpo original del historial ya no están en el integrado', () => {
@@ -361,6 +366,8 @@ const structural = [
 (async () => {
     console.log('=== PARIDAD ORIGINAL vs INTEGRADO — HISTORIAL, PERFIL, NAVEGACIÓN Y MONITOREO ===');
     console.log(`original: ${ORIG_PATH}\nintegrado: ${INT_PATH}\nbundle: ${BUNDLE_PATH}\n${new Date().toISOString()}`);
+    // Paso 3.4: los onclick del original se llevan a la forma delegada con el normalizador general (ESM).
+    const NL = await import(pathToFileURL(path.join(__dirname, '..', 'helpers', 'legacy-action-migration.mjs')).href);
     let pass = 0, fail = 0;
     for (const t of tests) {
         try {
@@ -374,7 +381,7 @@ const structural = [
             if (t.opts.intencional) { D9B_CHECK(snaps[0], snaps[1], envs); pass++; console.log('  [PASS] ' + t.name); continue; }
             delete snaps[0].__dbRoles; delete snaps[1].__dbRoles;
             // la comparación recorre todas las claves: el primer desacuerdo se reporta con su ruta
-            const [o, i] = snaps;
+            const [o, i] = [NL.normalizeLegacyActions(snaps[0]), snaps[1]];
             for (const k of Object.keys(o)) eq(i[k], o[k], `diferencia en "${k}"`);
             const nonEmpty = JSON.stringify(o).length;
             if (nonEmpty < 200) throw new Error('el escenario no produjo estado observable (' + nonEmpty + ' bytes)');

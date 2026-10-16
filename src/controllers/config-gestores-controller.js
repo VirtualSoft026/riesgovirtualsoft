@@ -9,17 +9,15 @@
  *
  * Todo por inyección (`document`, `confirm`, `alert`, `repository`, `logger`), sin globales.
  *
- * DECISIÓN D2 (plan maestro §4 ter): `options.escapeUserFields` es `true` por defecto (nombre, rol, correo y uid
- * escapados; ver `buildGestorConfigRowHtml`). Solo `escapeUserFields: false` explícito reproduce la plantilla
- * original de app.js (stored XSS), y existe únicamente para la prueba diferencial.
+ * DECISIÓN D2 y W-52: nombre, rol, correo y uid se escapan SIEMPRE (ver `buildGestorConfigRowHtml`); no hay opción
+ * para apagarlo.
  *
  * @param {{
  *   repository: ReturnType<typeof import('../services/firebase/firebase-config-repository.js').createConfigRepository>,
  *   document: {getElementById: (id: string) => any, createElement: (tag: string) => any},
  *   confirm: (message: string) => boolean,
  *   alert?: (message: string) => void,
- *   logger?: {error: Function},
- *   options?: {escapeUserFields?: boolean}
+ *   logger?: {error: Function}
  * }} deps
  */
 
@@ -34,7 +32,7 @@ import {
 } from '../domain/users/gestor-config.js';
 
 export function createConfigGestoresController(deps) {
-    const { repository, document: doc, confirm: ask, alert: notify = () => {}, logger = console, options = {} } = deps;
+    const { repository, document: doc, confirm: ask, alert: notify = () => {}, logger = console } = deps;
 
     /**
      * Repinta la tabla. Devuelve la promesa (el original no la devolvía; nadie la usa, pero así se puede esperar).
@@ -66,7 +64,7 @@ export function createConfigGestoresController(deps) {
             users.forEach((u) => {
                 const row = doc.createElement('tr');
                 row.style.borderBottom = GESTOR_ROW_BORDER;
-                row.innerHTML = buildGestorConfigRowHtml(u, { escapeUserFields: options.escapeUserFields !== false });
+                row.innerHTML = buildGestorConfigRowHtml(u);
                 tbody.appendChild(row);
             });
         }).catch((err) => {

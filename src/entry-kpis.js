@@ -15,5 +15,6 @@ export * as kpiOperativoTableView from './ui/views/operativo-table-view.js';
 export * as kpiChartConfigs from './ui/charts/operativo-chart-configs.js';
 export * as kpiChartPlan from './ui/charts/operativo-chart-plan.js';
 export * as kpiController from './controllers/kpi-controller.js';
+export * as kpiIndicators from './domain/analytics/kpi-indicators-service.js';
 // Decisión D9b: directorio de supervisores por rol (users/{uid}/role), compartido por KPIs, Monitoreo e insignia.
 export * as kpiSupervisorDirectory from './domain/schedules/supervisor-directory.js';

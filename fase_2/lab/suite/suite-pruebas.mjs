@@ -188,11 +188,21 @@ if (!ARGS.has('--solo-unitarias')) {
     const cases = [
         ['split-shift-flag.unit.cjs', [integrated, '--strict', '--riskops', BUNDLE, '--index', idx, '--rules', rules]],
         ['cierre-horas-efectivas.e2e.cjs', [integrated, '--strict', '--riskops', BUNDLE]],
-        ['monitoreo-render.e2e.cjs', [integrated]],
+        // W-17 (2026-10-16): cierre de turno. Oráculo exacto = app.js integrado justo antes de mover el cierre a
+        // src/controllers/shift-closure-controller.js; oráculo de flujo = original pre-integración.
+        ['cierre-turno-integrado.e2e.cjs', [integrated, '--riskops', BUNDLE, '--oracle', path.join(LAB, 'referencia', 'app.pre-paso-3-2-w17.js'), '--legacy', reference]],
+        ['monitoreo-render.e2e.cjs', [integrated, '--riskops', BUNDLE]],
         ['tareas-integrado.e2e.cjs', [integrated, '--riskops', BUNDLE, '--original', original]],
         ['modales-permisos-integrado.e2e.cjs', [integrated, '--riskops', BUNDLE, '--original', original]],
         ['historial-navegacion-integrado.e2e.cjs', [original, integrated, BUNDLE]],
         ['kpis-integrado.e2e.cjs', [integrated, '--riskops', BUNDLE, '--original', original]],
+        // Paso 3.3 (KPIs, 2026-10-16): cálculo de calcularIndicadores frente al oráculo pre-KPI (diferencial, 637 comparaciones + mutantes).
+        ['kpi-calculo-diferencial.e2e.cjs', ['--riskops', BUNDLE, '--oracle', path.join(LAB, 'referencia', 'app.pre-paso-3-3-kpi.js')]],
+        // Paso 3.3 (W-24, W-25; 2026-10-16): plan manual de inactividad (permiso concedido/denegado, pestaña sin foco,
+        // bloqueo de pantalla, Admin, navegador sin IdleDetector, arranque fallido) frente al app.js previo al paso 3.3.
+        ['inactividad-integrado.e2e.cjs', [integrated, '--riskops', BUNDLE, '--original', path.join(LAB, 'referencia', 'app.pre-paso-3-3-inactividad.js')]],
+        // Paso 3.4 (W-28, DE-4 = a; 2026-10-16): Control de Tiempos, js/tiempos.js original frente al controlador nuevo.
+        ['tiempos-integrado.e2e.cjs', ['--riskops', BUNDLE, '--original', path.join(LAB, 'referencia', 'tiempos.pre-paso-3-4.js')]],
         ['comunicados-integrado.e2e.cjs', [integrated, '--riskops', BUNDLE, '--original', original]],
         ['turno-avance-panel-horas-efectivas.e2e.cjs', [integrated, '--riskops', BUNDLE, '--original', original]],
         // Parche de la Pausa de Turno (2026-10-04) sobre el app.js SIN integrar (la referencia, o la rama si aún no

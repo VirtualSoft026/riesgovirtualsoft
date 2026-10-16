@@ -1,0 +1,221 @@
+===== inventario
+app.js funciones nivel superior: 179 | delegan: 123
+src exports: 455
+mismo nombre, app.js con lógica propia: 47
+  appendFormSubmitCc (l.5, 3 líneas) -> services/external/formsubmit-notification-adapter.js:13
+  escapeHTML (l.10, 9 líneas) -> utils/sanitization.js:34
+  encodeInlineHandlerArg (l.23, 3 líneas) -> utils/sanitization.js:53
+  sanitizeAnnouncementHref (l.32, 14 líneas) -> utils/sanitization.js:63
+  sanitizeAnnouncementHTML (l.47, 38 líneas) -> utils/sanitization.js:304
+  canPublishComunicados (l.95, 3 líneas) -> domain/announcements/announcement-capabilities.js:36
+  canViewComunicadoLecturas (l.99, 3 líneas) -> domain/announcements/announcement-capabilities.js:45
+  canDeleteComunicados (l.103, 3 líneas) -> domain/announcements/announcement-capabilities.js:54
+  canManageComunicados (l.109, 3 líneas) -> domain/announcements/announcement-capabilities.js:63
+  setupCustomMultiSelect (l.129, 144 líneas) -> ui/components/multi-select.js:160
+  getSelectedMultiSelectValues (l.274, 5 líneas) -> ui/components/multi-select.js:417
+  resetCustomMultiSelect (l.280, 7 líneas) -> ui/components/multi-select.js:433
+  setCustomMultiSelectValues (l.288, 6 líneas) -> ui/components/multi-select.js:448
+  pushTimelineEvent (l.457, 18 líneas) -> domain/shifts/timeline-service.js:154
+  window.requestIdlePermissionManual (l.625, 14 líneas) -> services/browser/idle-detector-adapter.js:287
+  shouldApplyDomIdleFallback (l.641, 6 líneas) -> services/browser/idle-detector-adapter.js:361
+  normalizeName (l.763, 4 líneas) -> utils/normalize.js:24
+  namesMatch (l.769, 27 líneas) -> utils/normalize.js:43
+  excelToJSDate (l.798, 5 líneas) -> utils/excel.js:7
+  isSameDate (l.804, 7 líneas) -> utils/excel.js:111
+  getShiftCategory (l.812, 27 líneas) -> domain/schedules/schedule-parser.js:26
+  cleanText (l.840, 8 líneas) -> utils/normalize.js:88
+  normalizeTaskName (l.849, 13 líneas) -> utils/normalize.js:109
+  taskNamesMatch (l.863, 15 líneas) -> utils/normalize.js:140
+  setNamesMatch (l.879, 6 líneas) -> utils/normalize.js:181
+  parseSheetRange (l.901, 49 líneas) -> domain/schedules/cronogram-parser.js:54
+  getWeekSheet (l.951, 27 líneas) -> domain/schedules/cronogram-parser.js:144
+  fetchCronogramaRowsForDate (l.979, 41 líneas) -> domain/schedules/cronogram-parser.js:205
+  getCronogramaColumnsForToday (l.1021, 39 líneas) -> domain/schedules/cronogram-parser.js:304
+  preloadCronograma (l.1062, 18 líneas) -> domain/schedules/cronogram-parser.js:425
+  getAssignedTasksForGestor (l.1081, 26 líneas) -> domain/schedules/cronogram-parser.js:453
+  loadCronogramaAssignments (l.1110, 53 líneas) -> domain/schedules/cronogram-parser.js:522
+  getScheduledGestoresCountForShift (l.1164, 59 líneas) -> domain/schedules/schedule-service.js:13
+  getShiftForDate (l.1224, 65 líneas) -> domain/schedules/schedule-service.js:154
+  getDocUrl (l.1307, 12 líneas) -> config/doc-links.js:75
+  getManualUrl (l.1339, 6 líneas) -> config/doc-links.js:96
+  canonicalTaskId (l.1490, 3 líneas) -> domain/tasks/task-report.js:13
+  isLegacyGenericTaskName (l.1498, 3 líneas) -> domain/tasks/task-report.js:23
+  resolveTaskDisplayName (l.1513, 14 líneas) -> domain/tasks/task-report.js:39
+  reconcileScheduledTaskWithSession (l.1537, 13 líneas) -> domain/tasks/task-reconciler.js:16
+  buildTaskReportSummaryText (l.1558, 45 líneas) -> domain/tasks/task-report.js:69
+  mergeTaskCaches (l.1624, 17 líneas) -> domain/tasks/task-reconciler.js:52
+  computeLocalTaskMigrations (l.1652, 21 líneas) -> domain/tasks/task-reconciler.js:87
+  hasRealSetOptions (l.2487, 6 líneas) -> domain/shifts/shift-closure-rules.js:21
+  requiresSpecificSetSelection (l.2494, 4 líneas) -> domain/shifts/shift-closure-rules.js:35
+  restoreEndShiftButton (l.2499, 5 líneas) -> ui/components/end-shift-button.js:10
+  calculateEffectiveApprovalTime (l.4369, 13 líneas) -> domain/analytics/withdrawal-metrics.js:12
+mismo nombre, app.js ya delega: 8
+  saveBreakState (l.379, 8 l.) -> services/storage/local-session-storage.js | RiskOps.breakStateOwnership __labCurrentUid()
+  loadBreakState (l.388, 20 l.) -> services/storage/local-session-storage.js | RiskOps.breakStateOwnership __labCurrentUid()
+  initApp (l.1815, 650 l.) -> app/bootstrap.js | RiskOps.taskController RiskOps.appInitRules __tareasRecovery()
+  openExceptionModal (l.2877, 1 l.) -> ui/components/modal.js | __modals()
+  closeModal (l.2879, 1 l.) -> ui/components/modal.js | __modals()
+  openExtraTaskModal (l.2883, 1 l.) -> ui/components/modal.js | __modals()
+  fetchKpiOperativosData (l.3504, 8 l.) -> services/external/kpi-operativos-source.js | RiskOps.kpiOperativosSource
+  loadRetirosData (l.3514, 1 l.) -> domain/analytics/kpi-service.js | __kpiController()
+===== comparar
+IGUAL  escapeHTML                           casos=  250 diferencias=0
+IGUAL  encodeInlineHandlerArg               casos=  250 diferencias=0
+IGUAL  sanitizeAnnouncementHref             casos=  250 diferencias=0
+DIFIERE sanitizeAnnouncementHTML             casos=   40 diferencias=8  · app.js usa el parser del navegador (<template>); el módulo usa un parser propio 
+        entrada="<script>alert(1)</script>ok"
+        app="ok"
+        mod="alert(1)ok"
+        entrada="<style>p{}</style><p>z</p>"
+        app="<p>z</p>"
+        mod="p{}<p>z</p>"
+        entrada="&lt;p&gt; &amp; &quot;"
+        app="&lt;p&gt; &amp; \""
+        mod="&amp;lt;p&amp;gt; &amp;amp; &amp;quot;"
+IGUAL  canPublishComunicados                casos=   13 diferencias=0
+IGUAL  canViewComunicadoLecturas            casos=   13 diferencias=0
+IGUAL  canDeleteComunicados                 casos=   13 diferencias=0
+IGUAL  canManageComunicados                 casos=   13 diferencias=0
+DIFIERE normalizeName                        casos=  250 diferencias=8
+        entrada=1
+        app="THROW name.normalize is not a function"
+        mod="1"
+        entrada=12
+        app="THROW name.normalize is not a function"
+        mod="12"
+        entrada=-3
+        app="THROW name.normalize is not a function"
+        mod="-3"
+IGUAL  cleanText                            casos=  250 diferencias=0
+IGUAL  normalizeTaskName                    casos=  250 diferencias=0
+IGUAL  namesMatch                           casos= 1861 diferencias=0
+IGUAL  taskNamesMatch                       casos= 1089 diferencias=0
+IGUAL  setNamesMatch                        casos= 1089 diferencias=0
+DIFIERE getShiftCategory                     casos=  129 diferencias=1
+        entrada=5
+        app="THROW shiftText.trim is not a function"
+        mod=""
+IGUAL  excelToJSDate                        casos=   17 diferencias=0
+IGUAL  isSameDate                           casos=   85 diferencias=0
+IGUAL  parseSheetRange                      casos=   84 diferencias=0
+IGUAL  getWeekSheet                         casos=   32 diferencias=0
+IGUAL  getCronogramaColumnsForToday         casos=  150 diferencias=0
+IGUAL  getAssignedTasksForGestor            casos=   30 diferencias=0  · app.js usa la global globalCronogramaData y la fecha actual; el módulo las recib
+IGUAL  getShiftForDate                      casos=   83 diferencias=0
+IGUAL  getScheduledGestoresCountForShift    casos=   50 diferencias=0  · app.js usa las globales globalScheduleRows/globalScheduleBlocks; el módulo las r
+DIFIERE getDocUrl                            casos=   60 diferencias=2  · 17 claves leídas del propio app.js
+        entrada=null
+        app="THROW Cannot read properties of null (reading 'endsWith')"
+        mod="Procesos/null"
+        entrada=undefined
+        app="THROW Cannot read properties of undefined (reading 'endsWith')"
+        mod="Procesos/undefined"
+DIFIERE getManualUrl                         casos=   60 diferencias=2
+        entrada="PragmaticplaySlot"
+        app="https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBed0oHqboZRabYqQnGJMxUATLlSdPshzsD7pnAsl8JxdM?e=wIyTFp"
+        mod="https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBed0oHqboZRabYQnGJMxUATLlSdPshzsD7pnAsl8JxdM?e=wIyTFp"
+        entrada="Redrakegaming"
+        app="https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQCmcIAXj_tLRZKJx2dpTMyZAQP18AdXeKvHLc1PtnVBhd4?e=e6ltHs"
+        mod="https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQCmcIAXj_tLRZKJ2dpTMyZAQP18AdXeKvHLc1PtnVBhd4?e=e6ltHs"
+IGUAL  canonicalTaskId                      casos=  250 diferencias=0
+IGUAL  isLegacyGenericTaskName              casos=  256 diferencias=0
+IGUAL  resolveTaskDisplayName               casos=  200 diferencias=0  · app.js sin catálogo usa la global allTasks; al módulo se le pasa el mismo catálo
+IGUAL  reconcileScheduledTaskWithSession    casos=   36 diferencias=0
+IGUAL  buildTaskReportSummaryText           casos=    9 diferencias=0  · app.js resuelve nombres con la global allTasks; al módulo se le pasa options.cat
+IGUAL  mergeTaskCaches                      casos=    9 diferencias=0
+IGUAL  computeLocalTaskMigrations           casos=    9 diferencias=0
+IGUAL  hasRealSetOptions                    casos=   11 diferencias=0
+IGUAL  requiresSpecificSetSelection         casos=   11 diferencias=0
+IGUAL  restoreEndShiftButton                casos=    4 diferencias=0
+IGUAL  restoreEndShiftButton(sin botón)     casos=    2 diferencias=0
+IGUAL  calculateEffectiveApprovalTime       casos=  676 diferencias=0
+IGUAL  pushTimelineEvent                    casos=    6 diferencias=0  · Para comparar, al módulo se le suma la escritura en localStorage que hace app.js
+DIFIERE appendFormSubmitCc                   casos=    2 diferencias=2
+        entrada=1
+        app=[["_cc","sara.santamaria@virtualsoft.tech,oriana.borja@virtualsoft.tech"]]
+        mod=[]
+        entrada=2
+        app=[["_cc","sara.santamaria@virtualsoft.tech,oriana.borja@virtualsoft.tech"]]
+        mod=[]
+===== cmp-multiselect
+DIF sin contenedor 
+  app ["sin contenedor","undefined",[]] 
+  mod ["sin contenedor","objeto",[]]
+pasos 12 diferencias 1
+===== cmp-extra
+calculateShiftDelay vs buildShiftDelayBadgeHtml casos 3456 diferencias 0
+persistShiftClosureCore casos 5 diferencias 0
+===== cmp-cron
+fetchCronogramaRowsForDate casos 15 diferencias 0
+loadCronogramaAssignments casos 6 diferencias 0
+===== usos
+appendFormSubmitCc                 usos   2 | inyectada en []                           | index.html 0 | tiempos.js 0 
+escapeHTML                         usos  26 | inyectada en [1387,1428,4215,4345,4446]   | index.html 0 | tiempos.js 0 | window.*
+encodeInlineHandlerArg             usos   5 | inyectada en [1388,1429,4215]             | index.html 0 | tiempos.js 0 
+sanitizeAnnouncementHref           usos   1 | inyectada en []                           | index.html 0 | tiempos.js 0 
+sanitizeAnnouncementHTML           usos   2 | inyectada en [4215]                       | index.html 0 | tiempos.js 0 | window.*
+canPublishComunicados              usos   2 | inyectada en []                           | index.html 0 | tiempos.js 0 | window.*
+canViewComunicadoLecturas          usos   2 | inyectada en []                           | index.html 0 | tiempos.js 0 | window.*
+canDeleteComunicados               usos   2 | inyectada en []                           | index.html 0 | tiempos.js 0 | window.*
+canManageComunicados               usos   1 | inyectada en []                           | index.html 0 | tiempos.js 0 | window.*
+setupCustomMultiSelect             usos   4 | inyectada en [1431,2929,3488]             | index.html 0 | tiempos.js 0 
+getSelectedMultiSelectValues       usos   5 | inyectada en [1432,2930,3486]             | index.html 0 | tiempos.js 0 
+resetCustomMultiSelect             usos   1 | inyectada en []                           | index.html 0 | tiempos.js 0 
+setCustomMultiSelectValues         usos   1 | inyectada en [3487]                       | index.html 0 | tiempos.js 0 
+pushTimelineEvent                  usos   5 | inyectada en [359]                        | index.html 0 | tiempos.js 0 
+requestIdlePermissionManual        usos   0 | inyectada en []                           | index.html 1 | tiempos.js 0 | window.*
+shouldApplyDomIdleFallback         usos   3 | inyectada en []                           | index.html 0 | tiempos.js 0 
+normalizeName                      usos  14 | inyectada en [1424]                       | index.html 0 | tiempos.js 0 
+namesMatch                         usos   8 | inyectada en [1425,1868,1877,3253]        | index.html 0 | tiempos.js 0 
+excelToJSDate                      usos   2 | inyectada en []                           | index.html 0 | tiempos.js 0 
+isSameDate                         usos   2 | inyectada en []                           | index.html 0 | tiempos.js 0 
+getShiftCategory                   usos   5 | inyectada en [2947]                       | index.html 0 | tiempos.js 0 
+cleanText                          usos   3 | inyectada en []                           | index.html 0 | tiempos.js 0 
+normalizeTaskName                  usos   2 | inyectada en []                           | index.html 0 | tiempos.js 0 
+taskNamesMatch                     usos   6 | inyectada en [1426]                       | index.html 0 | tiempos.js 0 
+setNamesMatch                      usos   2 | inyectada en [1427]                       | index.html 0 | tiempos.js 0 
+parseSheetRange                    usos   1 | inyectada en []                           | index.html 0 | tiempos.js 0 
+getWeekSheet                       usos   1 | inyectada en []                           | index.html 0 | tiempos.js 0 
+fetchCronogramaRowsForDate         usos   2 | inyectada en []                           | index.html 0 | tiempos.js 0 
+getCronogramaColumnsForToday       usos   2 | inyectada en []                           | index.html 0 | tiempos.js 0 
+preloadCronograma                  usos   2 | inyectada en []                           | index.html 0 | tiempos.js 0 
+getAssignedTasksForGestor          usos   4 | inyectada en [2944]                       | index.html 0 | tiempos.js 0 
+loadCronogramaAssignments          usos   2 | inyectada en [1434]                       | index.html 0 | tiempos.js 0 
+getScheduledGestoresCountForShift  usos   0 | inyectada en []                           | index.html 0 | tiempos.js 0 
+getShiftForDate                    usos   5 | inyectada en [1423]                       | index.html 0 | tiempos.js 1 
+getDocUrl                          usos   4 | inyectada en [1385]                       | index.html 0 | tiempos.js 0 
+getManualUrl                       usos   1 | inyectada en []                           | index.html 0 | tiempos.js 0 
+canonicalTaskId                    usos   4 | inyectada en []                           | index.html 0 | tiempos.js 0 
+isLegacyGenericTaskName            usos   3 | inyectada en []                           | index.html 0 | tiempos.js 0 
+resolveTaskDisplayName             usos   7 | inyectada en [2946]                       | index.html 0 | tiempos.js 0 
+reconcileScheduledTaskWithSession  usos   2 | inyectada en [2945]                       | index.html 0 | tiempos.js 0 
+buildTaskReportSummaryText         usos   2 | inyectada en [2931]                       | index.html 0 | tiempos.js 0 
+mergeTaskCaches                    usos   3 | inyectada en []                           | index.html 0 | tiempos.js 0 
+computeLocalTaskMigrations         usos   1 | inyectada en []                           | index.html 0 | tiempos.js 0 
+hasRealSetOptions                  usos   1 | inyectada en []                           | index.html 0 | tiempos.js 0 
+requiresSpecificSetSelection       usos   1 | inyectada en []                           | index.html 0 | tiempos.js 0 
+restoreEndShiftButton              usos   2 | inyectada en []                           | index.html 0 | tiempos.js 0 
+calculateEffectiveApprovalTime     usos   1 | inyectada en []                           | index.html 0 | tiempos.js 0 | window.*
+setIdleDetectorWarning             usos   9 | inyectada en []                           | index.html 0 | tiempos.js 0 
+checkAndStartIdleDetector          usos   1 | inyectada en []                           | index.html 0 | tiempos.js 0 
+requestIdlePermission              usos   1 | inyectada en []                           | index.html 0 | tiempos.js 0 
+startIdleDetectorLogic             usos   2 | inyectada en []                           | index.html 0 | tiempos.js 0 
+persistShiftClosureCore            usos   1 | inyectada en []                           | index.html 0 | tiempos.js 0 
+calculateShiftDelay                usos   1 | inyectada en []                           | index.html 0 | tiempos.js 0 
+===== cmp-datos
+Documentos: app.js 10 claves, src 10 claves, diferencias 0
+Manuales: app.js 16 claves, src 16 claves, diferencias 2
+    URL distinta | PragmaticplaySlot | app.js: https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBed0oHqboZRabYqQnGJMxUATLlSdPshzsD7pnAsl8JxdM?e=wIyTFp | src: https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBed0oHqboZRabYQnGJMxUATLlSdPshzsD7pnAsl8JxdM?e=wIyTFp
+    URL distinta | Redrakegaming | app.js: https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQCmcIAXj_tLRZKJx2dpTMyZAQP18AdXeKvHLc1PtnVBhd4?e=e6ltHs | src: https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQCmcIAXj_tLRZKJ2dpTMyZAQP18AdXeKvHLc1PtnVBhd4?e=e6ltHs
+Manuales: app.js 16 claves, main 17 claves, diferencias 4
+    URL distinta | Belatra | app.js: https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBfvgW5WaX6TII45Petp95PAa5POqG8BQzWcy9yo92KkpI?e=TWSCB4 | main: https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBPSE6f50toQ5-dN47fDzPOAXqhCkyx02toLxiTcics57o?e=DydGH1
+    URL distinta | Egt | app.js: https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBfvgW5WaX6TII45Petp95PAa5POqG8BQzWcy9yo92KkpI?e=TWSCB4 | main: https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQDPREAJmsY_Roey_HAIsjnDAVboOIr8TspQEggMd_VdQkQ?e=B4xw1A
+    URL distinta | Evolution | app.js: https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQDlFklX__OXRr5D7HHkhTxNAUA5QCL87QdDe3u7ngX-rUg?e=BtCIFL | main: https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQDlFklX__OXRr5D7HHkhTxNAUA5QCL87QdDe3u7ngX-rUg?e=uBw53Y
+    solo en main | Playson
+Manuales: src 16 claves, main 17 claves, diferencias 6
+    URL distinta | Belatra | src: https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBfvgW5WaX6TII45Petp95PAa5POqG8BQzWcy9yo92KkpI?e=TWSCB4 | main: https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBPSE6f50toQ5-dN47fDzPOAXqhCkyx02toLxiTcics57o?e=DydGH1
+    URL distinta | Egt | src: https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBfvgW5WaX6TII45Petp95PAa5POqG8BQzWcy9yo92KkpI?e=TWSCB4 | main: https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQDPREAJmsY_Roey_HAIsjnDAVboOIr8TspQEggMd_VdQkQ?e=B4xw1A
+    URL distinta | Evolution | src: https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQDlFklX__OXRr5D7HHkhTxNAUA5QCL87QdDe3u7ngX-rUg?e=BtCIFL | main: https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQDlFklX__OXRr5D7HHkhTxNAUA5QCL87QdDe3u7ngX-rUg?e=uBw53Y
+    URL distinta | PragmaticplaySlot | src: https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBed0oHqboZRabYQnGJMxUATLlSdPshzsD7pnAsl8JxdM?e=wIyTFp | main: https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBed0oHqboZRabYqQnGJMxUATLlSdPshzsD7pnAsl8JxdM?e=wIyTFp
+    URL distinta | Redrakegaming | src: https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQCmcIAXj_tLRZKJ2dpTMyZAQP18AdXeKvHLc1PtnVBhd4?e=e6ltHs | main: https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQCmcIAXj_tLRZKJx2dpTMyZAQP18AdXeKvHLc1PtnVBhd4?e=e6ltHs
+    solo en main | Playson

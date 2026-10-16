@@ -1,3 +1,6 @@
+import { ROLES } from '../../config/roles.js';
+import { USER_STATUS } from '../../utils/constants.js';
+
 /**
  * Piezas puras del latido de sesión activa (`syncActiveSessionToFirebase()`, app.js 2386-2472) que NO
  * son el estado de pausas (eso ya vive en `domain/shifts/active-session-payload.js` y
@@ -13,7 +16,7 @@
 export const APP_VERSION = 'v104';
 
 /** Rol que publica latido. */
-const GESTOR_ROLE = 'Gestor';
+const GESTOR_ROLE = ROLES.GESTOR;
 
 /**
  * ¿Debe este usuario enviar latido? Solo un Gestor con `uid` (app.js 2387-2389).
@@ -70,8 +73,8 @@ export function resolveIsInactive({ idleDetectorGranted, globalIdleState, domIdl
  * @returns {'start'|'end'|null}
  */
 export function decideInactivityTimelineAction(currentStatus, previousStatus) {
-    if (currentStatus === 'Inactivo' && previousStatus !== 'Inactivo') return 'start';
-    if (currentStatus !== 'Inactivo' && previousStatus === 'Inactivo') return 'end';
+    if (currentStatus === USER_STATUS.INACTIVE && previousStatus !== USER_STATUS.INACTIVE) return 'start';
+    if (currentStatus !== USER_STATUS.INACTIVE && previousStatus === USER_STATUS.INACTIVE) return 'end';
 
     return null;
 }

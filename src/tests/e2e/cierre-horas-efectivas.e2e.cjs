@@ -30,13 +30,40 @@ const startMarker = '            // Format login time';
 const INTEGRATED = SRC.includes('// [LAB-INTEGRACION:INICIO]');
 if (INTEGRATED && !BUNDLE) { console.error('app.js integrado: falta --riskops <bundle>'); process.exit(2); }
 if (INTEGRATED) STRICT = true; // el integrado debe cumplir TODO (incluidas las decisiones [D1])
-const endMarker = INTEGRATED
-    ? '__closure.emailFields.forEach(([campo, valor]) => formData.append(campo, valor)); // [LAB-INTEGRACION]'
-    : 'formData.append("Horas_Efectivas_Trabajadas", effectiveHours + " hrs");';
+const endMarker = 'formData.append("Horas_Efectivas_Trabajadas", effectiveHours + " hrs");';
 const HELPER = INTEGRATED ? SRC.slice(SRC.indexOf('// [LAB-INTEGRACION:INICIO]'), SRC.indexOf('// [LAB-INTEGRACION:FIN]')) : '';
-const s = SRC.indexOf(startMarker); const e = SRC.indexOf(endMarker, s);
-if (s < 0 || e < 0) { console.error('No se encontró el bloque de cálculo en handleEndShift'); process.exit(2); }
-const BLOCK = SRC.slice(s, e + endMarker.length);
+// Integrado (W-17): el cálculo vive en src/controllers/shift-closure-controller.js y se ejecuta desde el bundle.
+const CTRL_SRC = fs.readFileSync(require('path').join(__dirname, '..', '..', 'controllers', 'shift-closure-controller.js'), 'utf8').replace(/\r\n/g, '\n');
+const CLOSURE_CALL = `
+RiskOps.shiftClosureController.createShiftClosureController({
+    doc: { getElementById: () => null },
+    confirm: () => true, alert: () => {}, redirectToLogin: () => {},
+    readStoredUserRaw: () => JSON.stringify(localUser),
+    getUser: () => null, clearUser: () => {},
+    getTaskCache: () => ({}), getAllTasks: () => [],
+    getTimeline: () => shiftTimeline,
+    getSplitShiftTotalMs: () => totalSplitShiftTimeMs,
+    shift: (function () {
+        const s = RiskOps.shiftController.createShiftController({
+            getUser: () => null,
+            getState: () => ({ isLunchBreak, lunchStartTime, totalLunchTimeMs, isBreakfastBreak, breakfastStartTime, totalBreakfastTimeMs, isSplitShiftBreak, splitShiftStartTime, totalSplitShiftTimeMs }),
+            applyState: () => {}, now: () => Date.now(),
+            timeline: { push: () => {} }, storage: { saveBreakState: () => {} }, sync: () => {},
+            ui: { getButton: () => null, setSplitShiftVisible: () => {} }
+        });
+        return { closeOpenBreaks: () => s.closeOpenBreaks(), computeShiftClosure: (i) => s.computeShiftClosure(i) };
+    })(),
+    buildTaskReport: () => '', persistShiftClosure: () => Promise.resolve(),
+    restoreButton: () => {}, clearSessionStorage: () => {}, getAuthUid: () => null,
+    signOut: () => Promise.resolve(), appendFormSubmitCc: (fd) => fd, createFormData: () => formData,
+    fetchFn: () => Promise.resolve({ ok: true, status: 200 }), now: () => Date.now()
+}).handleEndShift();`;
+let BLOCK = '';
+if (!INTEGRATED) {
+    const s = SRC.indexOf(startMarker); const e = SRC.indexOf(endMarker, s);
+    if (s < 0 || e < 0) { console.error('No se encontró el bloque de cálculo en handleEndShift'); process.exit(2); }
+    BLOCK = SRC.slice(s, e + endMarker.length);
+}
 
 const MIN = 60000, H = 3600000;
 function close({ shiftMin, lunchMin = 0, breakfastMin = 0, splitMin = 0, inactMin = 0, timeline = null }) {
@@ -61,7 +88,8 @@ function close({ shiftMin, lunchMin = 0, breakfastMin = 0, splitMin = 0, inactMi
         vm.runInContext(BUNDLE + '\nthis.RiskOps = RiskOps;', ctx);
         vm.runInContext(HELPER, ctx);
     }
-    vm.runInContext('(function(){\n' + BLOCK + '\n})();', ctx);
+    if (INTEGRATED) vm.runInContext(CLOSURE_CALL, ctx);
+    else vm.runInContext('(function(){\n' + BLOCK + '\n})();', ctx);
     return fields;
 }
 const hrs = (f) => parseFloat(f.Horas_Efectivas_Trabajadas);
@@ -115,12 +143,12 @@ T('H11', 'Coherencia con el panel de reportes (línea de tiempoEfectivo) cuando 
     eq(hrs(f).toFixed(2), (panelMin / 60).toFixed(2));
 });
 T('H12', 'Orden: handleEndShift cierra la pausa abierta ANTES de calcular (el acumulado incluye el último tramo)', false, () => {
-    const iClose = SRC.indexOf(INTEGRATED ? '__shiftController().closeOpenBreaks();' : 'if (isSplitShiftBreak) toggleSplitShiftBreak();');
-    const iCalc = SRC.indexOf('// Format login time');
+    const iClose = INTEGRATED ? CTRL_SRC.indexOf('shift.closeOpenBreaks();') : SRC.indexOf('if (isSplitShiftBreak) toggleSplitShiftBreak();');
+    const iCalc = INTEGRATED ? CTRL_SRC.indexOf('shift.computeShiftClosure(') : SRC.indexOf('// Format login time');
     ok(iClose > 0 && iCalc > iClose, 'la pausa abierta se cierra después del cálculo');
 });
 T('H13', 'El reporte guardado en Firebase conserva tiempoPausaTurnoMins (para el panel de reportes)', false, () => {
-    ok(/tiempoPausaTurnoMins:\s*totalSplitShiftTimeMs/.test(SRC), 'falta tiempoPausaTurnoMins en shiftReportObject');
+    ok(/tiempoPausaTurnoMins:\s*totalSplitShiftTimeMs/.test(SRC + (BUNDLE || '')), 'falta tiempoPausaTurnoMins en shiftReportObject');
 });
 T('H14', '[D1] El exceso de almuerzo NO se resta dos veces: 10 h con 75 min de almuerzo = 8.75 h (original 8.50 h)', true, () => {
     const f = close({ shiftMin: 600, lunchMin: 75 });
@@ -145,7 +173,7 @@ T('H18', '[D1] Correo = panel: las horas del correo son turno - almuerzo - desay
     eq(f.Exceso_Pausas_Penalidad, '25 minutos'); eq(hrs(f).toFixed(2), (panelMin / 60).toFixed(2));
 });
 T('H19', 'El reporte guardado conserva inactividadTotalMins (el panel lo resta) y la penalidad (informativa)', false, () => {
-    ok(/inactividadTotalMins:\s*inactividadMinsLimpia/.test(SRC) && /penalidadConectividadMins:\s*penalidadConectividadMins/.test(SRC), 'faltan campos en shiftReportObject');
+    ok(/inactividadTotalMins:\s*\w+/.test(SRC + (BUNDLE || '')) && /penalidadConectividadMins:\s*\w+/.test(SRC + (BUNDLE || '')), 'faltan campos en shiftReportObject');
 });
 
 (async () => {

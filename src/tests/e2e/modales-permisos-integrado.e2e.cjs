@@ -25,6 +25,8 @@
  */
 const fs = require('fs');
 const vm = require('vm');
+const path = require('path');
+const { pathToFileURL } = require('url');
 
 const args = process.argv.slice(2);
 const opt = (name) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : null; };
@@ -160,6 +162,11 @@ function createWorld(src, scenario) {
     vm.runInContext(
         'let currentUser = __cfg.currentUser; let taskStateCache = {};\n' +
         'function loadPermisos() { __log.push(["loadPermisos"]); }\nfunction updateKPI() { __log.push(["updateKPI"]); }\n' +
+        // Integrado (paso 3.4): updatePermissionStatus se retiró de app.js (no tenía llamadas: el controlador la usa).
+        // Este envoltorio de PRUEBA llama al mismo controlador que usaba el global; el original conserva su global.
+        (src.includes(MARK_START) ? 'async function updatePermissionStatus(fb_id, newStatus, reason = null) { return __approvals().updatePermissionStatus(fb_id, newStatus, reason); }\n' : '') +
+        // W-50: approveUser se retiró de app.js (el "Aprobar" llega por data-action); este envoltorio de PRUEBA llama al controlador.
+        (src.includes(MARK_START) ? 'async function approveUser(userId) { return __approvals().approveUser(userId); }\n' : '') +
         helpers + '\n' + region, ctx);
 
     return { ctx, dom, database, log, timers, storage };
@@ -213,7 +220,7 @@ const rows = (html) => (html.match(/<tr /g) || []).length;
 const SCENARIOS = [
     { id: 'U1', name: 'renderPendingUsers: lista pequeña (oculta rechazados y a la administradora; escapa el nombre)', tree: USERS_SMALL, run: 'await renderPendingUsers();', check(o, eq, ok) {
         const html = tbodyHtml(o, 'pendingUsersTableBody');
-        ok(html.includes('approveUser(decodeURIComponent(') && html.includes('Ana Gómez'), 'faltan filas');
+        ok(html.includes('data-action="approve-user"') && html.includes('Ana Gómez'), 'faltan filas');
         ok(!html.includes('u3@virtualsoft') && !html.includes('maria.sanchez'), 'rechazado o administradora visibles');
         ok(html.includes('O&#039;Neil &lt;b&gt;'), 'nombre sin escapar');
     } },
@@ -253,7 +260,8 @@ const SCENARIOS = [
     } },
     { id: 'P1', name: 'renderPendingPermissions: pendientes recientes primero, sin historial si no existe la tabla', tree: PERMS_SMALL, run: 'await renderPendingPermissions();', check(o, eq, ok) {
         const html = tbodyHtml(o, 'pendingPermissionsTableBody'); eq(rows(html), 2); ok(html.indexOf('perm-action-btns-p2') < html.indexOf('perm-action-btns-p1'), 'orden incorrecto');
-        ok(html.includes('showPermApproveBox(decodeURIComponent(') && html.includes('9:00 a. m.'), 'faltan botones u hora');
+        ok(html.includes('data-action="show-perm-approve-box" data-fb-id="p1"') && html.includes('9:00 a. m.'), 'faltan botones u hora');
+        ok(!html.includes('onclick='), 'ningún onclick inline');
     } },
     { id: 'P2', name: 'renderPendingPermissions: con tabla de historial pinta los procesados', tree: PERMS_SMALL, dom: (dom) => { dom.add('historyPermissionsTableBody'); }, run: 'await renderPendingPermissions();', check(o, eq, ok) {
         const html = tbodyHtml(o, 'historyPermissionsTableBody'); eq(rows(html), 2); ok(html.includes('Aprobado') && html.includes('Sin soporte'), 'faltan estados o motivo');
@@ -311,7 +319,7 @@ const SCENARIOS = [
         eq(opts.map((x) => x.value), ['Todos', 'Pendiente', 'Aprobado', 'Rechazado']); eq(opts[3].textContent, 'Rechazados');
         const html = tbodyHtml(o, 'pendingUsersTableBody'); eq(rows(html), 1);
         ok(html.includes('Rita') && html.includes('Motivo: Datos &lt;b&gt;incompletos&lt;/b&gt;'), 'falta el rechazado o su motivo escapado');
-        ok(html.includes(`revertRejectedUser(decodeURIComponent('u3'))`) && html.includes(`approveUser(decodeURIComponent('u3'))`), 'faltan los botones Revertir/Aprobar');
+        ok(html.includes('data-action="revert-rejected-user" data-user-id="u3"') && html.includes('data-action="approve-user" data-user-id="u3"'), 'faltan los botones Revertir/Aprobar');
     }, checkOriginal(o, eq, ok) {
         eq(o.world.dom.doc.getElementById('filterAprobacionesStatus').options.length, 3);
         ok(!tbodyHtml(o, 'pendingUsersTableBody').includes('Rita'), 'el original no muestra rechazados');
@@ -358,6 +366,8 @@ const SCENARIOS = [
 
 // ------------------------------------------------------------------ ejecución
 (async () => {
+    // Paso 3.4: normalizador general de manejadores del original (ESM).
+    const NL = await import(pathToFileURL(path.join(__dirname, '..', 'helpers', 'legacy-action-migration.mjs')).href);
     console.log('=== MODALES, TAREA EXTRA, USUARIOS Y PERMISOS: ' + (INTEGRATED ? 'app.js INTEGRADO (RiskOps.approvalsController)' : 'app.js ORIGINAL') + ' ===');
     console.log(`app.js: ${APP}${ORIGINAL_SRC ? ' | paridad contra el original' : ''} | ${new Date().toISOString()}`);
     let pass = 0; let fail = 0;
@@ -366,9 +376,11 @@ const SCENARIOS = [
     const ok = (c, m) => { if (!c) throw new Error(m || 'falso'); };
 
     if (INTEGRATED) {
-        const names = ['openExceptionModal', 'closeModal', 'confirmException', 'openExtraTaskModal', 'saveExtraTask', 'renderPendingUsers', 'approveUser', 'showUserRejectBox', 'cancelRejectUser', 'confirmRejectUser', 'renderPendingPermissions', 'showPermRejectBox', 'cancelRejectPerm', 'confirmRejectPerm', 'showPermApproveBox', 'cancelApprovePerm', 'confirmApprovePerm', 'updatePermissionStatus'];
+        const names = ['openExceptionModal', 'closeModal', 'confirmException', 'openExtraTaskModal', 'saveExtraTask', 'renderPendingUsers', 'showUserRejectBox', 'cancelRejectUser', 'confirmRejectUser', 'renderPendingPermissions', 'showPermRejectBox', 'cancelRejectPerm', 'confirmRejectPerm', 'showPermApproveBox', 'cancelApprovePerm', 'confirmApprovePerm'];
         const w = createWorld(SRC, {});
-        report(names.every((n) => vm.runInContext(`typeof ${n} === 'function'`, w.ctx)), 'integración: las 18 funciones siguen siendo globales (los onclick de index.html y del HTML generado las resuelven)', 'falta alguna');
+        report(names.every((n) => vm.runInContext(`typeof ${n} === 'function'`, w.ctx)), 'integración: las 16 funciones siguen siendo globales (los onclick de index.html y del HTML generado las resuelven)', 'falta alguna');
+        report(!/function approveUser\(/.test(SRC), 'integración W-50: app.js ya no declara approveUser (el "Aprobar" de la tabla se delega por data-action)', 'sigue declarada');
+        report(!/function updatePermissionStatus\(/.test(SRC), 'integración (paso 3.4): app.js ya no declara updatePermissionStatus (zombi sin llamadas; el controlador la usa)', 'sigue declarada');
         report(vm.runInContext(`typeof revertRejectedUser === 'function'`, w.ctx), 'integración D9a: la global nueva revertRejectedUser existe (botón "Revertir" de la vista Rechazados)', 'falta revertRejectedUser');
         report(!/APPROVALS_LEGACY_OPTIONS|preventDuplicates:\s*false|enforcePolicy:\s*false|escapeRole:\s*false|showRejectedUsers:\s*false/.test(between(SRC, MARK_START, MARK_END, true)),
             'integración D2/D7/D9a: el paso del lab NO apaga ninguna decisión (usa los valores por defecto del controlador)', 'el bloque integrado pasa opciones legacy');
@@ -385,6 +397,10 @@ const SCENARIOS = [
             if (ORIGINAL_SRC) {
                 const orig = await observe(ORIGINAL_SRC, scenario);
                 const strip = (o) => { const { world, ...rest } = o; return rest; };
+                // Paso 3.4 (W-50 y W-54 b): los onclick del original se comparan en su forma delegada; el resto, exacto.
+                const mapStrings = (v, fn) => (typeof v === 'string' ? fn(v) : Array.isArray(v) ? v.map((x) => mapStrings(x, fn)) : (v && typeof v === 'object') ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, mapStrings(x, fn)])) : v);
+                const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+                const origW = mapStrings(strip(orig), (s) => NL.legacyActionsToDelegated(s));
                 if (scenario.decision) {
                     // Diferencia INTENCIONAL (decisión del responsable): el original conserva el comportamiento viejo
                     // y el integrado difiere de él.
@@ -396,9 +412,9 @@ const SCENARIOS = [
                     continue;
                 }
                 try {
-                    if (JSON.stringify(strip(obs)) !== JSON.stringify(strip(orig))) {
-                        const keys = Object.keys(strip(obs)).filter((k) => JSON.stringify(obs[k]) !== JSON.stringify(orig[k]));
-                        throw new Error('difiere en: ' + keys.join(', ') + '\n         integrado: ' + JSON.stringify(obs[keys[0]]).slice(0, 300) + '\n         original:  ' + JSON.stringify(orig[keys[0]]).slice(0, 300));
+                    if (JSON.stringify(strip(obs)) !== JSON.stringify(origW)) {
+                        const keys = Object.keys(strip(obs)).filter((k) => JSON.stringify(obs[k]) !== JSON.stringify(origW[k]));
+                        throw new Error('difiere en: ' + keys.join(', ') + '\n         integrado: ' + JSON.stringify(obs[keys[0]]).slice(0, 300) + '\n         original:  ' + JSON.stringify(origW[keys[0]]).slice(0, 300));
                     }
                     report(true, `${scenario.id} paridad con el original`, '');
                 } catch (e) { report(false, `${scenario.id} paridad con el original`, e.message); }

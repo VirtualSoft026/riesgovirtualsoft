@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Boxicons for UI icons -->
-    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet' integrity='sha384-42kyIPf7HDYLkGffmxDhSx/3Z/53wGBs3nD6wEFxsbeDc7rMO6mkYbkAcpRsnMU2' crossorigin='anonymous'>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="login.css">
 </head>
@@ -29,23 +29,6 @@
         <p style="font-size: 16px; color: #9CA3AF; max-width: 500px; line-height: 1.5;">Esta plataforma de monitoreo ha sido optimizada para funcionar <strong>estrictamente en Google Chrome</strong>.</p>
         <p style="margin-top: 15px; font-size: 14px; color: #3B82F6;">Por favor, copia el enlace y ábrelo utilizando Google Chrome.</p>
     </div>
-
-    <script>
-        (function checkBrowser() {
-            var ua = navigator.userAgent;
-            var isChrome = /Chrome|CriOS/i.test(ua) && !/Edg|OPR/i.test(ua);
-            
-            if (!isChrome) {
-                document.addEventListener('DOMContentLoaded', function() {
-                    document.getElementById('browserBlocker').style.display = 'flex';
-                    var lg = document.querySelector('.login-container');
-                    if (lg) lg.style.display = 'none';
-                    var mob = document.getElementById('mobileBlocker');
-                    if (mob) mob.style.display = 'none';
-                });
-            }
-        })();
-    </script>
 
     <!-- Animated background elements -->
     <div class="blob blob-1"></div>
@@ -73,7 +56,7 @@
                 </div>
 
                 <div style="text-align: right; margin-bottom: 15px;">
-                    <a href="#" class="auth-link" onclick="switchPanel('forgotPanel')">¿Olvidaste tu contraseña?</a>
+                    <a href="#" class="auth-link" data-action="switch-panel" data-panel="forgotPanel">¿Olvidaste tu contraseña?</a>
                 </div>
 
                 <button type="submit" class="btn btn-primary" style="margin-top: 5px; font-size: 16px; padding: 12px;">
@@ -83,7 +66,7 @@
             </form>
 
             <div class="login-footer" style="margin-top: 20px; border-top: 1px solid var(--glass-border); padding-top: 15px;">
-                <p style="color: var(--text-secondary);">¿No tienes cuenta? <a href="#" class="auth-link" onclick="switchPanel('registerPanel')">Regístrate aquí</a></p>
+                <p style="color: var(--text-secondary);">¿No tienes cuenta? <a href="#" class="auth-link" data-action="switch-panel" data-panel="registerPanel">Regístrate aquí</a></p>
             </div>
         </div>
 
@@ -135,7 +118,7 @@
             </form>
 
             <div class="login-footer" style="margin-top: 20px; border-top: 1px solid var(--glass-border); padding-top: 15px;">
-                <p style="color: var(--text-secondary);">¿Ya tienes cuenta? <a href="#" class="auth-link" onclick="switchPanel('loginPanel')">Volver al Login</a></p>
+                <p style="color: var(--text-secondary);">¿Ya tienes cuenta? <a href="#" class="auth-link" data-action="switch-panel" data-panel="loginPanel">Volver al Login</a></p>
             </div>
         </div>
 
@@ -163,18 +146,27 @@
             </form>
 
             <div class="login-footer" style="margin-top: 20px; border-top: 1px solid var(--glass-border); padding-top: 15px;">
-                <a href="#" class="auth-link" onclick="switchPanel('loginPanel')"><i class='bx bx-arrow-back'></i> Volver al Login</a>
+                <a href="#" class="auth-link" data-action="switch-panel" data-panel="loginPanel"><i class='bx bx-arrow-back'></i> Volver al Login</a>
             </div>
         </div>
     </div>
 
     <!-- SheetJS (Excel Parser) -->
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"
+            integrity="sha384-7hwyYzxURfZMLwHgvEKrYEmM5tX+1DVWK5iDR4R69bOQeY90Q8B8n9Cobuyqybhw"
+            crossorigin="anonymous"></script>
     <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"
+            integrity="sha384-v3Z/Xdw1sCeo6M/geW7sn1Lt9obIm7MhAk8laVV+rvYFmzuWDELOiygx7dVte2dX"
+            crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"
+            integrity="sha384-p62xBRve8PdqGDGASZtZMuHgPsyPcT5VsFwgmz2p4zaFdEtt5ZzNqxK+CLzQS7xP"
+            crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"
+            integrity="sha384-fuqdSwJXSvcAuKu5FbSJcHqHK474liv5ji8tuDnHz1rpfrnuXZPdM0oRaSK6c95L"
+            crossorigin="anonymous"></script>
     <script src="firebase-config.js?v=20260730_v2"></script>
-    <script src="login.js?v=20260730_v2"></script>
+    <script src="riskops.bundle.js?v=20261016_p35"></script>
+    <script src="login-init.js?v=20261016_p34"></script>
 </body>
 </html>

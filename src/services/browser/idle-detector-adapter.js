@@ -1,6 +1,9 @@
-const NATIVE_IDLE_THRESHOLD_MS = 3 * 60 * 1000;
-const SCREEN_LOCK_GRACE_PERIOD_MS = 10 * 1000;
-const DOM_IDLE_FALLBACK_THRESHOLD_MS = 5 * 60 * 1000;
+// W-41: una sola fuente para los umbrales (antes se copiaban aquí).
+import {
+    NATIVE_IDLE_THRESHOLD_MS,
+    SCREEN_LOCK_GRACE_PERIOD_MS,
+    DOM_IDLE_FALLBACK_THRESHOLD_MS
+} from '../../utils/constants.js';
 
 let idleDetectorInstance = null;
 let idleDetectorStartPromise = null;
@@ -389,4 +392,60 @@ export function shouldApplyDomIdleFallback(now = Date.now()) {
         now - lastActivityTimestamp >
         DOM_IDLE_FALLBACK_THRESHOLD_MS
     );
+}
+
+/** Eventos del documento que cuentan como actividad del usuario (app.js, antes de W-24). */
+export const IDLE_ACTIVITY_DOCUMENT_EVENTS = ['mousemove', 'keydown', 'click', 'scroll', 'visibilitychange'];
+
+/** Eventos de la ventana que cuentan como actividad (antes de W-24: solo `focus`). */
+export const IDLE_ACTIVITY_WINDOW_EVENTS = ['focus'];
+
+/** Periodo del sondeo del respaldo DOM (antes de W-24: `setInterval(..., 1000)`). */
+export const DOM_IDLE_POLL_MS = 1000;
+
+/**
+ * Registra UNA vez la escucha de actividad y el sondeo del respaldo DOM (W-24). Devuelve la función que retira todo:
+ * los listeners del documento y de la ventana y el temporizador.
+ *
+ * Cada sondeo llama a `onDomFallback()` solo si `shouldApplyDomIdleFallback()` lo permite (sin detector nativo, pestaña
+ * visible y con foco, y más de 5 min sin actividad según `getLastActivityTimestamp` de `initIdleDetector`).
+ *
+ * @param {{
+ *   doc: { addEventListener: Function, removeEventListener: Function },
+ *   win: { addEventListener: Function, removeEventListener: Function },
+ *   onActivity: (event?: unknown) => void,
+ *   onDomFallback?: () => void,
+ *   pollMs?: number,
+ *   setIntervalFn?: Function,
+ *   clearIntervalFn?: Function
+ * }} options
+ * @returns {() => void} desenlace
+ */
+export function bindIdleActivityListeners({
+    doc,
+    win,
+    onActivity,
+    onDomFallback,
+    pollMs = DOM_IDLE_POLL_MS,
+    setIntervalFn = setInterval,
+    clearIntervalFn = clearInterval
+}) {
+    if (typeof onActivity !== 'function') {
+        throw new TypeError('bindIdleActivityListeners: onActivity debe ser una función');
+    }
+
+    IDLE_ACTIVITY_DOCUMENT_EVENTS.forEach((eventName) => doc.addEventListener(eventName, onActivity));
+    IDLE_ACTIVITY_WINDOW_EVENTS.forEach((eventName) => win.addEventListener(eventName, onActivity));
+
+    const pollTimer = setIntervalFn(() => {
+        if (shouldApplyDomIdleFallback() && typeof onDomFallback === 'function') {
+            onDomFallback();
+        }
+    }, pollMs);
+
+    return function unbindIdleActivityListeners() {
+        IDLE_ACTIVITY_DOCUMENT_EVENTS.forEach((eventName) => doc.removeEventListener(eventName, onActivity));
+        IDLE_ACTIVITY_WINDOW_EVENTS.forEach((eventName) => win.removeEventListener(eventName, onActivity));
+        clearIntervalFn(pollTimer);
+    };
 }

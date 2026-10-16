@@ -1,4 +1,5 @@
 import { createRunner, assert } from '../test-harness.mjs';
+import { normalizeLegacyHtml } from '../helpers/w50-delegation.mjs';
 import { APPROVALS_LEGACY_OPTIONS, createApprovalsController, createModalsController } from '../../controllers/approvals-controller.js';
 import { createApprovalsRepository } from '../../services/firebase/firebase-approvals-repository.js';
 import { createOriginalApp } from './approvals-original.mjs';
@@ -11,10 +12,11 @@ import { createFakeDatabase, createFakeDom, createRng } from './approvals-fakes.
  * alertas y confirmaciones en orden, lecturas/escrituras a Firebase, HTML y estilos del DOM (antes y después de los
  * temporizadores de 100 ms), y fallos. Después, pruebas propias de las opciones explícitas (doble clic, política).
  *
- * Desde las decisiones D2/D7/D9a (2026-10-06) el controlador trae encendidas por defecto `escapeRole`,
- * `preventDuplicates`, `enforcePolicy` y `showRejectedUsers`. La comparación diferencial contra app.js pasa por eso
- * EXPLÍCITAMENTE `APPROVALS_LEGACY_OPTIONS` (`world.modern()`); el comportamiento decidido se prueba con
- * `world.decided()` (valores por defecto) en `approvals-decisiones.test.mjs`.
+ * Desde las decisiones D7/D9a (2026-10-06) el controlador trae encendidas por defecto `preventDuplicates`,
+ * `enforcePolicy` y `showRejectedUsers`. La comparación diferencial contra app.js pasa por eso EXPLÍCITAMENTE
+ * `APPROVALS_LEGACY_OPTIONS` (`world.modern()`); el comportamiento decidido se prueba con `world.decided()` (valores
+ * por defecto) en `approvals-decisiones.test.mjs`. El rol de la insignia se escapa SIEMPRE (D2, W-52): en la
+ * comparación con app.js los roles no llevan caracteres especiales.
  */
 const { test, testAsync, summarizeAsync } = createRunner('approvals-controller.js (diferencial vs app.js 3975-4448 + opciones propias)');
 
@@ -158,7 +160,8 @@ async function observe(world, action) {
 async function runBoth(options, action) {
     const a = makeWorld(options);
     const b = makeWorld(options);
-    const original = await observe(a, () => action(a.original(), a));
+    // W-50: el "Aprobar" del original (onclick) se compara en su forma delegada (diferencia intencional).
+    const original = normalizeLegacyHtml(await observe(a, () => action(a.original(), a)));
     const modern = await observe(b, () => action(b.modern(options.modernExtra), b));
 
     return { original, modern };
@@ -240,9 +243,17 @@ expectSame('renderPendingUsers: sin controles de filtro en el DOM usa Todos y va
 expectSame('renderPendingUsers: falla la lectura de Firebase -> registra el error y muestra la tabla vacía', {
     tree: USERS_SMALL, failOn: [{ op: 'once', path: 'users' }]
 }, (api) => api.renderPendingUsers());
-expectSame('renderPendingUsers: usuarios sin nombre/rol/fechas y fecha inválida', {
-    tree: { users: { a: { approved: false }, b: { approved: true, registrationDate: 'garbage', approvalDate: 'garbage', name: null, email: null, role: 'Admin' } } }
+expectSame('renderPendingUsers: usuarios sin nombre/fechas y fecha inválida', {
+    tree: { users: { a: { approved: false, role: 'Gestor' }, b: { approved: true, registrationDate: 'garbage', approvalDate: 'garbage', name: null, email: null, role: 'Admin' } } }
 }, (api) => api.renderPendingUsers());
+
+testAsync('W-52: un usuario sin rol muestra la insignia vacía (app.js pintaba "undefined"); el resto de la fila es igual', async () => {
+    const { original, modern } = await runBoth({ tree: { users: { a: { approved: false } } } }, (api) => api.renderPendingUsers());
+    const html = (snap) => JSON.stringify(snap);
+    assert.ok(html(original).includes('<span class=\\"badge pending\\">undefined</span>'), 'comportamiento de app.js');
+    assert.ok(!html(modern).includes('undefined</span>'));
+    assert.equal(html(modern), html(original).replaceAll('<span class=\\"badge pending\\">undefined</span>', '<span class=\\"badge pending\\"></span>'));
+});
 
 testAsync('renderPendingUsers: sin el <tbody> no hace nada (ni lee Firebase)', async () => {
     const { original, modern } = await runBoth({ tree: USERS_SMALL, dom: (dom) => { dom.add('pendingUsersTableBody'); } }, async (api, world) => {
@@ -451,16 +462,16 @@ testAsync('enforcePolicy: sin usuario cargado se deniega; el Admin pasa', async 
     assert.equal(adminWorld.database.calls.filter((c) => c.op === 'update').length, 1);
 });
 
-testAsync('escapeRole: escapa el rol en la insignia (apagado = idéntico a app.js)', async () => {
+testAsync('W-52: el rol de la insignia se escapa siempre, también con APPROVALS_LEGACY_OPTIONS (app.js lo pintaba crudo)', async () => {
     const tree = { users: { x1: { name: 'Ana', email: 'a@v.tech', role: '<img src=x onerror=alert(1)>', approved: false, registrationDate: '2026-10-01T10:00:00Z' } } };
-    const off = makeWorld({ tree });
-    await off.modern().renderPendingUsers();
-    const on = makeWorld({ tree });
-    await on.modern({ escapeRole: true }).renderPendingUsers();
-
-    assert.ok(off.dom.doc.getElementById('pendingUsersTableBody').innerHTML.includes('<img src=x onerror=alert(1)>'));
-    assert.ok(!on.dom.doc.getElementById('pendingUsersTableBody').innerHTML.includes('<img'));
-    assert.ok(on.dom.doc.getElementById('pendingUsersTableBody').innerHTML.includes('&lt;img src=x onerror=alert(1)&gt;'));
+    for (const options of [{}, { escapeRole: false }]) {
+        const world = makeWorld({ tree });
+        await world.modern(options).renderPendingUsers();
+        const html = world.dom.doc.getElementById('pendingUsersTableBody').innerHTML;
+        assert.ok(!html.includes('<img'), JSON.stringify(options));
+        assert.ok(html.includes('&lt;img src=x onerror=alert(1)&gt;'));
+    }
+    assert.equal('escapeRole' in APPROVALS_LEGACY_OPTIONS, false);
 });
 
 testAsync('un fallo al repintar la tabla tras aprobar queda registrado (no es una promesa huérfana)', async () => {

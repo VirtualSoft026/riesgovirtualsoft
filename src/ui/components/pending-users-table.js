@@ -6,17 +6,26 @@
  *
  * Sin Firebase. Todo devuelve texto salvo `ensureRejectedFilterOption`, que agrega una `<option>` al selector existente.
  *
- * Decisiones del responsable (2026-10-06, plan maestro §4 ter), encendidas por defecto:
- *  - D2: el rol se escapa en la insignia (`escapeRole`, por defecto `true`). app.js lo inserta sin escapar (XSS
+ * W-50: el botón "Aprobar" (fila pendiente y fila rechazada) no lleva `onclick`: marca `data-action="approve-user"` y
+ * `data-user-id` (escapado) y lo atiende un listener delegado (`bindApproveUserDelegation` en el controlador). Los demás
+ * manejadores (`showUserRejectBox`, `confirmRejectUser`, `cancelRejectUser`, `revertRejectedUser`) siguen inline.
+ *
+ * Decisiones del responsable (2026-10-06, plan maestro §4 ter):
+ *  - D2 (incondicional desde W-52, paso 3.1): el rol se escapa en la insignia. app.js lo inserta sin escapar (XSS
  *    almacenado). El resto de campos (nombre, correo, fechas, motivo, ids) ya se escapaban con `escapeHTML` y los ids
  *    de los `onclick` se codifican con `encodeInlineHandlerArg`.
  *  - D9a: la fila de un usuario RECHAZADO (`rejectedActions`, por defecto `true`) muestra el motivo (escapado) y los
  *    botones "Revertir" (`revertRejectedUser`) y "Aprobar" (`approveUser`) dentro de `user-rejected-actions-<id>`.
- * `{ escapeRole: false, rejectedActions: false }` reproduce byte a byte el HTML de app.js (pruebas diferenciales).
+ * Con `{ rejectedActions: false }` y un rol sin caracteres especiales el HTML es idéntico al de app.js salvo el botón
+ * "Aprobar", que usa la delegación de W-50 (`data-action` en vez de `onclick`).
  */
 
 import { escapeHTML, encodeInlineHandlerArg } from '../../utils/sanitization.js';
 import { REJECTED_FILTER_OPTION } from '../../domain/permissions/user-approval-list.js';
+import { APPROVED_REJECTED_VALUE } from '../../domain/auth/user-profile.js';
+
+/** Acción delegada del botón "Aprobar" de la tabla de usuarios (W-50). */
+export const APPROVE_USER_ACTION = 'approve-user';
 
 /** Prefijo del contenedor de acciones de una fila rechazada (D9a; lo usa el controlador para deshabilitar botones). */
 export const USER_REJECTED_ACTIONS_PREFIX = 'user-rejected-actions-';
@@ -40,8 +49,8 @@ export function buildRejectedUserActionHtml(user) {
                 <span style="color: var(--danger); font-weight: bold;"><i class='bx bx-x'></i> Rechazado</span>
                 <br><small style="color: var(--text-secondary);">Motivo: ${escapeHTML(reason)}</small>
                 <div id="${USER_REJECTED_ACTIONS_PREFIX}${escapeHTML(user.id)}" style="display:flex; justify-content:center; gap:5px; margin-top:5px;">
-                    <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px;" title="Devolver a Pendiente de aprobación" onclick="revertRejectedUser(decodeURIComponent('${encodeInlineHandlerArg(user.id)}'))">Revertir</button>
-                    <button class="btn btn-success" style="padding: 5px 10px; font-size: 12px;" onclick="approveUser(decodeURIComponent('${encodeInlineHandlerArg(user.id)}'))">Aprobar</button>
+                    <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px;" title="Devolver a Pendiente de aprobación" data-action="revert-rejected-user" data-user-id="${escapeHTML(user.id)}">Revertir</button>
+                    <button class="btn btn-success" style="padding: 5px 10px; font-size: 12px;" data-action="${APPROVE_USER_ACTION}" data-user-id="${escapeHTML(user.id)}">Aprobar</button>
                 </div>
             `;
 }
@@ -59,21 +68,21 @@ export function buildUserActionHtml(user, { rejectedActions = true } = {}) {
     let actionHtml = '';
     if (user.approved === true) {
         actionHtml = `<span style="color: var(--success); font-weight: bold;"><i class='bx bx-check'></i> Aprobado</span>`;
-    } else if (user.approved === 'Rechazado' && rejectedActions) {
+    } else if (user.approved === APPROVED_REJECTED_VALUE && rejectedActions) {
         actionHtml = buildRejectedUserActionHtml(user);
-    } else if (user.approved === 'Rechazado') {
+    } else if (user.approved === APPROVED_REJECTED_VALUE) {
         actionHtml = `<span style="color: var(--danger); font-weight: bold;"><i class='bx bx-x'></i> Rechazado</span>`;
     } else {
         actionHtml = `
                 <div id="user-action-btns-${escapeHTML(user.id)}" style="display:flex; justify-content:center; gap:5px;">
-                    <button class="btn btn-success" style="padding: 5px 10px; font-size: 12px;" onclick="approveUser(decodeURIComponent('${encodeInlineHandlerArg(user.id)}'))">Aprobar</button>
-                    <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="showUserRejectBox(decodeURIComponent('${encodeInlineHandlerArg(user.id)}'))">Rechazar</button>
+                    <button class="btn btn-success" style="padding: 5px 10px; font-size: 12px;" data-action="${APPROVE_USER_ACTION}" data-user-id="${escapeHTML(user.id)}">Aprobar</button>
+                    <button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;" data-action="show-user-reject-box" data-user-id="${escapeHTML(user.id)}">Rechazar</button>
                 </div>
                 <div id="user-reject-box-${escapeHTML(user.id)}" style="display:none; flex-direction:column; gap:5px; margin-top:5px;">
                     <input type="text" id="user-reason-${escapeHTML(user.id)}" name="user-reason-${escapeHTML(user.id)}" aria-label="Motivo de rechazo" placeholder="Motivo de rechazo" class="modern-input" style="padding:4px; font-size:11px; width:100%;">
                     <div style="display:flex; gap:5px; justify-content:center;">
-                        <button class="btn btn-danger" style="padding: 2px 5px; font-size: 10px;" onclick="confirmRejectUser(decodeURIComponent('${encodeInlineHandlerArg(user.id)}'))">Confirmar</button>
-                        <button class="btn btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="cancelRejectUser(decodeURIComponent('${encodeInlineHandlerArg(user.id)}'))">Cancelar</button>
+                        <button class="btn btn-danger" style="padding: 2px 5px; font-size: 10px;" data-action="confirm-reject-user" data-user-id="${escapeHTML(user.id)}">Confirmar</button>
+                        <button class="btn btn-outline" style="padding: 2px 5px; font-size: 10px;" data-action="cancel-reject-user" data-user-id="${escapeHTML(user.id)}">Cancelar</button>
                     </div>
                 </div>
             `;
@@ -84,13 +93,13 @@ export function buildUserActionHtml(user, { rejectedActions = true } = {}) {
 /**
  * Insignia del rol (app.js 4204).
  *
+ * El rol se escapa SIEMPRE (D2, W-52): app.js lo inserta sin escapar y, aunque las reglas limitan el rol a "Gestor"
+ * en el alta, un Admin o un nodo creado antes de las reglas pueden guardar cualquier texto.
+ *
  * @param {{approved: unknown, role: unknown}} user
- * @param {{escapeRole?: boolean}} [options] `escapeRole` (por defecto `true`, decisión D2) escapa el rol antes de
- *   insertarlo. `false` = app.js, que lo inserta sin escapar (las reglas limitan el rol a "Gestor" en el alta, pero un
- *   Admin o un nodo creado antes de las reglas pueden guardar cualquier texto).
  */
-export function buildUserRoleBadgeHtml(user, { escapeRole = true } = {}) {
-    const role = escapeRole ? escapeHTML(user.role) : user.role;
+export function buildUserRoleBadgeHtml(user) {
+    const role = escapeHTML(user.role);
 
     const statusBadge = user.approved ? `<span class="badge" style="background: rgba(16, 185, 129, 0.2); color: var(--success);">${role}</span>` : `<span class="badge pending">${role}</span>`;
     return statusBadge;
@@ -100,14 +109,13 @@ export function buildUserRoleBadgeHtml(user, { escapeRole = true } = {}) {
  * Fila completa de un usuario (app.js 4206-4217).
  *
  * @param {object} user
- * @param {{regDateStr: string, appDateStr: string, escapeRole?: boolean, rejectedActions?: boolean}} parts Textos de
- *   fecha ya calculados y las opciones de las decisiones D2 (`escapeRole`) y D9a (`rejectedActions`), ambas `true` por
- *   defecto.
+ * @param {{regDateStr: string, appDateStr: string, rejectedActions?: boolean}} parts Textos de fecha ya calculados y la
+ *   opción de la decisión D9a (`rejectedActions`, `true` por defecto). El rol se escapa siempre (D2, W-52).
  * @returns {string}
  */
-export function buildUserRowHtml(user, { regDateStr, appDateStr, escapeRole = true, rejectedActions = true }) {
+export function buildUserRowHtml(user, { regDateStr, appDateStr, rejectedActions = true }) {
     const actionHtml = buildUserActionHtml(user, { rejectedActions });
-    const statusBadge = buildUserRoleBadgeHtml(user, { escapeRole });
+    const statusBadge = buildUserRoleBadgeHtml(user);
 
     return `
             <tr style="border-bottom: 1px solid var(--glass-border);">

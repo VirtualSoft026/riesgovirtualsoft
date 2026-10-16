@@ -41,6 +41,14 @@ import {
     buildScatterMatrizConfig, buildAprobacionesDiaConfig
 } from '../ui/charts/operativo-chart-configs.js';
 import { buildControlOperativoChartPlan } from '../ui/charts/operativo-chart-plan.js';
+import {
+    computeShiftDurations, computeKpiTaskCounts, computeActividadesPercentage, computeInactivityScore,
+    computeRetirosKpiStats, computeRetirosKpiPenalty, computeAvgShiftDuration, formatInactividadLabel,
+    resolveKpiPeriodo, filterShiftReportsByPeriodo, matchesShiftReportGestor, buildRetirosTargetDates, resolveRawGestorKeys
+} from '../domain/analytics/kpi-indicators-service.js';
+import {
+    KPI_RING_CIRCUMFERENCE, resolveRingConfig, buildBitacoraCardHtml, buildBitacoraEmptyHtml, buildBitacoraTitleHtml
+} from '../ui/views/kpi-indicators-view.js';
 
 const MULTISELECT_ID = 'operativoGestorMultiSelect';
 
@@ -83,8 +91,10 @@ export function createKpiController(deps) {
             + 'el directorio de supervisores se deriva de users; para pruebas diferenciales use legacyExcludedNames.');
     }
     const {
-        getEl, querySelector, createElement, state, chartRegistry, ChartClass, datalabelsPlugin, fetchKpiData, database,
-        getSelectedGestores, setSelectedGestores, setupMultiSelect, recalcularIndicadores,
+        getEl, querySelector, querySelectorAll = () => [], createElement, state, chartRegistry, ChartClass, datalabelsPlugin,
+        fetchKpiData, database, getSelectedGestores, setSelectedGestores, setupMultiSelect, recalcularIndicadores,
+        getUser = () => null, resolveTaskDisplayName = (key, entry) => (entry && entry.name) || key,
+        isLegacyGenericTaskName = () => false,
         legacyExcludedNames, corregirBugs = true, fechaLocal = true, timeZone,
         now = () => new Date(), alert: notify = () => {}, print = () => {}, setTimeout: delay = (fn) => fn(), scrollToTop = () => {},
         logger = console
@@ -266,6 +276,211 @@ export function createKpiController(deps) {
         if (recalcularIndicadores) recalcularIndicadores();
     }
 
+    // ---------------------------------------------------------------- KPIs de turnos y retiros (calcularIndicadores)
+    const PERIODO_TEXT = Object.freeze({
+        hoy: 'Hoy', ayer: 'Ayer', semanal: 'Últimos 7 días', '30dias': 'Últimos 30 días', mes: 'Este Mes'
+    });
+    const RING_STYLE = Object.freeze({
+        success: { stroke: 'var(--success)', badgeBg: 'rgba(16, 185, 129, 0.2)', badgeColor: 'var(--success)' },
+        warning: { stroke: 'var(--warning)', badgeBg: 'rgba(245, 158, 11, 0.2)', badgeColor: 'var(--warning)' },
+        danger: { stroke: 'var(--danger)', badgeBg: 'rgba(239, 68, 68, 0.2)', badgeColor: 'var(--danger)' }
+    });
+
+    function setText(id, value) {
+        const el = getEl(id);
+        if (el) el.textContent = value;
+    }
+
+    function isGestorRole() {
+        const user = getUser();
+        return Boolean(user) && user.role === 'Gestor';
+    }
+
+    /** Nombre visible de una tarea de un reporte de turno (mismas reglas que calcularIndicadores). */
+    function resolveReportTaskName(taskId, task) {
+        const displayName = task.name || '';
+        if (taskId.startsWith('extra_') || displayName.includes('[EXTRA]')) return displayName;
+        if (isLegacyGenericTaskName(displayName)) {
+            return resolveTaskDisplayName(displayName.replace(/Tarea\s*/i, '').trim(), { name: displayName });
+        }
+        if (!taskId.startsWith('parsed_')) return resolveTaskDisplayName(taskId, task);
+        return displayName;
+    }
+
+    /** Anillo SVG: deja el arco en 0, y tras 50 ms lo anima al porcentaje con su color y etiqueta. */
+    function animateRing(ringId, textId, badgeId, percentage) {
+        const ring = getEl(ringId);
+        const textPercent = getEl(textId);
+        const badge = getEl(badgeId);
+        if (!ring || !textPercent || !badge) return;
+
+        const config = resolveRingConfig(percentage);
+        const style = RING_STYLE[config.level];
+
+        ring.style.transition = 'none';
+        ring.style.strokeDashoffset = KPI_RING_CIRCUMFERENCE;
+
+        delay(() => {
+            ring.style.transition = 'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)';
+            ring.style.strokeDashoffset = config.offset;
+            textPercent.textContent = percentage + '%';
+            ring.style.stroke = style.stroke;
+            badge.style.background = style.badgeBg;
+            badge.style.color = style.badgeColor;
+            badge.textContent = config.badgeText;
+        }, 50);
+    }
+
+    /** Lee el rango personalizado del DOM; null si falta alguna fecha. */
+    function readCustomRange() {
+        const startStr = getEl('operativoDateStart') ? getEl('operativoDateStart').value : '';
+        const endStr = getEl('operativoDateEnd') ? getEl('operativoDateEnd').value : '';
+        if (!startStr || !endStr) return null;
+        return { startStr, endStr };
+    }
+
+    /** Parte "YYYY-MM-DD" a fecha local (medianoche), como el original. */
+    function localDateMs(dateStr) {
+        const parts = dateStr.split('-');
+        return new Date(parts[0], parts[1] - 1, parts[2]).getTime();
+    }
+
+    /**
+     * KPIs de turnos y retiros del panel (app.js calcularIndicadores). Lee `shift_reports` y el JSON operativo de
+     * retiros, calcula cada indicador con las funciones puras de `kpi-indicators-service.js` y escribe el DOM.
+     */
+    async function calcularIndicadores() {
+        const selectedGestores = getSelectedGestores(MULTISELECT_ID);
+        const fechaEl = getEl('filtroFechaOperativo');
+        if (!fechaEl) return;
+
+        let gestorName = 'todos';
+        if (selectedGestores.length > 0) {
+            gestorName = selectedGestores.length === 1 ? selectedGestores[0] : 'multiple';
+        }
+
+        const periodo = resolveKpiPeriodo(fechaEl.value);
+        state.kpiTaskLists = { finalizadas: [], no_realizadas: [], pendientes: [] };
+        state.kpiBitacoraHTML = '';
+
+        const resultsContainer = getEl('kpiResultsContainer');
+        if (resultsContainer) resultsContainer.style.display = 'none';
+        if (!gestorName) return;
+
+        let shiftReports = [];
+        try {
+            const data = await readShiftReports(database);
+            if (data) shiftReports = shiftReports.concat(Object.values(data));
+            if (selectedGestores.length > 0 && gestorName !== 'todos') {
+                shiftReports = shiftReports.filter((report) => matchesShiftReportGestor(report.gestor, selectedGestores));
+            }
+        } catch (e) {
+            logger.error('Error cargando shift reports para KPIs', e);
+            return;
+        }
+
+        const nowMs = now().getTime();
+        const range = periodo === 'custom' ? readCustomRange() : null;
+        if (periodo === 'custom' && !range) return;
+        const custom = range ? { startMs: localDateMs(range.startStr), endMs: localDateMs(range.endStr) + 86400000 } : null;
+
+        shiftReports = filterShiftReportsByPeriodo(shiftReports, periodo, { nowMs, custom });
+        if (shiftReports.length === 0) {
+            logger.warn(`No hay reportes de turno para ${gestorName} en esta fecha/periodo.`);
+        }
+
+        // Tiempo efectivo (D1), tareas, bitácora e inactividad: una sola pasada lógica sobre los mismos reportes.
+        const { totalMinutosConectados, turnosValidosParaTiempo } = computeShiftDurations(shiftReports);
+        const taskCounts = computeKpiTaskCounts(shiftReports, { resolveDisplayName: resolveReportTaskName });
+        state.kpiTaskLists = taskCounts.kpiTaskLists;
+        state.kpiBitacoraHTML = shiftReports.map((report) => buildBitacoraCardHtml(report)).join('');
+
+        const porcentajeActividades = computeActividadesPercentage(
+            taskCounts.totalFinalizadas, taskCounts.totalNoRealizadas, taskCounts.totalPendientes
+        );
+        const inactivity = computeInactivityScore(shiftReports, { nowMs });
+
+        // Retiros: penalidad por demora promedio (solo si hay retiros con tiempo).
+        const cardRetiros = getEl('kpiRetirosPenalidadCard');
+        const textPenalidad = getEl('kpiPenalidadRetiros');
+        const textDemora = getEl('kpiDemoraPromedioText');
+        const cardPagados = getEl('metric-approved-count');
+        const cardPagadosTitle = getEl('metric-approved-title');
+        const cardRechazados = getEl('kpiRetirosRechazados');
+
+        state.isFilteredByGestor = gestorName !== 'todos';
+
+        if (!state.controlOperativoRawData) {
+            try {
+                state.controlOperativoRawData = await fetchKpiData();
+            } catch (e) {
+                logger.error('Error al cargar datos de operativos', e);
+            }
+        }
+
+        const raw = state.controlOperativoRawData;
+        const targetDates = raw ? buildRetirosTargetDates(periodo, {
+            nowMs, customStartStr: range ? range.startStr : null, customEndStr: range ? range.endStr : null
+        }) : [];
+        const finalStats = computeRetirosKpiStats(raw, {
+            periodo,
+            targetDates,
+            selectedGestores: raw && selectedGestores.length > 0 ? resolveRawGestorKeys(selectedGestores, Object.keys(raw)) : []
+        });
+
+        if (cardPagados) {
+            cardPagados.textContent = finalStats.totalAprobados;
+            if (cardPagadosTitle) {
+                cardPagadosTitle.textContent = state.isFilteredByGestor ? 'Retiros Aprobados (Filtrado)' : 'Retiros Aprobados (Global)';
+            }
+        }
+        if (cardRechazados) cardRechazados.textContent = finalStats.totalRechazados;
+
+        const penalty = computeRetirosKpiPenalty(finalStats);
+        const gestorView = isGestorRole();
+        if (penalty.hayDatos) {
+            if (cardRetiros) cardRetiros.style.display = gestorView ? 'none' : 'flex';
+            if (textPenalidad) textPenalidad.textContent = `-${penalty.penalidadRetiros}%`;
+            if (textDemora) textDemora.textContent = `Promedio: ${Math.round(penalty.avgDemoraMins)} min / ${finalStats.retirosConTiempo} retiros`;
+        } else if (cardRetiros) {
+            cardRetiros.style.display = 'none';
+        }
+        if (gestorView) {
+            querySelectorAll('.retiros-card').forEach((el) => { el.style.display = 'none'; });
+            if (cardRetiros) cardRetiros.style.display = 'none';
+        }
+
+        setText('kpiTotalFinalizadas', taskCounts.totalFinalizadas);
+        setText('kpiTotalNoRealizadas', taskCounts.totalNoRealizadas);
+        setText('kpiTotalPendientes', taskCounts.totalPendientes);
+        setText('kpiTurnosAnalizados', shiftReports.length);
+        setText('kpiDuracionPromedio', computeAvgShiftDuration(totalMinutosConectados, turnosValidosParaTiempo).label);
+        setText('kpiTiempoInactivo', formatInactividadLabel(inactivity.totalInactividadMins));
+
+        // Bitácora integrada
+        const gestorLabel = selectedGestores.length === 1
+            ? selectedGestores[0]
+            : (selectedGestores.length > 1 ? selectedGestores.join(', ') : 'Todos los Gestores');
+        const titleBitacora = getEl('kpiBitacoraTitle');
+        const cardBitacora = getEl('kpiBitacoraInlineCard');
+        const listBitacora = getEl('kpiBitacoraInlineList');
+        if (titleBitacora) titleBitacora.innerHTML = buildBitacoraTitleHtml(gestorLabel);
+        if (cardBitacora && listBitacora) {
+            if (state.kpiBitacoraHTML && state.kpiBitacoraHTML.trim() !== '') {
+                listBitacora.innerHTML = state.kpiBitacoraHTML;
+            } else {
+                listBitacora.innerHTML = buildBitacoraEmptyHtml(gestorLabel, PERIODO_TEXT[periodo] || 'Periodo seleccionado');
+            }
+            cardBitacora.style.display = 'flex';
+        }
+
+        animateRing('kpiScoreRingActividades', 'kpiScoreTextActividades', 'kpiVerdictBadgeActividades', porcentajeActividades);
+        animateRing('kpiScoreRingConectividad', 'kpiScoreTextConectividad', 'kpiVerdictBadgeConectividad', inactivity.porcentajeConectividad);
+        animateRing('kpiScoreRingRetiros', 'kpiScoreTextRetiros', 'kpiVerdictBadgeRetiros', penalty.porcentajeRetiros);
+
+        if (resultsContainer) resultsContainer.style.display = 'flex';
+    }
+
     // ---------------------------------------------------------------- carga de datos
     function loadRetirosData() {
         return loadRetirosDataService({ fetchData: fetchKpiData, target: state, logger });
@@ -443,6 +658,7 @@ export function createKpiController(deps) {
         destroyChart, drawChart, drawPunctualDatesChart, drawCombinedChart, drawCombinedChartDaily, drawScatterMatriz,
         renderControlOperativoCharts, toggleOperativoCustomDates, renderControlOperativoFiltered,
         loadRetirosData, loadControlOperativoData, loadGestoresForKPIs,
-        openKpiTaskDetails, closeKpiTaskDetails, generarAnalisisTextual, generarReporteEjecutivoPDF
+        openKpiTaskDetails, closeKpiTaskDetails, generarAnalisisTextual, generarReporteEjecutivoPDF,
+        calcularIndicadores
     };
 }

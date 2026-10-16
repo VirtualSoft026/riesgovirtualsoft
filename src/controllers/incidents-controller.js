@@ -39,7 +39,7 @@ export function createIncidentsController(deps) {
         tbody.innerHTML = buildIncidentsTableHtml(incidents, helpers);
     }
 
-    /** Manejador del envío del formulario (`onsubmit="handleNewIncidentSubmit(event)"`). */
+    /** Manejador del envío del formulario (`data-action="submit-new-incident"`). */
     async function handleSubmit(event) {
         event.preventDefault();
         const user = getUser();

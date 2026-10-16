@@ -23,8 +23,9 @@
  * las reglas cambian.
  */
 
-import { encodeInlineHandlerArg, escapeHTML } from '../../utils/sanitization.js';
+import { escapeHTML } from '../../utils/sanitization.js';
 import { isSplitShiftEnabled } from '../shifts/split-shift-policy.js';
+import { ROLES } from '../../config/roles.js';
 
 export const SPLIT_SHIFT_FIELD = 'hasSplitShift';
 
@@ -40,7 +41,7 @@ export const SPLIT_SHIFT_SAVE_ERROR = 'Hubo un error al guardar. Intenta de nuev
  * @returns {boolean}
  */
 export function canUseSplitShiftConfig(user) {
-    return Boolean(user) && user.role === 'Admin';
+    return Boolean(user) && user.role === ROLES.ADMIN;
 }
 
 /**
@@ -57,7 +58,7 @@ export function canUseSplitShiftConfig(user) {
 export function canWriteHasSplitShift({ actor, targetUid, targetExists, newValue }) {
     if (!actor || !actor.uid) return false;
 
-    const isApprovedAdmin = actor.approved === true && actor.role === 'Admin';
+    const isApprovedAdmin = actor.approved === true && actor.role === ROLES.ADMIN;
     const isOwnCreation = actor.uid === targetUid && targetExists === false && newValue !== null && newValue !== undefined;
 
     return isApprovedAdmin || isOwnCreation;
@@ -90,7 +91,7 @@ export function buildSplitShiftConfirmMessage(isChecked) {
  * @returns {boolean}
  */
 export function isConfigGestorCandidate(user) {
-    return Boolean(user.role === 'Gestor' && user.email && !user.email.toLowerCase().includes('pruebas'));
+    return Boolean(user.role === ROLES.GESTOR && user.email && !user.email.toLowerCase().includes('pruebas'));
 }
 
 /**
@@ -129,27 +130,24 @@ export function selectConfigGestores(entries) {
 /**
  * Contenido (HTML) de la fila de un gestor (app.js 6803-6820).
  *
- * DECISIÓN D2 (plan maestro §4 ter): sanear. Con `escapeUserFields: true` (PREDETERMINADO) el nombre, el rol y el
- * correo se escapan con `escapeHTML` antes de inyectarse, y el uid (clave de Firebase) se escapa en los atributos
- * `id`/`for`/`name` y se codifica con `encodeInlineHandlerArg` + `decodeURIComponent` dentro del `onchange` (el
- * mismo patrón que ya usan los comunicados), de modo que ninguna comilla de un dato rompa el atributo. Para un uid
- * alfanumérico (los de Firebase Auth) el valor que recibe `toggleGestorSplitShift` es exactamente el mismo.
+ * DECISIÓN D2 (plan maestro §4 ter) y W-52: el escape es INCONDICIONAL. El nombre, el rol y el correo se escapan con
+ * `escapeHTML` antes de inyectarse, y el uid (clave de Firebase) se escapa en los atributos `id`/`for`/`name` y se
+ * codifica con `encodeInlineHandlerArg` + `decodeURIComponent` dentro del `onchange` (el mismo patrón que ya usan
+ * los comunicados), de modo que ninguna comilla de un dato rompa el atributo. Para un uid alfanumérico (los de
+ * Firebase Auth) el valor que recibe `toggleGestorSplitShift` es exactamente el mismo.
  *
- * `escapeUserFields: false` reproduce la plantilla ORIGINAL de app.js (nombre/rol/correo SIN escapar: stored XSS,
- * el usuario escribe su propio nombre al registrarse y el Admin lo vería ejecutarse). Solo existe para la prueba
- * diferencial contra la copia literal; no lo use código nuevo.
+ * No hay opción para apagar el escape (paso 3.1): la paridad con app.js se prueba con datos sin caracteres
+ * especiales, donde la salida escapada es idéntica a la plantilla original.
  *
  * @param {{uid: string, name?: string, role?: string, email?: string, hasSplitShift?: unknown}} u
- * @param {{escapeUserFields?: boolean}} [options]
  * @returns {string}
  */
-export function buildGestorConfigRowHtml(u, { escapeUserFields = true } = {}) {
+export function buildGestorConfigRowHtml(u) {
     const hasSplitShift = u.hasSplitShift === true;
-    const name = escapeUserFields ? escapeHTML(u.name || 'Desconocido') : (u.name || 'Desconocido');
-    const role = escapeUserFields ? escapeHTML(u.role) : u.role;
-    const email = escapeUserFields ? escapeHTML(u.email) : u.email;
-    const uidAttr = escapeUserFields ? escapeHTML(u.uid) : u.uid;
-    const uidArg = escapeUserFields ? `decodeURIComponent('${encodeInlineHandlerArg(u.uid)}')` : `'${u.uid}'`;
+    const name = escapeHTML(u.name || 'Desconocido');
+    const role = escapeHTML(u.role);
+    const email = escapeHTML(u.email);
+    const uidAttr = escapeHTML(u.uid);
 
     return `
                 <td style="padding: 15px; display: flex; align-items: center; gap: 10px;">
@@ -162,7 +160,7 @@ export function buildGestorConfigRowHtml(u, { escapeUserFields = true } = {}) {
                 <td style="padding: 15px; color: var(--text-secondary); font-size: 13px;">${email}</td>
                 <td style="padding: 15px; text-align: center;">
                     <label for="splitShiftToggle_${uidAttr}" class="switch" style="position: relative; display: inline-block; width: 44px; height: 22px;">
-                        <input type="checkbox" id="splitShiftToggle_${uidAttr}" name="splitShiftToggle_${uidAttr}" aria-label="Turno Partido para ${escapeHTML(u.name || 'Gestor')}" onchange="toggleGestorSplitShift(${uidArg}, this.checked)" ${hasSplitShift ? 'checked' : ''} style="opacity: 0; width: 0; height: 0;">
+                        <input type="checkbox" id="splitShiftToggle_${uidAttr}" name="splitShiftToggle_${uidAttr}" aria-label="Turno Partido para ${escapeHTML(u.name || 'Gestor')}" data-action="toggle-gestor-split-shift" data-uid="${escapeHTML(u.uid)}" ${hasSplitShift ? 'checked' : ''} style="opacity: 0; width: 0; height: 0;">
                         <span class="slider round" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: ${hasSplitShift ? 'var(--success)' : 'var(--glass-border)'}; transition: .4s; border-radius: 22px;">
                             <span style="position: absolute; height: 16px; width: 16px; left: ${hasSplitShift ? '24px' : '3px'}; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
                         </span>

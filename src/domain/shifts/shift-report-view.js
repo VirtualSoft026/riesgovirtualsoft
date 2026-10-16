@@ -52,19 +52,9 @@ export function getDefaultWindowStartMs(now) {
     return new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1, 0, 0, 0).getTime();
 }
 
-/**
- * Fecha local `YYYY-MM-DD` de un instante (app.js 4633-4638).
- *
- * @param {number|Date} timestamp
- * @returns {string}
- */
-export function toLocalDateKey(timestamp) {
-    const d = new Date(timestamp);
-    const localMonth = String(d.getMonth() + 1).padStart(2, '0');
-    const localDay = String(d.getDate()).padStart(2, '0');
-
-    return `${d.getFullYear()}-${localMonth}-${localDay}`;
-}
+/** Fecha local `YYYY-MM-DD` de un instante (app.js 4633-4638). W-41: una sola fuente en `utils/date-time.js`. */
+import { toLocalDateKey } from '../../utils/date-time.js';
+export { toLocalDateKey };
 
 /**
  * Filtra y ordena los reportes del historial.
@@ -185,38 +175,11 @@ export function buildPdfOptions(filename) {
 
 /**
  * Interpreta la hora de un reporte guardada con `toLocaleString()` (app.js 5909-5929, `parseTime` local de
- * `calcularIndicadores()`): primero como fecha completa; si no, toma "HH:MM" con AM/PM y la aplica al día base.
- *
- * @param {unknown} timeStr
- * @param {number} baseDateMs
- * @returns {number} ms, o NaN si no se puede interpretar
+ * `calcularIndicadores()`). W-41: era una copia literal de `parseTime` de `metrics-calculator.js`; ahora es la misma
+ * función con el nombre que usan los llamadores.
  */
-export function parseShiftReportTime(timeStr, baseDateMs) {
-    if (typeof timeStr === 'string') {
-        timeStr = timeStr.replace(/a\.\s*m\./i, 'AM').replace(/p\.\s*m\./i, 'PM');
-    }
-
-    const d = new Date(timeStr);
-
-    if (!isNaN(d.getTime())) return d.getTime();
-
-    if (typeof timeStr === 'string' && timeStr.includes(':')) {
-        const parts = timeStr.match(/(\d+):(\d+)/);
-
-        if (parts) {
-            const base = new Date(baseDateMs);
-            let hours = parseInt(parts[1], 10);
-
-            if (timeStr.toUpperCase().includes('PM') && hours < 12) hours += 12;
-            if (timeStr.toUpperCase().includes('AM') && hours === 12) hours = 0;
-            base.setHours(hours, parseInt(parts[2], 10), 0, 0);
-
-            return base.getTime();
-        }
-    }
-
-    return NaN;
-}
+import { parseTime as parseShiftReportTime } from '../analytics/metrics-calculator.js';
+export { parseShiftReportTime };
 
 /**
  * Tiempo efectivo (minutos) de UN reporte guardado, para el panel de reportes ("Duración Promedio").

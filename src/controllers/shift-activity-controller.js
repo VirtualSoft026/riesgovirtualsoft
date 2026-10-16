@@ -24,12 +24,10 @@
  * Guards de pausa (igual que app.js): si `isOnBreak()` es true, `onIdleChange` no actúa.
  * Solo aplica para Gestores (`user.role === 'Gestor'`).
  *
- * TRANSITIONAL — pushTimelineEvent, onStatusDisplay, syncSession:
- *   Durante Fase 2 estas deps son stubs en bootstrap.js porque las funciones originales
- *   (`pushTimelineEvent`, `updateStatusDisplay`, `syncActiveSessionToFirebase`) son
- *   closures locales de app.js y NO están expuestas en window. Se activan cuando
- *   shift-controller.js (que sí las conoce) se conecte en Fase 3.
- *   Ver: plan-maestro §4.3, decisión D_SAC-T (transitional stubs).
+ * Dependencias `pushTimelineEvent`, `onStatusDisplay` y `syncSession`: hoy las inyecta app.js con sus
+ *   funciones reales. bootstrap.js no tiene versiones simuladas (W-53 a, paso 3.0); las conecta con los
+ *   módulos de `src/` cuando migra el detector de inactividad (W-24, paso 3.3) y la sincronización de la
+ *   sesión activa (W-19, paso 3.2).
  *
  * @param {{
  *   getUser:            () => ({role: string, uid: string, status: string}|null),

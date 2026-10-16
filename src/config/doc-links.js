@@ -29,6 +29,9 @@ export const DOC_URL_MAP = Object.freeze({
 /**
  * Static external and local manual URL mappings.
  *
+ * W-12 (NOTA_2): lista de `main` (17 manuales): Belatra, Egt y Evolution actualizados, Playson agregado y las URL de
+ * PragmaticplaySlot y Redrakegaming corregidas.
+ *
  * @type {Readonly<Record<string, string>>}
  */
 export const MANUAL_URL_MAP = Object.freeze({
@@ -43,11 +46,11 @@ export const MANUAL_URL_MAP = Object.freeze({
     Aviatrix:
         'https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBfvgW5WaX6TII45Petp95PAa5POqG8BQzWcy9yo92KkpI?e=TWSCB42',
     Belatra:
-        'https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBfvgW5WaX6TII45Petp95PAa5POqG8BQzWcy9yo92KkpI?e=TWSCB4',
+        'https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBPSE6f50toQ5-dN47fDzPOAXqhCkyx02toLxiTcics57o?e=DydGH1',
     Egt:
-        'https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBfvgW5WaX6TII45Petp95PAa5POqG8BQzWcy9yo92KkpI?e=TWSCB4',
+        'https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQDPREAJmsY_Roey_HAIsjnDAVboOIr8TspQEggMd_VdQkQ?e=B4xw1A',
     Evolution:
-        'https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQDlFklX__OXRr5D7HHkhTxNAUA5QCL87QdDe3u7ngX-rUg?e=BtCIFL',
+        'https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQDlFklX__OXRr5D7HHkhTxNAUA5QCL87QdDe3u7ngX-rUg?e=uBw53Y',
     Mancala:
         'https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQASeOCMQcuoR4um2ha_bUcsAVPNezVck9cXaS30gC5JYik?e=HQDduM',
     Manual:
@@ -61,9 +64,11 @@ export const MANUAL_URL_MAP = Object.freeze({
     Pragmatic:
         'https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQAt0TYGB8kkQ7Du3JNnd9XfAe69Mxr5Yga2S_AVlZKUsoo?e=yz932I',
     PragmaticplaySlot:
-        'https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBed0oHqboZRabYQnGJMxUATLlSdPshzsD7pnAsl8JxdM?e=wIyTFp',
+        'https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBed0oHqboZRabYqQnGJMxUATLlSdPshzsD7pnAsl8JxdM?e=wIyTFp',
     Redrakegaming:
-        'https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQCmcIAXj_tLRZKJ2dpTMyZAQP18AdXeKvHLc1PtnVBhd4?e=e6ltHs'
+        'https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQCmcIAXj_tLRZKJx2dpTMyZAQP18AdXeKvHLc1PtnVBhd4?e=e6ltHs',
+    Playson:
+        'https://virtualsoftserv.sharepoint.com/:b:/s/ManualesProveedoresCasino/IQBhSbX5zfApSrkM8kbx40OCAczup6lOC1k9v19dyssPyfc?e=zBegXK'
 });
 
 /**

@@ -27,10 +27,10 @@ Ubicación de los archivos: `fase_2/lab/` (`Iniciar_Laboratorio_Fase2.bat`, `sta
 
 1. **Compila el bundle** (`fase_2/build`, esbuild): genera `riskops.bundle.js` (script clásico, global `RiskOps`).
 2. **Arma el staging** (`stage.mjs`) en una **carpeta de trabajo con ruta limpia**, por defecto `C:\riskops-lab-fase2`:
-   - `site/`: copia de los mismos archivos que publica `deploy-pages.yml` (más los XLSX operativos y `kpi_operativos_seed.json`, que solo existen en local), el bundle y `smoke.html`.
+   - `site/`: copia de los mismos archivos que publica `deploy-pages.yml` (más los XLSX operativos y los datos de KPIs operativos de prueba; según la norma N-4 del plan maestro, estos datos pasan a `fase_2/lab/` y se publican en el staging como `kpi_operativos_v2.json`), el bundle y `smoke.html`.
    - Inyecta `<script src="riskops.bundle.js">` **antes** de `app.js` únicamente en la copia de staging de `index.html`. El `index.html` del repositorio no se toca. Así el laboratorio ejercita el orden de carga definitivo (bundle síncrono antes de `app.js`) sin modificar producción. Se desactiva con `RISKOPS_LAB_INJECT_BUNDLE=0`.
    - Copia `database.rules.json` y `.firebaserc`, y genera el `firebase.json` del laboratorio.
-   - Copia la semilla (`emulator_data` del repositorio) **solo la primera vez**; el estado posterior de la sesión vive en `C:\riskops-lab-fase2\emulator_data` y la semilla del repositorio nunca se modifica.
+   - *(Se retira cuando exista el script de aprovisionamiento del Admin; norma N-4 del plan maestro, 2026-10-15.)* Copia la semilla (`emulator_data` del repositorio) **solo la primera vez**; el estado posterior de la sesión vive en `C:\riskops-lab-fase2\emulator_data` y la semilla del repositorio nunca se modifica.
 3. **Comprobaciones previas** (`preflight.mjs`): Node ≥ 20, puertos libres (nombra al proceso que ocupa cada puerto), Java ≥ 21 y prueba real de arranque del emulador de Realtime Database, con mensaje de remediación si falla.
 4. **Arranca los emuladores** con `firebase-tools@15.30.0` (la versión que generó la semilla), desde la ruta limpia.
 
@@ -40,21 +40,21 @@ Variables opcionales: `RISKOPS_LAB_ROOT`, `RISKOPS_LAB_SERVICES` (por defecto `h
 
 La ruta real del repositorio contiene un `&` (`...VIRTUALSOFT SERVICIOS & SOFTWARE S.A.S...`), y `firebase-tools` invoca subprocesos vía `cmd.exe`, donde `&` separa comandos y trunca la ruta. Un *junction* no lo resuelve; una carpeta separada con ruta limpia sí. Por eso `stage.mjs` se niega a usar una ruta con `&`, `%`, `^` o `!`.
 
-## 3. Datos semilla
+## 3. Datos de prueba (norma N-4, 2026-10-15)
 
-*(Nota 2026-10-03: los correos de esta sección y el nombre completo en la ruta de la sección "Base" (arriba) se enmascararon — `gxxxxxx@xxxxx.xxx`, `Lxxx Axxxxx Fxxxxxx` — antes de subir `fase_2/` a GitHub como respaldo. Los correos son cuentas semilla del emulador local, no credenciales de producción, pero se enmascaran igual por tratarse de direcciones reales del dominio de la empresa. El código fuente de `fase_2/src/` no se tocó: la constante `FORM_SUBMIT_CC` de `services/external/formsubmit-notification-adapter.js` debe seguir siendo idéntica a la de `app.js` para que la comparación de snapshots de la Fase 1 siga siendo válida.)*
+**Base de datos de pruebas:** el **emulador local de Firebase**. El código de producción solo habla con el entorno productivo; los datos de prueba existen únicamente en el emulador o en `fase_2/lab/`. Detalle de la norma: `../03-plan-migracion/plan-maestro-ejecucion.md` §4 quater.
 
-La semilla actual (`emulator_data/`, ignorada por git) contiene:
+**Usuarios:**
 
-| Rol en DB | Correo (Auth) | Aprobado |
-|---|---|---|
-| Gestor (`luis gestor`) | `gxxxxxx@xxxxx.xxx` | sí |
-| Supervisor (`luis admin`) | `axxxxxx@xxxxx.xxx` | sí |
-| Gestor (`oriana borja`, semilla sin cuenta Auth) | — | sí |
+1. **Admin fundacional:** lo crea un script de aprovisionamiento del laboratorio (`firebase-admin` contra el emulador). El script exige las variables `FIREBASE_AUTH_EMULATOR_HOST` y `FIREBASE_DATABASE_EMULATOR_HOST` y se niega a correr sin ellas. Pide el correo y la contraseña al ejecutarse; no quedan escritos en ningún archivo.
+2. **Demás usuarios:** se registran desde la app del laboratorio, entran como Gestor pendiente y el Admin los aprueba. Si alguno debe ser Supervisor, el Admin le asigna el rol en la base (`users/{uid}/role`) y la app actualiza `supervisors_public` en la misma escritura (norma N-3).
+3. Ningún registro público puede asignarse un rol distinto de Gestor ni aprobarse a sí mismo.
 
-Además incluye 15 reportes de turno, 32 registros de acceso, 1 comunicado y 1 sesión activa. El laboratorio anterior documentaba otros usuarios (`axxxxxx@xxxxx.xxx` y `gxxxxxx@xxxxx.xxx`, UID `LAB_*`); si se necesitan, se crean desde la Emulator UI o el registro de la app.
+**KPIs operativos:** los datos de prueba (`kpi_operativos_seed.json`) viven en `fase_2/lab/`. `stage.mjs` los copia al staging con el nombre del archivo de producción (`kpi_operativos_v2.json`), así el código es el mismo en el laboratorio y en producción. Sin datos, el panel muestra el estado vacío.
 
-Regla de seguridad que ya causó errores: `approved` debe ser el booleano `true` en `/users/{uid}/approved`; un texto como `"Aprobado"` hace que `database.rules.json` responda `PERMISSION_DENIED`.
+**Semilla actual (transición):** `emulator_data/` sigue en uso hasta que exista el script del Admin y luego se retira. Corrección aplicada el 2026-10-15: Oriana Borja pasa de Gestor a **Supervisor** (norma N-1). La semilla no tiene ningún usuario con rol Admin (`luis admin` es Supervisor), así que hoy nadie puede aprobar registros en el laboratorio. La copia de trabajo `C:\riskops-lab-fase2\emulator_data` se copió la primera vez y **no toma la corrección** sola: hay que borrar esa carpeta para que el laboratorio vuelva a copiar la semilla corregida.
+
+Regla de seguridad que ya causó errores (sigue vigente): `approved` debe ser el booleano `true` en `/users/{uid}/approved`; un texto como `"Aprobado"` hace que `database.rules.json` responda `PERMISSION_DENIED`.
 
 ## 4. Qué probar aquí para la arquitectura nueva
 
@@ -131,7 +131,6 @@ El plan queda en `C:\riskops-lab-fase2\pruebas\plan-prueba-manual.txt` para tene
 | 4. E2E | Las 9 pruebas de `src/tests/e2e` contra el `app.js` original e integrado con el bundle real (`--strict` donde aplica) | log del paso 6 |
 | 5. Motor operativo | `test_motor_operativo.py` + 3 pruebas de seguridad (import sin red H-P4, credenciales del `.env` no se cargan, `authenticate()` sin credenciales no sale a la red) | `hoja-de-ruta.md` §0 paso 3 |
 
-Nota: la prueba del motor operativo es el script `test_motor_operativo.py` (unittest). No existe un cuaderno Jupyter del motor en el repositorio; el único rastro de Jupyter en el laboratorio es el kernel que ocupó el puerto 9000 (§5).
 
 ### Controles de seguridad
 

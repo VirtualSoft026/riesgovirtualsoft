@@ -12,7 +12,10 @@
  * existe hoy en app.js ni en index.html) cae en la rama "Gestor", igual que el original (`else`).
  */
 
+import { APPROVED_REJECTED_VALUE } from './user-profile.js';
+
 import { canManageComunicados } from '../announcements/announcement-capabilities.js';
+import { ROLES } from '../../config/roles.js';
 
 /** Contenedores a los que una pestaña se anexa (`appendChild`) al ordenar la barra lateral. */
 export const NAV_PARENT = Object.freeze({
@@ -27,7 +30,7 @@ export const NAV_PARENT = Object.freeze({
  * @returns {boolean}
  */
 export function isPrivilegedNavRole(user) {
-    return Boolean(user && (user.role === 'Admin' || user.role === 'Supervisor'));
+    return Boolean(user && (user.role === ROLES.ADMIN || user.role === ROLES.SUPERVISOR));
 }
 
 function op(id, display, appendTo) {
@@ -55,7 +58,7 @@ export function buildSidebarPolicy(user) {
     const A = NAV_PARENT.ADMIN_GROUP;
 
     if (privileged) {
-        const isSupervisor = user.role === 'Supervisor';
+        const isSupervisor = user.role === ROLES.SUPERVISOR;
         const operations = [
             op('horarioGestorFilterContainer', 'flex'),
             op('teletrabajoGestorFilterContainer', 'flex'),
@@ -73,7 +76,7 @@ export function buildSidebarPolicy(user) {
             op('navPermisos', 'flex', S)
         ];
 
-        if (user.role === 'Admin') operations.push(op('navConfigGestores', 'flex', S));
+        if (user.role === ROLES.ADMIN) operations.push(op('navConfigGestores', 'flex', S));
 
         return { privileged, operations };
     }
@@ -108,6 +111,30 @@ export function buildBreakButtonsPolicy(user) {
     return GESTOR_BREAK_BUTTON_IDS.map((id) => ({ id, display: 'flex' }));
 }
 
+/** Ancho máximo (px) que se considera móvil (app.js 691). */
+export const MOBILE_MAX_WIDTH = 768;
+
+/** Resultado de la política de acceso móvil. */
+export const MOBILE_ACCESS = Object.freeze({
+    NONE: 'none',               // escritorio: no se toca nada
+    SCROLL: 'scroll',           // Admin/Supervisor en móvil: oculta el bloqueo y habilita scroll horizontal
+    BLOCK: 'block'              // Gestor en móvil: muestra el bloqueo y oculta la app
+});
+
+/**
+ * Política de acceso desde móvil (app.js 690-712): Admin y Supervisor pueden usar la app con scroll
+ * horizontal; el Gestor queda bloqueado.
+ *
+ * @param {{role?: string}|null|undefined} user
+ * @param {number} viewportWidth
+ * @returns {string} un valor de MOBILE_ACCESS
+ */
+export function buildMobileAccessPolicy(user, viewportWidth) {
+    if (!user || !(viewportWidth <= MOBILE_MAX_WIDTH)) return MOBILE_ACCESS.NONE;
+
+    return isPrivilegedNavRole(user) ? MOBILE_ACCESS.SCROLL : MOBILE_ACCESS.BLOCK;
+}
+
 /**
  * Política de `alignAdministrativeControlsByRole()` (app.js 4974-4990).
  *
@@ -121,7 +148,7 @@ export function buildAdministrativeControlsPolicy(user) {
     if (!user) return null;
 
     return {
-        showUserApprovalSection: user.role === 'Admin',
+        showUserApprovalSection: user.role === ROLES.ADMIN,
         hideAdminAnnouncementsView: !canManageComunicados(user.role)
     };
 }
@@ -243,14 +270,15 @@ export const LOGIN_ACCESS = Object.freeze({
  *
  * Función pura — sin I/O, sin efectos secundarios.
  *
- * @param {{approved?: boolean, rejected?: boolean, rejectionReason?: string, role?: string}|null|undefined} dbUser
- * @param {boolean} [shiftExpired=false] — `evaluateShiftExpiration(shiftStr).expired`
+ * @param {{approved?: unknown, rejected?: boolean, rejectionReason?: string, role?: string}|null|undefined} dbUser
+ * @param {boolean} [shiftExpired=false] resultado de `evaluateShiftExpiration(shiftStr).expired`
  * @returns {{ status: string, reason?: string }}
  */
 export function evaluateLoginAccess(dbUser, shiftExpired = false) {
     if (!dbUser) return { status: LOGIN_ACCESS.REJECTED };
 
-    if (dbUser.rejected) {
+    // W-55 (c): un Admin rechaza con approved === 'Rechazado' (cadena, truthy). Antes ese valor pasaba como aprobado.
+    if (dbUser.rejected === true || dbUser.approved === APPROVED_REJECTED_VALUE) {
         return { status: LOGIN_ACCESS.REJECTED, reason: dbUser.rejectionReason };
     }
 
@@ -266,15 +294,15 @@ export function evaluateLoginAccess(dbUser, shiftExpired = false) {
 
 /** Mensajes de validación del formulario de registro (idénticos a login.js). */
 export const REGISTER_MESSAGES = Object.freeze({
-    NAME_MIN_WORDS:     'Por favor ingresa tu nombre completo (al menos dos palabras).',
+    NAME_MIN_WORDS:     'Por favor, ingresa tu nombre y apellido completo (mínimo dos palabras).',
     PASSWORDS_MISMATCH: 'Las contraseñas no coinciden.'
 });
 
 /**
  * Valida los campos del formulario de registro antes de llamar a Firebase Auth.
- * Cubre las validaciones previas del submit de #registerForm (login.js ~164+):
- *   – nombre con al menos dos palabras,
- *   – contraseñas que coincidan.
+ * Cubre las validaciones previas del submit de #registerForm (login.js, líneas 164-185):
+ *   – contraseñas que coincidan (se comprueba primero, como en login.js),
+ *   – nombre con al menos dos palabras de dos o más letras (como en login.js).
  * (La fortaleza mínima de la contraseña la valida Firebase Auth: `auth/weak-password`.)
  *
  * Función pura.
@@ -283,9 +311,11 @@ export const REGISTER_MESSAGES = Object.freeze({
  * @returns {string|null} Mensaje de error localizado, o `null` si la entrada es válida.
  */
 export function validateRegistrationInput({ name, password, confirmPassword }) {
-    const words = String(name ?? '').trim().split(/\s+/).filter(Boolean);
-    if (words.length < 2) return REGISTER_MESSAGES.NAME_MIN_WORDS;
+    // Mismo orden y regla que login.js: primero las contraseñas, después el nombre (palabras de 2 o más letras).
     if (password !== confirmPassword) return REGISTER_MESSAGES.PASSWORDS_MISMATCH;
+
+    const words = String(name ?? '').split(/\s+/).filter((word) => word.length >= 2);
+    if (words.length < 2) return REGISTER_MESSAGES.NAME_MIN_WORDS;
 
     return null;
 }
@@ -299,5 +329,5 @@ export function validateRegistrationInput({ name, password, confirmPassword }) {
  * @returns {'Supervisor'|'Gestor'}
  */
 export function normalizeRegistrationRole(rawRole) {
-    return rawRole === 'Supervisor' ? 'Supervisor' : 'Gestor';
+    return rawRole === ROLES.SUPERVISOR ? ROLES.SUPERVISOR : ROLES.GESTOR;
 }

@@ -149,25 +149,9 @@ function loginDateFromHoraInicio(horaInicio) {
     return loginDate;
 }
 
-/**
- * Clave "YYYY-MM-DD" de la fecha LOCAL de un instante.
- *
- * Sin `timeZone` usa la zona del proceso/navegador (`getFullYear/getMonth/getDate`): en el navegador del supervisor es
- * su hora local; en Node la fija `process.env.TZ`. Con `timeZone` (IANA, p. ej. 'America/Bogota') se calcula con
- * `Intl.DateTimeFormat` en esa zona, sin depender de la del proceso (lo usan las pruebas para fijar UTC-5).
- *
- * @param {Date} date Instante válido.
- * @param {string} [timeZone]
- * @returns {string}
- */
-export function toLocalDateKey(date, timeZone) {
-    if (timeZone) {
-        const parts = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
-        const get = (type) => parts.find((p) => p.type === type).value;
-        return `${get('year')}-${get('month')}-${get('day')}`;
-    }
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
+// W-41: `toLocalDateKey` vive en `utils/date-time.js` (antes había dos versiones); se reexporta por compatibilidad.
+import { toLocalDateKey } from '../../utils/date-time.js';
+export { toLocalDateKey };
 
 /** Día anterior de una clave "YYYY-MM-DD" (aritmética de calendario, sin zona). */
 function previousDateKey(key) {

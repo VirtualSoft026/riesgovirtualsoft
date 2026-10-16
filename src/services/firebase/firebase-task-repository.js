@@ -46,7 +46,7 @@ export function resolveTaskTransaction(currentValue, record) {
 
 /**
  * @param {{
- *   database: {ref: (path: string) => any},
+ *   database: {ref: (path?: string) => any},
  *   now?: () => number,
  *   saveCache?: (cache: object) => void,
  *   logger?: {error: Function}
@@ -169,7 +169,29 @@ export function createTaskRepository({ database, now = Date.now, saveCache = () 
         return syncPromise;
     }
 
+    /**
+     * Borra de `active_sessions/{uid}/tasks` las tareas que el caché local acaba de purgar por huérfanas
+     * (W-26, comportamiento de `main`). Una sola escritura multirruta. Best-effort: devuelve la Promise
+     * real para que el llamador registre el error sin bloquear la carga de tareas.
+     *
+     * @param {string} uid
+     * @param {string[]} taskIds
+     * @returns {Promise<void>}
+     */
+    function removeActiveSessionTasks(uid, taskIds) {
+        if (!uid || !Array.isArray(taskIds) || taskIds.length === 0) return Promise.resolve();
+
+        const removals = {};
+
+        taskIds.forEach((taskId) => {
+            removals[`active_sessions/${uid}/tasks/${taskId}`] = null;
+        });
+
+        return database.ref().update(removals);
+    }
+
     return {
+        removeActiveSessionTasks,
         persistTaskToActiveSession,
         fetchOwnActiveSessionTasks,
         persistTaskIfNotNewerRemote,

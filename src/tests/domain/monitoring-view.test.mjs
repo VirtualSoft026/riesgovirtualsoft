@@ -573,7 +573,9 @@ test('tarjeta: modelo + HTML con estado de Pausa de Turno, escape de datos y bot
     assert.ok(html.includes('En Pausa de Turno ⏸️'));
     assert.ok(html.includes('Ana &lt;Pérez&gt;'));
     assert.ok(html.includes('a&quot;b@x.co'));
-    assert.ok(html.includes("openMonitoreoDetails(decodeURIComponent('u%271'))"));
+    assert.ok(html.includes('data-action="open-monitoreo-details" data-uid="u&#039;1"'));
+    assert.ok(html.includes('data-action="view-timeline-monitoreo" data-uid="u&#039;1"'));
+    assert.ok(!html.includes('onclick='), 'ningún onclick inline');
     assert.ok(html.includes('2 <i') && html.includes('/ 4 (75%)'));
     assert.ok(html.includes('Cargando cronograma...'));
     assert.ok(buildEmptyMonitoringHtml().includes('No se encontraron gestores en el turno con los filtros aplicados.'));

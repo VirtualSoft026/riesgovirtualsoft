@@ -9,27 +9,11 @@
  */
 
 /**
- * Suma los minutos de eventos "Inactividad". Un evento abierto cuenta hasta
- * `fallbackEndMs`. Sin redondeo (bloque de app.js 3753-3761).
- *
- * @param {Array<{type: string, start: number, end: number|null}>} events
- * @param {number} fallbackEndMs
- * @returns {number}
+ * Suma los minutos de eventos "Inactividad". Un evento abierto cuenta hasta `fallbackEndMs`. Sin redondeo (bloque de
+ * app.js 3753-3761). W-41: es la de `domain/analytics/time-metrics.js` (antes había dos copias del mismo cuerpo).
  */
-export function sumInactivityMinutes(events, fallbackEndMs) {
-    let minutes = 0;
-
-    if (Array.isArray(events)) {
-        events.forEach((event) => {
-            if (event.type === 'Inactividad') {
-                const eventEnd = event.end ? event.end : fallbackEndMs;
-                minutes += (eventEnd - event.start) / (1000 * 60);
-            }
-        });
-    }
-
-    return minutes;
-}
+import { sumInactivityMinutes } from '../analytics/time-metrics.js';
+export { sumInactivityMinutes };
 
 /**
  * Igual que `sumInactivityMinutes`, redondeado a 1 decimal (app.js 3857-3867,

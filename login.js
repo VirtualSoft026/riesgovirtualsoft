@@ -1,3 +1,6 @@
+// W-55 (b): mismas claves que SESSION_STORAGE_KEYS (src/app/session.js) y que clearRiskOpsSessionStorage() de app.js.
+const RISKOPS_SESSION_STORAGE_KEYS = ['riskOps_currentUser', 'riskOps_cache', 'riskOps_breakState', 'riskOps_timeline', 'riskOps_usersData'];
+
 // Helper function to switch panels
 function switchPanel(panelId) {
     document.querySelectorAll('.auth-panel').forEach(panel => {
@@ -298,7 +301,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 if (dbUser.approved === 'Rechazado') {
-                    loginError.innerHTML = `Tu solicitud de cuenta ha sido rechazada.<br><small>Motivo: ${escapeHTML(dbUser.rejectionReason || 'No especificado')}</small>`;
+                    // W-55 (c): escapeHTML no existía en login.js (ReferenceError al entrar un usuario rechazado).
+                    // El motivo se escribe como texto, nunca como HTML.
+                    loginError.textContent = 'Tu solicitud de cuenta ha sido rechazada.';
+                    loginError.appendChild(document.createElement('br'));
+                    const reasonLine = document.createElement('small');
+                    reasonLine.textContent = 'Motivo: ' + (dbUser.rejectionReason || 'No especificado');
+                    loginError.appendChild(reasonLine);
                     loginError.style.display = 'block';
                     await firebase.auth().signOut();
                     return;
@@ -317,7 +326,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     loginError.textContent = "Su turno ha finalizado";
                     loginError.style.display = 'block';
                     await firebase.auth().signOut();
-                    localStorage.removeItem('riskOps_currentUser');
+                    // W-55 (b): cierre completo de sesión (todas las claves), como en app.js.
+                    RISKOPS_SESSION_STORAGE_KEYS.forEach((key) => {
+                        try { localStorage.removeItem(key); } catch (e) { /* almacenamiento no disponible */ }
+                    });
                     return;
                 }
 

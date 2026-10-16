@@ -34,6 +34,7 @@ import {
     resolveUrgentAnnouncementPolicy
 } from '../../domain/announcements/announcement-service.js';
 import { escapeHTML, encodeInlineHandlerArg, sanitizeAnnouncementHTML } from '../../utils/sanitization.js';
+import { normalizeLegacyHtml } from '../helpers/w50-delegation.mjs';
 
 const { test, summarize } = createRunner('announcement-service (comunicados: lógica pura, diferencial vs app.js 6555-6965)');
 
@@ -52,7 +53,7 @@ function legacyRenderGestor(globalComunicados, currentUser, authUser) {
 
     if (keys.length === 0) {
         list.innerHTML = `<div class="glass-panel" style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay comunicados activos.</div>`;
-        return list.innerHTML;
+        return normalizeLegacyHtml(list.innerHTML);
     }
 
     const uid = (currentUser && currentUser.uid) ? currentUser.uid : (authUser ? authUser.uid : 'unknown');
@@ -80,7 +81,7 @@ function legacyRenderGestor(globalComunicados, currentUser, authUser) {
             </div>
         `;
     });
-    return list.innerHTML;
+    return normalizeLegacyHtml(list.innerHTML);
 }
 
 /** app.js 6837-6877 (renderAdminComunicados). */
@@ -93,7 +94,7 @@ function legacyRenderAdmin(globalComunicados, role, canDeleteComunicadosFn) {
 
     if (keys.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay comunicados creados.</td></tr>`;
-        return tbody.innerHTML;
+        return normalizeLegacyHtml(tbody.innerHTML);
     }
 
     const showDelete = canDeleteComunicadosFn(role);
@@ -122,7 +123,7 @@ function legacyRenderAdmin(globalComunicados, role, canDeleteComunicadosFn) {
             </tr>
         `;
     });
-    return tbody.innerHTML;
+    return normalizeLegacyHtml(tbody.innerHTML);
 }
 
 /** app.js 6623-6649 (updateUnreadBadge) -> {visible, count}. */
@@ -418,9 +419,10 @@ test('el botón de eliminar solo aparece para Admin; Supervisor ve Leer y Lectur
     const f = fixture();
     const admin = buildAdminComunicadosRowsHtml(f, canDeleteComunicados('Admin'));
     const sup = buildAdminComunicadosRowsHtml(f, canDeleteComunicados('Supervisor'));
-    assert.ok(admin.includes('deleteComunicado('));
-    assert.ok(!sup.includes('deleteComunicado('));
-    assert.ok(sup.includes('viewComunicadoLecturas(') && sup.includes('viewComunicadoContent('));
+    assert.ok(admin.includes('data-action="delete-comunicado"'));
+    assert.ok(!sup.includes('delete-comunicado'));
+    assert.ok(sup.includes('data-action="view-comunicado-lecturas"') && sup.includes('data-action="view-comunicado-content"'));
+    assert.ok(!hasInlineHandler(admin) && !hasInlineHandler(sup), 'ningún on* inline en la tabla');
 });
 
 test('XSS lista del gestor: título, autor y contenido malicioso no producen etiquetas ni manejadores activos', () => {
@@ -435,14 +437,15 @@ test('XSS lista del gestor: título, autor y contenido malicioso no producen eti
     assert.ok(html.includes('href="https://ok.example/x?a=1&amp;b=2"'), 'un enlace https legítimo se conserva');
 });
 
-test('XSS: la clave de Firebase con comillas queda codificada dentro del onclick (no rompe el atributo)', () => {
+test('XSS: la clave de Firebase con comillas va escapada en data-key (no rompe el atributo ni cierra comillas)', () => {
     const html = buildGestorComunicadosHtml(fixture(), 'g9');
-    const encoded = encodeInlineHandlerArg(MALICIOUS.key);
-    assert.ok(encoded.includes('%22') && encoded.includes('%27') && encoded.includes('%3C'));
-    assert.ok(html.includes(`decodeURIComponent('${encoded}')`));
-    assert.ok(!html.includes(`decodeURIComponent('${MALICIOUS.key}')`));
+    const escaped = escapeHTML(MALICIOUS.key);
+    assert.ok(escaped.includes('&quot;') && escaped.includes('&lt;'), 'la clave viene escapada');
+    assert.ok(html.includes(`data-action="mark-comunicado-read" data-key="${escaped}"`), 'la lectura de la lista va delegada con la clave escapada');
+    assert.ok(!html.includes(`data-key="${MALICIOUS.key}"`));
+    assert.ok(!hasInlineHandler(html), 'ningún on* inline');
     const admin = buildAdminComunicadosRowsHtml(fixture(), true);
-    assert.ok(admin.includes(`deleteComunicado(decodeURIComponent('${encoded}'))`));
+    assert.ok(admin.includes(`data-action="delete-comunicado" data-key="${escaped}"`));
     assert.ok(!admin.includes('<script') && !admin.includes('<img'));
 });
 
@@ -471,7 +474,7 @@ test('los ayudantes son inyectables: app.js puede usar SU sanitizador (basado en
         sanitizeAnnouncementHTML: (v) => `S(${v})`
     };
     const html = buildGestorComunicadosHtml({ k1: { title: 'T', content: 'C', author: 'A', date: '2026-10-01T00:00:00.000Z' } }, 'u', helpers);
-    assert.ok(html.includes('E(T)') && html.includes('E(A)') && html.includes('S(C)') && html.includes("decodeURIComponent('K(k1)')"));
+    assert.ok(html.includes('E(T)') && html.includes('E(A)') && html.includes('S(C)') && html.includes('data-key="k1"'));
     assert.equal(buildAnnouncementView({ content: 'C' }, helpers).bodyHtml, 'S(C)');
 });
 
@@ -591,9 +594,16 @@ test('textos visibles de los alert() se conservan', () => {
 // D2 (revisión): ningún dato de usuario llega como HTML en los constructores de comunicados
 // ---------------------------------------------------------------------------------------------
 
+/** ¿Hay algún atributo on* real en una etiqueta? (los valores entre comillas y el texto escapado no cuentan) */
+function hasInlineHandler(html) {
+    return /<[^>]*\son[a-z]+\s*=/i.test(html.replace(/="[^"]*"/g, '=""'));
+}
+
 /** ¿Hay alguna etiqueta "real" que no sea de la plantilla? (busca etiquetas peligrosas o manejadores sin escapar) */
 function hasActiveInjection(html) {
-    return /<script/i.test(html) || /<img/i.test(html) || /<svg/i.test(html) || /<[^>]*\son(error|load)\s*=/i.test(html); // onmouseover/onclick son de la plantilla
+    // Los valores entre comillas (escapados) son texto, no atributos: se quitan antes de buscar manejadores reales.
+    const outsideValues = html.replace(/="[^"]*"/g, '=""');
+    return /<script/i.test(html) || /<img/i.test(html) || /<svg/i.test(html) || /<[^>]*\son(error|load)\s*=/i.test(outsideValues);
 }
 
 test('D2 revisión: fechas, readAt, nombres y claves maliciosas (con <script>, <img onerror> y comillas) no inyectan HTML en lista, tabla y lecturas', () => {
@@ -611,7 +621,7 @@ test('D2 revisión: fechas, readAt, nombres y claves maliciosas (con <script>, <
         assert.ok(!hasActiveInjection(html), label);
     }
     // la clave maliciosa dentro de los onclick va codificada (no cierra la comilla del argumento)
-    assert.ok(!admin.includes(`decodeURIComponent('"'`) && admin.includes(`decodeURIComponent('${encodeInlineHandlerArg(EVIL)}')`));
+    assert.ok(!admin.includes(`data-key="${EVIL}"`) && admin.includes(`data-key="${escapeHTML(EVIL)}"`));
     // fecha y readAt inválidos salen como "Invalid Date" (vienen de new Date(), nunca del texto crudo)
     assert.ok(gestor.includes('Invalid Date') && readers.includes('Invalid Date'));
     // el cuerpo del comunicado sigue pasando por sanitizeAnnouncementHTML (se respeta): <p> permitido, <script> fuera

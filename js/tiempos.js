@@ -516,7 +516,7 @@ function renderTiemposDashboard(metrics) {
                     tr.innerHTML = `
                         <td style="font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
                             <i class='bx bx-calendar' style="color: var(--accent-primary); font-size: 18px;"></i>
-                            ${d.fecha}
+                            ${escapeHTML(d.fecha)}
                         </td>
                         <td style="text-align: center; color: var(--text-secondary);">1 turno</td>
                         <td style="text-align: center;">
@@ -560,7 +560,7 @@ function renderTiemposDashboard(metrics) {
                     tr.innerHTML = `
                         <td style="font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
                             <i class='bx bx-user-circle' style="color: var(--accent-primary); font-size: 18px;"></i>
-                            ${m.gestor}
+                            ${escapeHTML(m.gestor)}
                         </td>
                         <td style="text-align: center; color: var(--text-secondary);">${m.Dias_Laborados} días</td>
                         <td style="text-align: center;">

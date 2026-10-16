@@ -4,8 +4,7 @@
  * `now`, `logger`); la lógica pura está en `domain/auth/login-history.js`.
  *
  * Opciones (ver el encabezado de `login-history.js`):
- *  - `escapeRawLoginTime`: `true` por defecto (DECISIÓN D2: sanear el `loginTime` inválido). Solo `false`
- *    explícito reproduce el original de app.js (para la prueba diferencial).
+ *  - el `loginTime` inválido se escapa siempre (DECISIÓN D2, incondicional desde W-52).
  *  - `tolerateInvalidDates`: apagada por defecto (no forma parte de una decisión; el original lanza RangeError).
  *
  * @param {{
@@ -14,7 +13,7 @@
  *   now?: () => number,
  *   logger?: {error: Function},
  *   helpers?: {escapeHTML?: Function},
- *   options?: {escapeRawLoginTime?: boolean, tolerateInvalidDates?: boolean}
+ *   options?: {tolerateInvalidDates?: boolean}
  * }} deps
  */
 
@@ -35,8 +34,7 @@ export function createLoginHistoryController(deps) {
         if (!tbody) return;
 
         tbody.innerHTML = buildLoginHistoryTableHtml(records, {
-            escapeHTML: helpers && helpers.escapeHTML,
-            escapeRawLoginTime: options.escapeRawLoginTime !== false
+            escapeHTML: helpers && helpers.escapeHTML
         });
     }
 

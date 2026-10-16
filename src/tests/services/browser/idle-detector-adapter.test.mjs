@@ -12,7 +12,11 @@ import assert from 'node:assert/strict';
 import {
     initIdleDetector,
     requestIdlePermissionManual,
-    shouldApplyDomIdleFallback
+    shouldApplyDomIdleFallback,
+    bindIdleActivityListeners,
+    IDLE_ACTIVITY_DOCUMENT_EVENTS,
+    IDLE_ACTIVITY_WINDOW_EVENTS,
+    DOM_IDLE_POLL_MS
 } from '../../../services/browser/idle-detector-adapter.js';
 
 const DOM_IDLE_MS = 5 * 60 * 1000; // 300 000 ms
@@ -222,6 +226,107 @@ await test('retorna false cuando requestPermission lanza excepción', async () =
     global.window = savedWindow;
 
     assert.strictEqual(result, false);
+});
+
+// ── bindIdleActivityListeners (W-24, paso 3.3) ──────────────────────────────
+
+/** Documento o ventana falsos que guardan los listeners por tipo de evento. */
+function fakeTarget() {
+    const listeners = new Map();
+    return {
+        listeners,
+        addEventListener(type, fn) { if (!listeners.has(type)) listeners.set(type, new Set()); listeners.get(type).add(fn); },
+        removeEventListener(type, fn) { if (listeners.has(type)) listeners.get(type).delete(fn); },
+        count(type) { return listeners.has(type) ? listeners.get(type).size : 0; },
+    };
+}
+
+/** Intervalo falso: guarda la función y el periodo, y permite dispararla a mano. */
+function fakeInterval() {
+    const calls = { set: [], cleared: [], fn: null, ms: null, token: 'T1' };
+    calls.setIntervalFn = (fn, ms) => { calls.fn = fn; calls.ms = ms; calls.set.push(ms); return calls.token; };
+    calls.clearIntervalFn = (t) => { calls.cleared.push(t); };
+    return calls;
+}
+
+await test('bindIdleActivityListeners registra los eventos de actividad del documento y de la ventana', async () => {
+    const doc = fakeTarget();
+    const win = fakeTarget();
+    const timer = fakeInterval();
+    const onActivity = () => {};
+    bindIdleActivityListeners({ doc, win, onActivity, setIntervalFn: timer.setIntervalFn, clearIntervalFn: timer.clearIntervalFn });
+
+    for (const name of IDLE_ACTIVITY_DOCUMENT_EVENTS) assert.strictEqual(doc.count(name), 1, `documento: ${name}`);
+    for (const name of IDLE_ACTIVITY_WINDOW_EVENTS) assert.strictEqual(win.count(name), 1, `ventana: ${name}`);
+    assert.deepStrictEqual(IDLE_ACTIVITY_DOCUMENT_EVENTS, ['mousemove', 'keydown', 'click', 'scroll', 'visibilitychange']);
+    assert.deepStrictEqual(IDLE_ACTIVITY_WINDOW_EVENTS, ['focus']);
+    assert.strictEqual(doc.listeners.get('mousemove').has(onActivity), true, 'el mismo onActivity se registra');
+});
+
+await test('bindIdleActivityListeners usa el periodo de sondeo por defecto (1 s)', async () => {
+    const timer = fakeInterval();
+    bindIdleActivityListeners({ doc: fakeTarget(), win: fakeTarget(), onActivity: () => {}, setIntervalFn: timer.setIntervalFn, clearIntervalFn: timer.clearIntervalFn });
+    assert.strictEqual(DOM_IDLE_POLL_MS, 1000);
+    assert.strictEqual(timer.ms, 1000);
+});
+
+await test('bindIdleActivityListeners respeta un periodo de sondeo indicado', async () => {
+    const timer = fakeInterval();
+    bindIdleActivityListeners({ doc: fakeTarget(), win: fakeTarget(), onActivity: () => {}, pollMs: 250, setIntervalFn: timer.setIntervalFn, clearIntervalFn: timer.clearIntervalFn });
+    assert.strictEqual(timer.ms, 250);
+});
+
+await test('el desenlace retira todos los listeners y limpia el intervalo', async () => {
+    const doc = fakeTarget();
+    const win = fakeTarget();
+    const timer = fakeInterval();
+    const unbind = bindIdleActivityListeners({ doc, win, onActivity: () => {}, setIntervalFn: timer.setIntervalFn, clearIntervalFn: timer.clearIntervalFn });
+    unbind();
+
+    for (const name of IDLE_ACTIVITY_DOCUMENT_EVENTS) assert.strictEqual(doc.count(name), 0, `documento retirado: ${name}`);
+    for (const name of IDLE_ACTIVITY_WINDOW_EVENTS) assert.strictEqual(win.count(name), 0, `ventana retirada: ${name}`);
+    assert.deepStrictEqual(timer.cleared, ['T1']);
+});
+
+await test('el sondeo llama onDomFallback cuando el respaldo DOM aplica (más de 5 min sin actividad)', async () => {
+    await initIdleDetector({ getLastActivityTimestamp: () => 0, autoStart: false });
+    const timer = fakeInterval();
+    let fallbacks = 0;
+    bindIdleActivityListeners({
+        doc: fakeTarget(), win: fakeTarget(), onActivity: () => {},
+        onDomFallback: () => { fallbacks += 1; },
+        setIntervalFn: timer.setIntervalFn, clearIntervalFn: timer.clearIntervalFn
+    });
+    timer.fn();
+    assert.strictEqual(fallbacks, 1);
+});
+
+await test('el sondeo no llama onDomFallback con actividad reciente', async () => {
+    await initIdleDetector({ getLastActivityTimestamp: () => Date.now(), autoStart: false });
+    const timer = fakeInterval();
+    let fallbacks = 0;
+    bindIdleActivityListeners({
+        doc: fakeTarget(), win: fakeTarget(), onActivity: () => {},
+        onDomFallback: () => { fallbacks += 1; },
+        setIntervalFn: timer.setIntervalFn, clearIntervalFn: timer.clearIntervalFn
+    });
+    timer.fn();
+    assert.strictEqual(fallbacks, 0);
+});
+
+await test('el sondeo sin onDomFallback no lanza error', async () => {
+    await initIdleDetector({ getLastActivityTimestamp: () => 0, autoStart: false });
+    const timer = fakeInterval();
+    bindIdleActivityListeners({ doc: fakeTarget(), win: fakeTarget(), onActivity: () => {}, setIntervalFn: timer.setIntervalFn, clearIntervalFn: timer.clearIntervalFn });
+    timer.fn();
+    assert.ok(true);
+});
+
+await test('bindIdleActivityListeners rechaza un onActivity que no es función', async () => {
+    assert.throws(
+        () => bindIdleActivityListeners({ doc: fakeTarget(), win: fakeTarget(), onActivity: null, setIntervalFn: () => 'x', clearIntervalFn: () => {} }),
+        TypeError
+    );
 });
 
 summarize();

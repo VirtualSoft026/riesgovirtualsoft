@@ -22,23 +22,8 @@
 // Utilidades internas
 // ------------------------------------------------------------------------------------------------
 
-/**
- * Normaliza un nombre para comparación insensible a tildes, mayúsculas y espacios sobrantes.
- * Replica la normalización aplicada en checkShiftExpirationOnLogin() (login.js):
- *   toLowerCase + NFD + elimina marcas de combinación (diacríticos) + trim.
- *
- * Ejemplos: "José Pérez" → "jose perez",  "MARÍA LÓPEZ" → "maria lopez".
- *
- * @param {unknown} value
- * @returns {string}
- */
-function normalizeName(value) {
-    return String(value ?? '')
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '') // elimina: á→a, é→e, í→i, ó→o, ú→u, ñ→n, etc.
-        .trim();
-}
+// W-41: normalización de nombres de `utils/normalize.js` (antes había una copia interna con otro orden).
+import { normalizeName } from '../../utils/normalize.js';
 
 /**
  * Comprueba si el valor de una celda de encabezado corresponde a la fecha (year, month, day).

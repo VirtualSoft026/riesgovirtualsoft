@@ -1,5 +1,5 @@
 import { createRunner, assert } from '../test-harness.mjs';
-import { getDocUrl, getManualUrl } from '../../config/doc-links.js';
+import { getDocUrl, getManualUrl, MANUAL_URL_MAP } from '../../config/doc-links.js';
 
 const { test, summarize } = createRunner('doc-links');
 
@@ -73,6 +73,19 @@ test('getManualUrl: proveedor desconocido devuelve ruta local Manuales/', () => 
 test('getManualUrl: string vacío devuelve ruta local Manuales/', () => {
     const url = getManualUrl('');
     assert.strictEqual(url, 'Manuales/');
+});
+
+// ── W-12 (NOTA_2): lista de manuales de `main` ───────────────────────────────
+
+test('W-12: la lista de manuales es la de main (17), con Playson y las URL corregidas', () => {
+    assert.equal(Object.keys(MANUAL_URL_MAP).length, 17);
+    assert.ok(getManualUrl('Playson').includes('IQBhSbX5zfApSrkM8kbx40OCAczup6lOC1k9v19dyssPyfc'));
+    assert.ok(getManualUrl('PragmaticplaySlot').includes('IQBed0oHqboZRabYqQnGJMxUATLlSdPshzsD7pnAsl8JxdM'), 'PragmaticplaySlot corregida');
+    assert.ok(getManualUrl('Redrakegaming').includes('IQCmcIAXj_tLRZKJx2dpTMyZAQP18AdXeKvHLc1PtnVBhd4'), 'Redrakegaming corregida');
+    assert.ok(getManualUrl('Belatra').includes('IQBPSE6f50toQ5-dN47fDzPOAXqhCkyx02toLxiTcics57o'));
+    assert.ok(getManualUrl('Egt').includes('IQDPREAJmsY_Roey_HAIsjnDAVboOIr8TspQEggMd_VdQkQ'));
+    assert.ok(getManualUrl('Evolution').endsWith('?e=uBw53Y'));
+    assert.equal(new Set(Object.values(MANUAL_URL_MAP)).size, 17, 'sin URL repetidas (antes Belatra y Egt repetían la de Aviatrix)');
 });
 
 summarize();

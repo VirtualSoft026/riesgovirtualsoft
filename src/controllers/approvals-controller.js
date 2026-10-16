@@ -27,11 +27,13 @@
  *    Firebase. Sin `getUser` o sin usuario cargado se DENIEGA (seguro por omisión). Es una capa adicional: la
  *    seguridad real son las reglas de Firebase (propuesta de endurecimiento en
  *    `Docs/05-pruebas/2026-10-06-propuesta-reglas-d3-d7.md`).
- *  - D2 `escapeRole` (por defecto `true`): escapa el rol en la insignia (app.js lo inserta sin escapar).
+ *  - D2: el rol de la insignia se escapa SIEMPRE (W-52, paso 3.1: ya no hay opción para apagarlo; app.js lo inserta
+ *    sin escapar).
  *  - D9a `showRejectedUsers` (por defecto `true`): agrega la opción "Rechazados" al selector de estado existente,
  *    lista los rechazados con su motivo y ofrece "Revertir" (`revertRejectedUser`: vuelve a pendiente) y "Aprobar".
  *
- * `APPROVALS_LEGACY_OPTIONS` pone las cuatro en `false` y reproduce app.js; solo lo usan las pruebas diferenciales.
+ * `APPROVALS_LEGACY_OPTIONS` pone las tres opciones en `false` y, con roles sin caracteres especiales, reproduce
+ * app.js; solo lo usan las pruebas diferenciales.
  */
 
 import {
@@ -76,20 +78,20 @@ import {
 import { LIST_NOTICE_IDS, removeListNotice, showListNotice } from '../ui/components/list-notice.js';
 import { closeModal as closeModalView, openExceptionModal as openExceptionModalView, openExtraTaskModal as openExtraTaskModalView } from '../ui/components/modal.js';
 import { NO_PENDING_PERMISSIONS_ROW_HTML, NO_PERMISSION_HISTORY_ROW_HTML, buildPendingPermissionRowHtml, buildPermissionHistoryRowHtml } from '../ui/components/pending-permissions-table.js';
-import { NO_USERS_ROW_HTML, buildUserRowHtml, ensureRejectedFilterOption } from '../ui/components/pending-users-table.js';
+import { APPROVE_USER_ACTION, NO_USERS_ROW_HTML, buildUserRowHtml, ensureRejectedFilterOption } from '../ui/components/pending-users-table.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
+import { bindActionDelegation } from '../utils/action-delegation.js';
 
 /** Demora del aviso "Mostrando los 5 ..." (app.js 4158, 4169, 4290, 4300). */
 const NOTICE_DELAY_MS = 100;
 
 /**
- * Opciones que reproducen app.js tal cual (sin las decisiones D2, D7 y D9a). SOLO para pruebas diferenciales y e2e
+ * Opciones que reproducen app.js tal cual (sin las decisiones D7 y D9a; D2 ya no se apaga). SOLO para pruebas diferenciales y e2e
  * de paridad; la aplicación usa los valores por defecto.
  */
 export const APPROVALS_LEGACY_OPTIONS = Object.freeze({
     preventDuplicates: false,
     enforcePolicy: false,
-    escapeRole: false,
     showRejectedUsers: false
 });
 
@@ -106,10 +108,9 @@ export const APPROVALS_LEGACY_OPTIONS = Object.freeze({
  *   getUser?: () => ({role?: string, approved?: unknown}|null),
  *   enforcePolicy?: boolean,
  *   preventDuplicates?: boolean,
- *   escapeRole?: boolean,
  *   showRejectedUsers?: boolean,
  *   formatDate?: (date: Date) => string
- * }} deps Las cuatro opciones booleanas son `true` por defecto (decisiones D2, D7, D9a); ver `APPROVALS_LEGACY_OPTIONS`.
+ * }} deps Las tres opciones booleanas son `true` por defecto (decisiones D7 y D9a); ver `APPROVALS_LEGACY_OPTIONS`.
  */
 export function createApprovalsController(deps) {
     const {
@@ -121,7 +122,6 @@ export function createApprovalsController(deps) {
         getUser,
         enforcePolicy = true,
         preventDuplicates = true,
-        escapeRole = true,
         showRejectedUsers = true,
         formatDate
     } = deps;
@@ -167,6 +167,9 @@ export function createApprovalsController(deps) {
         if (promise && typeof promise.catch === 'function') promise.catch((error) => logger.error(error));
     }
 
+    // W-50: el "Aprobar" de la tabla de usuarios (filas pendientes y rechazadas) llega por delegación, sin onclick.
+    bindActionDelegation(doc, APPROVE_USER_ACTION, (element) => fireAndLog(approveUser(element.getAttribute('data-user-id'))));
+
     // ------------------------------------------------------------------ usuarios
 
     async function renderPendingUsers() {
@@ -209,7 +212,6 @@ export function createApprovalsController(deps) {
         const html = view.rows.map((user) => buildUserRowHtml(user, {
             regDateStr: formatRegistrationDate(user, formatDate),
             appDateStr: formatApprovalDate(user, formatDate),
-            escapeRole,
             rejectedActions: showRejectedUsers
         })).join('');
 

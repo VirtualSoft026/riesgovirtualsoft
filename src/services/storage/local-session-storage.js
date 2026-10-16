@@ -1,7 +1,6 @@
 import { defaultState, normalizeState } from '../../domain/shifts/shift-calculator.js';
+import { STORAGE_KEYS } from '../../utils/constants.js';
 
-const BREAK_STATE_STORAGE_KEY = 'riskOps_breakState';
-const TIMELINE_KEY = 'riskOps_timeline';
 
 /**
  * Persiste los campos de pausa (sin shiftTimeline) en `riskOps_breakState` y la
@@ -18,7 +17,7 @@ export function saveBreakState(state) {
     const normalized = normalizeState(state);
     const { shiftTimeline, ...pauseFields } = normalized;
     try {
-        localStorage.setItem(BREAK_STATE_STORAGE_KEY, JSON.stringify(pauseFields));
+        localStorage.setItem(STORAGE_KEYS.BREAK_STATE, JSON.stringify(pauseFields));
     } catch (error) {
         console.warn('No se pudo guardar el estado de pausas:', error);
     }
@@ -35,7 +34,7 @@ export function saveBreakState(state) {
  */
 export function loadBreakState() {
     try {
-        const serialized = localStorage.getItem(BREAK_STATE_STORAGE_KEY);
+        const serialized = localStorage.getItem(STORAGE_KEYS.BREAK_STATE);
         const pauseFields = serialized ? normalizeState(JSON.parse(serialized)) : defaultState();
         const timeline = loadTimeline();
         return { ...pauseFields, shiftTimeline: timeline };
@@ -57,7 +56,7 @@ export function loadBreakState() {
 export function saveTimeline(events) {
     try {
         const safe = Array.isArray(events) ? events : [];
-        localStorage.setItem(TIMELINE_KEY, JSON.stringify(safe));
+        localStorage.setItem(STORAGE_KEYS.TIMELINE, JSON.stringify(safe));
     } catch (error) {
         console.warn('No se pudo guardar la línea de tiempo del turno:', error);
     }
@@ -71,7 +70,7 @@ export function saveTimeline(events) {
  */
 export function loadTimeline() {
     try {
-        const raw = localStorage.getItem(TIMELINE_KEY);
+        const raw = localStorage.getItem(STORAGE_KEYS.TIMELINE);
         if (!raw) return [];
         const parsed = JSON.parse(raw);
         return Array.isArray(parsed) ? parsed : [];

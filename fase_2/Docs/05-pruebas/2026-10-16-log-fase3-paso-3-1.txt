@@ -1,0 +1,69 @@
+Log — Fase 3, paso 3.1 (2026-10-16)
+Espacio de trabajo: scratchpad/w3 (copia de trabajo; sin escritura en la carpeta del equipo)
+Sin commit, push, merge ni rebase.
+
+== 1. Correcciones de W-52 en app.js
+- Línea 2443: ${displayStatus} -> ${escapeHTML(displayStatus)}
+- Línea 2556: ${icon} ${ev.type} -> ${icon} ${escapeHTML(ev.type)}
+- node --check app.js: OK
+- Línea 3197 periodoText: mapeo fijo de literales; no requiere escape.
+
+== 2. Lista de interpolaciones revisadas
+- cmp-interpolaciones.mjs: se añadió lectura de interpolaciones-revisadas.json, escritura de salida/sin-revisar.txt y resumen.
+- Antes: sin revisar = 107 (0 revisadas).
+- interpolaciones-revisadas.json: 89 expresiones con motivo.
+- Después: sin revisar = 0 · revisadas = 107 · entradas obsoletas = 0.
+
+== 3. W-44 y W-48 (catálogos y llaves de almacenamiento)
+- src/services/storage/local-session-storage.js: constantes locales -> STORAGE_KEYS.BREAK_STATE / STORAGE_KEYS.TIMELINE (import de utils/constants.js).
+- src/domain/analytics/monitoring-view.js: TASK_STATUS (10 reemplazos).
+- src/domain/auth/login-history.js: SESSION_STATUS (10 reemplazos).
+- src/domain/users/gestor-config.js: ROLES (3 reemplazos).
+- src/domain/auth/auth-service.js: ROLES (7 reemplazos).
+- src/ui/views/kpi-indicators-view.js: SESSION_STATUS.ONLINE (1).
+- src/ui/components/pending-users-table.js: APPROVED_REJECTED_VALUE (2).
+- src/domain/tasks/task-session-sync.js: ROLES.GESTOR y USER_STATUS.INACTIVE (5); imports añadidos al inicio.
+- node --check de los 8 archivos: OK.
+- Literal 'Gestor' restante en gestor-config.js: texto de presentación (aria-label de fallback). No se cambia.
+
+== 4. Bundle y verificación de referencias
+- node build/build.mjs: 121 módulos, 114 espacios de nombres.
+- node build/verify-bundle.mjs: BUNDLE_VERIFY=PASS (71 comprobaciones, 476.9 KB).
+- node build/build-app.mjs: APP_BUNDLE_OK (8 módulos).
+- Referencias RiskOps.* en app.js, js/tiempos.js y login.js: 125 únicas, 0 sin resolver (script de verificación en /tmp/chk-refs.mjs).
+
+== 5. Suite unitaria
+- Ejecución archivo por archivo (node <archivo>) sobre 81 archivos *.test.mjs / *.test.js.
+- Resultado: PASS=81 FAIL=0.
+
+== 6. Auditoría diferencial contra la referencia congelada
+Comando: AUDIT_APP_JS=referencia/app.pre-paso-3-1.js node <script>.mjs
+- comparar.mjs: 35 IGUAL; DIFIERE normalizeName (8/250), getShiftCategory (1/129), getDocUrl (2/60), getManualUrl (5/60, cambio W-12).
+- cmp-multiselect.mjs: 1 DIFIERE de 12 (setupCustomMultiSelect sin contenedor: undefined vs API no-op; sin llamadores que usen el valor).
+- cmp-cron.mjs: fetchCronogramaRowsForDate 15/15, loadCronogramaAssignments 6/6, 0 diferencias.
+- cmp-extra.mjs: persistShiftClosureCore 5/5 sin diferencias; calculateShiftDelay vs buildShiftDelayBadgeHtml 3456 casos, 0 diferencias.
+- cmp-sanitizador.mjs: diferencias residuales del fuzz (anidamiento malformado), documentadas en paso 3.0.
+
+Nota: comparar.mjs sin variable de entorno falla con "getScheduledGestoresCountForShift is not defined" porque esa función se retiró de app.js (W-10); la auditoría del paso usa la referencia congelada.
+
+== 7. Otras herramientas (sobre el espacio de trabajo)
+- cmp-xss.mjs: 34 cargas; app.js peligrosas 0; src peligrosas 0.
+- cmp-sumideros.mjs: sumideros directos 0; concatenaciones 6 (app.js), 1 (tiempos.js), 4 (login.js): revisadas, seguras.
+- cmp-intra-src.mjs: 1 nombre repetido con contenido distinto (MONTH_NAMES en cronogram-parser.js y schedule-sheet.js) — pendiente W-41; 0 cuerpos repetidos con otro nombre.
+- cmp-capas.mjs: 2 elementos con on* en HTML y listener en JS (endShiftBtn: reemplaza; closeMonitoreoModalBtn: suma) — fuera del alcance del 3.1.
+- cmp-constantes.mjs: 14 constantes de datos en app.js; 0 con equivalente en src (las 10 de W-40 ya no están en app.js).
+- cmp-datos.mjs: manuales app.js 16 claves, src 17; 4 diferencias (W-12).
+
+== 8. Seguridad de recursos de terceros (W-56)
+- index.html y login.html: integrity sha384 + crossorigin en boxicons, jspdf 4.2.1, html2pdf 0.14.0, chart.js 4.5.1, chartjs-plugin-datalabels 2.0.0.
+- Hashes calculados desde los tarballs de npm (los CDN no responden desde el entorno).
+- Pendientes: xlsx 0.20.0 (cdn.sheetjs.com) y firebase 8.10.1 (gstatic, 3 archivos) sin integrity.
+- Creado: fase_2/lab/sri/calcular-sri.mjs. Ejecución de prueba: NO DISPONIBLE (fetch failed) en las 4 URL desde el entorno.
+
+== 9. Paquete entregado
+- paso-3-1-workspace.tar.gz: espacio de trabajo sin node_modules, salida ni build/dist.
+- paso-3-1-cambios.txt: 271 archivos del paquete.
+- 2026-10-16-informe-fase3-paso-3-1.md: informe del paso.
+
+== 10. Escritura en la carpeta del equipo
+- Realizada en la carpeta local de la rama backup/fase2-refactor-2026-10-03, con verificación de fecha de modificación por archivo (expectedMtimeMs) y sin commit. Incluye root, build/, fase_2/lab/, src/** (incl. src/tests/** y src/tests/security/w52-sumideros.test.mjs, nuevo), y fase_2/Docs/ (informe, log y criterios). Ver informe, sección 9.

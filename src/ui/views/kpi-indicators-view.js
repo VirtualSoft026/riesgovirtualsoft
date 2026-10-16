@@ -13,6 +13,7 @@
  */
 
 import { escapeHTML } from '../../utils/sanitization.js';
+import { SESSION_STATUS } from '../../domain/analytics/active-session-status.js';
 
 /** Circunferencia del anillo SVG usada en `animateRing` (app.js 6381). */
 export const KPI_RING_CIRCUMFERENCE = 251.2;
@@ -77,12 +78,14 @@ export function buildBitacoraCardHtml(report) {
     html += '</div>';
 
     // ── Horario ──
-    const horaI = report.horaInicio
+    // W-52: horaInicio y horaFin vienen de `shift_reports` (los escribe el cliente del gestor) y se escapan; app.js
+    // los insertaba crudos. Los textos de respaldo ("N/A", "En Curso") son marcado propio y no se escapan.
+    const horaI = (report.horaInicio ? escapeHTML(report.horaInicio) : '')
         || (report.loginTime
             ? new Date(report.loginTime).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
             : 'N/A');
-    const horaF = report.horaFin
-        || (report.status === 'En Línea'
+    const horaF = (report.horaFin ? escapeHTML(report.horaFin) : '')
+        || (report.status === SESSION_STATUS.ONLINE
             ? "<span style='color:var(--success)'><i class='bx bx-radio-circle-marked bx-flashing'></i> En Curso</span>"
             : 'N/A');
 

@@ -1,0 +1,32 @@
+/*
+ * Estados de interacción que antes vivían en atributos onmouseover/onmouseout (paso 3.4, W-54 b): ahora son reglas
+ * :hover con los mismos valores. Las tarjetas KPI conservan su transición en línea; el color de la sombra es el mismo
+ * que tenía el estilo en línea de cada tarjeta.
+ */
+
+.kpi-clickable-card.kpi-hover-success:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(16, 185, 129, 0.1);
+}
+
+.kpi-clickable-card.kpi-hover-danger:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(239, 68, 68, 0.1);
+}
+
+.kpi-clickable-card.kpi-hover-warning:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(245, 158, 11, 0.1);
+}
+
+.comunicado-title-link {
+    color: var(--accent-primary);
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.comunicado-title-link:hover {
+    text-decoration: underline;
+    color: var(--text-primary);
+}

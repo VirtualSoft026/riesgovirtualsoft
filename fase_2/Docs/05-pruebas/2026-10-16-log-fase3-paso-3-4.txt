@@ -1,0 +1,59 @@
+Log — Fase 3, paso 3.4 (PARCIAL): login (W-29, DE-3 = a) y Control de Tiempos (W-28, DE-4 = a) (2026-10-16)
+Rama: backup/fase2-refactor-2026-10-03 (sin commit, push, merge ni rebase)
+Informe: 2026-10-16-informe-fase3-paso-3-4.md
+
+== 0. Alcance de esta entrega
+- Hecho: W-29 (login) y W-28 (Control de Tiempos).
+- No hecho en esta entrega: W-54 (b) (migración de los on* de index.html y de los generados por JS a delegación), W-03 (vaciar legacy-bridge.js), W-54 (c) del script en línea de index.html (línea 41), W-47/W-48 restantes, guardia de auditoría, DE-20 (setPersistence) y actualización del plan (W-rows y avance). El paso 3.4 NO se da por cerrado.
+- Fuera de alcance: presence-service.js (congelado, D6); rama shift_break (intocable); no se borró ningún archivo.
+
+== 1. Login (W-29)
+- src/domain/auth/login-shift-lookup.js (nuevo): parseExcelDate, normalizeShiftName, findShiftStringForUser. Puerto puro de checkShiftExpirationOnLogin() de login.js.
+- src/app/login-controller.js (nuevo): createLoginController({doc, win, auth, database, storage, alert, now, logger, loadShiftRows, notifySupervisor, setTimer}) con init, handleLogin, handleRegister, handleForgot. Cambios de comportamiento frente a login.js: el rechazo ya no lanza ReferenceError y muestra el motivo como texto (textContent); el rechazo se evalúa con approved === 'Rechazado' o rejected === true; el cambio de panel se delega (data-action="switch-panel"), sin onclick.
+- src/domain/auth/auth-service.js: validateRegistrationInput revisa primero que las contraseñas coincidan y después que el nombre tenga dos palabras de dos o más letras, como login.js. Mensaje de nombre: «Por favor, ingresa tu nombre y apellido completo (mínimo dos palabras).».
+- src/entry-login.js (nuevo) y src/entry.js: exportan loginController y loginShiftLookup.
+- login-init.js (nuevo, clásico, después de riskops.bundle.js y firebase-config.js): Excel de horarios, aviso a supervisor por FormSubmit y arranque del controlador. Sustituye el script en línea del navegador y login.js.
+- login.html: se retira el script en línea checkBrowser; los cuatro onclick="switchPanel(...)" pasan a data-action="switch-panel" data-panel="..."; se carga riskops.bundle.js y login-init.js en lugar de login.js. login.js queda en disco sin cargarse (su borrado requiere autorización).
+
+Pruebas del login:
+- src/tests/domain/login-access.test.mjs: 9/9.
+- src/tests/domain/login-shift-lookup.test.mjs: 5/5, incluida la paridad de 120 casos contra checkShiftExpirationOnLogin() de login.js ejecutado en vm.
+- src/tests/app/login-controller.test.mjs: 21/21 (fake DOM, auth, base de datos y storage; cubre rechazado sin ReferenceError, pendiente, turno vencido que limpia las claves de sesión, Admin que omite el turno, login permitido con recuperación de loginTime, mapeo de errores de Firebase, registro, olvido de contraseña, alternancia de contraseña, delegación y guardia de navegador).
+
+== 2. Control de Tiempos (W-28)
+- src/domain/analytics/tiempos-report.js (nuevo): scoreTardiness, scoreInactivity, buildTiemposReport. Lógica de loadTiemposMetrics() sin DOM, sin Firebase y sin Chart.js. La tardanza usa getTardiness de analytics/time-metrics.js.
+- src/ui/views/tiempos-view.js (nuevo): createTiemposView({doc, Chart, ChartDataLabels, escapeHTML}) con renderTotals y renderDashboard. Mismas cuatro gráficas con sus configuraciones.
+- src/controllers/tiempos-controller.js (nuevo): createTiemposController({doc, database, ensureSchedule, getSchedule, getShift, view, now, logger}) con init, load y toggleCustomDates. Evento de actualización TIEMPOS_REFRESH_EVENT = 'riskops:tiempos-refresh'.
+- src/entry-control-tiempos.js (nuevo) y src/entry.js: exportan tiemposController, tiemposView y tiemposReport.
+- index-tiempos-init.js (nuevo, clásico, después de app.js): conecta el controlador al entorno real (document, database, loadSchedule, globalScheduleRows/Blocks, Chart.js).
+- index.html: se retiran los cuatro onchange de los controles de Control de Tiempos y el script js/tiempos.js; se carga index-tiempos-init.js; se actualizan las versiones de riskops.bundle.js y app.js (?v=20261016_p34).
+- app.js (una línea): la entrada a la vista navTiempos llama a document.dispatchEvent(new CustomEvent('riskops:tiempos-refresh')) en lugar de loadTiemposMetrics(). app.js queda con 0 referencias a loadTiemposMetrics y toggleTiemposCustomDates.
+- js/tiempos.js sigue en disco sin cargarse; su borrado requiere autorización. Copia de referencia para la paridad: fase_2/lab/referencia/tiempos.pre-paso-3-4.js.
+
+Pruebas de Control de Tiempos:
+- src/tests/domain/tiempos-tardanza.test.mjs: 6/6. getTardiness del dominio frente al original en vm, matriz de 22 turnos x 12 ingresos x 12 juegos de permisos (3.168 casos), más casos de frontera (cruce de medianoche, permiso que mueve el inicio); umbrales de scoreTardiness y scoreInactivity.
+- src/tests/e2e/tiempos-integrado.e2e.cjs: 31/31. Original (js/tiempos.js en vm) frente a tiemposController con el mismo DOM, base de datos, reloj y Chart.js falsos. 27 escenarios (8 filtros de fecha x 3 gestores, sin reportes, horario ya cargado, rango personalizado sin fechas) y 4 cambios del filtro de fecha. Se comparan DOM, configuraciones de las cuatro gráficas (con el código de sus funciones), lecturas de la base de datos y carga del horario.
+- Normalizaciones de la comparación (no cambian el render ni el comportamiento): espacios entre etiquetas del innerHTML (sangría de plantillas) y comillas dobles en el código de las funciones (formatter de datalabels: ' m' frente a " m").
+- Verificación de sensibilidad: se inyectó en una copia del bundle un cambio de umbral observable (tardanza ≤ 10 → ≤ 60). El arnés falló 6 de 27 escenarios, así que sí detecta regresiones.
+
+== 3. Verificación final (2026-10-16)
+- node build/build.mjs → BUNDLE_OK, 134 módulos. node build/verify-bundle.mjs → PASS, 71 comprobaciones, 563.7 KB.
+- build/dist/riskops.bundle.js copiado a riskops.bundle.js (idénticos).
+- node --check app.js, login-init.js, index-tiempos-init.js → OK.
+- RISKOPS_LAB_ROOT=/home/claude/repro/lab-root node fase_2/lab/suite/suite-pruebas.mjs → TODO EN VERDE.
+  Bundle 71/71 · Unitarias 90 archivos, 1439 pruebas · Integración 1 · E2E 14 archivos, 677 pruebas · Motor 4/4 · Intentos de red bloqueados: 0.
+  Log: lab-root/pruebas/resultado-2026-10-16-18-08-48.txt.
+  En la suite se registró tiempos-integrado.e2e.cjs con la referencia tiempos.pre-paso-3-4.js.
+
+== 4. Entrega al dispositivo (control de marcas de tiempo)
+- Paquete: /mnt/user-data/outputs/paso-3.4-login-tiempos/ (23 archivos: 8 existentes modificados y 15 nuevos).
+- Antes de escribir, se verificó la base del dispositivo: app.js e index.html del dispositivo son idénticos a la versión de trabajo previa a esta entrega, con la línea y los atributos de este paso revertidos. login.html, src/entry.js, auth-service.js y suite-pruebas.mjs difieren solo en los cambios previstos de este paso. Los 15 archivos nuevos no existían en el dispositivo.
+- Escritura: device_commit_files con expectedMtimeMs para los 8 existentes (app.js 1792172896770, index.html 1792164231232, login.html 1792164231614, src/entry.js 1792172898152, auth-service.js 1792157855706, suite-pruebas.mjs 1792172900002, riskops.bundle.js 1792172897332, build/dist/riskops.bundle.js 1792172897803). Resultado: 23 escritos, 0 rechazados.
+- Verificación posterior: device_stage_files de los 23 archivos y cmp contra el paquete y contra la copia de trabajo: 23 coinciden, 0 difieren.
+- Tamaños tras la escritura: app.js 107679, index.html 198427, login.html 10718, src/entry.js 4226, auth-service.js 14979, riskops.bundle.js 577246 (igual en build/dist).
+
+== 5. Lo que no se hizo en esta entrega
+- No hubo commit, push, merge ni rebase.
+- No se borró ningún archivo: login.js, js/tiempos.js y los huérfanos de inactividad (src/controllers/idle-state-controller.js, src/tests/controllers/idle-state-controller.test.mjs, fase_2/src/controllers/idle-state-controller.js) siguen en disco. El borrado de los tres huérfanos lo hace el responsable a mano (esta sesión no puede borrar).
+- No se corrió el plan manual en un navegador real: falta el flujo de inicio de sesión con Firebase (rechazado, pendiente, turno vencido, recarga en medio de pausa y turno) y el de Control de Tiempos (filtros, rango personalizado, tablero, selector de gestor).
+- El plan (plan-fase-3.md) no se actualizó en esta entrega: las filas W-28, W-29, W-03, W-47, W-48 y W-54 y el avance del paso 3.4 quedan pendientes.

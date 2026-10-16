@@ -28,6 +28,7 @@
  */
 const fs = require('fs');
 const vm = require('vm');
+let assignMasterRowIds; // ESM: se carga en el arranque (ver más abajo)
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -37,8 +38,12 @@ const APP = args.find((a) => !a.startsWith('--') && a.endsWith('.js') && a !== o
 if (!APP) { console.error('Uso: node tareas-integrado.e2e.cjs <app.js> [--riskops <bundle.js>] [--original <app.js del repo>]'); process.exit(2); }
 const read = (file) => fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
 const SRC = read(APP);
+// W-26 (CF-0.4): el contrato de IDs estables de main/rama es assignMasterRowIds (hash de Set + Tarea).
+// El original de referencia usaba row.id = idx; en la paridad se le aplica el mismo contrato (ver ORIGINAL_W26).
 const BUNDLE = opt('--riskops') ? fs.readFileSync(opt('--riskops'), 'utf8') : null;
 const ORIGINAL_SRC = opt('--original') ? read(opt('--original')) : null;
+const ORIGINAL_W26 = ORIGINAL_SRC ? ORIGINAL_SRC.replace(/json\.forEach\(\(row, idx\) => \{\s*row\.id = idx;\s*\}\);/, '__assignW26Ids(json);') : null;
+if (ORIGINAL_SRC && ORIGINAL_W26 === ORIGINAL_SRC) { console.error('no se aplicó el contrato W-26 al original: cambió el texto de referencia'); process.exit(2); }
 const BRIDGE_MARK = '// [LAB-INTEGRACION] Puente app.js -> RiskOps (corte "tareas")';
 const INTEGRATED = SRC.includes(BRIDGE_MARK);
 if (INTEGRATED && !BUNDLE) { console.error('app.js integrado: falta --riskops <bundle>'); process.exit(2); }
@@ -60,14 +65,19 @@ function between(src, startMarker, endMarker) {
 function codeFor(src) {
     const integrated = src.includes(BRIDGE_MARK);
     const helpers = [
+        // Integrado (paso 3.4): la global migrateLocalTasksToActiveSession se retiró de app.js (no tenía llamadas: la
+        // migración la ejecuta el controlador). Este envoltorio de PRUEBA llama al mismo repositorio que llamaba el original.
+        integrated ? 'async function migrateLocalTasksToActiveSession(uid, mergedCache, remoteCache) { return __tareasRepo().migrateLocalTasksToActiveSession(uid, mergedCache, remoteCache); }' : '',
         fn(src, 'function escapeHTML(str) {'),
         fn(src, 'function encodeInlineHandlerArg(value) {'),
         fn(src, 'function normalizeName(name) {'),
+        src.includes('function normalizeTaskName(name) {') ? fn(src, 'function normalizeTaskName(name) {') : '',
+        src.includes('function cleanText(text) {') ? fn(src, 'function cleanText(text) {') : '',
         fn(src, 'function namesMatch(name1, name2) {'),
         fn(src, 'function taskNamesMatch(cronTask, masterTask) {'),
         fn(src, 'function setNamesMatch(set1, set2) {'),
-        fn(src, 'function excelToJSDate(serial) {'),
-        fn(src, 'function isSameDate(excelDate, jsDate) {'),
+        src.includes('function excelToJSDate(serial) {') ? fn(src, 'function excelToJSDate(serial) {') : '',
+        src.includes('function isSameDate(excelDate, jsDate) {') ? fn(src, 'function isSameDate(excelDate, jsDate) {') : '',
         fn(src, 'function getShiftForDate(rows, allScheduleBlocks, gestorName, date) {'),
         fn(src, 'function canonicalTaskId(id) {'),
         src.slice(src.indexOf('const privateGitHubDocs = {'), src.indexOf('\n}\n', src.indexOf('function getDocUrl(fileName) {')) + 3)
@@ -96,6 +106,7 @@ const clone = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)
 const settle = async () => { for (let i = 0; i < 8; i += 1) await new Promise((resolve) => setImmediate(resolve)); };
 
 let H = null; // ayudantes de tareas-fake-dom.mjs (ESM), cargados al inicio
+let NL = null; // normalizador de manejadores del original (legacy-action-migration.mjs, ESM)
 
 /** Envuelve la base simulada: registra, EN ORDEN, cada lectura/escritura con su carga (junto a alertas y localStorage). */
 function track(obj, label, ev) {
@@ -222,7 +233,15 @@ function createWorld(src, sc) {
         __runTimers: () => { timers.splice(0).forEach((t) => { try { t.fn(); } catch (e) { ev.push(['timer-error', String(e && e.message)]); } }); }
     };
     vm.createContext(ctx);
+    ctx.__assignW26Ids = assignMasterRowIds;
     if (src.includes(BRIDGE_MARK)) vm.runInContext(BUNDLE + '\nthis.RiskOps = RiskOps;', ctx);
+    // W-24 (paso 3.3): el respaldo DOM vive ahora en el puente (idle-detector-adapter), no en app.js. Con domIdle la pestaña
+    // está visible y con foco, y la última actividad es antigua: el puente lo decide como lo hace app.js al arrancar.
+    if (sc.domIdle && src.includes(BRIDGE_MARK)) {
+        doc.visibilityState = 'visible';
+        doc.hasFocus = () => true;
+        vm.runInContext('RiskOps.idleDetector.initIdleDetector({ getLastActivityTimestamp: () => 0, autoStart: false });', ctx);
+    }
 
     const { helpers, shiftBlock, regions } = codeFor(src);
     vm.runInContext(
@@ -497,7 +516,7 @@ kpiScenario('K6', 'updateKPI: Gestor con latido que falla no lanza (el error ya 
 
 // ---- árbol, documentos y selección
 add({ id: 'T1', name: 'toggleTree alterna "open" y el hermano "show"; sin hermano no falla', user: GESTOR, docSetup: (doc) => { const sib = el('div'); const a = el('div'); a.nextElementSibling = sib; const b = el('div'); doc.byId.set('t-a', a); doc.byId.set('t-sib', sib); doc.byId.set('t-b', b); },
-    run: "const a = document.getElementById('t-a'); const b = document.getElementById('t-b'); toggleTree(a); toggleTree(b); const first = [a.classList.contains('open'), document.getElementById('t-sib').classList.contains('show')]; toggleTree(a); return [first, a.classList.contains('open'), b.classList.contains('open')];", check(o, eq) { eq(o.ret, [[true, true], false, true]); } });
+    run: "const tt = typeof __tareasWorkspace === 'function' ? (el) => __tareasWorkspace().toggleTree(el) : toggleTree; const a = document.getElementById('t-a'); const b = document.getElementById('t-b'); tt(a); tt(b); const first = [a.classList.contains('open'), document.getElementById('t-sib').classList.contains('show')]; tt(a); return [first, a.classList.contains('open'), b.classList.contains('open')];", check(o, eq) { eq(o.ret, [[true, true], false, true]); } });
 add({ id: 'D1', name: 'renderQuickDocs: sin tarea lista todos los documentos; con palabra clave destaca el sugerido', user: GESTOR,
     run: "const out = []; for (const n of [null, '', 'Validar GGR', 'apuestas', 'Retiros', 'jineteo', 'Eliminación de cuentas', 'bonos CRM', 'eventos deportivos', 'eventos', 'SEON', 'sin coincidencia']) { renderQuickDocs(n); out.push(document.getElementById('quickDocsList').innerHTML); } return out;", check(o, eq, ok) {
         ok(o.ret[2].includes('Sugerido para esta tarea') && o.ret[0].includes('Validación SEON') && !o.ret[0].includes('Sugerido'), 'destacado');
@@ -636,9 +655,41 @@ add(Object.assign({ id: 'G7', name: 'guardar progreso: doble clic -> la segunda 
 add(Object.assign({ id: 'G8', name: 'guardar progreso: localStorage lleno no impide guardar en Firebase', run: clickRun }, saveBase, { storageThrows: true, check(o, eq) { eq(o.dbData.active_sessions.g1.tasks['0'].status, 'Finalizada'); } }));
 add(Object.assign({ id: 'G9', name: 'guardar progreso: No Realizada y En Proceso marcan su clase visual', run: clickRun }, saveBase, { docSetup: saveDom({ status: 'No Realizada', cls: ['not-done'] }), check(o, eq, ok) { ok(o.domBeforeTimers['.task-item.active .task-status'].classes.includes('status-not-done'), 'clase'); } }));
 
+// ------------------------------------------------------------------ diferencias declaradas (no se ocultan)
+// Cada una se verifica con evidencia; si la evidencia no se cumple, la paridad sigue fallando.
+// W-26 (CF-0.4): los IDs ya se comparan con el contrato de la rama (ver ORIGINAL_W26).
+// L2.x: la rama purga de Firebase las tareas huérfanas (CF-0.4 la describe como comportamiento de main).
+//        Se exige que TODA diferencia del estado final sea esa purga y que las escrituras no-Firebase sean iguales.
+// H5/H6: el original lanza TypeError en normalizeName con entradas que no son texto; la rama no (Decisión 1).
+function diferenciaDeclarada(id, obs, orig) {
+    const nodb = (ev) => JSON.stringify(ev.filter((e) => e[0] !== 'db'));
+    const flat = (o, p = '') => { const out = {}; if (o && typeof o === 'object') { for (const k of Object.keys(o)) Object.assign(out, flat(o[k], (p ? p + '/' : '') + k)); } else out[p] = JSON.stringify(o); return out; };
+    if (/^L2\./.test(id)) {
+        if (nodb(obs.ev) !== nodb(orig.ev)) return null;
+        const fi = flat(obs.dbData); const fo = flat(orig.dbData);
+        const soloOriginal = Object.keys(fo).filter((k) => !(k in fi));
+        const soloIntegrado = Object.keys(fi).filter((k) => !(k in fo));
+        const distintos = Object.keys(fi).filter((k) => (k in fo) && fi[k] !== fo[k]);
+        const purgadas = obs.ev.filter((e) => e[0] === 'db' && e[3] && typeof e[3] === 'object').flatMap((e) => Object.keys(e[3]).filter((k) => e[3][k] === null));
+        const cubiertas = soloOriginal.every((k) => purgadas.some((p) => k === p || k.startsWith(p + '/')));
+        if (soloIntegrado.length || distintos.length || !cubiertas) return null;
+        return `purga remota de tareas huérfanas (${purgadas.join(', ')}); resto del estado y escrituras locales iguales (CF-0.4)`;
+    }
+    if (id === 'H5' || id === 'H6') {
+        const err = 'name.normalize is not a function';
+        const origErr = JSON.stringify(orig.ev).includes(err);
+        const integErr = JSON.stringify(obs.ev).includes(err);
+        if (origErr && !integErr) return 'normalizeName tolerante a entradas que no son texto; el original lanzaba TypeError (Decisión 1)';
+        return null;
+    }
+    return null;
+}
+
 // ------------------------------------------------------------------ ejecución
 (async () => {
     H = await import(pathToFileURL(path.join(__dirname, '..', 'controllers', 'tareas-fake-dom.mjs')).href);
+    NL = await import(pathToFileURL(path.join(__dirname, '..', 'helpers', 'legacy-action-migration.mjs')).href);
+    ({ assignMasterRowIds } = await import(pathToFileURL(path.join(__dirname, '..', '..', 'domain', 'tasks', 'task-catalog.js')).href));
     console.log('=== TAREAS, PERSISTENCIA Y CICLO DE APLICACIÓN: ' + (INTEGRATED ? 'app.js INTEGRADO (RiskOps.taskController / taskRepository / taskLoadersController)' : 'app.js ORIGINAL') + ' ===');
     console.log(`app.js: ${APP}${ORIGINAL_SRC ? ' | paridad contra el original' : ''} | ${new Date().toISOString()}`);
     let pass = 0; let fail = 0;
@@ -647,15 +698,20 @@ add(Object.assign({ id: 'G9', name: 'guardar progreso: No Realizada y En Proceso
     const ok = (c, m) => { if (!c) throw new Error(m || 'falso'); };
 
     if (INTEGRATED) {
-        const names = ['updateClock', 'persistTaskToActiveSession', 'fetchOwnActiveSessionTasks', 'persistTaskIfNotNewerRemote', 'migrateLocalTasksToActiveSession', 'syncActiveSessionToFirebase', 'updateKPI', 'toggleTree', 'renderQuickDocs', 'renderTree', 'recoverGestorTaskProgress', 'loadExcelTasks', 'loadSchedule', 'loadTeletrabajo', 'loadPermisos'];
+        const names = ['updateClock', 'persistTaskToActiveSession', 'fetchOwnActiveSessionTasks', 'persistTaskIfNotNewerRemote', 'syncActiveSessionToFirebase', 'updateKPI', 'renderQuickDocs', 'renderTree', 'recoverGestorTaskProgress', 'loadExcelTasks', 'loadSchedule', 'loadTeletrabajo', 'loadPermisos'];
         const w = createWorld(SRC, { user: GESTOR });
+        report(!/function toggleTree\(/.test(SRC) && vm.runInContext("typeof toggleTree === 'undefined'", w.ctx), 'integración W-50: app.js ya no declara toggleTree (el encabezado del árbol se expande por data-action)', 'sigue declarada');
         report(names.every((n) => vm.runInContext(`typeof ${n} === 'function'`, w.ctx)) && vm.runInContext("typeof window.selectTask === 'function' && typeof window.openPermisoDetailModal === 'function'", w.ctx),
             'integración: las funciones siguen siendo globales con el mismo nombre (los onclick del HTML generado y de index.html las resuelven)', 'falta alguna');
+        report(!/function migrateLocalTasksToActiveSession\(/.test(SRC) && !/function (normalizeTaskName|excelToJSDate|isSameDate)\(/.test(SRC),
+            'integración (paso 3.4): app.js ya no declara migrateLocalTasksToActiveSession, normalizeTaskName, excelToJSDate ni isSameDate (zombis sin llamadas)', 'siguen declaradas');
         report(!SRC.includes('active_sessions/${uid}/tasks') && SRC.includes('RiskOps.taskRepository.createTaskRepository'),
             'integración: app.js ya no escribe tareas en Firebase por su cuenta (delega en RiskOps.taskRepository)', 'quedan escrituras originales');
-        const sessionMeta = SRC.slice(SRC.indexOf('const sessionMetadata = {'), SRC.indexOf('};', SRC.indexOf('const sessionMetadata = {')));
-        report(!/\btasks\s*:/.test(sessionMeta) && SRC.includes("database.ref(`active_sessions/${uid}`).update(sessionMetadata)"),
-            'integración: el latido sigue enviando SOLO metadatos con update() (sin "tasks")', 'el payload del latido cambió');
+        // El latido es el envoltorio __sessionSync() -> createSessionSyncController (task-controller.js); el payload
+        // lo arma buildSessionMetadata (sin "tasks") y el repositorio lo escribe con update(). Sin código heredado de app.js.
+        const sessionBlock = SRC.slice(SRC.indexOf('let __labSessionSync = null;'), SRC.indexOf('function syncActiveSessionToFirebase() {'));
+        report(sessionBlock.includes('RiskOps.taskController.createSessionSyncController') && sessionBlock.includes('__tareasRepo().syncSessionMetadata(uid, metadata)') && !/\btasks\s*:/.test(sessionBlock),
+            'integración: el latido delega en createSessionSyncController y el envoltorio de app.js no escribe "tasks"', 'el envoltorio del latido cambió');
         report((SRC.match(/\[LAB-INTEGRACION\]/g) || []).length >= 20, 'integración: los reemplazos del corte llevan la marca [LAB-INTEGRACION]', 'faltan marcas');
     }
 
@@ -664,13 +720,21 @@ add(Object.assign({ id: 'G9', name: 'guardar progreso: No Realizada y En Proceso
             const obs = await observe(SRC, sc);
             if (sc.check) { try { sc.check(obs, eq, ok); report(true, `${sc.id} ${sc.name}`, ''); } catch (e) { report(false, `${sc.id} ${sc.name}`, e.message); } } else report(true, `${sc.id} ${sc.name}`, '');
             if (ORIGINAL_SRC) {
-                const orig = await observe(ORIGINAL_SRC, sc);
+                const orig = await observe(ORIGINAL_W26, sc);
                 try {
                     // D8: se normaliza solo el número del porcentaje de la tarjeta KPI (diferencia intencional, ver cabecera)
                     const d8 = (v) => JSON.stringify(v).replace(/(class=\\"percentage\\"[^>]*>)\d+%/g, '$1__%');
-                    if (d8(obs) !== d8(orig)) {
-                        const keys = Object.keys(obs).filter((k) => d8(obs[k]) !== d8(orig[k]));
-                        throw new Error('difiere en: ' + keys.join(', ') + '\n         integrado: ' + JSON.stringify(obs[keys[0]]).slice(0, 400) + '\n         original:  ' + JSON.stringify(orig[keys[0]]).slice(0, 400));
+                    // W-50: el encabezado del árbol va por delegación (data-action) en el integrado; el original conserva onclick.
+                    // Paso 3.4: el original lleva onclick en línea; se lleva a la forma delegada con el normalizador general.
+                    const w50 = (v) => d8(NL.normalizeLegacyActions(v)).replace(/onclick=\\"toggleTree\(this\)\\"/g, 'data-action=\\"toggle-tree\\"');
+                    if (d8(obs) !== w50(orig)) {
+                        const motivo = diferenciaDeclarada(sc.id, obs, orig);
+                        if (!motivo) {
+                            const keys = Object.keys(obs).filter((k) => d8(obs[k]) !== w50(orig[k]));
+                            throw new Error('difiere en: ' + keys.join(', ') + '\n         integrado: ' + JSON.stringify(obs[keys[0]]).slice(0, 400) + '\n         original:  ' + JSON.stringify(orig[keys[0]]).slice(0, 400));
+                        }
+                        report(true, `${sc.id} paridad con el original — diferencia INTENCIONAL: ${motivo}`, '');
+                        continue;
                     }
                     report(true, `${sc.id} paridad con el original`, '');
                 } catch (e) { report(false, `${sc.id} paridad con el original`, e.message); }

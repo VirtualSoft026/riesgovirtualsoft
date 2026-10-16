@@ -9,16 +9,19 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Boxicons for UI icons -->
-    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet' integrity='sha384-42kyIPf7HDYLkGffmxDhSx/3Z/53wGBs3nD6wEFxsbeDc7rMO6mkYbkAcpRsnMU2' crossorigin='anonymous'>
     <!-- SheetJS for Excel parsing -->
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"
+            integrity="sha384-7hwyYzxURfZMLwHgvEKrYEmM5tX+1DVWK5iDR4R69bOQeY90Q8B8n9Cobuyqybhw"
+            crossorigin="anonymous"></script>
     <!-- jsPDF and html2pdf for PDF generation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js" integrity="sha384-qovJwSBbRDPP5cEjCp8S0UP66wrvnjaa60XMOGzTNanrThcrGfXfnZkvgY8N1KT3" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.14.0/dist/html2pdf.bundle.min.js" integrity="sha384-EaWTV/aVUkLz3tfwg3+5ycX7Q/d9ET9ruOKUgUuFIRUCfzHO1eo2J62a844iWPmY" crossorigin="anonymous"></script>
     <!-- Chart.js for data visualization -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.js" integrity="sha384-GyN+OJ9IIYGTdqTR2fuAL6j+q9cFMHbMSNrAafF00ie7UjMQH2LAN7GfWG5VTFGv" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="styles.css?v=20260729_1842">
+    <link rel="stylesheet" href="interaction-states.css?v=20261016_p35">
 </head>
 <body>
     
@@ -38,22 +41,7 @@
         <p style="margin-top: 15px; font-size: 14px; color: #3B82F6;">Por favor, copia el enlace y ábrelo utilizando Google Chrome.</p>
     </div>
 
-    <script>
-        (function checkBrowser() {
-            var ua = navigator.userAgent;
-            var isChrome = /Chrome|CriOS/i.test(ua) && !/Edg|OPR/i.test(ua);
-            
-            if (!isChrome) {
-                document.addEventListener('DOMContentLoaded', function() {
-                    document.getElementById('browserBlocker').style.display = 'flex';
-                    var app = document.querySelector('.app-container');
-                    if (app) app.style.display = 'none';
-                    var mob = document.getElementById('mobileBlocker');
-                    if (mob) mob.style.display = 'none';
-                });
-            }
-        })();
-    </script>
+    <script src="index-browser-guard.js?v=20261016_p35"></script>
 
     <div class="app-container">
         <!-- Sidebar -->
@@ -86,16 +74,16 @@
             </nav>
 
             <div class="sidebar-footer" style="padding: 20px; border-top: 1px solid var(--glass-border); margin-top: auto;">
-                <button id="toggleBreakfastBtn" class="btn btn-outline" onclick="toggleBreakfastBreak()" style="width: 100%; display: none; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px; color: var(--text-primary); border-color: rgba(255,255,255,0.2);">
+                <button id="toggleBreakfastBtn" class="btn btn-outline" data-action="toggle-breakfast-break" style="width: 100%; display: none; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px; color: var(--text-primary); border-color: rgba(255,255,255,0.2);">
                     <i class='bx bx-coffee'></i> Tomar Desayuno
                 </button>
-                <button id="toggleLunchBtn" class="btn btn-outline" onclick="toggleLunchBreak()" style="width: 100%; display: none; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px; color: var(--text-primary); border-color: rgba(255,255,255,0.2);">
+                <button id="toggleLunchBtn" class="btn btn-outline" data-action="toggle-lunch-break" style="width: 100%; display: none; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px; color: var(--text-primary); border-color: rgba(255,255,255,0.2);">
                     <i class='bx bx-restaurant'></i> Tomar Almuerzo/Cena
                 </button>
-                <button id="toggleSplitShiftBtn" class="btn btn-outline" onclick="toggleSplitShiftBreak()" style="width: 100%; display: none; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px; color: var(--text-primary); border-color: rgba(255,255,255,0.2);">
+                <button id="toggleSplitShiftBtn" class="btn btn-outline" data-action="toggle-split-shift-break" style="width: 100%; display: none; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px; color: var(--text-primary); border-color: rgba(255,255,255,0.2);">
                     <i class='bx bx-pause-circle'></i> Pausa de Turno
                 </button>
-                <button id="endShiftBtn" class="btn btn-danger" onclick="handleEndShift()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <button id="endShiftBtn" class="btn btn-danger" data-action="end-shift" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
                     <i class='bx bx-log-out-circle'></i> Finalizar Turno
                 </button>
                 <div style="font-size: 13px; font-weight: 500; color: var(--text-secondary); text-align: center; margin-top: 15px; opacity: 0.8; letter-spacing: 0.5px;">
@@ -111,7 +99,7 @@
                     <i class='bx bx-error-circle' style="font-size: 18px;"></i>
                     <span id="idleDetectorWarningText">Permiso de inactividad pendiente o denegado. RiskOps no podrá registrar automáticamente cuando bloquees la pantalla.</span>
                 </div>
-                <button class="btn btn-outline" onclick="requestIdlePermissionManual()" style="padding: 6px 15px; font-size: 12px; border-color: var(--danger); color: var(--danger);">Habilitar Permiso</button>
+                <button class="btn btn-outline" data-action="request-idle-permission" style="padding: 6px 15px; font-size: 12px; border-color: var(--danger); color: var(--danger);">Habilitar Permiso</button>
             </div>
             <!-- Header -->
             <header class="top-header glass-panel">
@@ -129,12 +117,12 @@
                     
                     <!-- Notification Bell with Dropdown -->
                     <div>
-                        <button class="btn btn-icon" id="notificationBtn" style="position:relative;" onclick="toggleNotifications()">
+                        <button class="btn btn-icon" id="notificationBtn" style="position:relative;" data-action="toggle-notifications">
                             <i class='bx bx-bell'></i>
                             <span class="notification-badge" id="notificationCount" style="display:none; position:absolute; top:-2px; right:-2px; background:var(--danger); color:white; font-size:10px; padding:2px 5px; border-radius:10px;">0</span>
                         </button>
                     </div>
-                    <div class="user-profile" onclick="openProfileModal()" style="cursor: pointer;">
+                    <div class="user-profile" data-action="open-profile-modal" style="cursor: pointer;">
                         <img src="https://ui-avatars.com/api/?name=User&background=0D8ABC&color=fff" alt="User Avatar" class="avatar">
                         <div class="user-details">
                             <span class="user-name">Usuario</span>
@@ -160,7 +148,7 @@
                             <option value="Todos">Mostrar Todos</option>
                         </select>
                         <label for="filter-assignee" style="font-size: 12px; color: var(--text-secondary); margin-top: 5px; margin-bottom: 2px; display: block;">Filtrar por Responsable:</label>
-                        <select id="filter-assignee" class="modern-input" style="padding: 8px;" onchange="renderAssignedTasksFilter()">
+                        <select id="filter-assignee" class="modern-input" style="padding: 8px;" data-action="render-assigned-tasks-filter">
                             <option value="Todos">Todos los Responsables</option>
                         </select>
                     </div>
@@ -170,7 +158,7 @@
                     </div>
                     
                     <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
-                        <button class="btn btn-outline" onclick="openExtraTaskModal()" style="width: 100%; border-style: dashed; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <button class="btn btn-outline" data-action="open-extra-task-modal" style="width: 100%; border-style: dashed; display: flex; align-items: center; justify-content: center; gap: 8px;">
                             <i class='bx bx-plus-circle'></i> Añadir Tarea Adicional
                         </button>
                     </div>
@@ -191,7 +179,7 @@
                             <button class="btn-status pending active"><i class='bx bx-time'></i> Pendiente</button>
                             <button class="btn-status in-progress"><i class='bx bx-loader-alt bx-spin-hover'></i> En Proceso</button>
                             <button class="btn-status completed"><i class='bx bx-check-circle'></i> Finalizada</button>
-                            <button class="btn-status not-done" onclick="openExceptionModal()"><i class='bx bx-x-circle'></i> No Realizada</button>
+                            <button class="btn-status not-done" data-action="open-exception-modal"><i class='bx bx-x-circle'></i> No Realizada</button>
                         </div>
                     </div>
 
@@ -238,7 +226,7 @@
                         <div id="horarioGestorFilterContainer" style="display: flex; align-items: center; gap: 8px;">
                             <span class="form-label" style="color: var(--text-secondary); font-size: 14px;">Filtrar Gestores:</span>
                             <div id="scheduleGestorMultiSelect" class="custom-multiselect">
-                                <div class="custom-multiselect-btn" onclick="toggleMultiSelectDropdown('scheduleGestorMultiSelect')">
+                                <div class="custom-multiselect-btn">
                                     <span class="multiselect-label">Todos los gestores</span>
                                     <i class='bx bx-chevron-down'></i>
                                 </div>
@@ -268,7 +256,7 @@
                         <div id="teletrabajoGestorFilterContainer" style="display: flex; align-items: center; gap: 8px;">
                             <span class="form-label" style="color: var(--text-secondary); font-size: 14px;">Filtrar Gestores:</span>
                             <div id="teletrabajoGestorMultiSelect" class="custom-multiselect">
-                                <div class="custom-multiselect-btn" onclick="toggleMultiSelectDropdown('teletrabajoGestorMultiSelect')">
+                                <div class="custom-multiselect-btn">
                                     <span class="multiselect-label">Todos los gestores</span>
                                     <i class='bx bx-chevron-down'></i>
                                 </div>
@@ -357,11 +345,11 @@
                 <div class="glass-panel" style="padding: 10px; margin-bottom: 15px; display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; border: 1px solid var(--glass-border);">
                     <div style="flex: 1; min-width: 180px;">
                         <label for="filterAprobacionesSearch" style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; display: block; font-weight: 500;">Buscar por Nombre o Email:</label>
-                        <input type="text" id="filterAprobacionesSearch" placeholder="🔍 Escriba para buscar todos los registros..." class="modern-input" style="min-height: 32px; padding: 6px 10px; font-size: 12px; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 6px; width: 100%;" oninput="renderPendingUsers()">
+                        <input type="text" id="filterAprobacionesSearch" placeholder="🔍 Escriba para buscar todos los registros..." class="modern-input" style="min-height: 32px; padding: 6px 10px; font-size: 12px; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 6px; width: 100%;" data-action="render-pending-users">
                     </div>
                     <div style="flex: 1; min-width: 180px;">
                         <label for="filterAprobacionesStatus" style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; display: block; font-weight: 500;">Filtrar por Estado:</label>
-                        <select id="filterAprobacionesStatus" class="modern-input" style="min-height: 32px; padding: 6px 10px; font-size: 12px; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 6px; width: 100%;" onchange="renderPendingUsers()">
+                        <select id="filterAprobacionesStatus" class="modern-input" style="min-height: 32px; padding: 6px 10px; font-size: 12px; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 6px; width: 100%;" data-action="render-pending-users">
                             <option value="Todos" style="color: black;">Todos</option>
                             <option value="Pendiente" style="color: black;">Pendientes de Aprobación</option>
                             <option value="Aprobado" style="color: black;">Aprobados</option>
@@ -413,7 +401,7 @@
                     <div style="flex: 1; min-width: 220px;">
                         <span class="form-label" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; display: block; font-weight: 500;">Filtrar por Gestor(es):</span>
                         <div id="turnosGestorMultiSelect" class="custom-multiselect" style="width: 100%;">
-                            <div class="custom-multiselect-btn" style="min-height: 40px;" onclick="toggleMultiSelectDropdown('turnosGestorMultiSelect')">
+                            <div class="custom-multiselect-btn" style="min-height: 40px;">
                                 <span class="multiselect-label">Todos los gestores</span>
                                 <i class='bx bx-chevron-down'></i>
                             </div>
@@ -483,7 +471,7 @@
                         <button class="btn btn-outline" id="clearMonitoreoFiltersBtn" style="height: 40px; padding: 0 15px; display: flex; align-items: center; gap: 8px; width: auto;">
                             <i class='bx bx-filter-alt'></i> Limpiar Filtros
                         </button>
-                        <button class="btn btn-outline" onclick="openLoginHistoryModal()" style="height: 40px; padding: 0 15px; display: flex; align-items: center; gap: 8px; width: auto; background: rgba(59, 130, 246, 0.1); border-color: var(--accent-primary); color: var(--accent-primary);">
+                        <button class="btn btn-outline" data-action="open-login-history-modal" style="height: 40px; padding: 0 15px; display: flex; align-items: center; gap: 8px; width: auto; background: rgba(59, 130, 246, 0.1); border-color: var(--accent-primary); color: var(--accent-primary);">
                             <i class='bx bx-history'></i> Historial de Accesos
                         </button>
                     </div>
@@ -516,7 +504,7 @@
                                 <i class='bx bx-user' style="margin-right: 5px; color: var(--primary);"></i>Gestor(es) a Evaluar
                             </span>
                             <div id="operativoGestorMultiSelect" class="custom-multiselect" style="width: 100%;">
-                                <div class="custom-multiselect-btn" style="height: 48px; background: var(--bg-secondary, #f8f9fa); border-radius: 12px;" onclick="toggleMultiSelectDropdown('operativoGestorMultiSelect')">
+                                <div class="custom-multiselect-btn" style="height: 48px; background: var(--bg-secondary, #f8f9fa); border-radius: 12px;">
                                     <span class="multiselect-label">Todos los gestores</span>
                                     <i class='bx bx-chevron-down'></i>
                                 </div>
@@ -528,7 +516,7 @@
                             <label for="filtroFechaOperativo" style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 700;">
                                 <i class='bx bx-calendar' style="margin-right: 5px; color: var(--primary);"></i>Periodo de Evaluación
                             </label>
-                            <select id="filtroFechaOperativo" class="modern-input" style="box-sizing: border-box; height: 48px; padding: 0 16px; width: 100%; border-radius: 12px; background: var(--bg-secondary, #f8f9fa); border: 1px solid rgba(0,0,0,0.05); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); transition: all 0.3s ease; outline: none;" onchange="toggleOperativoCustomDates(); renderControlOperativoFiltered()">
+                            <select id="filtroFechaOperativo" class="modern-input" style="box-sizing: border-box; height: 48px; padding: 0 16px; width: 100%; border-radius: 12px; background: var(--bg-secondary, #f8f9fa); border: 1px solid rgba(0,0,0,0.05); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); transition: all 0.3s ease; outline: none;" data-action="operativo-custom-change">
                                 <option value="Todas" selected>Todas las fechas</option>
                                 <option value="today">Solo Hoy</option>
                                 <option value="yesterday">Solo Ayer</option>
@@ -545,21 +533,21 @@
                                 <label for="operativoDateStart" style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 700;">
                                     <i class='bx bx-calendar-star' style="margin-right: 5px; color: var(--primary);"></i>Desde
                                 </label>
-                                <input type="date" id="operativoDateStart" class="modern-input" onchange="renderControlOperativoFiltered()" style="box-sizing: border-box; height: 48px; padding: 0 16px; width: 100%; border-radius: 12px; background: var(--bg-secondary, #f8f9fa); border: 1px solid rgba(0,0,0,0.05); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); outline: none;">
+                                <input type="date" id="operativoDateStart" class="modern-input" data-action="render-control-operativo" style="box-sizing: border-box; height: 48px; padding: 0 16px; width: 100%; border-radius: 12px; background: var(--bg-secondary, #f8f9fa); border: 1px solid rgba(0,0,0,0.05); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); outline: none;">
                             </div>
                             <div style="flex: 1;">
                                 <label for="operativoDateEnd" style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 8px; display: block; font-weight: 700;">
                                     <i class='bx bx-calendar-check' style="margin-right: 5px; color: var(--primary);"></i>Hasta
                                 </label>
-                                <input type="date" id="operativoDateEnd" class="modern-input" onchange="renderControlOperativoFiltered()" style="box-sizing: border-box; height: 48px; padding: 0 16px; width: 100%; border-radius: 12px; background: var(--bg-secondary, #f8f9fa); border: 1px solid rgba(0,0,0,0.05); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); outline: none;">
+                                <input type="date" id="operativoDateEnd" class="modern-input" data-action="render-control-operativo" style="box-sizing: border-box; height: 48px; padding: 0 16px; width: 100%; border-radius: 12px; background: var(--bg-secondary, #f8f9fa); border: 1px solid rgba(0,0,0,0.05); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); outline: none;">
                             </div>
                         </div>
 
                         <div style="display: flex; align-items: flex-end; gap: 10px;">
-                            <button class="btn btn-secondary" onclick="generarAnalisisTextual()" style="height: 48px; padding: 0 25px; border-radius: 12px; font-weight: 600; font-size: 14px; letter-spacing: 0.5px; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; background: rgba(59, 130, 246, 0.1); color: var(--accent-primary); border: 1px solid rgba(59, 130, 246, 0.3);">
+                            <button class="btn btn-secondary" data-action="generar-analisis-textual" style="height: 48px; padding: 0 25px; border-radius: 12px; font-weight: 600; font-size: 14px; letter-spacing: 0.5px; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; background: rgba(59, 130, 246, 0.1); color: var(--accent-primary); border: 1px solid rgba(59, 130, 246, 0.3);">
                                 <i class='bx bx-brain' style="font-size: 18px;"></i> Análisis IA
                             </button>
-                            <button class="btn btn-primary" onclick="loadControlOperativoData()" style="height: 48px; padding: 0 35px; border-radius: 12px; font-weight: 600; font-size: 14px; letter-spacing: 0.5px; box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3); transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;">
+                            <button class="btn btn-primary" data-action="load-control-operativo" style="height: 48px; padding: 0 35px; border-radius: 12px; font-weight: 600; font-size: 14px; letter-spacing: 0.5px; box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3); transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;">
                                 <i class='bx bx-refresh' style="font-size: 18px;"></i> Actualizar Datos
                             </button>
                         </div>
@@ -626,7 +614,7 @@
                             <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; width: 100%;">
                                 
                                 <!-- TAREAS SET (Operatividad) -->
-                                <div class="stat-widget glass-panel kpi-clickable-card" style="border-left: 4px solid var(--success); cursor: pointer; transition: all 0.3s;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 20px rgba(16,185,129,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'" onclick="openKpiTaskDetails('finalizadas')">
+                                <div class="stat-widget glass-panel kpi-clickable-card kpi-hover-success" style="border-left: 4px solid var(--success); cursor: pointer; transition: all 0.3s;" data-action="open-kpi-task-details" data-kind="finalizadas">
                                     <div class="stat-widget-details">
                                         <h3 style="font-size: 12px; color: var(--text-secondary);"><i class='bx bx-check-circle'></i> Tareas Finalizadas</h3>
                                         <div class="number" id="kpiTotalFinalizadas" style="color: var(--success); font-size: 28px; margin-top: 5px;">0</div>
@@ -637,7 +625,7 @@
                                     <div style="position: absolute; top: 10px; right: 10px; opacity: 0.5;"><i class='bx bx-zoom-in' style="font-size: 14px;"></i></div>
                                 </div>
 
-                                <div class="stat-widget glass-panel kpi-clickable-card" style="border-left: 4px solid var(--danger); cursor: pointer; transition: all 0.3s;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 20px rgba(239,68,68,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'" onclick="openKpiTaskDetails('no_realizadas')">
+                                <div class="stat-widget glass-panel kpi-clickable-card kpi-hover-danger" style="border-left: 4px solid var(--danger); cursor: pointer; transition: all 0.3s;" data-action="open-kpi-task-details" data-kind="no_realizadas">
                                     <div class="stat-widget-details">
                                         <h3 style="font-size: 12px; color: var(--text-secondary);"><i class='bx bx-x-circle'></i> No Realizadas</h3>
                                         <div class="number" id="kpiTotalNoRealizadas" style="color: var(--danger); font-size: 28px; margin-top: 5px;">0</div>
@@ -648,7 +636,7 @@
                                     <div style="position: absolute; top: 10px; right: 10px; opacity: 0.5;"><i class='bx bx-zoom-in' style="font-size: 14px;"></i></div>
                                 </div>
 
-                                <div class="stat-widget glass-panel kpi-clickable-card" style="border-left: 4px solid var(--warning); cursor: pointer; transition: all 0.3s;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 20px rgba(245,158,11,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'" onclick="openKpiTaskDetails('pendientes')">
+                                <div class="stat-widget glass-panel kpi-clickable-card kpi-hover-warning" style="border-left: 4px solid var(--warning); cursor: pointer; transition: all 0.3s;" data-action="open-kpi-task-details" data-kind="pendientes">
                                     <div class="stat-widget-details">
                                         <h3 style="font-size: 12px; color: var(--text-secondary);"><i class='bx bx-time'></i> Pendientes (Olvidadas)</h3>
                                         <div class="number" id="kpiTotalPendientes" style="color: var(--warning); font-size: 28px; margin-top: 5px;">0</div>
@@ -803,7 +791,7 @@
                         <div style="display: flex; gap: 15px; align-items: center; background: rgba(255,255,255,0.03); padding: 10px 20px; border-radius: var(--radius-lg); border: 1px solid var(--glass-border);">
                             <div style="display: flex; flex-direction: column; gap: 5px;">
                                 <label for="tiemposDateFilter" style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Rango de Fecha</label>
-                                <select id="tiemposDateFilter" class="modern-input" onchange="toggleTiemposCustomDates(); loadTiemposMetrics()" style="min-width: 150px; padding: 6px 12px; font-size: 13px;">
+                                <select id="tiemposDateFilter" class="modern-input" style="min-width: 150px; padding: 6px 12px; font-size: 13px;">
                                     <option value="today">Solo Hoy</option>
                                     <option value="yesterday">Solo Ayer</option>
                                     <option value="7" selected>Últimos 7 Días</option>
@@ -817,16 +805,16 @@
                             <div id="tiemposCustomDateContainer" style="display: none; flex-direction: row; gap: 10px; align-items: center;">
                                 <div style="display: flex; flex-direction: column; gap: 5px;">
                                     <label for="tiemposDateStart" style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Desde</label>
-                                    <input type="date" id="tiemposDateStart" class="modern-input" onchange="loadTiemposMetrics()" style="padding: 6px 12px; font-size: 13px;">
+                                    <input type="date" id="tiemposDateStart" class="modern-input" style="padding: 6px 12px; font-size: 13px;">
                                 </div>
                                 <div style="display: flex; flex-direction: column; gap: 5px;">
                                     <label for="tiemposDateEnd" style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Hasta</label>
-                                    <input type="date" id="tiemposDateEnd" class="modern-input" onchange="loadTiemposMetrics()" style="padding: 6px 12px; font-size: 13px;">
+                                    <input type="date" id="tiemposDateEnd" class="modern-input" style="padding: 6px 12px; font-size: 13px;">
                                 </div>
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 5px;">
                                 <label for="tiemposGestorFilter" style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Gestor</label>
-                                <select id="tiemposGestorFilter" class="modern-input" onchange="loadTiemposMetrics()" style="min-width: 160px; padding: 6px 12px; font-size: 13px;">
+                                <select id="tiemposGestorFilter" class="modern-input" style="min-width: 160px; padding: 6px 12px; font-size: 13px;">
                                     <option value="all">Todos los Gestores</option>
                                 </select>
                             </div>
@@ -964,7 +952,7 @@
                         <!-- Formulario de Novedad -->
                         <div class="glass-panel" style="padding: 20px;">
                             <h3 style="margin-top: 0; font-size: 16px; color: var(--text-primary); margin-bottom: 15px;"><i class='bx bx-plus-circle'></i> Registrar Novedad / Incidente</h3>
-                            <form id="incidentForm" onsubmit="handleNewIncidentSubmit(event)">
+                            <form id="incidentForm" data-action="submit-new-incident">
                                 <div style="margin-bottom: 12px;">
                                     <label for="incidentType" style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Tipo de Incidente</label>
                                     <select id="incidentType" class="modern-input" style="width: 100%; padding: 10px;" required>
@@ -1021,7 +1009,7 @@
                 <div id="view-gestion-comunicados" class="view-panel" style="display: none; padding: 20px; overflow-y: auto; width: 100%; box-sizing: border-box; flex: 1;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <h2 class="panel-title" style="color: var(--warning);"><i class='bx bx-broadcast'></i> Gestión de Comunicados</h2>
-                        <button class="btn btn-primary" onclick="openNewComunicadoModal()"><i class='bx bx-plus'></i> Nuevo Comunicado</button>
+                        <button class="btn btn-primary" data-action="open-new-comunicado-modal"><i class='bx bx-plus'></i> Nuevo Comunicado</button>
                     </div>
                     
                     <div class="glass-panel" style="padding: 20px; border: 1px solid var(--warning);">
@@ -1053,7 +1041,7 @@
             </div>
             <div id="viewComunicadoContentBody" style="font-size: 14px; line-height: 1.6; color: var(--text-primary); white-space: pre-wrap; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 8px; max-height: 300px; overflow-y: auto; margin-bottom: 20px;"></div>
             <div class="modal-actions">
-                <button class="btn btn-primary" onclick="closeModal('viewComunicadoContentModal')">Cerrar</button>
+                <button class="btn btn-primary" data-action="close-modal" data-modal="viewComunicadoContentModal">Cerrar</button>
             </div>
         </div>
     </div>
@@ -1097,8 +1085,8 @@
             <textarea id="extraTaskObs" placeholder="Detalla la gestión realizada..." class="modern-input" style="min-height: 80px; margin-bottom: 15px; width: 100%;"></textarea>
             
             <div class="modal-actions" style="margin-top: 5px;">
-                <button class="btn btn-outline" onclick="closeModal('extraTaskModal')">Cancelar</button>
-                <button class="btn btn-primary" id="saveExtraTaskBtn" onclick="saveExtraTask()"><i class='bx bx-save'></i> Guardar Tarea</button>
+                <button class="btn btn-outline" data-action="close-modal" data-modal="extraTaskModal">Cancelar</button>
+                <button class="btn btn-primary" id="saveExtraTaskBtn" data-action="save-extra-task"><i class='bx bx-save'></i> Guardar Tarea</button>
             </div>
         </div>
     </div>
@@ -1114,24 +1102,24 @@
             <div style="border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; margin-bottom: 15px; overflow: hidden;">
                 <!-- Barra de herramientas del editor -->
                 <div style="background: rgba(0,0,0,0.2); padding: 8px; display: flex; gap: 5px; border-bottom: 1px solid rgba(255,255,255,0.1); flex-wrap: wrap; align-items: center;">
-                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px;" onclick="document.execCommand('bold', false, null)" title="Negrita"><i class='bx bx-bold'></i></button>
-                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px;" onclick="document.execCommand('italic', false, null)" title="Cursiva"><i class='bx bx-italic'></i></button>
-                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px;" onclick="document.execCommand('underline', false, null)" title="Subrayado"><i class='bx bx-underline'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px;" data-action="exec-command" data-command="bold" title="Negrita"><i class='bx bx-bold'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px;" data-action="exec-command" data-command="italic" title="Cursiva"><i class='bx bx-italic'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px;" data-action="exec-command" data-command="underline" title="Subrayado"><i class='bx bx-underline'></i></button>
                     <span style="border-left: 1px solid rgba(255,255,255,0.1); height: 20px; margin: 0 5px;"></span>
-                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px;" onclick="document.execCommand('insertUnorderedList', false, null)" title="Lista de viñetas"><i class='bx bx-list-ul'></i></button>
-                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px;" onclick="document.execCommand('insertOrderedList', false, null)" title="Lista numerada"><i class='bx bx-list-ol'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px;" data-action="exec-command" data-command="insertUnorderedList" title="Lista de viñetas"><i class='bx bx-list-ul'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px;" data-action="exec-command" data-command="insertOrderedList" title="Lista numerada"><i class='bx bx-list-ol'></i></button>
                     <span style="border-left: 1px solid rgba(255,255,255,0.1); height: 20px; margin: 0 5px;"></span>
-                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px; color: #ff5a5a; border-color: rgba(255,90,90,0.3);" onclick="document.execCommand('foreColor', false, '#ff5a5a')" title="Texto Rojo"><i class='bx bx-font-color'></i></button>
-                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px; color: #4ade80; border-color: rgba(74,222,128,0.3);" onclick="document.execCommand('foreColor', false, '#4ade80')" title="Texto Verde"><i class='bx bx-font-color'></i></button>
-                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px; color: #e2e8f0; border-color: rgba(255,255,255,0.3);" onclick="document.execCommand('foreColor', false, '#e2e8f0')" title="Texto Blanco"><i class='bx bx-font-color'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px; color: #ff5a5a; border-color: rgba(255,90,90,0.3);" data-action="exec-command" data-command="foreColor" data-value="#ff5a5a" title="Texto Rojo"><i class='bx bx-font-color'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px; color: #4ade80; border-color: rgba(74,222,128,0.3);" data-action="exec-command" data-command="foreColor" data-value="#4ade80" title="Texto Verde"><i class='bx bx-font-color'></i></button>
+                    <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 16px; width: auto; flex: none; min-width: 35px; color: #e2e8f0; border-color: rgba(255,255,255,0.3);" data-action="exec-command" data-command="foreColor" data-value="#e2e8f0" title="Texto Blanco"><i class='bx bx-font-color'></i></button>
                 </div>
                 <!-- Área de contenido editable -->
                 <div id="comunicadoContent" role="textbox" aria-multiline="true" aria-labelledby="comunicadoContentLabel" class="rich-text" contenteditable="true" style="min-height: 150px; padding: 15px; font-size: 14px; outline: none; background: rgba(0,0,0,0.1); color: var(--text-primary); max-height: 300px; overflow-y: auto;" placeholder="Escribe aquí toda la información que los gestores deben conocer..."></div>
             </div>
             
             <div class="modal-actions" style="margin-top: 5px;">
-                <button class="btn btn-outline" onclick="closeModal('newComunicadoModal')">Cancelar</button>
-                <button class="btn btn-primary" onclick="saveNewComunicado()" style="background: var(--warning); border-color: var(--warning);"><i class='bx bx-send'></i> Publicar Comunicado</button>
+                <button class="btn btn-outline" data-action="close-modal" data-modal="newComunicadoModal">Cancelar</button>
+                <button class="btn btn-primary" data-action="save-new-comunicado" style="background: var(--warning); border-color: var(--warning);"><i class='bx bx-send'></i> Publicar Comunicado</button>
             </div>
         </div>
     </div>
@@ -1150,7 +1138,7 @@
                 </div>
             </div>
             <div class="modal-actions" style="margin-top: 20px;">
-                <button class="btn btn-outline" onclick="closeModal('comunicadoLecturasModal')">Cerrar</button>
+                <button class="btn btn-outline" data-action="close-modal" data-modal="comunicadoLecturasModal">Cerrar</button>
             </div>
         </div>
     </div>
@@ -1169,8 +1157,8 @@
             </select>
             <textarea id="exceptionDetails" placeholder="Detalle el problema..." class="modern-input"></textarea>
             <div class="modal-actions" style="margin-top: 20px;">
-                <button class="btn btn-outline" onclick="closeModal('exceptionModal')">Cancelar</button>
-                <button class="btn btn-danger" onclick="confirmException()">Confirmar Excepción</button>
+                <button class="btn btn-outline" data-action="close-modal" data-modal="exceptionModal">Cancelar</button>
+                <button class="btn btn-danger" data-action="confirm-exception">Confirmar Excepción</button>
             </div>
         </div>
     </div>
@@ -1189,8 +1177,8 @@
                 <input type="password" id="newPasswordInput" name="newPasswordInput" autocomplete="new-password" class="modern-input" placeholder="Escribe la nueva contraseña" style="margin-top: 8px;">
             </div>
             <div class="modal-actions" style="margin-top: 20px;">
-                <button class="btn btn-outline" onclick="closeModal('profileModal')">Cancelar</button>
-                <button class="btn btn-primary" onclick="changePassword()">Guardar</button>
+                <button class="btn btn-outline" data-action="close-modal" data-modal="profileModal">Cancelar</button>
+                <button class="btn btn-primary" data-action="change-password">Guardar</button>
             </div>
             <p id="passwordChangeMsg" style="display: none; margin-top: 10px; font-size: 14px; text-align: center;"></p>
         </div>
@@ -1214,7 +1202,7 @@
             </div>
             
             <div class="modal-actions" style="margin-top: 20px;">
-                <button class="btn btn-outline" id="closeMonitoreoModalBtn" onclick="closeModal('monitoreoModal')" style="width: auto;">Cerrar</button>
+                <button class="btn btn-outline" id="closeMonitoreoModalBtn" data-action="close-modal" data-modal="monitoreoModal" style="width: auto;">Cerrar</button>
             </div>
         </div>
     </div>
@@ -1226,16 +1214,16 @@
                 <h2 style="margin: 0; font-size: 20px; color: var(--accent-primary); display: flex; align-items: center; gap: 10px;">
                     <i class='bx bx-history'></i> Historial de Accesos e Inicios de Sesión
                 </h2>
-                <button class="btn btn-outline" onclick="closeModal('loginHistoryModal')" style="padding: 5px 12px; font-size: 13px;">✕ Cerrar</button>
+                <button class="btn btn-outline" data-action="close-modal" data-modal="loginHistoryModal" style="padding: 5px 12px; font-size: 13px;">✕ Cerrar</button>
             </div>
 
             <!-- Filtros del Modal -->
             <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; background: rgba(0,0,0,0.03); padding: 12px 15px; border-radius: 12px; border: 1px solid var(--glass-border);">
                 <div style="flex: 1; min-width: 200px;">
-                    <input type="text" id="loginHistorySearch" class="modern-input" placeholder="Buscar por gestor..." oninput="filterLoginHistoryTable()" style="width: 100%; padding: 8px 12px; font-size: 13px;">
+                    <input type="text" id="loginHistorySearch" class="modern-input" placeholder="Buscar por gestor..." data-action="filter-login-history" style="width: 100%; padding: 8px 12px; font-size: 13px;">
                 </div>
                 <div>
-                    <select id="loginHistoryDateFilter" class="modern-input" onchange="filterLoginHistoryTable()" style="padding: 8px 12px; font-size: 13px; min-width: 150px;">
+                    <select id="loginHistoryDateFilter" class="modern-input" data-action="filter-login-history" style="padding: 8px 12px; font-size: 13px; min-width: 150px;">
                         <option value="todos">Todas las Fechas</option>
                         <option value="hoy">Hoy</option>
                         <option value="7d">Últimos 7 Días</option>
@@ -1270,15 +1258,21 @@
     <div id="notificationDropdown" class="glass-panel" style="display: none; position: fixed; top: 80px; right: 20px; width: 320px; max-height: 400px; overflow-y: auto; z-index: 999999; padding: 15px; background: var(--bg-panel); border: 1px solid var(--accent-primary);">
         <div style="display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid var(--glass-border);">
             <h4 style="margin:0;"><i class='bx bx-bell'></i> Notificaciones</h4>
-            <button class="btn btn-outline" style="padding: 2px 5px; font-size: 11px; width: auto;" onclick="markAllAsRead()">Marcar leídas</button>
+            <button class="btn btn-outline" style="padding: 2px 5px; font-size: 11px; width: auto;" data-action="mark-all-as-read">Marcar leídas</button>
         </div>
         <div id="notificationList" style="display: flex; flex-direction: column; gap: 8px;"></div>
     </div>
 
     <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"
+            integrity="sha384-v3Z/Xdw1sCeo6M/geW7sn1Lt9obIm7MhAk8laVV+rvYFmzuWDELOiygx7dVte2dX"
+            crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"
+            integrity="sha384-p62xBRve8PdqGDGASZtZMuHgPsyPcT5VsFwgmz2p4zaFdEtt5ZzNqxK+CLzQS7xP"
+            crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"
+            integrity="sha384-fuqdSwJXSvcAuKu5FbSJcHqHK474liv5ji8tuDnHz1rpfrnuXZPdM0oRaSK6c95L"
+            crossorigin="anonymous"></script>
     <script src="firebase-config.js?v=20260710_2"></script>
     <!-- Modal de Detalles de Tareas KPI -->
     <div id="kpiTaskDetailsModal" class="modal-overlay">
@@ -1288,7 +1282,7 @@
                     <i class='bx bx-list-check' id="kpiModalIcon"></i> 
                     <span id="kpiModalTitle">Detalle de Tareas</span>
                 </h2>
-                <span class="close-modal" onclick="closeKpiTaskDetails()">&times;</span>
+                <span class="close-modal" data-action="close-kpi-task-details">&times;</span>
             </div>
             <div class="modal-body" style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
                 <p id="kpiModalSubtitle" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 15px;">Listado de tareas correspondientes a este estado.</p>
@@ -1297,7 +1291,7 @@
                 </div>
             </div>
             <div class="modal-footer" style="text-align: right; margin-top: 20px;">
-                <button class="btn btn-outline" onclick="closeKpiTaskDetails()">Cerrar</button>
+                <button class="btn btn-outline" data-action="close-kpi-task-details">Cerrar</button>
             </div>
         </div>
     </div>
@@ -1311,7 +1305,7 @@
             <h3 style="color: var(--text-primary); margin-bottom: 10px; font-size: 20px;">¿Eliminar Comunicado?</h3>
             <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 25px;">Esta acción es irreversible y el comunicado desaparecerá para todos los gestores.</p>
             <div style="display: flex; gap: 10px; justify-content: center;">
-                <button class="btn btn-outline" onclick="closeModal('confirmDeleteModal')" style="flex: 1;">Cancelar</button>
+                <button class="btn btn-outline" data-action="close-modal" data-modal="confirmDeleteModal" style="flex: 1;">Cancelar</button>
                 <button class="btn btn-danger" id="confirmDeleteBtn" style="flex: 1;">Sí, Eliminar</button>
             </div>
         </div>
@@ -1324,7 +1318,7 @@
         <div class="modal glass-panel" style="max-width: 600px; width: 90%;">
             <div class="modal-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
                 <h2 style="margin: 0; font-size: 20px; color: var(--text-primary); padding-right: 20px;"><i class='bx bx-time'></i> Bitácora de Tiempos: <br><span id="timelineModalName" style="color: var(--accent-primary); font-size: 16px;"></span></h2>
-                <span class="close-modal" onclick="closeModal('timelineModal')" style="cursor: pointer; font-size: 24px; color: var(--text-secondary); line-height: 1;">&times;</span>
+                <span class="close-modal" data-action="close-modal" data-modal="timelineModal" style="cursor: pointer; font-size: 24px; color: var(--text-secondary); line-height: 1;">&times;</span>
             </div>
             <div class="modal-body" style="max-height: 500px; overflow-y: auto; padding-right: 5px;">
                 <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 15px;">Aquí se muestran las pausas activas (Almuerzo/Cena / Desayuno) y la inactividad detectada (PC bloqueado, cambio de ventana por más de 5 minutos, etc.) durante el turno actual de este gestor.</p>
@@ -1352,13 +1346,13 @@
                 <h2 style="margin: 0; font-size: 18px; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
                     <i class='bx bx-file' style="color: var(--accent-primary);"></i> Detalle de Turno
                 </h2>
-                <span class="close-modal" onclick="closeModal('shiftDetailModal')" style="cursor: pointer; font-size: 24px; color: var(--text-secondary);">&times;</span>
+                <span class="close-modal" data-action="close-modal" data-modal="shiftDetailModal" style="cursor: pointer; font-size: 24px; color: var(--text-secondary);">&times;</span>
             </div>
             <div id="shiftDetailModalBody" class="modal-body" style="max-height: 550px; overflow-y: auto; padding-right: 5px;">
                 <!-- Llenado dinámicamente -->
             </div>
             <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; border-top: 1px solid var(--glass-border); padding-top: 12px;">
-                <button class="btn btn-outline" onclick="closeModal('shiftDetailModal')">Cerrar</button>
+                <button class="btn btn-outline" data-action="close-modal" data-modal="shiftDetailModal">Cerrar</button>
                 <button class="btn btn-primary" id="exportPdfModalBtn"><i class='bx bx-file-blank'></i> Exportar PDF</button>
             </div>
         </div>
@@ -1367,7 +1361,7 @@
     <div id="notificationDropdown" class="glass-panel" style="display: none; position: fixed; top: 80px; right: 20px; width: 320px; max-height: 400px; overflow-y: auto; z-index: 999999; padding: 15px; background: var(--bg-panel); border: 1px solid var(--accent-primary);">
         <div style="display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid var(--glass-border);">
             <h4 style="margin:0;"><i class='bx bx-bell'></i> Notificaciones</h4>
-            <button class="btn btn-outline" style="padding: 2px 5px; font-size: 11px; width: auto;" onclick="markAllAsRead()">Marcar leídas</button>
+            <button class="btn btn-outline" style="padding: 2px 5px; font-size: 11px; width: auto;" data-action="mark-all-as-read">Marcar leídas</button>
         </div>
         <div id="notificationList" style="display: flex; flex-direction: column; gap: 8px;"></div>
     </div>
@@ -1435,13 +1429,13 @@
         <div class="modal glass-panel" style="max-width: 600px; width: 95%;">
             <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px;">
                 <h2 style="margin: 0; font-size: 20px; color: var(--accent-primary); display: flex; align-items: center; gap: 8px;"><i class='bx bx-calendar-event'></i> Detalle de Solicitud de Permiso</h2>
-                <span class="close-modal" onclick="closeModal('permDetailModal')" style="cursor: pointer; font-size: 28px; color: var(--text-secondary); line-height: 1;">&times;</span>
+                <span class="close-modal" data-action="close-modal" data-modal="permDetailModal" style="cursor: pointer; font-size: 28px; color: var(--text-secondary); line-height: 1;">&times;</span>
             </div>
             <div id="permDetailModalBody" class="modal-body" style="max-height: 70vh; overflow-y: auto; padding-right: 5px;">
                 <!-- Contenido inyectado dinámicamente -->
             </div>
             <div class="modal-actions" style="margin-top: 20px; text-align: right;">
-                <button class="btn btn-outline" onclick="closeModal('permDetailModal')">Cerrar</button>
+                <button class="btn btn-outline" data-action="close-modal" data-modal="permDetailModal">Cerrar</button>
             </div>
         </div>
     </div>
@@ -1451,14 +1445,14 @@
         <div class="modal glass-panel" style="max-width: 700px; width: 95%;">
             <div class="modal-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
                 <h2 style="margin: 0; font-size: 24px; color: var(--accent-primary);"><i class='bx bx-brain'></i> Análisis de Control Operativo</h2>
-                <span class="close-modal" onclick="closeModal('analysisModal')" style="cursor: pointer; font-size: 28px; color: var(--text-secondary); line-height: 1;">&times;</span>
+                <span class="close-modal" data-action="close-modal" data-modal="analysisModal" style="cursor: pointer; font-size: 28px; color: var(--text-secondary); line-height: 1;">&times;</span>
             </div>
             <div id="analysisModalBody" class="modal-body rich-text" style="max-height: 60vh; overflow-y: auto; padding-right: 10px; color: var(--text-primary); font-size: 15px; line-height: 1.6;">
                 <!-- El análisis se inyectará aquí dinámicamente -->
             </div>
             <div class="modal-actions" style="margin-top: 25px;">
-                <button class="btn btn-primary" id="btnExportPDF" onclick="generarReporteEjecutivoPDF()"><i class='bx bx-download'></i> Exportar a PDF</button>
-                <button class="btn btn-outline" onclick="closeModal('analysisModal')">Cerrar</button>
+                <button class="btn btn-primary" id="btnExportPDF" data-action="generar-reporte-ejecutivo-pdf"><i class='bx bx-download'></i> Exportar a PDF</button>
+                <button class="btn btn-outline" data-action="close-modal" data-modal="analysisModal">Cerrar</button>
             </div>
         </div>
     </div>
@@ -1466,8 +1460,9 @@
     <!-- Custom JS -->
     <!-- Fase 2: el bundle (window.RiskOps, src/entry.js) va ANTES de app.js y como script clasico:
          app.js lo usa de forma sincrona al cargar. Sin type="module" (diferiria la carga). -->
-    <script src="riskops.bundle.js?v=20261014_f2"></script>
-    <script src="app.js?v=20261014_f2"></script>
-    <script src="js/tiempos.js?v=20260730_v3"></script>
+    <script src="riskops.bundle.js?v=20261016_p35"></script>
+    <script src="app.js?v=20261016_p35"></script>
+    <script src="index-tiempos-init.js?v=20261016_p35"></script>
+    <script src="index-actions-init.js?v=20261016_p35"></script>
 </body>
 </html>

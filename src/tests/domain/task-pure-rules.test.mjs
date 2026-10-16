@@ -712,9 +712,11 @@ test('reconcileGestorTaskCache: igual que el bloque de loadExcelTasks (purga de 
         const legacyCache = JSON.parse(JSON.stringify(cache));
         const nuevoCache = JSON.parse(JSON.stringify(cache));
         const legacy = legacyReconcileCache(rows, legacyCache);
-        const nuevo = reconcileGestorTaskCache(nuevoCache, rows, fixedNow);
+        const { purgedTaskIds, ...nuevo } = reconcileGestorTaskCache(nuevoCache, rows, fixedNow);
 
         assert.deepEqual(nuevo, legacy);
+        // W-26: los ids purgados son exactamente las llaves que desaparecieron del caché.
+        assert.deepEqual([...purgedTaskIds].sort(), Object.keys(cache).filter((k) => !(k in nuevoCache)).sort());
         assert.deepEqual(nuevoCache, legacyCache);
         assert.equal(Object.keys(nuevoCache).filter((k) => k.startsWith('extra_')).length, Object.keys(cache).filter((k) => k.startsWith('extra_')).length, 'las tareas extra nunca se purgan');
     }
@@ -726,14 +728,16 @@ test('buildGestorTaskRows: filtra el maestro por cronograma y agrega tareas mock
         { 'Set ': 'Casino', Tarea: 'Revisar GGR' }, { 'Set': 'Deportes', Tarea: 'Revisar apuestas' }, { Tarea: 'Sin set' }
     ]);
 
-    assert.deepEqual(master.map((r) => r.id), [0, 1, 2]);
+    // W-26: ids estables por contenido (Set + Tarea), en el rango 0-9999 y únicos.
+    assert.equal(new Set(master.map((r) => r.id)).size, 3);
+    assert.ok(master.every((r) => Number.isInteger(r.id) && r.id >= 0 && r.id < 10000));
     assert.deepEqual(buildGestorTaskRows(master, [], matchers), []);
     assert.deepEqual(buildGestorTaskRows(master, null, matchers), []);
 
     const rows = buildGestorTaskRows(master, [{ task: 'revisar ggr', set: 'casino' }, { task: 'Tarea nueva', set: 'Pagos' }], matchers);
 
     assert.equal(rows.length, 2);
-    assert.equal(rows[0].id, 0);
+    assert.equal(rows[0].id, master[0].id);
     assert.equal(rows[1]['Tarea'], 'Tarea nueva');
     assert.equal(rows[1]['Set '], 'Pagos');
     assert.equal(rows[1]['Horario'], 'Durante el turno');

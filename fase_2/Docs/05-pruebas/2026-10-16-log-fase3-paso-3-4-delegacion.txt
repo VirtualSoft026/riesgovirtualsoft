@@ -1,0 +1,49 @@
+Log — Fase 3, paso 3.4 (tramo de delegación): manejadores en línea (2026-10-16)
+Rama: backup/fase2-refactor-2026-10-03 (sin commit, push, merge ni rebase)
+Informe: 2026-10-16-informe-fase3-paso-3-4-delegacion.md
+
+== 0. Alcance de este tramo
+- Hecho: W-54 (b) y (c) para index.html y login.html; W-50 y DE-5 (a) por delegación data-action (marcado y plantillas de src/ y app.js); W-03 (no existía legacy-bridge.js); W-22 (texto); plan-fase-3.md (filas W-03, W-22, W-28, W-29, W-50, W-54, DE-5 y 3.4; nota de avance del paso 3.4).
+- Pendiente en el paso 3.4: W-47 y W-48 restantes, DE-20 (setPersistence), guardia de auditoría de 3.4. Pendiente en otros pasos: W-54 (d) CSP en 3.5; W-54 (a) y eliminación de app.js en 3.6.
+- Fuera de alcance: presence-service.js (congelado, D6); rama shift_break (intocable); no se borró ningún archivo (los cinco autorizados los borra el responsable a mano).
+
+== 1. Cambios en el código de trabajo
+- index.html: 58 manejadores on* -> data-action con data-*; 6 hover -> reglas :hover en interaction-states.css (nuevo); 4 onclick="toggleMultiSelectDropdown(...)" retirados (función no definida; multi-select ya gestiona su desplegable); 3 tarjetas KPI reciben las clases kpi-hover-*; script en línea de detección de navegador -> index-browser-guard.js (nuevo); carga de interaction-states.css e index-actions-init.js; versiones ?v=20261016_p35.
+- login.html: 4 onclick="switchPanel(...)" -> data-action="switch-panel"; tag de riskops.bundle.js a ?v=20261016_p35.
+- app.js: 2 statements de navegación de notificaciones -> data-action="go-to-notification-nav" data-nav="navAprobaciones|navPermisos"; al sustituir Finalizar Turno por Cerrar Sesión (Admin y Supervisor), se ejecuta endShiftBtn.removeAttribute('data-action') para que la delegación no llame a handleEndShift.
+- Plantillas de src/ (migradas): incidents-controller (submit-new-incident); pending-users-table (4); pending-permissions-table (6); permission-history-view (open-permiso-detail-modal + 2 navegaciones); shift-reports-view (2); task-tree-view (select-task; se retiró el parámetro encodeArg por defecto y su import); gestor-config (toggle-gestor-split-shift; se retiró uidArg e import de encodeInlineHandlerArg); announcement-service (5 acciones; la pestaña de título usa la clase comunicado-title-link); monitoring-view (open-monitoreo-details, view-timeline-monitoreo); teletrabajo-sheet y schedule-sheet (load-teletrabajo, load-schedule).
+- Nuevos: src/ui/actions/action-registry.js (ACTION_TABLE de 53 acciones, findRegisteredAction, bindActionRegistry, ACTION_EVENTS); src/entry-actions.js (exporta actionRegistry); src/entry.js exporta entry-actions.js; index-actions-init.js (script clásico; enlaza el registro en document con win = window); index-browser-guard.js; interaction-states.css.
+- Desviación: el registro se enlaza desde index-actions-init.js (script clásico) y no desde bootstrap.js, que no existe en el código de trabajo. Anotada en el informe para el paso 3.6.
+
+== 2. Pruebas nuevas y de forma
+- src/tests/ui/action-registry.test.mjs (nuevo): 13/13. Cada acción llama a la misma función global con los mismos argumentos que su atributo original; acciones desconocidas y eventos que no les corresponden no ejecutan nada; closest() desde un hijo; enlace repetido no duplica; el retiro limpia y es idempotente; una función de retiro antigua no retira el registro que la sustituyó; exec-command: sin data-value -> null, data-value="" -> "", valor -> valor; go-to-notification-nav; uso del objeto win pasado.
+- src/tests/ui/inline-handlers-audit.test.mjs (nuevo): 6/6. Sensibilidad del patrón (detecta atributos reales y no asignaciones de propiedad); cero on*= en index.html, login.html, scripts clásicos de la raíz y src/ (sin pruebas); cero scripts en línea sin src en index.html y login.html; cada data-action declarado está en ACTION_TABLE o es approve-user, toggle-tree o switch-panel; cada entrada de ACTION_TABLE se usa en algún marcado; Finalizar Turno -> Cerrar Sesión retira data-action en app.js.
+- src/tests/helpers/legacy-action-migration.mjs (nuevo): normalizador del original. legacyActionsToDelegated(text, {strict}) y normalizeLegacyActions(value, options). Modo estricto por defecto: cualquier manejador sin correspondencia lanza error. Modo no estricto: deja los manejadores que no son de la aplicación (contenido escrito por el usuario en comunicados).
+- src/tests/helpers/w50-delegation.mjs: ahora delega en el normalizador general (mismos nombres exportados para approvals-controller y approvals-components).
+- Pruebas actualizadas solo en la forma esperada del marcado (approvals-components 29/29, approvals-decisiones 27/27, action-delegation 8/8, announcements-controller 37/37, announcement-service 29/29, gestor-config 16/16, config-gestores-controller 13/13, monitoring-view 16/16, shift-reports-view 7/7, task-views 12/12, task-loaders-controller 8/8).
+- E2E actualizados (el original se normaliza antes de comparar): tareas-integrado 238/238; modales-permisos-integrado 80/80; historial-navegacion-integrado 51/51; comunicados-integrado 18/18 (el original en modo no estricto).
+- Corrección de forma durante la edición: un script de edición dejó LF en 14 archivos de prueba que en el dispositivo son CRLF; se restauró CRLF en esos archivos (diff con el dispositivo: solo las líneas previstas). app.js, index.html, login.html y src/entry.js conservan CRLF.
+
+== 3. Verificación de la suite de laboratorio (2026-10-16)
+- node build/build.mjs -> BUNDLE_OK, 136 módulos. node build/verify-bundle.mjs -> BUNDLE_VERIFY=PASS (71 comprobaciones, 570.2 KB). build/dist/riskops.bundle.js copiado a riskops.bundle.js (idénticos, 583939 bytes).
+- node --check app.js, login-init.js, index-tiempos-init.js, index-actions-init.js, index-browser-guard.js -> OK.
+- RISKOPS_LAB_ROOT=/home/claude/repro/lab-root node fase_2/lab/suite/suite-pruebas.mjs -> TODO EN VERDE.
+  Grupo: Bundle 71/71 · Unitarias 92 archivos (92 OK), 1458 pruebas · Integración 1/1 · E2E 14 archivos (14 OK), 677 pruebas · Motor 4/4.
+  Intentos de red bloqueados: 0. Marcas [Fase 2] en app.js: 6. Referencias a window.RiskOps: 16.
+  Log: lab-root/pruebas/resultado-2026-10-16-19-37-58.txt.
+- Antes de este tramo: 16 archivos fallaban (11 unitarias y 4 E2E y 1 más). Todos eran de forma del marcado o de normalización del original.
+
+== 4. Entrega al dispositivo (control de marcas de tiempo)
+- Ruta de trabajo en el dispositivo: C:\Users\Luis Alfredo Fuentes\OneDrive - VIRTUALSOFT SERVICIOS & SOFTWARE S.A.S\Escritorio\LUCHO\Riesgos VS\LUCHO\Fase2\riesgovirtualsoft
+- Base verificada antes de escribir: device_stage_files de los 34 archivos existentes; tamaños iguales a la entrega anterior del paso 3.4 (index.html 198427, app.js 107679, login.html 10718, riskops.bundle.js 577246, src/entry.js 4226). Se revisó cada diferencia con diff contra la copia del dispositivo: solo las líneas previstas. approvals-controller.test.mjs es idéntico y no se escribe.
+- Escritura de 34 existentes con expectedMtimeMs (device_commit_files): 34 escritos, 0 rechazados. Marcas usadas: index.html 1792174276029; app.js 1792174275593; login.html 1792174276377; riskops.bundle.js 1792174278110; build/dist/riskops.bundle.js 1792174278660; src/entry.js 1792174276727; incidents-controller 1792157846038; pending-users-table 1792171808830; pending-permissions-table 1792157945887; permission-history-view 1792157948906; shift-reports-view 1792157949683; task-tree-view 1792171809550; gestor-config 1792157897964; announcement-service 1792157854921; monitoring-view 1792157853043; teletrabajo-sheet 1792157897563; schedule-sheet 1792157893805; tests y fase_2/Docs/03-plan-migracion/plan-fase-3.md (ver informe).
+- Escritura de 8 archivos nuevos sin marca de tiempo (device_commit_files): src/ui/actions/action-registry.js, src/entry-actions.js, index-actions-init.js, index-browser-guard.js, interaction-states.css, src/tests/helpers/legacy-action-migration.mjs, src/tests/ui/action-registry.test.mjs, src/tests/ui/inline-handlers-audit.test.mjs. 8 escritos, 0 rechazados. Antes se comprobó que no existían en el dispositivo.
+- Verificación posterior: device_stage_files de los 42 archivos y cmp contra la copia de trabajo: 42 coinciden, 0 difieren. Tamaños tras la escritura: index.html 197477, app.js 107788, login.html 10718, riskops.bundle.js 583939 (igual en build/dist), src/entry.js 4318, plan-fase-3.md 67059.
+- Paquete de entrega: /mnt/user-data/outputs/paso-3.4-delegacion/ (42 archivos con la misma estructura de carpetas).
+
+== 5. Lo que no se hizo en este tramo
+- No hubo commit, push, merge ni rebase.
+- No se borró ningún archivo. Pendientes a mano del responsable: login.js, js/tiempos.js, src/controllers/idle-state-controller.js, src/tests/controllers/idle-state-controller.test.mjs y fase_2/src/controllers/idle-state-controller.js.
+- No se corrió el recorrido manual en el navegador real de los flujos tocados por la delegación (ver informe, sección «Lo que queda para el responsable»). La suite no lo sustituye.
+- Propiedades onclick/onerror de JavaScript sin migrar (kpi-controller, app.js, shift-reports-controller, announcements-controller, monitoring-controller): fuera de la auditoría de atributos; se revisan en 3.5 y 3.6.
+- El parámetro encodeArg de task-controller.js y task-loaders-controller.js sigue pasándose a las vistas (sin uso): se retira en 3.6.

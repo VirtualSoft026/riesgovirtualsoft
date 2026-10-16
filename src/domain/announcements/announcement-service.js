@@ -397,7 +397,7 @@ export function buildGestorComunicadosHtml(announcements, uid, helpers) {
         if (isRead) {
             actionsHtml = `<div style="color: var(--success); font-size: 13px; margin-top: 15px; font-weight: 500;"><i class='bx bx-check-double'></i> Leído el ${new Date(c.readBy[uid].readAt).toLocaleString('es-CO')}</div>`;
         } else {
-            actionsHtml = `<button class="btn btn-primary" style="margin-top: 15px; width: 100%; max-width: 300px; background: var(--success); border-color: var(--success);" onclick="markComunicadoAsRead(decodeURIComponent('${encode(key)}'))"><i class='bx bx-check'></i> Marcar como Leído y Entendido</button>`;
+            actionsHtml = `<button class="btn btn-primary" style="margin-top: 15px; width: 100%; max-width: 300px; background: var(--success); border-color: var(--success);" data-action="mark-comunicado-read" data-key="${escapeHTML(key)}"><i class='bx bx-check'></i> Marcar como Leído y Entendido</button>`;
         }
 
         html += `
@@ -439,20 +439,20 @@ export function buildAdminComunicadosRowsHtml(announcements, showDelete, helpers
         const formattedDate = new Date(c.date).toLocaleString('es-CO');
         const readCount = c.readBy ? Object.keys(c.readBy).length : 0;
         const deleteBtnHtml = showDelete
-            ? `<button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px; margin-left: 5px;" onclick="deleteComunicado(decodeURIComponent('${encode(key)}'))"><i class='bx bx-trash'></i></button>`
+            ? `<button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px; margin-left: 5px;" data-action="delete-comunicado" data-key="${escapeHTML(key)}"><i class='bx bx-trash'></i></button>`
             : '';
 
         html += `
             <tr style="border-bottom: 1px solid var(--glass-border);">
                 <td style="padding: 12px; font-size: 13px;">${formattedDate}</td>
                 <td style="padding: 12px; font-weight: 500;">
-                    <a href="javascript:void(0)" onclick="viewComunicadoContent(decodeURIComponent('${encode(key)}'))" style="color: var(--accent-primary); text-decoration: none; cursor: pointer; transition: color 0.2s;" onmouseover="this.style.textDecoration='underline'; this.style.color='var(--text-primary)'" onmouseout="this.style.textDecoration='none'; this.style.color='var(--accent-primary)'">${esc(c.title)}</a>
+                    <a href="javascript:void(0)" data-action="view-comunicado-content" data-key="${escapeHTML(key)}" class="comunicado-title-link">${esc(c.title)}</a>
                 </td>
                 <td style="padding: 12px; color: var(--text-secondary); font-size: 13px;">${esc(c.author)}</td>
                 <td style="padding: 12px; text-align: center;"><span class="badge" style="background: var(--success);">${readCount} lecturas</span></td>
                 <td style="padding: 12px; text-align: center;">
-                    <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px;" onclick="viewComunicadoContent(decodeURIComponent('${encode(key)}'))"><i class='bx bx-book-open'></i> Leer</button>
-                    <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px; margin-left: 5px;" onclick="viewComunicadoLecturas(decodeURIComponent('${encode(key)}'))"><i class='bx bx-user-check'></i> Lecturas</button>
+                    <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px;" data-action="view-comunicado-content" data-key="${escapeHTML(key)}"><i class='bx bx-book-open'></i> Leer</button>
+                    <button class="btn btn-outline" style="padding: 5px 10px; font-size: 12px; margin-left: 5px;" data-action="view-comunicado-lecturas" data-key="${escapeHTML(key)}"><i class='bx bx-user-check'></i> Lecturas</button>
                     ${deleteBtnHtml}
                 </td>
             </tr>

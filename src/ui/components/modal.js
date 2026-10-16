@@ -56,3 +56,39 @@ export function openExtraTaskModal(doc, defaultStatus) {
 
     return true;
 }
+
+/**
+ * Cierre de modales por clic en el fondo y por la tecla Escape (app.js, `window.onclick` y `keydown`; W-22).
+ *
+ * - Clic: si el objetivo del clic es el fondo de un modal registrado, llama a su `close` (el KPI de detalle de tareas).
+ * - Escape: quita `active` de todos los `.modal-overlay.active`.
+ *
+ * Se registra UNA vez. Devuelve la función que retira ambos listeners, para el desmontaje (W-23). El cambio frente al
+ * original es solo el mecanismo: `addEventListener` en vez de la propiedad `window.onclick`, así que ya no se pisa
+ * si otro código asigna `window.onclick`.
+ *
+ * @param {{ win: any, doc: any, backdrops?: Array<{ id: string, close: () => void }> }} deps
+ * @returns {() => void} desregistra los listeners
+ */
+export function bindModalDismissal({ win, doc, backdrops = [] }) {
+    const onClick = (event) => {
+        backdrops.forEach(({ id, close }) => {
+            if (event.target == doc.getElementById(id)) close();
+        });
+    };
+    const onKeydown = (event) => {
+        if (event.key === 'Escape') {
+            doc.querySelectorAll('.modal-overlay.active').forEach((modal) => {
+                modal.classList.remove('active');
+            });
+        }
+    };
+
+    win.addEventListener('click', onClick);
+    win.addEventListener('keydown', onKeydown);
+
+    return () => {
+        win.removeEventListener('click', onClick);
+        win.removeEventListener('keydown', onKeydown);
+    };
+}

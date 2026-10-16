@@ -110,7 +110,7 @@ export function buildPermissionHistoryItemHTML(p) {
     const createdTimeText = resolvePermissionCreatedText(p);
 
     return `
-                    <div class="tree-item" style="margin-top: 10px; cursor: pointer; transition: all 0.2s ease; border-radius: 8px;" onclick="openPermisoDetailModal(decodeURIComponent('${encodeInlineHandlerArg(p.fb_id)}'))" title="Haz clic para ver el detalle completo de este permiso">
+                    <div class="tree-item" style="margin-top: 10px; cursor: pointer; transition: all 0.2s ease; border-radius: 8px;" data-action="open-permiso-detail-modal" data-fb-id="${escapeHTML(p.fb_id)}" title="Haz clic para ver el detalle completo de este permiso">
                         <div class="tree-header" style="padding: 12px; display: flex; align-items: center; gap: 10px;">
                             <i class='bx ${icon}' style="font-size: 20px;"></i>
                             <div style="display:flex; flex-direction:column; flex: 1;">
@@ -224,7 +224,7 @@ export function buildAdminPermissionNotifications(data) {
             const bg = p.notified_admin === false ? 'rgba(59,130,246,0.1)' : 'transparent';
 
             notifsHtml += `
-                            <div style="background: ${bg}; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border); display: flex; gap: 10px; align-items: start; cursor: pointer; transition: background 0.2s;" onclick="document.getElementById('navAprobaciones').click(); document.getElementById('notificationDropdown').style.display = 'none';">
+                            <div style="background: ${bg}; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border); display: flex; gap: 10px; align-items: start; cursor: pointer; transition: background 0.2s;" data-action="go-to-notification-nav" data-nav="navAprobaciones">
                                 <i class='bx bx-time' style="color: var(--warning); font-size: 18px; margin-top: 2px;"></i>
                                 <div style="flex-grow: 1;">
                                     <div style="font-size: 12px; font-weight: 500; color: var(--text-primary);">Nuevo Permiso Solicitado</div>
@@ -263,7 +263,7 @@ export function buildGestorPermissionNotifications(data) {
             const reasonHtml = p.rejectionReason ? `<div style="font-size:11px; color:var(--danger); margin-top:2px;">Razón: ${escapeHTML(p.rejectionReason)}</div>` : '';
 
             notifsHtml += `
-                            <div style="background: ${bg}; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border); display: flex; gap: 10px; align-items: start; cursor: pointer; transition: background 0.2s;" onclick="document.getElementById('navPermisos').click(); document.getElementById('notificationDropdown').style.display = 'none';">
+                            <div style="background: ${bg}; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border); display: flex; gap: 10px; align-items: start; cursor: pointer; transition: background 0.2s;" data-action="go-to-notification-nav" data-nav="navPermisos">
                                 <i class='bx ${icon}' style="color: ${iconColor}; font-size: 18px; margin-top: 2px;"></i>
                                 <div style="flex-grow: 1;">
                                     <div style="font-size: 12px; font-weight: 500; color: var(--text-primary);">Permiso ${escapeHTML(p.status)}</div>

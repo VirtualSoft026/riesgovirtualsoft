@@ -51,20 +51,29 @@ test('sanitizeAnnouncementHTML conserva las etiquetas permitidas', () => {
     );
 });
 
-test('sanitizeAnnouncementHTML quita la etiqueta <script>, pero su texto interno queda como texto plano escapado (hallazgo real, no es un riesgo de XSS porque ya no está dentro de un <script> ejecutable)', () => {
-    // El parser interno trata "script" como etiqueta de cierre automático
-    // (ver ANNOUNCEMENT_DROP_CONTENT_TAGS en el "isSelfClosing" de
-    // parseAnnouncementFragment). Por eso NO empuja <script> a la pila y el
-    // texto que sigue ("alert(1)") termina como hijo de <p>, no de <script>.
-    // La etiqueta <script> en sí se descarta (appendSanitizedNode la corta),
-    // pero su contenido "se derrama" como texto visible escapado. No es
-    // ejecutable (no queda dentro de un <script> real), pero si se esperaba
-    // que el contenido completo desapareciera, este es un punto a corregir
-    // en una fase posterior del parser.
-    assert.equal(
-        sanitizeAnnouncementHTML('<p>Antes<script>alert(1)</script>Despues</p>'),
-        '<p>Antesalert(1)Despues</p>'
-    );
+test('sanitizeAnnouncementHTML descarta <script>, <style>, <template>, <noscript> e <iframe> CON su contenido (W-11, igual que app.js)', () => {
+    assert.equal(sanitizeAnnouncementHTML('<p>Antes<script>alert(1)</script>Despues</p>'), '<p>AntesDespues</p>');
+    assert.equal(sanitizeAnnouncementHTML('<style>p{}</style><p>z</p>'), '<p>z</p>');
+    assert.equal(sanitizeAnnouncementHTML('<template><p>t</p></template>x'), 'x');
+    assert.equal(sanitizeAnnouncementHTML('<noscript>n</noscript>y'), 'y');
+    assert.equal(sanitizeAnnouncementHTML('<iframe src=x></iframe>after'), 'after');
+    assert.equal(sanitizeAnnouncementHTML('<script>a</p>b</script>c'), 'c', 'un cierre dentro del script no escapa');
+});
+
+test('sanitizeAnnouncementHTML no codifica dos veces las entidades y conserva un "<" suelto (W-11)', () => {
+    assert.equal(sanitizeAnnouncementHTML('<em>&nbsp;</em>'), '<em>&nbsp;</em>');
+    assert.equal(sanitizeAnnouncementHTML('&lt;p&gt; &amp; &quot;'), '&lt;p&gt; &amp; "');
+    assert.equal(sanitizeAnnouncementHTML('<p>a & b < c > d</p>'), '<p>a &amp; b &lt; c &gt; d</p>');
+    assert.equal(sanitizeAnnouncementHTML('Ma&ntilde;ana &aacute;rea &#233; &#x1F600;'), 'Mañana área é 😀');
+    assert.equal(sanitizeAnnouncementHTML('&desconocida;'), '&amp;desconocida;');
+    assert.equal(sanitizeAnnouncementHTML('<a href="https://x.co/?a=1&amp;b=2">q</a>'), '<a href="https://x.co/?a=1&amp;b=2">q</a>');
+});
+
+test('sanitizeAnnouncementHTML aplica los cierres implícitos del navegador (<p>, <li>, <a> dentro de <a>)', () => {
+    assert.equal(sanitizeAnnouncementHTML('<p>a<p>b'), '<p>a</p><p>b</p>');
+    assert.equal(sanitizeAnnouncementHTML('<ul><li>1<li>2</ul>'), '<ul><li>1</li><li>2</li></ul>');
+    assert.equal(sanitizeAnnouncementHTML('<p>x</p></p>'), '<p>x</p><p></p>');
+    assert.equal(sanitizeAnnouncementHTML('<a href="https://a.co">1<a href="https://b.co">2</a>'), '<a href="https://a.co">1</a><a href="https://b.co">2</a>');
 });
 
 test('sanitizeAnnouncementHTML traduce alias de etiquetas (b→strong, i→em, div→p)', () => {

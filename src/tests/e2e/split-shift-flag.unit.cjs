@@ -33,6 +33,10 @@ const RULES = opt('--rules', null) ? JSON.parse(fs.readFileSync(opt('--rules'), 
 function fn(header) {
     const s = SRC.indexOf(header);
     if (s < 0) throw new Error('No se encontró: ' + header);
+    // Función de una sola línea (envoltorio `function f() { return ...; }`): no buscar el siguiente "}" de columna 0.
+    const eol = SRC.indexOf('\n', s);
+    const first = SRC.slice(s, eol);
+    if (first.endsWith('}') && (first.match(/\{/g) || []).length === (first.match(/\}/g) || []).length) return SRC.slice(s, eol + 1);
     return SRC.slice(s, SRC.indexOf('\n}\n', s) + 3);
 }
 function between(startMarker, endMarker) {
@@ -51,6 +55,17 @@ const ACTIVITY_HELPER = SRC.includes('// [LAB-INTEGRACION:ACTIVIDAD-INICIO]')
 const HELPER = INTEGRATED ? between('// [LAB-INTEGRACION:INICIO]', '// [LAB-INTEGRACION:FIN]') + ACTIVITY_HELPER : '';
 const LISTENER = between("database.ref(`users/${currentUser.uid}/hasSplitShift`).on('value'", '\n            });');
 
+// [LAB-INTEGRACION] W-19 (paso 3.2): el latido pasa por el envoltorio __sessionSync() (app.js) y el repositorio __tareasRepo().
+// Si app.js integrado trae esas piezas, se cargan junto con el latido para probar el camino real y no el código heredado.
+// [LAB-INTEGRACION] W-20 (paso 3.4): setupSidebar delega en __appRouter() (RiskOps.appRouter); su fábrica entra en el tramo.
+const APP_ROUTER_BLOCK = SRC.includes('let __labAppRouter = null;') ? between('let __labAppRouter = null;', 'return __labAppRouter;\n}') : '';
+
+const SESSION_SYNC_BLOCKS = [
+    SRC.includes('let __labTaskRepository = null;') ? between('let __labTaskRepository = null;', 'return __labTaskRepository;\n}') : '',
+    SRC.includes('function __labSetSyncWarning(') ? fn('function __labSetSyncWarning(') : '',
+    SRC.includes('let __labSessionSync = null;') ? between('let __labSessionSync = null;', 'return __labSessionSync;\n}') : ''
+].join('\n');
+
 // ------------------------------------------------------------------ entorno simulado
 function makeEnv({ flag, role = 'Gestor', started = Date.now() }) {
     const store = new Map();
@@ -63,7 +78,7 @@ function makeEnv({ flag, role = 'Gestor', started = Date.now() }) {
         return { id, style, innerHTML: '', textContent: '', disabled: false, children: [],
             classList: { add() {}, remove() {}, contains: () => false, toggle() {} },
             appendChild() {}, insertBefore() {}, removeChild() {}, setAttribute() {}, addEventListener() {},
-            querySelector: () => null, querySelectorAll: () => [], remove() {} };
+            querySelector: () => null, querySelectorAll: () => [], remove() {}, closest: () => null };
     };
     const get = (id) => { if (!els.has(id)) els.set(id, elem(id, ['toggleSplitShiftBtn', 'navConfigGestores'].includes(id) ? 'none' : '')); return els.get(id); };
     const document = {
@@ -94,12 +109,12 @@ function makeEnv({ flag, role = 'Gestor', started = Date.now() }) {
     const setupSidebarSrc = fn('function setupSidebar()');
     vm.runInContext([
         'let currentUser = JSON.parse(localStorage.getItem("riskOps_currentUser"));',
-        between('const COMUNICADOS_PUBLISH_ROLES', 'window.canManageComunicados = canManageComunicados;'),
+        (SRC.includes('const COMUNICADOS_PUBLISH_ROLES') ? between('const COMUNICADOS_PUBLISH_ROLES', 'window.canManageComunicados = canManageComunicados;') : between('function canPublishComunicados(', 'window.canManageComunicados = canManageComunicados;')),
         STATE_BLOCK, HELPER, fn('function saveBreakState()'), fn('function loadBreakState()'),
         'let shiftTimeline = []; let localStatus = "En Línea";',
-        fn('function pushTimelineEvent('), fn('function shouldApplyDomIdleFallback('), fn('function updateActivity()'),
+        fn('function pushTimelineEvent('), fn('function updateActivity()'),
         fn('function toggleSplitShiftBreak()'), fn('function toggleBreakfastBreak()'), fn('function toggleLunchBreak()'),
-        fn('function syncActiveSessionToFirebase()'), fn('function updateNavigation()'), setupSidebarSrc,
+        SESSION_SYNC_BLOCKS, APP_ROUTER_BLOCK, fn('function syncActiveSessionToFirebase()'), fn('function updateNavigation()'), setupSidebarSrc,
         'function alignAdministrativeControlsByRole(){}',
         // La suscripción real al flag (se ejecuta tal cual, dentro de la condición del original)
         'if (currentUser.uid && currentUser.role === "Gestor") {\n' + LISTENER + '\n}',
@@ -127,6 +142,14 @@ function supervisorLabel(payload, nowMs) {
         getAssignedTasksForGestor: () => [], encodeURIComponent
     };
     vm.createContext(ctx);
+    if (!BUNDLE) throw new Error('supervisorLabel requiere --riskops (el envoltorio de Monitoreo delega en el bundle)');
+    vm.runInContext(BUNDLE + '\nthis.RiskOps = RiskOps;', ctx);
+    // Monitoreo (W-18): app.js delega en RiskOps.monitoringController; aquí se cablea con el mismo repositorio falso.
+    ctx.__histNav = () => ({ monitoring: ctx.RiskOps.monitoringController.createMonitoringController({
+        document: ctx.document, repository: { listenActiveSessions: () => () => {}, fetchApprovedGestorNames: async () => [] },
+        getSessions: () => ctx.allActiveSessions, setSessions: (s) => { ctx.allActiveSessions = s; }, hasCronograma: () => false,
+        getAssignedTasksForGestor: () => [], reconcileTask: () => ({ status: 'Pendiente', observation: '' }), resolveTaskName: (k) => k,
+        getShiftCategory: () => 'Mañana', supervisorDirectory: null, avatars: [], now: () => nowMs, logger: console }) });
     vm.runInContext(fn('function renderActiveSessionsDashboard()') + '\nthis.f = renderActiveSessionsDashboard;', ctx); ctx.f();
     const m = (cards[0] ? cards[0].innerHTML : '').match(/status-indicator-badge[^>]*>\s*<div[^>]*><\/div>\s*([^\n<]+)/);
     return m ? m[1].trim() : '(sin tarjeta)';

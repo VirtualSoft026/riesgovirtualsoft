@@ -48,7 +48,7 @@ import {
  *   getCronogramaAssignments: () => (Array<{task: string, set: string}>|null),
  *   getTaskCache: () => Record<string, object>,
  *   saveTaskCache?: (cache: object) => void,
- *   repository: {migrateLocalTasksToActiveSession: Function},
+ *   repository: {migrateLocalTasksToActiveSession: Function, removeActiveSessionTasks?: (uid: string, taskIds: string[]) => Promise<void>},
  *   setAllTasks: (tasks: Array<object>) => void,
  *   renderTree: (tasksBySet: object) => void,
  *   syncActiveSession: () => unknown,
@@ -123,7 +123,7 @@ export function createTaskLoadersController(deps) {
             // Inicializar estado 'En Proceso' para las tareas asignadas del gestor y purgar huérfanas
             if (currentUser && currentUser.role === 'Gestor' && Array.isArray(processedRows)) {
                 const taskStateCache = getTaskCache();
-                const { hasNewTasksToSync, cacheWasPurged } = reconcileGestorTaskCache(taskStateCache, processedRows, now());
+                const { hasNewTasksToSync, cacheWasPurged, purgedTaskIds } = reconcileGestorTaskCache(taskStateCache, processedRows, now());
 
                 if (hasNewTasksToSync || cacheWasPurged) {
                     try {
@@ -136,6 +136,17 @@ export function createTaskLoadersController(deps) {
                         } catch (syncErr) {
                             logger.error('Error al sincronizar tareas iniciales En Proceso:', syncErr);
                         }
+                    }
+                }
+
+                // Reflejar la purga también en Firebase (W-26, como `main`): sin esto, active_sessions/{uid}/tasks
+                // acumula las entradas huérfanas y una recarga posterior las trae de vuelta. Best-effort: un
+                // fallo aquí no bloquea la carga de tareas.
+                if (currentUser.uid && purgedTaskIds.length > 0 && typeof repository.removeActiveSessionTasks === 'function') {
+                    try {
+                        await repository.removeActiveSessionTasks(currentUser.uid, purgedTaskIds);
+                    } catch (purgeErr) {
+                        logger.error('Error al limpiar en Firebase las tareas huérfanas del caché:', purgeErr);
                     }
                 }
             }

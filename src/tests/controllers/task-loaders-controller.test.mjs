@@ -5,6 +5,7 @@ import { createTaskRepository } from '../../services/firebase/firebase-task-repo
 import { getShiftForDate } from '../../domain/schedules/schedule-service.js';
 import { taskNamesMatch, setNamesMatch } from '../../utils/normalize.js';
 import { escapeHTML, encodeInlineHandlerArg } from '../../utils/sanitization.js';
+import { normalizeLegacyHtml } from '../helpers/w50-delegation.mjs';
 
 const { test, testAsync: rawTestAsync, summarizeAsync } = createRunner('task-loaders-controller.js (loadExcelTasks, loadSchedule, loadTeletrabajo, loadPermisos, detalle de permiso; diferencial vs app.js)');
 const testAsync = createSerialTestAsync(rawTestAsync); // las pruebas comparten el estado global simulado: van en serie
@@ -225,7 +226,7 @@ function namesMatch(name1, name2) {
     return longer.includes(pShort);
 }
 
-// --- copia LITERAL de app.js líneas 1343-1545 ---
+// --- copia LITERAL de `loadExcelTasks()` de main (6ddef16), app.js líneas 1344-1586: ids estables y purga en Firebase (W-26) ---
 async function loadExcelTasks() {
     const container = document.querySelector('.tree-container');
     if(container) container.innerHTML = '<div style="padding: 20px; color: var(--text-secondary);"><i class="bx bx-loader-alt bx-spin"></i> Cargando Tareas...</div>';
@@ -240,9 +241,30 @@ async function loadExcelTasks() {
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
         
-        // Assign ID to all master tasks in json
-        json.forEach((row, idx) => {
-            row.id = idx;
+        // Assign a stable ID to each master task based on its content (Set + Tarea),
+        // not its row position. Un id por posición ("idx") cambia si alguien inserta,
+        // borra o reordena filas en Tareas de Riesgo.xlsx, dejando huérfano el progreso
+        // ya guardado (taskStateCache/Firebase) de cualquier tarea posterior al cambio —
+        // el mismo problema de fondo que las tareas sintéticas (ver generateDeterministicMockTaskId
+        // más abajo), pero aplicado a tareas reales del catálogo.
+        const usedMasterTaskIds = new Set();
+        json.forEach((row) => {
+            const set = row['Set '] || row['Set'] || 'Otros';
+            const taskName = row['Tarea'] || '';
+            const raw = `${String(set).trim().toLowerCase()}::${String(taskName).trim().toLowerCase()}`;
+            let hash = 0;
+            for (let i = 0; i < raw.length; i++) {
+                hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+                hash |= 0;
+            }
+            // Rango 0-9999, separado del rango 10000-99999 de las tareas sintéticas
+            // (generateDeterministicMockTaskId) para que nunca puedan coincidir.
+            let candidate = Math.abs(hash) % 10000;
+            while (usedMasterTaskIds.has(candidate)) {
+                candidate = (candidate + 1) % 10000;
+            }
+            usedMasterTaskIds.add(candidate);
+            row.id = candidate;
         });
         
         let processedRows = [];
@@ -350,10 +372,12 @@ async function loadExcelTasks() {
 
             // Purgar tareas huérfanas o desactualizadas del caché local (evita que tareas de turnos pasados bloqueen el cierre)
             let cacheWasPurged = false;
+            const purgedTaskIds = [];
             for (const cachedId in taskStateCache) {
                 if (!validAssignedIds.has(cachedId) && !cachedId.startsWith('extra_')) {
                     delete taskStateCache[cachedId];
                     cacheWasPurged = true;
+                    purgedTaskIds.push(cachedId);
                 }
             }
 
@@ -380,6 +404,23 @@ async function loadExcelTasks() {
                     } catch (syncErr) {
                         console.error("Error al sincronizar tareas iniciales En Proceso:", syncErr);
                     }
+                }
+            }
+
+            // Reflejar la purga también en Firebase: sin esto, active_sessions/{uid}/tasks
+            // acumula para siempre las entradas huérfanas (nunca se borran solas), y una
+            // recarga posterior las trae de vuelta vía recoverGestorTaskProgress() ->
+            // mergeTaskCaches() solo para que loadExcelTasks() las vuelva a purgar en el
+            // siguiente ciclo. Best-effort: un fallo aquí no bloquea la carga de tareas.
+            if (currentUser.uid && purgedTaskIds.length > 0) {
+                try {
+                    const removals = {};
+                    purgedTaskIds.forEach((purgedId) => {
+                        removals[`active_sessions/${currentUser.uid}/tasks/${purgedId}`] = null;
+                    });
+                    await database.ref().update(removals);
+                } catch (purgeErr) {
+                    console.error("Error al limpiar en Firebase las tareas huérfanas del caché:", purgeErr);
                 }
             }
         }
@@ -1082,7 +1123,7 @@ testAsync('loadExcelTasks: Admin, Gestor con cronograma y tareas mock, y selecci
             }
         }, { active_sessions: { g1: { tasks: { 0: { name: 'x', status: 'Pendiente', observation: '', updatedAt: 99 } } } } });
 
-        assert.deepEqual(shots.nuevo, shots.legacy, `escenario ${i}`);
+        assert.deepEqual(shots.nuevo, normalizeLegacyHtml(shots.legacy), `escenario ${i}`);
         if (sc.user && sc.user.role === 'Gestor') gestorRuns += 1;
         if (shots.nuevo.renderTreeCalls.length && Object.keys(shots.nuevo.renderTreeCalls[0]).length === 1) singleSet += 1;
     }
@@ -1099,7 +1140,7 @@ testAsync('loadExcelTasks: la migración inicial de "En Proceso" no pisa una ver
     const newer = { name: 'Revisar GGR casino', status: 'Finalizada', observation: 'ya hecha en otra pestaña', updatedAt: FIXED_NOW + 5000 };
     const shots = await runBoth(sc, async (mode, controller) => { if (mode === 'legacy') await loadExcelTasks(); else await controller.loadExcelTasks(); }, { active_sessions: { g1: { tasks: { 0: newer } } } });
 
-    assert.deepEqual(shots.nuevo, shots.legacy);
+    assert.deepEqual(shots.nuevo, normalizeLegacyHtml(shots.legacy));
     assert.deepEqual(shots.nuevo.dbData.active_sessions.g1.tasks['0'], newer, 'la versión remota más nueva se conserva');
 });
 
@@ -1119,7 +1160,7 @@ testAsync('loadExcelTasks: errores (HTTP, Excel corrupto, red caída, sin conten
     for (const sc of cases) {
         const shots = await runBoth(sc, async (mode, controller) => { if (mode === 'legacy') await loadExcelTasks(); else await controller.loadExcelTasks(); });
 
-        assert.deepEqual(shots.nuevo, shots.legacy, JSON.stringify(sc.fetchPlan));
+        assert.deepEqual(shots.nuevo, normalizeLegacyHtml(shots.legacy), JSON.stringify(sc.fetchPlan));
     }
 
     const error = await runBoth(cases[0], async (mode, controller) => { if (mode === 'legacy') await loadExcelTasks(); else await controller.loadExcelTasks(); });
@@ -1189,7 +1230,7 @@ testAsync('loadSchedule: bloques, semana por defecto, selectores, tabla y efecto
             }
         });
 
-        assert.deepEqual(shots.nuevo, shots.legacy, `escenario ${i}`);
+        assert.deepEqual(shots.nuevo, normalizeLegacyHtml(shots.legacy), `escenario ${i}`);
         if (shots.nuevo.user && shots.nuevo.user.shift !== (user && user.shift)) withEffects += 1;
     }
 
@@ -1211,7 +1252,7 @@ testAsync('loadSchedule: hoja sin bloques válidos, falla de red y celda numéri
         const sc = { user: c.user || { role: 'Admin', uid: 'a1', name: 'x' }, fetchPlan: { ...c.fetchPlan, 'Tareas%20Riesgo/': { ok: true, payload: { rows: [] } } } };
         const shots = await runBoth(sc, async (mode, controller) => { if (mode === 'legacy') await loadSchedule(); else await controller.loadSchedule(); });
 
-        assert.deepEqual(shots.nuevo, shots.legacy, JSON.stringify(c.fetchPlan));
+        assert.deepEqual(shots.nuevo, normalizeLegacyHtml(shots.legacy), JSON.stringify(c.fetchPlan));
     }
 });
 
@@ -1262,7 +1303,7 @@ testAsync('loadTeletrabajo: bloques, selector, tabla y errores — idéntico a a
             }
         });
 
-        assert.deepEqual(shots.nuevo, shots.legacy, `escenario ${i}`);
+        assert.deepEqual(shots.nuevo, normalizeLegacyHtml(shots.legacy), `escenario ${i}`);
     }
 });
 
@@ -1328,7 +1369,7 @@ testAsync('loadPermisos: consulta por rol, filtro de privacidad, orden y HTML �
             if (mode === 'legacy') await loadPermisos(); else await controller.loadPermisos();
         });
 
-        assert.deepEqual(shots.nuevo, shots.legacy, `escenario ${i}`);
+        assert.deepEqual(shots.nuevo, normalizeLegacyHtml(shots.legacy), `escenario ${i}`);
     }
 });
 
@@ -1349,7 +1390,7 @@ testAsync('openPermisoDetailModal: usa el historial cargado o lee de Firebase; a
                 }
             });
 
-            assert.deepEqual(shots.nuevo, shots.legacy, `${fbId} preload=${preload} ${JSON.stringify(docOpts)}`);
+            assert.deepEqual(shots.nuevo, normalizeLegacyHtml(shots.legacy), `${fbId} preload=${preload} ${JSON.stringify(docOpts)}`);
         }
     }
 

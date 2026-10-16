@@ -1,10 +1,10 @@
 /**
- * Pruebas de las fuentes de datos de KPIs: `kpi-operativos-source.js` (JSON operativo, con semilla en el
- * laboratorio local) y `firebase-kpi-repository.js` (lecturas de `users` y `shift_reports`).
+ * Pruebas de las fuentes de datos de KPIs: `kpi-operativos-source.js` (JSON operativo; sin rama de semilla
+ * desde W-49 b) y `firebase-kpi-repository.js` (lecturas de `users` y `shift_reports`).
  * Diferencial contra `fetchKpiOperativosData()` LITERAL de app.js 5676-5701.
  */
 import { createRunner, assert } from '../test-harness.mjs';
-import { fetchKpiOperativosData, detectLocalEnvironment, KPI_OPERATIVOS_DATA_FILE, KPI_OPERATIVOS_SEED_FILE } from '../../services/external/kpi-operativos-source.js';
+import { fetchKpiOperativosData, KPI_OPERATIVOS_DATA_FILE } from '../../services/external/kpi-operativos-source.js';
 import { readUsers, readShiftReports } from '../../services/firebase/firebase-kpi-repository.js';
 import { makeSide } from '../helpers/kpi-harness.mjs';
 
@@ -12,7 +12,6 @@ const { test, testAsync, summarizeAsync } = createRunner('kpi-data-sources (JSON
 
 const NOW = new Date(2026, 9, 6, 15, 0, 0).getTime();
 const RAW = { 'Ana Pérez': { '2026-10-05': { Retiros_Aprobados: 3 } } };
-const SEED = { 'Semilla Gestor': { '2026-10-05': { Retiros_Aprobados: 9 } } };
 
 async function run(kind, opts) {
     const side = makeSide(kind, { nowMs: NOW, raw: RAW, ...opts });
@@ -27,29 +26,22 @@ async function run(kind, opts) {
                 fetchFn: async (url) => {
                     fetched.push(url.replace(/\?v=\d+$/, '?v=T'));
                     if (opts.dataFail) return { ok: false, json: async () => ({}) };
-                    if (url.startsWith('kpi_operativos_seed.json')) {
-                        if (opts.seedThrows) throw new Error('seed boom');
-                        return { ok: opts.seed !== undefined && opts.seed !== null, json: async () => JSON.parse(JSON.stringify(opts.seed)) };
-                    }
-                    return { ok: true, json: async () => JSON.parse(JSON.stringify(RAW)) };
+                    return { ok: true, json: async () => JSON.parse(JSON.stringify(opts.raw !== undefined ? opts.raw : RAW)) };
                 },
-                isLocal: detectLocalEnvironment(side.window), now: () => NOW, logger: { log: mk('log'), warn: mk('warn'), error: mk('error') }
+                now: () => NOW, logger: { log: mk('log'), warn: mk('warn'), error: mk('error') }
             });
         })();
     } catch (e) { error = e.message; }
     return { result, error, fetched: side.fetched, logs: side.logs.map(l => [l[0], String(l[1])]) };
 }
 
+// Escenarios de producción: la única fuente es kpi_operativos_v2.json, así que el original y el nuevo coinciden.
+// Escenarios de laboratorio (localhost con semilla): DIFERENCIA INTENCIONAL (W-49 b). El original pedía
+// kpi_operativos_seed.json en localhost; el nuevo nunca lo pide. Se prueba por separado, sin diferencial.
 const ESCENARIOS = [
-    ['producción: usa el archivo estándar y nunca pide la semilla', { hostname: 'riskops.example.com' }],
-    ['producción con semilla disponible: la ignora (aislamiento de entornos)', { hostname: 'riskops.example.com', seed: SEED }],
-    ['localhost con semilla válida: devuelve la semilla', { hostname: 'localhost', seed: SEED }],
-    ['127.0.0.1 con semilla válida', { hostname: '127.0.0.1', seed: SEED }],
-    ['localhost con semilla vacía {}: cae al archivo estándar', { hostname: 'localhost', seed: {} }],
-    ['localhost sin semilla (404): cae al archivo estándar', { hostname: 'localhost', seed: null }],
-    ['localhost con error al leer la semilla: advierte y usa el estándar', { hostname: 'localhost', seedThrows: true }],
-    ['archivo estándar con respuesta no OK: lanza "No se pudo cargar kpi_operativos_v2.json"', { hostname: 'riskops.example.com', dataFail: true }],
-    ['localhost, semilla vacía y estándar no OK', { hostname: 'localhost', seed: {}, dataFail: true }]
+    ['producción: usa el archivo estándar', { hostname: 'riskops.example.com' }],
+    ['producción con archivo estándar vacío {}: lo devuelve tal cual', { hostname: 'riskops.example.com', raw: {} }],
+    ['producción con respuesta no OK: lanza "No se pudo cargar kpi_operativos_v2.json"', { hostname: 'riskops.example.com', dataFail: true }]
 ];
 
 for (const [nombre, opts] of ESCENARIOS) {
@@ -60,24 +52,20 @@ for (const [nombre, opts] of ESCENARIOS) {
     });
 }
 
-test('detectLocalEnvironment: localhost, 127.0.0.1 y file:// son locales; el resto no; sin ventana, no', () => {
-    assert.equal(detectLocalEnvironment({ location: { hostname: 'localhost', protocol: 'http:' } }), true);
-    assert.equal(detectLocalEnvironment({ location: { hostname: '127.0.0.1', protocol: 'http:' } }), true);
-    assert.equal(detectLocalEnvironment({ location: { hostname: '', protocol: 'file:' } }), true);
-    assert.equal(detectLocalEnvironment({ location: { hostname: 'riskops.example.com', protocol: 'https:' } }), false);
-    assert.equal(detectLocalEnvironment(undefined), false);
-    assert.equal(detectLocalEnvironment(null), false);
-    assert.equal(detectLocalEnvironment({}), false, 'el original lanzaría TypeError sin window.location; aquí devuelve false');
+testAsync('W-49 b (intencional): en localhost el nuevo nunca pide la semilla y usa el archivo estándar', async () => {
+    const opts = { hostname: 'localhost', seed: { 'Semilla Gestor': { '2026-10-05': { Retiros_Aprobados: 9 } } } };
+    const nuevo = await run('new', opts);
+    assert.deepEqual(nuevo.fetched, [KPI_OPERATIVOS_DATA_FILE + '?v=T']);
+    assert.deepEqual(nuevo.result, RAW);
+    const legacy = await run('legacy', opts);
+    assert.ok(legacy.fetched.some((u) => u.startsWith('kpi_operativos_seed.json')), 'el original sí pedía la semilla (esta diferencia se declara, no se oculta)');
 });
 
-testAsync('fetchKpiOperativosData: pide los archivos esperados con el parámetro de caché ?v=<ms>', async () => {
+testAsync('fetchKpiOperativosData: pide solo el archivo estándar con el parámetro de caché ?v=<ms>', async () => {
     const urls = [];
     const fetchFn = async (u) => { urls.push(u); return { ok: true, json: async () => ({ x: 1 }) }; };
-    await fetchKpiOperativosData({ fetchFn, isLocal: false, now: () => 111 });
+    const r = await fetchKpiOperativosData({ fetchFn, now: () => 111 });
     assert.deepEqual(urls, [KPI_OPERATIVOS_DATA_FILE + '?v=111']);
-    urls.length = 0;
-    const r = await fetchKpiOperativosData({ fetchFn, isLocal: true, now: () => 222, logger: { log() {}, warn() {} } });
-    assert.deepEqual(urls, [KPI_OPERATIVOS_SEED_FILE + '?v=222']);
     assert.deepEqual(r, { x: 1 });
 });
 

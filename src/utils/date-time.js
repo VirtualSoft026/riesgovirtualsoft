@@ -1,7 +1,7 @@
 const CLOCK_TIME_PATTERN = /(\d{1,2})(?::(\d{2}))?\s*([ap]\.?\s*m\.?)?/i;
 const LOCALE_TIME_PATTERN = /(\d{1,2}):(\d{2})(?::\d{2})?\s*([ap]\.?\s*m\.?)?/i;
 const SHIFT_START_PATTERN = /(\d{1,2}):(\d{2})\s*([ap]\.?\s*m\.?)?/i;
-const MINUTES_PER_DAY = 1440;
+import { MINUTES_PER_DAY } from './constants.js'; // W-41: una sola fuente
 
 /**
  * Reduces a raw meridiem token ("p. m.", "AM", "pm") to "am", "pm" or null.
@@ -219,4 +219,26 @@ export function parseTimeToMs(timeStr, baseDateMs) {
     }
 
     return NaN;
+}
+
+/**
+ * Clave "YYYY-MM-DD" de la fecha LOCAL de un instante.
+ *
+ * Sin `timeZone` usa la zona del proceso/navegador (`getFullYear/getMonth/getDate`): en el navegador del supervisor es
+ * su hora local; en Node la fija `process.env.TZ`. Con `timeZone` (IANA, p. ej. 'America/Bogota') se calcula con
+ * `Intl.DateTimeFormat` en esa zona, sin depender de la del proceso (lo usan las pruebas para fijar UTC-5).
+ *
+ * @param {Date|number} date Instante válido (fecha o milisegundos).
+ * @param {string} [timeZone]
+ * @returns {string}
+ */
+export function toLocalDateKey(date, timeZone) {
+    const d = date instanceof Date ? date : new Date(date);
+
+    if (timeZone) {
+        const parts = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d);
+        const get = (type) => parts.find((p) => p.type === type).value;
+        return `${get('year')}-${get('month')}-${get('day')}`;
+    }
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }

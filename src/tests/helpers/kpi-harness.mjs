@@ -13,7 +13,7 @@
  */
 import { createLegacyKpi } from './kpi-legacy-app.mjs';
 import { createKpiController } from '../../controllers/kpi-controller.js';
-import { fetchKpiOperativosData, detectLocalEnvironment } from '../../services/external/kpi-operativos-source.js';
+import { fetchKpiOperativosData } from '../../services/external/kpi-operativos-source.js';
 import { makeDom, makeFakeChart, makeFixedDate, snapshotDom, normalizeConfig } from './kpi-test-env.mjs';
 
 export const SUPERVISORES = ['Sara Santamaría', 'Sara Santamaria', 'Maria Sanchez', 'Camilo Espinosa', 'Oriana Borja', 'Sara', 'Maria', 'Camilo', 'Oriana'];
@@ -117,7 +117,7 @@ export function makeSide(kind, opts) {
             getEl: (id) => dom.getElementById(id), querySelector: (s) => dom.querySelector(s), createElement: (t) => dom.createElement(t),
             state: window, chartRegistry: charts, ChartClass: FakeChart, datalabelsPlugin: ChartDataLabels === undefined ? {} : ChartDataLabels,
             fetchKpiData: () => fetchKpiOperativosData({
-                fetchFn, isLocal: detectLocalEnvironment(window), now: () => new FixedDate().getTime(), logger: console_
+                fetchFn, now: () => new FixedDate().getTime(), logger: console_
             }),
             database: opts.noDatabase ? null : database, getSelectedGestores: getSelected, setSelectedGestores: setSelected,
             setupMultiSelect, recalcularIndicadores: recalc, now: () => new FixedDate(),

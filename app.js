@@ -1,86 +1,38 @@
 
-const SUPERVISORES_NOMBRES = ['Sara Santamaría', 'Sara Santamaria', 'Maria Sanchez', 'Camilo Espinosa', 'Oriana Borja', 'Sara', 'Maria', 'Camilo', 'Oriana'];
-const FORM_SUBMIT_CC = 'sara.santamaria@virtualsoft.tech,oriana.borja@virtualsoft.tech';
+// ---- Adaptadores a RiskOps (paso 3.1) ----
+// Las funciones de abajo son delegaciones: la lógica vive en src/ (RiskOps) y se conserva el nombre global
+// porque index.html y js/tiempos.js las llaman. Sustituyen a las copias que había en este archivo (W-07 a W-14).
+function currentAllTasksOrNull() { return typeof allTasks !== 'undefined' ? allTasks : null; }
+function warnUnresolvedTaskName(message, key) { console.warn(message, key); }
+function cronogramaFetchDependencies() { return { baseUrl: 'Cronograma de Tareas/', fetchImpl: fetch, xlsx: XLSX }; }
 
 function appendFormSubmitCc(formData) {
-    formData.append('_cc', FORM_SUBMIT_CC);
+    return RiskOps.formSubmit.appendFormSubmitCc(formData);
 }
 
 // XSS Sanitizer Helper
 function escapeHTML(str) {
-    if (str === null || str === undefined) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+    return RiskOps.sanitization.escapeHTML(str);
 }
 window.escapeHTML = escapeHTML;
 
 // Encode dynamic values before placing them inside single-quoted inline handlers.
 // encodeURIComponent intentionally leaves apostrophes untouched, so encode them too.
 function encodeInlineHandlerArg(value) {
-    return encodeURIComponent(String(value)).replace(/'/g, '%27');
+    return RiskOps.sanitization.encodeInlineHandlerArg(value);
 }
 
-const ANNOUNCEMENT_ALLOWED_TAGS = new Set(['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'a']);
-const ANNOUNCEMENT_DROP_CONTENT_TAGS = new Set([
-    'script', 'style', 'iframe', 'object', 'embed', 'template', 'noscript'
-]);
-
-function sanitizeAnnouncementHref(value) {
-    if (!value) return '';
-
-    const trimmed = String(value).trim();
-    const normalized = trimmed.replace(/[\u0000-\u0020\u007F]+/g, '');
-    if (!normalized || normalized.startsWith('//')) return '';
-
-    const schemeMatch = normalized.match(/^([a-z][a-z0-9+.-]*):/i);
-    if (schemeMatch && !['http', 'https', 'mailto'].includes(schemeMatch[1].toLowerCase())) {
-        return '';
-    }
-
-    return trimmed;
+// W-55 (b): cierre de sesión. Borra TODAS las claves de sesión (las mismas que SESSION_STORAGE_KEYS en
+// src/app/session.js); el tema (riskOps_theme) se conserva. Lista literal porque app.js es un script clásico.
+const RISKOPS_SESSION_STORAGE_KEYS = ['riskOps_currentUser', 'riskOps_cache', 'riskOps_breakState', 'riskOps_timeline', 'riskOps_usersData'];
+function clearRiskOpsSessionStorage() {
+    RISKOPS_SESSION_STORAGE_KEYS.forEach((key) => {
+        try { localStorage.removeItem(key); } catch (e) { /* almacenamiento no disponible: no bloquea la salida */ }
+    });
 }
 
 function sanitizeAnnouncementHTML(value) {
-    if (value === null || value === undefined) return '';
-
-    const template = document.createElement('template');
-    template.innerHTML = String(value);
-    const output = document.createElement('div');
-    const tagAliases = { b: 'strong', i: 'em', div: 'p' };
-
-    function appendSanitizedNode(sourceNode, targetParent) {
-        if (sourceNode.nodeType === Node.TEXT_NODE) {
-            targetParent.appendChild(document.createTextNode(sourceNode.textContent || ''));
-            return;
-        }
-
-        if (sourceNode.nodeType !== Node.ELEMENT_NODE) return;
-
-        const sourceTag = sourceNode.tagName.toLowerCase();
-        if (ANNOUNCEMENT_DROP_CONTENT_TAGS.has(sourceTag)) return;
-
-        const cleanTag = tagAliases[sourceTag] || sourceTag;
-        if (!ANNOUNCEMENT_ALLOWED_TAGS.has(cleanTag)) {
-            Array.from(sourceNode.childNodes).forEach(child => appendSanitizedNode(child, targetParent));
-            return;
-        }
-
-        const cleanNode = document.createElement(cleanTag);
-        if (cleanTag === 'a') {
-            const safeHref = sanitizeAnnouncementHref(sourceNode.getAttribute('href'));
-            if (safeHref) cleanNode.setAttribute('href', safeHref);
-        }
-
-        Array.from(sourceNode.childNodes).forEach(child => appendSanitizedNode(child, cleanNode));
-        targetParent.appendChild(cleanNode);
-    }
-
-    Array.from(template.content.childNodes).forEach(node => appendSanitizedNode(node, output));
-    return output.innerHTML;
+    return RiskOps.sanitization.sanitizeAnnouncementHTML(value);
 }
 window.sanitizeAnnouncementHTML = sanitizeAnnouncementHTML;
 
@@ -88,26 +40,23 @@ window.sanitizeAnnouncementHTML = sanitizeAnnouncementHTML;
 // Single source of truth for who may publish/view-lecturas vs. delete
 // announcements, so role checks aren't duplicated (and don't drift) across
 // nav rendering, view rendering, and the action functions themselves.
-const COMUNICADOS_PUBLISH_ROLES = new Set(['Admin', 'Supervisor']);
-const COMUNICADOS_VIEW_LECTURAS_ROLES = new Set(['Admin', 'Supervisor']);
-const COMUNICADOS_DELETE_ROLES = new Set(['Admin']);
 
 function canPublishComunicados(role) {
-    return COMUNICADOS_PUBLISH_ROLES.has(role);
+    return RiskOps.announcementCapabilities.canPublishComunicados(role);
 }
 
 function canViewComunicadoLecturas(role) {
-    return COMUNICADOS_VIEW_LECTURAS_ROLES.has(role);
+    return RiskOps.announcementCapabilities.canViewComunicadoLecturas(role);
 }
 
 function canDeleteComunicados(role) {
-    return COMUNICADOS_DELETE_ROLES.has(role);
+    return RiskOps.announcementCapabilities.canDeleteComunicados(role);
 }
 
 // Any of the three capabilities is enough to warrant seeing the "Gestión Comunicados"
 // nav entry / view; delete itself is gated separately (canDeleteComunicados).
 function canManageComunicados(role) {
-    return canPublishComunicados(role) || canViewComunicadoLecturas(role);
+    return RiskOps.announcementCapabilities.canManageComunicados(role);
 }
 
 window.canPublishComunicados = canPublishComunicados;
@@ -127,176 +76,25 @@ let activeSessionRef = null;
 
 // Helper Functions for Custom Multi-Select Dropdowns
 function setupCustomMultiSelect(containerId, optionsList, onChangeCallback) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-
-    const selectedValues = new Set();
-
-    container.innerHTML = `
-        <div class="custom-multiselect-btn" tabindex="0">
-            <span class="multiselect-label">Todos los gestores</span>
-            <i class='bx bx-chevron-down'></i>
-        </div>
-        <div class="custom-multiselect-dropdown">
-            <div class="custom-multiselect-actions">
-                <button type="button" class="btn-select-all">Seleccionar Todos</button>
-                <button type="button" class="btn-clear-all">Desmarcar Todos</button>
-            </div>
-            <div style="padding: 4px 6px; margin-bottom: 6px;">
-                <input type="text" id="${containerId}-search" name="${containerId}-search" aria-label="Buscar gestor" placeholder="Buscar gestor..." class="multiselect-search-input modern-input" style="width: 100%; height: 32px; font-size: 12px; padding: 4px 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
-            </div>
-            <div class="multiselect-options-list"></div>
-        </div>
-    `;
-
-    const trigger = container.querySelector('.custom-multiselect-btn');
-    const menu = container.querySelector('.custom-multiselect-dropdown');
-    const labelSpan = container.querySelector('.multiselect-label');
-    const optionsListEl = container.querySelector('.multiselect-options-list');
-    const searchInput = container.querySelector('.multiselect-search-input');
-    const btnSelectAll = container.querySelector('.btn-select-all');
-    const btnClearAll = container.querySelector('.btn-clear-all');
-
-    function updateLabel() {
-        if (selectedValues.size === 0 || selectedValues.size === optionsList.length) {
-            labelSpan.textContent = "Todos los gestores";
-        } else if (selectedValues.size === 1) {
-            labelSpan.textContent = Array.from(selectedValues)[0];
-        } else {
-            labelSpan.textContent = `${selectedValues.size} gestores seleccionados`;
-        }
-    }
-
-    function renderOptions(filter = "") {
-        optionsListEl.innerHTML = "";
-        const cleanFilter = filter.toLowerCase().trim();
-        optionsList.forEach(opt => {
-            if (cleanFilter && !opt.toLowerCase().includes(cleanFilter)) return;
-
-            const item = document.createElement('label');
-            item.className = 'custom-multiselect-option';
-
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.value = opt;
-            checkbox.checked = selectedValues.has(opt);
-
-            checkbox.addEventListener('change', (e) => {
-                if (e.target.checked) {
-                    selectedValues.add(opt);
-                } else {
-                    selectedValues.delete(opt);
-                }
-                updateLabel();
-                if (onChangeCallback) onChangeCallback(Array.from(selectedValues));
-            });
-
-            const span = document.createElement('span');
-            span.textContent = opt;
-
-            item.appendChild(checkbox);
-            item.appendChild(span);
-            optionsListEl.appendChild(item);
-        });
-    }
-
-    renderOptions();
-    updateLabel();
-
-    // Toggle menu
-    trigger.onclick = (e) => {
-        e.stopPropagation();
-        const isOpen = container.classList.contains('open');
-        document.querySelectorAll('.custom-multiselect').forEach(m => {
-            m.classList.remove('open');
-            const p = m.closest('.glass-panel');
-            if (p) p.style.zIndex = p.dataset.origZIndex || '';
-        });
-        if (!isOpen) {
-            container.classList.add('open');
-            const parentPanel = container.closest('.glass-panel');
-            if (parentPanel) {
-                if (parentPanel.dataset.origZIndex === undefined) {
-                    parentPanel.dataset.origZIndex = parentPanel.style.zIndex || '';
-                }
-                parentPanel.style.zIndex = '99999';
-            }
-            if (searchInput) searchInput.focus();
-        }
-    };
-
-    if (searchInput) {
-        searchInput.oninput = (e) => {
-            renderOptions(e.target.value);
-        };
-        searchInput.onclick = (e) => e.stopPropagation();
-    }
-
-    btnSelectAll.onclick = (e) => {
-        e.stopPropagation();
-        optionsList.forEach(opt => selectedValues.add(opt));
-        renderOptions(searchInput ? searchInput.value : "");
-        updateLabel();
-        if (onChangeCallback) onChangeCallback(Array.from(selectedValues));
-    };
-
-    btnClearAll.onclick = (e) => {
-        e.stopPropagation();
-        selectedValues.clear();
-        renderOptions(searchInput ? searchInput.value : "");
-        updateLabel();
-        if (onChangeCallback) onChangeCallback(Array.from(selectedValues));
-    };
-
-    // Close on outside click
-    if (!container._outsideClickListenerAdded) {
-        document.addEventListener('click', (e) => {
-            if (!container.contains(e.target)) {
-                container.classList.remove('open');
-                const parentPanel = container.closest('.glass-panel');
-                if (parentPanel) {
-                    parentPanel.style.zIndex = parentPanel.dataset.origZIndex || '';
-                }
-            }
-        });
-        container._outsideClickListenerAdded = true;
-    }
-
-    container._selectedValuesRef = selectedValues;
-    container._setValues = (newValuesArray) => {
-        selectedValues.clear();
-        newValuesArray.forEach(v => selectedValues.add(v));
-        renderOptions(searchInput ? searchInput.value : "");
-        updateLabel();
-    };
+    return RiskOps.multiSelect.setupCustomMultiSelect(containerId, optionsList, onChangeCallback);
 }
 
 function getSelectedMultiSelectValues(containerId) {
-    const container = document.getElementById(containerId);
-    if (!container || !container._selectedValuesRef) return [];
-    return Array.from(container._selectedValuesRef);
+    return RiskOps.multiSelect.getSelectedMultiSelectValues(containerId);
 }
 
 function resetCustomMultiSelect(containerId) {
-    const container = document.getElementById(containerId);
-    if (container && container._selectedValuesRef) {
-        container._selectedValuesRef.clear();
-        if (container._setValues) container._setValues([]);
-    }
+    return RiskOps.multiSelect.resetCustomMultiSelect(containerId);
 }
 
 function setCustomMultiSelectValues(containerId, newValuesArray) {
-    const container = document.getElementById(containerId);
-    if (container && container._setValues) {
-        container._setValues(newValuesArray);
-    }
+    return RiskOps.multiSelect.setCustomMultiSelectValues(containerId, newValuesArray);
 }
 
 // --- INACTIVITY & LUNCH TRACKING GLOBALS ---
 let lastLocalActivityTimestamp = Date.now();
 let lastSyncLoopTimestamp = Date.now();
-const NATIVE_IDLE_THRESHOLD_MS = 3 * 60 * 1000;
-const DOM_IDLE_FALLBACK_THRESHOLD_MS = 5 * 60 * 1000;
+
 let isLunchBreak = false;
 let lunchStartTime = null;
 let totalLunchTimeMs = 0;
@@ -307,8 +105,6 @@ let isSplitShiftBreak = false;
 let splitShiftStartTime = null;
 let totalSplitShiftTimeMs = 0;
 let globalIdleState = false; // Tracks if the OS/PC is idle or locked via IdleDetector
-let idleDetectorStartPromise = null;
-let activeIdleDetector = null;
 window.idleDetectorGranted = false;
 window.idleDetectorStarted = false;
 
@@ -455,133 +251,11 @@ try {
 } catch(e) {}
 
 function pushTimelineEvent(type, action) {
-    const now = Date.now();
-    if (action === 'start') {
-        // Cerrar cualquier evento sin finalizar antes de iniciar uno nuevo
-        shiftTimeline.forEach(ev => {
-            if (ev.end === null) ev.end = now;
-        });
-        shiftTimeline.push({ type, start: now, end: null });
-    } else if (action === 'end') {
-        for (let i = shiftTimeline.length - 1; i >= 0; i--) {
-            if (shiftTimeline[i].type === type && shiftTimeline[i].end === null) {
-                shiftTimeline[i].end = now;
-                break;
-            }
-        }
-    }
+    shiftTimeline = RiskOps.timelineService.pushTimelineEvent(shiftTimeline, type, action);
     localStorage.setItem('riskOps_timeline', JSON.stringify(shiftTimeline));
 }
 
-let screenLockTimer = null;
-
-function setIdleDetectorWarning(visible, message = '') {
-    const warningBanner = document.getElementById('idleDetectorWarning');
-    const warningText = document.getElementById('idleDetectorWarningText');
-    if (warningText && message) warningText.textContent = message;
-    if (warningBanner) warningBanner.style.display = visible ? 'flex' : 'none';
-}
-
-async function checkAndStartIdleDetector() {
-    if (!('IdleDetector' in window)) {
-        setIdleDetectorWarning(true, 'Tu navegador no admite el permiso de inactividad. Esto no impide finalizar el turno.');
-        return false;
-    }
-
-    try {
-        const status = await navigator.permissions.query({ name: 'idle-detection' });
-        if (status.state === 'granted') {
-            const started = await startIdleDetectorLogic();
-            window.idleDetectorGranted = started;
-            if (!started) {
-                setIdleDetectorWarning(true, 'El permiso está otorgado, pero el detector de inactividad no pudo iniciarse. Usa el botón para reintentar.');
-            }
-            return started;
-        }
-        setIdleDetectorWarning(true, 'Permiso de inactividad pendiente o denegado. RiskOps no podrá registrar automáticamente cuando bloquees la pantalla. Esto no impide finalizar el turno.');
-    } catch (e) {
-        console.error('Permission query error:', e);
-        setIdleDetectorWarning(true, 'No fue posible verificar el permiso de inactividad. Esto no impide finalizar el turno.');
-    }
-    return false;
-}
-
-async function requestIdlePermission() {
-    if (!('IdleDetector' in window)) {
-        setIdleDetectorWarning(true, 'Tu navegador no admite el permiso de inactividad. Esto no impide finalizar el turno.');
-        return false;
-    }
-
-    try {
-        const state = await IdleDetector.requestPermission();
-        if (state === 'granted') {
-            const started = await startIdleDetectorLogic();
-            window.idleDetectorGranted = started;
-            if (!started) {
-                setIdleDetectorWarning(true, 'El permiso fue otorgado, pero el detector de inactividad no pudo iniciarse. Esto no impide finalizar el turno.');
-            }
-            return started;
-        }
-        window.idleDetectorGranted = false;
-        setIdleDetectorWarning(true, 'Permiso de inactividad denegado. Esto no impide finalizar el turno.');
-    } catch (e) {
-        console.error('Request permission error:', e);
-        window.idleDetectorGranted = false;
-        setIdleDetectorWarning(true, 'No fue posible activar el permiso de inactividad. Esto no impide finalizar el turno.');
-    }
-    return false;
-}
-
-async function startIdleDetectorLogic() {
-    if (window.idleDetectorStarted && activeIdleDetector) return true;
-    if (idleDetectorStartPromise) return idleDetectorStartPromise;
-
-    idleDetectorStartPromise = (async () => {
-        try {
-            const idleDetector = new IdleDetector();
-            idleDetector.addEventListener('change', () => {
-                const isLocked = idleDetector.screenState === 'locked';
-                const isIdle = idleDetector.userState === 'idle';
-
-                if (isLocked) {
-                    if (!screenLockTimer) {
-                        screenLockTimer = setTimeout(() => {
-                            globalIdleState = true;
-                            applyIdleStateChange();
-                        }, 10000);
-                    }
-                } else if (isIdle) {
-                    globalIdleState = true;
-                    applyIdleStateChange();
-                } else {
-                    if (screenLockTimer) {
-                        clearTimeout(screenLockTimer);
-                        screenLockTimer = null;
-                    }
-                    globalIdleState = false;
-                    applyIdleStateChange();
-                }
-            });
-
-            await idleDetector.start({ threshold: NATIVE_IDLE_THRESHOLD_MS });
-            activeIdleDetector = idleDetector;
-            window.idleDetectorStarted = true;
-            window.idleDetectorGranted = true;
-            setIdleDetectorWarning(false);
-            return true;
-        } catch (e) {
-            console.error('IdleDetector start failed:', e);
-            activeIdleDetector = null;
-            window.idleDetectorStarted = false;
-            window.idleDetectorGranted = false;
-            return false;
-        } finally {
-            idleDetectorStartPromise = null;
-        }
-    })();
-
-    return idleDetectorStartPromise;
-}
+// W-24 (paso 3.3): el detector de inactividad vive en services/browser/idle-detector-adapter.js y su banner en ui/components/idle-warning.js.
 
 // [LAB-INTEGRACION:ACTIVIDAD-INICIO]
 // [LAB-INTEGRACION] Detector de inactividad: RiskOps.shiftActivityController (src/controllers/shift-activity-controller.js)
@@ -612,21 +286,26 @@ function __shiftActivityController() {
 }
 // [LAB-INTEGRACION:ACTIVIDAD-FIN]
 
-function applyIdleStateChange() {
-    // [LAB-INTEGRACION] delega en RiskOps.shiftActivityController
+function applyIdleStateChange(isIdle) {
+    // [LAB-INTEGRACION] W-24: el adaptador entrega el estado nativo (true/false) y el respaldo DOM (true).
+    globalIdleState = isIdle;
     // Conserva lastLocalActivityTimestamp cuando vuelve a Activo (igual que app.js original)
     if (!globalIdleState) lastLocalActivityTimestamp = Date.now();
     __shiftActivityController().onIdleChange(globalIdleState);
 }
 
-
-checkAndStartIdleDetector();
+// [LAB-INTEGRACION] W-24 (paso 3.3): el adaptador registra el detector nativo y el banner; app.js solo entrega sus callbacks.
+RiskOps.idleDetector.initIdleDetector({
+    onIdleChange: (isIdle) => applyIdleStateChange(isIdle),
+    onWarning: (visible, message) => RiskOps.idleWarningView.setIdleDetectorWarning(document, visible, message),
+    getLastActivityTimestamp: () => lastLocalActivityTimestamp
+});
 
 window.requestIdlePermissionManual = async function() {
     const enableButton = document.querySelector('#idleDetectorWarning button');
     if (enableButton) enableButton.disabled = true;
     try {
-        const started = await requestIdlePermission();
+        const started = await RiskOps.idleDetector.requestIdlePermissionManual();
         if (started) {
             alert("¡Permiso otorgado! RiskOps ahora podrá registrar tu inactividad correctamente.");
         } else {
@@ -638,34 +317,20 @@ window.requestIdlePermissionManual = async function() {
 };
 
 // Activity listeners
-function shouldApplyDomIdleFallback(now = Date.now()) {
-    if (window.idleDetectorGranted) return false;
-    if (document.visibilityState !== 'visible') return false;
-    if (typeof document.hasFocus === 'function' && !document.hasFocus()) return false;
-    return now - lastLocalActivityTimestamp > DOM_IDLE_FALLBACK_THRESHOLD_MS;
-}
-
 function updateActivity() {
     // [LAB-INTEGRACION] delega en RiskOps.shiftActivityController
-    lastLocalActivityTimestamp = Date.now(); // mantiene la variable para shouldApplyDomIdleFallback
+    lastLocalActivityTimestamp = Date.now(); // mantiene la variable para el respaldo DOM del adaptador
     if (typeof globalIdleState !== 'undefined') globalIdleState = false;
     __shiftActivityController().onActivity();
 }
 
-document.addEventListener('mousemove', updateActivity);
-document.addEventListener('keydown', updateActivity);
-document.addEventListener('click', updateActivity);
-document.addEventListener('scroll', updateActivity);
-document.addEventListener('visibilitychange', updateActivity);
-window.addEventListener('focus', updateActivity);
-
-// Fast checker loop to apply 10s inactivity exactly on time — [LAB-INTEGRACION]
-setInterval(() => {
-    // [LAB-INTEGRACION] los guards de rol, pausa y estado los maneja el controlador internamente
-    if (shouldApplyDomIdleFallback()) {
-        __shiftActivityController().onIdleChange(true);
-    }
-}, 1000);
+// [LAB-INTEGRACION] W-24: escucha de actividad y sondeo del respaldo DOM, registrados una sola vez.
+const __labIdleActivityUnbind = RiskOps.idleDetector.bindIdleActivityListeners({
+    doc: document,
+    win: window,
+    onActivity: () => updateActivity(),
+    onDomFallback: () => __shiftActivityController().onIdleChange(true)
+});
 
 try {
     currentUser = currentUserObj ? JSON.parse(currentUserObj) : null;
@@ -679,10 +344,7 @@ try {
                               loginD.getMonth() === nowD.getMonth() &&
                               loginD.getFullYear() === nowD.getFullYear();
             if (!isSameDay) {
-                localStorage.removeItem('riskOps_currentUser');
-                localStorage.removeItem('riskOps_cache');
-                localStorage.removeItem('riskOps_breakState');
-                localStorage.removeItem('riskOps_timeline');
+                clearRiskOpsSessionStorage();
                 currentUser = null;
                 window.location.href = 'login.html';
             }
@@ -714,7 +376,6 @@ try {
         }
         // (Old visibilitychange logic removed, handled by new interval and mouse events)
 
-
         if (currentUser.loginLogId) {
             // Eliminar cualquier falso logoutTime que se haya generado si el usuario simplemente refrescó la página (F5) o perdió red temporalmente
             database.ref(`login_logs/${currentUser.loginLogId}/logoutTime`).remove();
@@ -734,426 +395,74 @@ try {
                 __shiftController().handleFlagChange(newVal);
             });
 
-                        // --- PATCH CLEAR FALSE INACTIVITY (JUNE 17 3PM & 7PM SHIFTS) ---
-            if (!localStorage.getItem('inactivity_cleared_june17_v1')) {
-                if (currentUser.shift === '3pm - 11pm' || currentUser.shift === '7pm - 2am') {
-                    let tStr = localStorage.getItem('riskOps_timeline');
-                    if (tStr) {
-                        let t = JSON.parse(tStr);
-                        t = t.filter(ev => ev.type !== 'Inactividad');
-                        localStorage.setItem('riskOps_timeline', JSON.stringify(t));
-                        if (typeof shiftTimeline !== 'undefined') shiftTimeline = t;
-                    }
-                    localStorage.setItem('inactivity_cleared_june17_v1', 'true');
-                }
-            }
-            // -------------------------------------
         }
     }
     
 
     
 } catch(e) {
-    localStorage.removeItem('riskOps_currentUser');
+    clearRiskOpsSessionStorage();
     window.location.href = 'login.html';
 }
 let globalScheduleRows = null;
 let globalScheduleBlocks = null;
 // Helper to remove accents and normalize names for comparison and file paths
 function normalizeName(name) {
-    if (!name) return "";
-    return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+    return RiskOps.normalize.normalizeName(name);
 }
 
 // Robust comparison to prevent greedy matching across similar names and support both parameter orders
 function namesMatch(name1, name2) {
-    if (!name1 || !name2) return false;
-    let parts1 = normalizeName(name1).split(' ').filter(p => p.length > 2);
-    let parts2 = normalizeName(name2).split(' ').filter(p => p.length > 2);
-    
-    if (parts1.length === 0 || parts2.length === 0) return false;
-
-    // Identificar cuál es el nombre corto y cuál es el largo
-    const [shorter, longer] = parts1.length <= parts2.length ? [parts1, parts2] : [parts2, parts1];
-
-    // Si el nombre corto tiene varias palabras (Ej: "Sebastian Arango"), el largo debe tenerlas TODAS.
-    if (shorter.length > 1) {
-        return shorter.every(p => longer.includes(p));
-    }
-    
-    // Si el nombre corto es una sola palabra ("Daniel", "Alejandra"):
-    const pShort = shorter[0];
-    
-    // Prevenir que Josue (Josue Daniel) herede lo de Daniel
-    if (pShort === 'daniel' && longer.includes('josue')) return false;
-    
-    // Si la única palabra del corto coincide con la primera palabra del largo, es un match seguro
-    if (longer[0] === pShort) return true;
-    
-    // De lo contrario, permitimos coincidencia si está en otra parte (ej: "Alejandra" en "Marilyn Alejandra")
-    return longer.includes(pShort);
+    return RiskOps.normalize.namesMatch(name1, name2);
 }
 
 // Helpers for date calculations in schedules
-function excelToJSDate(serial) {
-    if(!serial || isNaN(serial)) return null;
-    const epochUTC = Date.UTC(1899, 11, 30);
-    return new Date(epochUTC + serial * 86400000);
-}
-
-function isSameDate(excelDate, jsDate) {
-    if (!excelDate || !jsDate) return false;
-    // Compare the UTC date from Excel (which is timezone-naive) with the browser's local date
-    return excelDate.getUTCDate()   === jsDate.getDate() &&
-           excelDate.getUTCMonth()  === jsDate.getMonth() &&
-           excelDate.getUTCFullYear() === jsDate.getFullYear();
-}
 
 function getShiftCategory(shiftText) {
-    if (!shiftText) return "";
-    const clean = shiftText.trim().toLowerCase();
-    
-    // Exact or partial category matches
-    if (clean.includes("manana") || clean.includes("mañana")) return "Mañana";
-    if (clean.includes("tarde")) return "Tarde";
-    if (clean.includes("noche")) return "Noche";
-    if (clean.includes("master")) return "Master";
-    
-    // Parse time ranges (e.g. "8am - 4pm", "3pm - 11pm", "10pm - 6am")
-    // Match the starting hour
-    const match = clean.match(/^(\d+)\s*(am|pm)/i);
-    if (match) {
-        let hour = parseInt(match[1]);
-        const ampm = match[2].toLowerCase();
-        if (ampm === 'pm' && hour < 12) hour += 12;
-        if (ampm === 'am' && hour === 12) hour = 0;
-        
-        // Define classifications based on starting hour
-        if (hour >= 6 && hour < 14) return "Mañana";
-        if (hour >= 14 && hour < 22) return "Tarde";
-        return "Noche";
-    }
-    
-    return "";
-}
-
-function cleanText(text) {
-    if (!text || typeof text !== 'string') return "";
-    let cleaned = text.toLowerCase();
-    cleaned = cleaned.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    cleaned = cleaned.replace(/[^a-z0-9\s]/g, " ");
-    cleaned = cleaned.split(/\s+/).join(" ").trim();
-    return cleaned;
-}
-
-function normalizeTaskName(name) {
-    const cleaned = cleanText(name);
-    if (cleaned.includes("conciliacion de pasarelas")) {
-        return "conciliacion de pasarelas";
-    }
-    if (cleaned.includes("revision de billetera") || cleaned.includes("billetera usuarios")) {
-        return "revision de billetera usuarios pdv";
-    }
-    if (cleaned.includes("revision de eventos") || cleaned.includes("revision de evento")) {
-        return "revision de eventos";
-    }
-    return cleaned;
+    return RiskOps.scheduleParser.getShiftCategory(shiftText);
 }
 
 function taskNamesMatch(cronTask, masterTask) {
-    if (!cronTask || !masterTask) return false;
-    const normCron = normalizeTaskName(cronTask);
-    const normMaster = normalizeTaskName(masterTask);
-    if (normCron === normMaster) return true;
-
-    // Solo permitir inclusión si ambas cadenas son suficientemente largas y específicas
-    // para evitar que palabras cortas genéricas ("revision", "alertas", "eventos") causen falsos positivos
-    const minLen = Math.min(normCron.length, normMaster.length);
-    if (minLen >= 15 && (normMaster.includes(normCron) || normCron.includes(normMaster))) {
-        const diff = Math.abs(normCron.length - normMaster.length);
-        if (diff <= 6) return true;
-    }
-    return false;
+    return RiskOps.normalize.taskNamesMatch(cronTask, masterTask);
 }
 
 function setNamesMatch(set1, set2) {
-    if (!set1 || !set2) return false;
-    const s1 = cleanText(set1);
-    const s2 = cleanText(set2);
-    return s1 === s2 || s1.includes(s2) || s2.includes(s1);
-}
-
-const MONTHS_MAP = {
-    "ene": 0, "enero": 0,
-    "feb": 1, "febrero": 1,
-    "mar": 2, "marzo": 2,
-    "abr": 3, "abril": 3,
-    "may": 4, "mayo": 4,
-    "jun": 5, "junio": 5,
-    "jul": 6, "julio": 6,
-    "ago": 7, "agosto": 7,
-    "sep": 8, "set": 8, "septiembre": 8,
-    "oct": 9, "octubre": 9,
-    "nov": 10, "noviembre": 10,
-    "dic": 11, "diciembre": 11
-};
-
-function parseSheetRange(sheetName, year = 2026, fallbackMonth = 0) {
-    if (!sheetName) return null;
-    let clean = sheetName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-    
-    let m = clean.match(/Semana\s+\d+\s*-\s*(\d+)\s+(?:de\s+)?(\w+)\s+(?:al|a|-)\s+(\d+)\s+(?:de\s+)?(\w+)/i);
-    if (m) {
-        let startDay = parseInt(m[1], 10);
-        let startMStr = m[2].substring(0, 3).toLowerCase();
-        let endDay = parseInt(m[3], 10);
-        let endMStr = m[4].substring(0, 3).toLowerCase();
-        
-        let startMonth = MONTHS_MAP[startMStr] !== undefined ? MONTHS_MAP[startMStr] : fallbackMonth;
-        let endMonth = MONTHS_MAP[endMStr] !== undefined ? MONTHS_MAP[endMStr] : fallbackMonth;
-        
-        let startDate = new Date(year, startMonth, startDay, 0, 0, 0);
-        let endDate = new Date(year, endMonth, endDay, 23, 59, 59);
-        return { start: startDate, end: endDate };
-    }
-    
-    m = clean.match(/Semana\s+\d+\s*-\s*(\d+)\s+(?:al|a|-)\s+(\d+)\s+(?:de\s+)?(\w+)/i);
-    if (m) {
-        let startDay = parseInt(m[1], 10);
-        let endDay = parseInt(m[2], 10);
-        let mStr = m[3].substring(0, 3).toLowerCase();
-        
-        let month = MONTHS_MAP[mStr] !== undefined ? MONTHS_MAP[mStr] : fallbackMonth;
-        let startDate = new Date(year, month, startDay, 0, 0, 0);
-        let endDate = new Date(year, month, endDay, 23, 59, 59);
-        return { start: startDate, end: endDate };
-    }
-
-    m = clean.match(/Semana\s+\d+\s*-\s*(\d+)\s+al\s+(\d+)/i);
-    if (m) {
-        let startDay = parseInt(m[1], 10);
-        let endDay = parseInt(m[2], 10);
-        let startMonth = fallbackMonth;
-        let endMonth = fallbackMonth;
-        
-        if (endDay < startDay) {
-            endMonth = startMonth + 1;
-        }
-        
-        let startDate = new Date(year, startMonth, startDay, 0, 0, 0);
-        let endDate = new Date(year, endMonth, endDay, 23, 59, 59);
-        return { start: startDate, end: endDate };
-    }
-    
-    return null;
-}
-
-function getWeekSheet(sheetNames, targetDate) {
-    if (!sheetNames || sheetNames.length === 0) return null;
-    const year = targetDate.getFullYear();
-    const fallbackMonth = targetDate.getMonth();
-
-    let hasDatedSheet = false;
-    for (let name of sheetNames) {
-        let r = parseSheetRange(name, year, fallbackMonth);
-        if (r) {
-            hasDatedSheet = true;
-            if (targetDate >= r.start && targetDate <= r.end) {
-                return name;
-            }
-        }
-    }
-
-    // Fallback: Find the first sheet that looks like a weekly schedule only if NO sheet has dates
-    if (!hasDatedSheet) {
-        for (let name of sheetNames) {
-            if (name.toLowerCase().includes('semana')) {
-                return name;
-            }
-        }
-        return sheetNames[0];
-    }
-    return null;
-}
-
-async function fetchCronogramaRowsForDate(targetDate) {
-    const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-
-    const dayOfWeek = targetDate.getDay();
-    const monday = new Date(targetDate);
-    monday.setDate(targetDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-
-    const candidateMonths = [
-        targetDate.getMonth(),
-        monday.getMonth(),
-        sunday.getMonth()
-    ];
-    const uniqueMonths = [...new Set(candidateMonths)];
-
-    for (let monthIndex of uniqueMonths) {
-        let monthName = monthNames[monthIndex];
-        const cronogramaFile = `Cronograma ${monthName}.xlsx`;
-        const url = encodeURI('Cronograma de Tareas/' + cronogramaFile) + '?t=' + Date.now();
-
-        try {
-            const response = await fetch(url);
-            console.log(`XLSX_FETCH url=${url} status=${response.status}`);
-            if (!response.ok) continue;
-
-            const arrayBuffer = await response.arrayBuffer();
-            const workbook = XLSX.read(arrayBuffer, {type: 'array'});
-
-            const sheetName = getWeekSheet(workbook.SheetNames, targetDate);
-            if (sheetName) {
-                return XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "" });
-            }
-        } catch (e) {
-            console.warn(`Error procesando ${cronogramaFile}:`, e);
-        }
-    }
-
-    console.error(`Ningún archivo de cronograma contiene la fecha ${targetDate.toLocaleDateString()}`);
-    return null;
-}
-
-function getCronogramaColumnsForToday(targetDate, shiftText, rows = []) {
-    const day = targetDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-    
-    let cols = { manana: [], tarde: [], sabado: [], domingo: [] };
-    
-    for (let rIdx = 0; rIdx < Math.min(5, rows.length); rIdx++) {
-        const row = rows[rIdx];
-        if (!row) continue;
-        for (let c = 0; c < row.length; c++) {
-            const val = String(row[c] || "").trim().toLowerCase();
-            if (val.includes("mañana") && !val.includes("sabado") && !val.includes("sábado") && !val.includes("domingo") && cols.manana.length === 0) {
-                if (c + 1 < row.length) cols.manana = [c, c + 1];
-            }
-            if (val.includes("tarde") && cols.tarde.length === 0) {
-                if (c + 1 < row.length) cols.tarde = [c, c + 1];
-            }
-            if ((val.includes("sábado") || val.includes("sabado")) && cols.sabado.length === 0) {
-                if (c + 1 < row.length) cols.sabado = [c, c + 1];
-            }
-            if (val.includes("domingo") && cols.domingo.length === 0) {
-                if (c + 1 < row.length) cols.domingo = [c, c + 1];
-            }
-        }
-    }
-    
-    // Fallback si no se encuentran
-    if (cols.manana.length === 0) cols.manana = [1, 2];
-    if (cols.tarde.length === 0) cols.tarde = [4, 5];
-    if (cols.sabado.length === 0) cols.sabado = [7, 8];
-    if (cols.domingo.length === 0) cols.domingo = [10, 11];
-
-    if (day === 0) { // Sunday
-        return [cols.domingo];
-    } else if (day === 6) { // Saturday
-        return [cols.sabado];
-    } else { // Monday to Friday
-        return [cols.manana, cols.tarde];
-    }
+    return RiskOps.normalize.setNamesMatch(set1, set2);
 }
 
 let globalCronogramaData = null;
 async function preloadCronograma() {
     try {
-        const today = new Date();
-        const rows = await fetchCronogramaRowsForDate(today);
-        if (rows) {
-            globalCronogramaData = rows;
-            // Re-render dashboard just in case it loaded before this finished
-            const viewMonitoreo = document.getElementById('view-monitoreo');
-            if (viewMonitoreo && viewMonitoreo.style.display !== 'none') {
-                if (typeof renderActiveSessionsDashboard === 'function') {
+        await RiskOps.cronogramParser.preloadCronograma({
+            targetDate: new Date(),
+            fetchDependencies: cronogramaFetchDependencies(),
+            onLoaded: (rows) => {
+                globalCronogramaData = rows;
+                // Re-render del monitoreo por si cargó antes de que terminara la carga (app.js original)
+                const viewMonitoreo = document.getElementById('view-monitoreo');
+                if (viewMonitoreo && viewMonitoreo.style.display !== 'none' && typeof renderActiveSessionsDashboard === 'function') {
                     renderActiveSessionsDashboard();
                 }
             }
-        }
-    } catch(e) {
+        });
+    } catch (e) {
         console.error("preloadCronograma error", e);
     }
 }
 
 function getAssignedTasksForGestor(gestorName, shiftText) {
     if (!globalCronogramaData) return [];
-    let assignments = [];
-    const today = new Date();
-    const colGroups = getCronogramaColumnsForToday(today, shiftText, globalCronogramaData);
-    
-    for (let colGroup of colGroups) {
-        const tCol = colGroup[0];
-        const gCol = colGroup[1];
-        for (let rIdx = 0; rIdx < globalCronogramaData.length; rIdx++) {
-            const row = globalCronogramaData[rIdx];
-            if (!row) continue;
-            const taskVal = row[tCol];
-            const gestorVal = row[gCol];
-            if (taskVal !== undefined && taskVal !== null && String(taskVal).trim() !== "") {
-                const tStrLower = String(taskVal).trim().toLowerCase();
-                if (!tStrLower.startsWith("set ") && !tStrLower.includes("cronograma") && gestorVal !== "Gestor") {
-                    if (gestorVal !== undefined && gestorVal !== null && namesMatch(String(gestorVal).trim(), gestorName)) {
-                        assignments.push(String(taskVal).trim());
-                    }
-                }
-            }
-        }
-    }
-    return assignments;
+    return RiskOps.cronogramParser.getAssignedTasksForGestor(gestorName, shiftText, globalCronogramaData, new Date());
 }
 
 let gestorCronogramaAssignments = null;
 
 async function loadCronogramaAssignments(gestorName, gestorShift) {
     try {
-        const today = new Date();
-        const rows = await fetchCronogramaRowsForDate(today);
-        if (!rows) {
-            gestorCronogramaAssignments = [];
-            return;
-        }
-
-        const colGroups = getCronogramaColumnsForToday(today, gestorShift, rows);
-        
-        gestorCronogramaAssignments = [];
-        
-        for (let colGroup of colGroups) {
-            const tCol = colGroup[0];
-            const gCol = colGroup[1];
-            
-            let currentSet = "";
-            for (let rIdx = 0; rIdx < rows.length; rIdx++) {
-                const row = rows[rIdx];
-                if (!row) continue;
-                
-                // Buscar el "Set " solo en la columna de tareas actual
-                if (row[tCol] !== undefined && row[tCol] !== null && String(row[tCol]).trim().toLowerCase().startsWith("set ")) {
-                    currentSet = String(row[tCol]).trim();
-                }
-                
-                const taskVal = row[tCol];
-                const gestorVal = row[gCol];
-                
-                if (taskVal !== undefined && taskVal !== null && String(taskVal).trim() !== "") {
-                    const tStr = String(taskVal).trim();
-                    const tStrLower = tStr.toLowerCase();
-                    
-                    if (tStrLower.startsWith("set ")) {
-                        // Ya fue capturado arriba, no hacemos nada extra aquí
-                    } else if (!tStrLower.includes("cronograma") && gestorVal !== "Gestor") {
-                        if (gestorVal !== undefined && gestorVal !== null && namesMatch(String(gestorVal).trim(), gestorName)) {
-                            gestorCronogramaAssignments.push({
-                                set: currentSet || "Otros",
-                                task: tStr
-                            });
-                        }
-                    }
-                }
-            }
-        }
+        gestorCronogramaAssignments = await RiskOps.cronogramParser.loadCronogramaAssignments(gestorName, gestorShift, {
+            targetDate: new Date(),
+            fetchDependencies: cronogramaFetchDependencies()
+        });
         console.log("Cargadas asignaciones de cronograma para " + gestorName + ":", gestorCronogramaAssignments);
     } catch (e) {
         console.error("Error al cargar Cronograma de Tareas:", e);
@@ -1161,130 +470,8 @@ async function loadCronogramaAssignments(gestorName, gestorShift) {
     }
 }
 
-function getScheduledGestoresCountForShift(shiftName, targetDate = new Date()) {
-    if (!globalScheduleRows || !globalScheduleBlocks || globalScheduleBlocks.length === 0) {
-        return 0;
-    }
-    
-    let targetBlock = null;
-    let targetColIndex = -1;
-    
-    for (let block of globalScheduleBlocks) {
-        const dateRow = globalScheduleRows[block.startRow];
-        for (let c = 1; c < dateRow.length; c++) {
-            const serial = dateRow[c];
-            if (serial && !isNaN(serial)) {
-                const cellDate = excelToJSDate(serial);
-                if (cellDate && isSameDate(cellDate, targetDate)) {
-                    targetBlock = block;
-                    targetColIndex = c;
-                    break;
-                }
-            }
-        }
-        if (targetBlock) break;
-    }
-    
-    if (!targetBlock) {
-        targetBlock = globalScheduleBlocks[globalScheduleBlocks.length - 1];
-        const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-        const dayRow = globalScheduleRows[targetBlock.startRow + 1];
-        const targetDayName = dayNames[targetDate.getDay()];
-        
-        for (let c = 1; c < dayRow.length; c++) {
-            const dayName = String(dayRow[c] || '').trim();
-            if (normalizeName(dayName) === normalizeName(targetDayName)) {
-                targetColIndex = c;
-                break;
-            }
-        }
-        
-        if (targetColIndex === -1) {
-            let jsDay = targetDate.getDay();
-            targetColIndex = jsDay === 0 ? 7 : jsDay;
-        }
-    }
-    
-    let count = 0;
-    const blockStartRow = targetBlock.startRow;
-    for (let rIdx = blockStartRow + 2; rIdx < globalScheduleRows.length; rIdx++) {
-        const r = globalScheduleRows[rIdx];
-        if (!r || !r[0] || String(r[0]).trim() === '' || String(r[0]).trim().toUpperCase() === 'GESTOR') break;
-        
-        const rawShift = r[targetColIndex] || 'Descansa';
-        const category = getShiftCategory(rawShift);
-        if (category === shiftName) {
-            count++;
-        }
-    }
-    
-    return count;
-}
-
 function getShiftForDate(rows, allScheduleBlocks, gestorName, date) {
-    if (!rows || rows.length === 0 || !allScheduleBlocks || allScheduleBlocks.length === 0) {
-        return 'Por Asignar';
-    }
-    
-    let targetBlock = null;
-    let targetColIndex = -1;
-    
-    for (let block of allScheduleBlocks) {
-        const dateRow = rows[block.startRow];
-        for (let c = 1; c < dateRow.length; c++) {
-            const serial = dateRow[c];
-            if (serial) {
-                let cellDate = null;
-                if (!isNaN(serial)) {
-                    cellDate = excelToJSDate(serial);
-                } else if (typeof serial === 'string' && (serial.includes('-') || serial.includes('/'))) {
-                    const parsed = new Date(serial);
-                    if (!isNaN(parsed.getTime())) {
-                        cellDate = parsed;
-                    }
-                }
-                
-                if (cellDate && isSameDate(cellDate, date)) {
-                    targetBlock = block;
-                    targetColIndex = c;
-                    break;
-                }
-            }
-        }
-        if (targetBlock) break;
-    }
-    
-    if (!targetBlock) {
-        targetBlock = allScheduleBlocks[allScheduleBlocks.length - 1];
-        const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-        const dayRow = rows[targetBlock.startRow + 1];
-        const targetDayName = dayNames[date.getDay()];
-        
-        for (let c = 1; c < dayRow.length; c++) {
-            const dayName = String(dayRow[c] || '').trim();
-            if (normalizeName(dayName) === normalizeName(targetDayName)) {
-                targetColIndex = c;
-                break;
-            }
-        }
-        
-        if (targetColIndex === -1) {
-            let jsDay = date.getDay();
-            targetColIndex = jsDay === 0 ? 7 : jsDay;
-        }
-    }
-    
-    const blockStartRow = targetBlock.startRow;
-    for (let rIdx = blockStartRow + 2; rIdx < rows.length; rIdx++) {
-        const r = rows[rIdx];
-        if (!r || !r[0] || String(r[0]).trim() === '' || String(r[0]).trim().toUpperCase() === 'GESTOR') break;
-        
-        if (namesMatch(r[0], gestorName)) {
-            return r[targetColIndex] || 'Descansa';
-        }
-    }
-    
-    return 'Por Asignar';
+    return RiskOps.scheduleService.getShiftForDate(rows, allScheduleBlocks, gestorName, date);
 }
 
 // Mapeo de URLs para documentos (especialmente videos pesados alojados en Google Drive)
@@ -1305,16 +492,7 @@ const documentUrls = {
 };
 
 function getDocUrl(fileName) {
-    if (privateGitHubDocs[fileName]) {
-        return privateGitHubDocs[fileName];
-    }
-    if (fileName.endsWith('.mp4') && !documentUrls[fileName]) {
-        return "#PENDING_PRIVATE_DOCUMENT_MIGRATION";
-    }
-    if (documentUrls[fileName]) {
-        return documentUrls[fileName];
-    }
-    return "Procesos/" + fileName;
+    return RiskOps.docLinks.getDocUrl(fileName);
 }
 
 const privateTeamsManuals = {
@@ -1337,12 +515,8 @@ const privateTeamsManuals = {
 };
 
 function getManualUrl(fileName) {
-    if (privateTeamsManuals[fileName]) {
-        return privateTeamsManuals[fileName];
-    }
-    return "Manuales/" + fileName;
+    return RiskOps.docLinks.getManualUrl(fileName);
 }
-
 
 let taskStateCache = {};
 try {
@@ -1488,7 +662,7 @@ function renderTree(tasksBySet) { return __tareasWorkspace().renderTree(tasksByS
 // identidad de tarea normal en selectTask()/guardado/Monitoreo. Nunca se
 // compara con == (igualdad débil).
 function canonicalTaskId(id) {
-    return String(id);
+    return RiskOps.taskReport.canonicalTaskId(id);
 }
 
 // Detecta el nombre de respaldo legado "Tarea <id>" que versiones anteriores
@@ -1496,7 +670,7 @@ function canonicalTaskId(id) {
 // ese patrón exacto: un nombre real de catálogo que empiece con "Tarea" pero
 // no sea "Tarea <dígitos>" no se toca.
 function isLegacyGenericTaskName(name) {
-    return typeof name === 'string' && /^Tarea\s+\d+$/i.test(name.trim());
+    return RiskOps.taskReport.isLegacyGenericTaskName(name);
 }
 
 // Resolvedor central del nombre visible de una tarea NORMAL (nunca de una
@@ -1511,18 +685,7 @@ function isLegacyGenericTaskName(name) {
 // fallo de resolución, devuelve un texto neutro y deja una advertencia en
 // consola para diagnóstico interno.
 function resolveTaskDisplayName(key, entry, tasksCatalog) {
-    const rawName = entry && entry.name;
-    if (rawName && !isLegacyGenericTaskName(rawName)) return rawName;
-
-    const catalog = tasksCatalog || (typeof allTasks !== 'undefined' ? allTasks : null);
-    if (Array.isArray(catalog) && catalog.length > 0) {
-        const canonicalKey = canonicalTaskId(key);
-        const match = catalog.find((t) => canonicalTaskId(t.id) === canonicalKey);
-        if (match && match['Tarea']) return match['Tarea'];
-    }
-
-    console.warn('No se pudo resolver el nombre visible de una tarea normal; ID técnico:', key);
-    return 'Tarea programada (nombre no disponible)';
+    return RiskOps.taskReport.resolveTaskDisplayName(key, entry, tasksCatalog || currentAllTasksOrNull(), warnUnresolvedTaskName);
 }
 
 // Reconcilia UNA tarea programada del cronograma (taskName, tal como la
@@ -1535,17 +698,7 @@ function resolveTaskDisplayName(key, entry, tasksCatalog) {
 // (openMonitoreoDetails), para que ambas superficies muestren siempre el
 // mismo estado.
 function reconcileScheduledTaskWithSession(taskName, sessionTasks, tasksCatalog) {
-    const tasks = sessionTasks || {};
-    for (const key in tasks) {
-        if (key.startsWith('extra_')) continue;
-        const entry = tasks[key];
-        if (!entry) continue;
-        const resolvedName = resolveTaskDisplayName(key, entry, tasksCatalog);
-        if (taskNamesMatch(taskName, resolvedName) || taskNamesMatch(taskName, entry.name)) {
-            return { status: entry.status || 'Pendiente', observation: entry.observation || '' };
-        }
-    }
-    return { status: 'Pendiente', observation: '' };
+    return RiskOps.taskReconciler.reconcileScheduledTaskWithSession(taskName, sessionTasks, tasksCatalog || currentAllTasksOrNull(), warnUnresolvedTaskName);
 }
 
 // Construye el texto de la sección "tareas" de un reporte de cierre de turno
@@ -1556,49 +709,7 @@ function reconcileScheduledTaskWithSession(taskName, sessionTasks, tasksCatalog)
 // cual. Solo cae al texto legado si el reporte no tiene report.tasks en
 // absoluto (reportes previos a esta migración).
 function buildTaskReportSummaryText(report) {
-    const tasks = report && report.tasks;
-    if (tasks && Object.keys(tasks).length > 0) {
-        let text = '';
-        Object.keys(tasks).forEach((key) => {
-            const entry = tasks[key];
-            if (!entry) return;
-            const isExtra = key.startsWith('extra_');
-            const displayName = isExtra ? (entry.name || 'Tarea adicional') : resolveTaskDisplayName(key, entry);
-            const status = (entry.status || 'Pendiente').toString().toUpperCase();
-            text += `\n[ ${status} ] - ${displayName}\nObservación: ${entry.observation || 'N/A'}\n`;
-        });
-        return text.trim() ? text : 'El gestor no marcó ninguna tarea explícitamente durante este turno.';
-    }
-    if (report && report.reporte) {
-        const marker = '=== BITÁCORA DE TIEMPOS ===';
-        let legacyText = report.reporte;
-        if (legacyText.includes(marker)) {
-            const parts = legacyText.split(marker);
-            legacyText = parts[0];
-        }
-        legacyText = legacyText.trim();
-        if (legacyText) {
-            let processedLines = [];
-            const lines = legacyText.split('\n');
-            for (let line of lines) {
-                const match = line.match(/^\[\s*([^\]]+?)\s*\]\s*-\s*(.+)$/);
-                if (match) {
-                    let status = match[1];
-                    let name = match[2];
-                    if (isLegacyGenericTaskName(name)) {
-                        const tid = name.replace(/Tarea\s*/i, '').trim();
-                        name = resolveTaskDisplayName(tid, { name: name });
-                    }
-                    processedLines.push(`[ ${status} ] - ${name}`);
-                } else {
-                    processedLines.push(line);
-                }
-            }
-            return processedLines.join('\n') || 'El gestor no marcó ninguna tarea explícitamente durante este turno.';
-        }
-        return 'El gestor no marcó ninguna tarea explícitamente durante este turno.';
-    }
-    return 'El gestor no marcó ninguna tarea explícitamente durante este turno.';
+    return RiskOps.taskReport.buildTaskReportSummaryText(report, { catalog: currentAllTasksOrNull(), onWarn: warnUnresolvedTaskName });
 }
 
 // Persistencia central y testeable del progreso de una tarea individual.
@@ -1622,21 +733,7 @@ async function fetchOwnActiveSessionTasks(uid) { return __tareasRepo().fetchOwnA
 // el caché local: es la fuente de verdad para lo que el propio Gestor ya
 // tiene en pantalla en este dispositivo durante el turno en curso.
 function mergeTaskCaches(localCache, remoteCache) {
-    const merged = { ...(localCache || {}) };
-    Object.keys(remoteCache || {}).forEach((taskId) => {
-        const remoteEntry = remoteCache[taskId];
-        const localEntry = merged[taskId];
-        if (!localEntry) {
-            merged[taskId] = remoteEntry;
-            return;
-        }
-        const remoteUpdatedAt = typeof remoteEntry.updatedAt === 'number' ? remoteEntry.updatedAt : null;
-        const localUpdatedAt = typeof localEntry.updatedAt === 'number' ? localEntry.updatedAt : null;
-        if (remoteUpdatedAt !== null && localUpdatedAt !== null && remoteUpdatedAt > localUpdatedAt) {
-            merged[taskId] = remoteEntry;
-        }
-    });
-    return merged;
+    return RiskOps.taskReconciler.mergeTaskCaches(localCache, remoteCache);
 }
 
 // Identifica, de forma pura, qué tareas de "mergedCache" (el resultado de
@@ -1650,25 +747,7 @@ function mergeTaskCaches(localCache, remoteCache) {
 // el remoto por tener un updatedAt estrictamente más reciente, porque en ese
 // caso mergedCache[taskId] es exactamente remoteCache[taskId].
 function computeLocalTaskMigrations(mergedCache, remoteCache, now) {
-    const remote = remoteCache || {};
-    const migrations = [];
-    Object.keys(mergedCache || {}).forEach((taskId) => {
-        const mergedEntry = mergedCache[taskId];
-        const remoteEntry = remote[taskId];
-        const alreadyInSync = !!remoteEntry
-            && mergedEntry.name === remoteEntry.name
-            && mergedEntry.status === remoteEntry.status
-            && mergedEntry.observation === remoteEntry.observation
-            && mergedEntry.updatedAt === remoteEntry.updatedAt;
-        if (alreadyInSync) return;
-
-        // Registro legado sin updatedAt: se estampa ANTES de guardarlo.
-        const record = typeof mergedEntry.updatedAt === 'number'
-            ? mergedEntry
-            : { ...mergedEntry, updatedAt: now };
-        migrations.push({ taskId, record });
-    });
-    return migrations;
+    return RiskOps.taskReconciler.computeLocalTaskMigrations(mergedCache, remoteCache, now);
 }
 
 // Escritura condicional usada EXCLUSIVAMENTE por la migración de
@@ -1695,96 +774,49 @@ function persistTaskIfNotNewerRemote(uid, taskId, record) { return __tareasRepo(
 // significa que una versión remota más reciente ganó la transacción y se
 // conservó intacta, tal como exige persistTaskIfNotNewerRemote().
 // [LAB-INTEGRACION] Migración de recuperación puntual (respaldo local ANTES del intento remoto): RiskOps.taskRepository
-async function migrateLocalTasksToActiveSession(uid, mergedCache, remoteCache) { return __tareasRepo().migrateLocalTasksToActiveSession(uid, mergedCache, remoteCache); }
+
+// [LAB-INTEGRACION] W-19 (paso 3.2): latido de sesión activa desde RiskOps.taskController.createSessionSyncController.
+// app.js solo inyecta dependencias (envoltorio); la lógica vive en src/controllers/task-controller.js.
+let __labSessionSync = null;
+function __sessionSync() {
+    if (__labSessionSync) return __labSessionSync;
+    __labSessionSync = RiskOps.taskController.createSessionSyncController({
+        getUser: () => currentUser,
+        clearUser: () => { currentUser = null; },
+        getStoredUserRaw: () => localStorage.getItem('riskOps_currentUser'),
+        redirectToLogin: () => { window.location.href = 'login.html'; },
+        doc: document,
+        now: () => Date.now(),
+        nowIso: () => new Date().toISOString(),
+        markSyncLoop: (nowMs) => { lastSyncLoopTimestamp = nowMs; },
+        loadBreakState: () => loadBreakState(),
+        idle: {
+            isGranted: () => !!window.idleDetectorGranted,
+            getGlobalIdleState: () => globalIdleState,
+            domFallback: (nowMs) => RiskOps.idleDetector.shouldApplyDomIdleFallback(nowMs)
+        },
+        describeLiveSession: (isInactive) => __shiftController().describeLiveSession(isInactive),
+        getLocalStatus: () => localStatus,
+        setLocalStatus: (status) => { localStatus = status; },
+        pushTimelineEvent: (type, action) => pushTimelineEvent(type, action),
+        getTimeline: () => shiftTimeline,
+        repository: {
+            syncSessionMetadata: (uid, metadata) => {
+                // Mismo orden que el original: catch (consola) en el repositorio; aquí, el aviso de sincronización.
+                const syncPromise = __tareasRepo().syncSessionMetadata(uid, metadata);
+                syncPromise.then(() => __labSetSyncWarning(false), () => __labSetSyncWarning(true));
+                return syncPromise;
+            }
+        }
+    });
+    return __labSessionSync;
+}
 
 function syncActiveSessionToFirebase() {
-    if (!currentUser || currentUser.role !== 'Gestor') return Promise.resolve();
-    const uid = currentUser.uid;
-    if (!uid) return Promise.resolve();
-
-    // Si la sesin fue cerrada en otra pestaa, localStorage estar vaco
-    if (!localStorage.getItem('riskOps_currentUser')) {
-        currentUser = null;
-        window.location.href = 'login.html';
-        return Promise.resolve();
-    }
-
-    // [LAB-INTEGRACION] contadores y porcentaje del latido desde RiskOps.taskProgress (el DOM se cuenta con countDomTasks)
-    const __syncCounters = RiskOps.taskProgress.computeSyncPercentage(RiskOps.taskController.countDomTasks(document));
-    const totalTasks = __syncCounters.totalTasks;
-    const completedTasks = __syncCounters.completedTasks;
-    const notDoneTasks = __syncCounters.notDoneTasks;
-    const finalized = __syncCounters.finalized;
-
-    let percentage = __syncCounters.percentage;
-
-    // Use local currentUser.loginTime, avoiding any database reads that could hang
-    const loginTime = currentUser.loginTime || new Date().toISOString();
-    
-    // --- INACTIVITY LOGIC ---
-    let nowMs = Date.now();
-    lastSyncLoopTimestamp = nowMs;
-    loadBreakState();
-
-    let newLastActive = Date.now();
-    let currentStatus = 'Activo';
-    
-    let isInactive = false;
-    if (window.idleDetectorGranted) {
-        isInactive = globalIdleState;
-    } else if (shouldApplyDomIdleFallback(nowMs)) {
-        isInactive = true;
-    }
-    
-    // [LAB-INTEGRACION] estado y campos de la Pausa de Turno desde RiskOps.shiftController
-    const __live = __shiftController().describeLiveSession(isInactive);
-    currentStatus = __live.status;
-    
-    // [LAB-INTEGRACION] transición de Inactividad desde RiskOps.taskSessionSync
-    const __inactivityAction = RiskOps.taskSessionSync.decideInactivityTimelineAction(currentStatus, localStatus);
-    if (__inactivityAction) pushTimelineEvent('Inactividad', __inactivityAction);
-    localStatus = currentStatus;
-    
-    // Esta sincronización SOLO transporta metadatos de la sesión (nombre,
-    // estado, contadores derivados del DOM, línea de tiempo, etc.). Nunca
-    // incluye ni reenvía "tasks": la persistencia de cada tarea es
-    // responsabilidad exclusiva de persistTaskToActiveSession(), que escribe
-    // por taskId de forma explícita. Así un ping periódico con un snapshot
-    // desactualizado nunca puede pisar una tarea recién guardada.
-    // [Fase 2] Delegado a taskSessionSync.buildSessionMetadata; fallback inline si el bundle no está cargado.
-    const sessionMetadata = (window.RiskOps && window.RiskOps.taskSessionSync)
-        ? window.RiskOps.taskSessionSync.buildSessionMetadata({
-            user: currentUser,
-            loginTime,
-            lastActive: newLastActive,
-            status: currentStatus,
-            counters: { totalTasks, finalized, completedTasks, notDoneTasks, percentage },
-            timeline: shiftTimeline
-          })
-        : {
-            name: currentUser.name,
-            email: currentUser.email,
-            shift: currentUser.shift || 'Por Asignar',
-            loginTime: loginTime,
-            lastActive: newLastActive,
-            status: currentStatus,
-            totalTasks: totalTasks,
-            ...RiskOps.taskSessionSync.buildSessionMetadataTail({ finalized: finalized, completedTasks: completedTasks, notDoneTasks: notDoneTasks, percentage: percentage }, shiftTimeline), // [LAB-INTEGRACION] finalizedTasks..appVersion
-          };
-
-    // No se atrapa el error de forma que oculte el fallo: se devuelve la
-    // Promise real (rechazada si falla) y, aparte, se registra en consola.
-    sessionMetadata.splitShiftStartTime = __live.splitShiftStartTime; // [LAB-INTEGRACION]
-    sessionMetadata.totalSplitShiftTimeMs = __live.totalSplitShiftTimeMs; // [LAB-INTEGRACION]
-    const syncPromise = database.ref(`active_sessions/${uid}`).update(sessionMetadata);
-    syncPromise.catch(e => console.error("Error syncing active session via SDK:", e));
-    syncPromise.then(() => __labSetSyncWarning(false), () => __labSetSyncWarning(true)); // [LAB-INTEGRACION]
-    return syncPromise;
+    return __sessionSync().syncActiveSession();
 }
 
 function updateKPI() { return __tareasWorkspace().updateKPI(); } // [LAB-INTEGRACION] RiskOps.taskController
-
-function toggleTree(element) { return __tareasWorkspace().toggleTree(element); } // [LAB-INTEGRACION] RiskOps.taskController
 
 function renderQuickDocs(selectedTaskName) { return __tareasWorkspace().renderQuickDocs(selectedTaskName); } // [LAB-INTEGRACION] RiskOps.taskController
 
@@ -1833,18 +865,16 @@ async function initApp() {
     // Theme logic
     const themeToggleBtn = document.getElementById('themeToggleBtn');
     if (themeToggleBtn) {
-        // [Fase 2] resolveSavedTheme / themeIconHTML / nextTheme → appInitRules
-        const _aIR = window.RiskOps && window.RiskOps.appInitRules;
-        const savedTheme = _aIR ? _aIR.resolveSavedTheme(localStorage.getItem('riskOps_theme')) : (localStorage.getItem('riskOps_theme') || 'dark');
+        const savedTheme = RiskOps.appInitRules.resolveSavedTheme(localStorage.getItem('riskOps_theme'));
         document.body.setAttribute('data-theme', savedTheme);
-        themeToggleBtn.innerHTML = _aIR ? _aIR.themeIconHTML(savedTheme) : (savedTheme === 'dark' ? "<i class='bx bx-moon'></i>" : "<i class='bx bx-sun'></i>");
+        themeToggleBtn.innerHTML = RiskOps.appInitRules.themeIconHTML(savedTheme);
 
         themeToggleBtn.addEventListener('click', () => {
             const currentTheme = document.body.getAttribute('data-theme');
-            const newTheme = _aIR ? _aIR.nextTheme(currentTheme) : (currentTheme === 'dark' ? 'light' : 'dark');
+            const newTheme = RiskOps.appInitRules.nextTheme(currentTheme);
             document.body.setAttribute('data-theme', newTheme);
             localStorage.setItem('riskOps_theme', newTheme);
-            themeToggleBtn.innerHTML = _aIR ? _aIR.themeIconHTML(newTheme) : (newTheme === 'dark' ? "<i class='bx bx-moon'></i>" : "<i class='bx bx-sun'></i>");
+            themeToggleBtn.innerHTML = RiskOps.appInitRules.themeIconHTML(newTheme);
         });
     }
 
@@ -1860,27 +890,11 @@ async function initApp() {
         
         const avatarEl = document.querySelector('.avatar');
         if (avatarEl && currentUser.name) {
-            // [Fase 2] findAvatarFile / buildAvatarSrc → appInitRules
-            const _aIR2 = window.RiskOps && window.RiskOps.appInitRules;
             const fullName = currentUser.name.trim();
-            let matchedAvatar;
-            if (_aIR2) {
-                matchedAvatar = _aIR2.findAvatarFile(fullName, namesMatch);
-            } else {
-                const availableAvatars = [
-                    "Alexander Villada.png","Camilo Espinosa.png","Daniel Benavides.png",
-                    "Josue Alvarez.png","Juan Jose Diaz.png","Luis Fuentes.png",
-                    "Maria Sanchez.png","Marilyn Jimenez.png","Oriana Borja.png",
-                    "Samuel Cruz.png","Sara Santamaria.png","Sebastian Arango.png",
-                    "Sebastian Hincapie.png","Yefferson Giraldo.png"
-                ];
-                matchedAvatar = availableAvatars.find(img => namesMatch(fullName, img.replace('.png', '')));
-            }
+            const matchedAvatar = RiskOps.appInitRules.findAvatarFile(fullName, namesMatch);
             console.log("DEBUG_AVATAR: fullName =", fullName, "matchedAvatar =", matchedAvatar);
 
-            avatarEl.src = _aIR2
-                ? _aIR2.buildAvatarSrc(matchedAvatar, fullName)
-                : (matchedAvatar ? `assets/src/img/${matchedAvatar}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0D8ABC&color=fff`);
+            avatarEl.src = RiskOps.appInitRules.buildAvatarSrc(matchedAvatar, fullName);
             if (matchedAvatar) {
                 avatarEl.onerror = function() {
                     this.onerror = null;
@@ -1978,14 +992,6 @@ async function initApp() {
                 });
             }
 
-            // Close Monitoreo modal listeners
-            const closeBtn = document.getElementById('closeMonitoreoModalBtn');
-            if (closeBtn) {
-                closeBtn.addEventListener('click', () => {
-                    const modal = document.getElementById('monitoreoModal');
-                    if (modal) modal.classList.remove('active');
-                });
-            }
             const modalOverlay = document.getElementById('monitoreoModal');
             if (modalOverlay) {
                 modalOverlay.addEventListener('click', (e) => {
@@ -2005,10 +1011,13 @@ async function initApp() {
             // Cambiar Finalizar Turno por Cerrar Sesión
             if(endShiftBtn) {
                 endShiftBtn.innerHTML = "<i class='bx bx-log-out'></i> Cerrar Sesión";
+                // Paso 3.4: el original sustituia el onclick en linea; la delegacion (data-action="end-shift") no debe
+                // volver a ejecutar handleEndShift() en este boton.
+                endShiftBtn.removeAttribute('data-action');
                 endShiftBtn.onclick = function(e) {
                     e.preventDefault();
                     if(confirm("¿Seguro que deseas cerrar sesión?")) {
-                        localStorage.removeItem('riskOps_currentUser');
+                        clearRiskOpsSessionStorage();
                         firebase.auth().signOut().catch(err => console.error(err));
                         window.location.href = 'login.html';
                     }
@@ -2041,7 +1050,7 @@ async function initApp() {
                         let bg = p.notified_admin === false ? 'rgba(59,130,246,0.1)' : 'transparent';
                         
                         notifsHtml += `
-                            <div style="background: ${bg}; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border); display: flex; gap: 10px; align-items: start; cursor: pointer; transition: background 0.2s;" onclick="document.getElementById('navAprobaciones').click(); document.getElementById('notificationDropdown').style.display = 'none';">
+                            <div style="background: ${bg}; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border); display: flex; gap: 10px; align-items: start; cursor: pointer; transition: background 0.2s;" data-action="go-to-notification-nav" data-nav="navAprobaciones">
                                 <i class='bx bx-time' style="color: var(--warning); font-size: 18px; margin-top: 2px;"></i>
                                 <div style="flex-grow: 1;">
                                     <div style="font-size: 12px; font-weight: 500; color: var(--text-primary);">Nuevo Permiso Solicitado</div>
@@ -2092,7 +1101,7 @@ async function initApp() {
                         let reasonHtml = p.rejectionReason ? `<div style="font-size:11px; color:var(--danger); margin-top:2px;">Razón: ${escapeHTML(p.rejectionReason)}</div>` : '';
                         
                         notifsHtml += `
-                            <div style="background: ${bg}; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border); display: flex; gap: 10px; align-items: start; cursor: pointer; transition: background 0.2s;" onclick="document.getElementById('navPermisos').click(); document.getElementById('notificationDropdown').style.display = 'none';">
+                            <div style="background: ${bg}; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border); display: flex; gap: 10px; align-items: start; cursor: pointer; transition: background 0.2s;" data-action="go-to-notification-nav" data-nav="navPermisos">
                                 <i class='bx ${icon}' style="color: ${iconColor}; font-size: 18px; margin-top: 2px;"></i>
                                 <div style="flex-grow: 1;">
                                     <div style="font-size: 12px; font-weight: 500; color: var(--text-primary);">Permiso ${escapeHTML(p.status)}</div>
@@ -2165,7 +1174,7 @@ async function initApp() {
             else if (taskName.includes('seon')) matchedDoc = "Validación SEON.mp4";
             
             if (matchedDoc) {
-                window.open(getDocUrl(matchedDoc), "_blank");
+                window.open(getDocUrl(matchedDoc), "_blank", "noopener");  // W-52: sin acceso a window.opener
             } else {
                 alert("No se encontró un documento específico para esta tarea. Por favor, búscalo en la pestaña Documentación.");
             }
@@ -2238,7 +1247,7 @@ async function initApp() {
                 const viewTiempos = document.getElementById('view-tiempos');
                 if (viewTiempos) viewTiempos.style.display = 'block';
                 if (topHeader) topHeader.style.display = 'none';
-                loadTiemposMetrics();
+                document.dispatchEvent(new CustomEvent('riskops:tiempos-refresh'));
             } else if (item.id === 'navComunicados') {
                 const viewComunicados = document.getElementById('view-comunicados');
                 if (viewComunicados) viewComunicados.style.display = 'block';
@@ -2468,367 +1477,48 @@ function toggleBreakfastBreak() { return __shiftController().toggleBreakfast(); 
 
 function toggleLunchBreak() { return __shiftController().toggleLunch(); }
 
-async function persistShiftClosureCore(reportUid, loginLogId, shiftReportObject) {
-    if (!reportUid) throw new Error('Missing authenticated UID for shift closure');
-    if (!loginLogId) throw new Error('Missing login log ID for shift closure');
-
-    const reportRef = database.ref('shift_reports').push();
-    if (!reportRef.key) throw new Error('Unable to allocate shift report ID');
-
-    const updates = {};
-    updates[`shift_reports/${reportRef.key}`] = shiftReportObject;
-    updates[`active_sessions/${reportUid}`] = null;
-    updates[`login_logs/${loginLogId}/logoutTime`] = firebase.database.ServerValue.TIMESTAMP;
-
-    await database.ref().update(updates);
-    return reportRef.key;
-}
-
-function hasRealSetOptions(setSelect) {
-    if (!setSelect || !setSelect.options) return false;
-    return Array.from(setSelect.options).some(option => (
-        !option.disabled && option.value !== '' && option.value !== 'Todos'
-    ));
-}
-
-function requiresSpecificSetSelection(setSelect) {
-    if (!hasRealSetOptions(setSelect)) return false;
-    return setSelect.value === '' || setSelect.value === 'Todos';
-}
-
-function restoreEndShiftButton(button, previousHtml) {
-    if (!button) return;
-    button.innerHTML = previousHtml || "<i class='bx bx-log-out-circle'></i> Finalizar Turno";
-    button.disabled = false;
-}
-
 // Lógica de Pausa Turno Partido — [LAB-INTEGRACION] delega en RiskOps.shiftController
 // (iniciar exige users/{uid}/hasSplitShift === true; retomar siempre se permite)
 function toggleSplitShiftBreak() { return __shiftController().toggleSplitShift(); }
 
-async function handleEndShift() {
-    if (!confirm("¿Estás seguro que deseas finalizar tu turno actual? Se enviará un resumen al supervisor.")) return;
-
-    const btn = document.getElementById('endShiftBtn');
-    const prevHtml = btn ? btn.innerHTML : '';
-    let shiftClosurePersisted = false;
-
-    try {
-        let localUser = null;
-        try { localUser = JSON.parse(localStorage.getItem('riskOps_currentUser')); } catch(e) {}
-        if (!localUser) {
-            throw new Error('No se encontró la sesión local necesaria para generar el reporte.');
-        }
-
-        const setSelect = document.getElementById('activeSetSelect');
-        if (requiresSpecificSetSelection(setSelect)) {
-            alert("OBLIGATORIO: Debes seleccionar el SET específico en el que trabajaste antes de finalizar el turno (Arriba a la derecha).");
-            return;
-        }
-
-        // Validación obligatoria: el gestor debe tener todas sus tareas asignadas gestionadas (Finalizada o No Realizada)
-        if (localUser && localUser.role === 'Gestor' && typeof taskStateCache !== 'undefined' && taskStateCache) {
-            const unmanagedTasks = [];
-
-            // 1. Validar únicamente las tareas asignadas hoy en el catálogo activo (allTasks)
-            if (Array.isArray(allTasks)) {
-                for (const task of allTasks) {
-                    const cId = canonicalTaskId(task.id);
-                    const entry = taskStateCache[cId];
-                    const statusNorm = (entry && entry.status ? String(entry.status) : '').toLowerCase().replace(/_/g, ' ').trim();
-                    const isManaged = statusNorm === 'finalizada' || statusNorm === 'no realizada';
-                    if (!isManaged) {
-                        unmanagedTasks.push(task['Tarea'] || (entry && entry.name) || cId);
-                    }
-                }
-            } else {
-                // Fallback de seguridad si allTasks no estuviese disponible
-                for (const tId in taskStateCache) {
-                    if (!tId.startsWith('extra_')) {
-                        const entry = taskStateCache[tId];
-                        const statusNorm = (entry && entry.status ? String(entry.status) : '').toLowerCase().replace(/_/g, ' ').trim();
-                        if (statusNorm !== 'finalizada' && statusNorm !== 'no realizada') {
-                            unmanagedTasks.push((entry && entry.name) || tId);
-                        }
-                    }
-                }
-            }
-
-            // 2. Validar también cualquier tarea extra creada en el turno en curso
-            for (const tId in taskStateCache) {
-                if (tId.startsWith('extra_')) {
-                    const entry = taskStateCache[tId];
-                    const statusNorm = (entry && entry.status ? String(entry.status) : '').toLowerCase().replace(/_/g, ' ').trim();
-                    if (statusNorm !== 'finalizada' && statusNorm !== 'no realizada') {
-                        unmanagedTasks.push((entry && entry.name) || tId);
-                    }
-                }
-            }
-
-            if (unmanagedTasks.length > 0) {
-                alert(`OBLIGATORIO: Tienes ${unmanagedTasks.length} tarea(s) sin gestionar (En Proceso o Pendientes). Debes gestionar todas tus tareas asignadas (marcando Finalizada o No Realizada) antes de finalizar el turno.`);
-                return;
-            }
-        }
-
-        if (btn) {
-            btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Notificando...";
-            btn.disabled = true;
-        }
-
-        // Cerrar almuerzo, desayuno o turno partido solo después de validar la sesión y el SET.
-        // [LAB-INTEGRACION] cierra almuerzo, desayuno y Pausa de Turno abiertos (retomar siempre se permite)
-        __shiftController().closeOpenBreaks();
-
-        const formData = new FormData();
-            
-            // Format login time
-            const loginDate = new Date(localUser.loginTime);
-            const endDate = new Date();
-            
-            // [LAB-INTEGRACION] tiempos de cierre desde RiskOps.shiftController (la Pausa de Turno NO es tiempo trabajado)
-            // D1: horas efectivas = turno - almuerzo - desayuno - Pausa de Turno - inactividad (fórmula única,
-            // la misma del panel); la penalidad se calcula igual que antes y solo se informa.
-            let inactividadMins = 0;
-            if (shiftTimeline && shiftTimeline.length > 0) {
-                shiftTimeline.forEach(ev => {
-                    if (ev.type === 'Inactividad') {
-                        let eTime = ev.end ? ev.end : Date.now();
-                        inactividadMins += (eTime - ev.start) / (1000 * 60);
-                    }
-                });
-            }
-            // Inactividad que se RESTA: la de la bitácora consolidada (= inactividadTotalMins del reporte guardado)
-            const __inactividadLimpiaMins = RiskOps.shiftReportBuilder.sumCleanInactivityMinutes(
-                RiskOps.timelineService.consolidateTimeline(shiftTimeline, { defaultEndMs: endDate.getTime() }),
-                endDate.getTime()
-            );
-            const __closure = __shiftController().computeShiftClosure({
-                loginMs: loginDate.getTime(),
-                endMs: endDate.getTime(),
-                inactivityMins: inactividadMins,
-                cleanInactivityMins: __inactividadLimpiaMins
-            });
-            const lunchMinutes = __closure.times.lunchMinutes;
-            const breakfastMinutes = __closure.times.breakfastMinutes;
-            let penalidadConectividadMins = __closure.times.penaltyMins;
-            
-            formData.append("Usuario", localUser.name);
-            formData.append("Rol", localUser.role);
-            formData.append("Reporte", "CIERRE DE TURNO Y RESUMEN DE TAREAS");
-            formData.append("Hora_Inicio_Turno", loginDate.toLocaleString());
-            formData.append("Hora_Fin_Turno", endDate.toLocaleString());
-            __closure.emailFields.forEach(([campo, valor]) => formData.append(campo, valor)); // [LAB-INTEGRACION]
-            
-            // Consolidar eventos duplicados o superpuestos en shiftTimeline antes de armar la bitácora
-            let cleanTimeline = [];
-            if (shiftTimeline && shiftTimeline.length > 0) {
-                // Separar pausas programadas (Desayuno / Almuerzo) de inactividades automáticas
-                const breaks = shiftTimeline.filter(b => b.type === 'Desayuno' || b.type === 'Almuerzo' || b.type === 'Pausa de Turno');
-                let sortedEvs = [...shiftTimeline].sort((a, b) => a.start - b.start);
-                
-                sortedEvs.forEach(ev => {
-                    let evStart = ev.start;
-                    let evEnd = ev.end || endDate.getTime();
-                    if (evEnd <= evStart) return;
-
-                    // Si es Inactividad, descartar si dura menos de 30s o si cae totalmente dentro de un Desayuno/Almuerzo
-                    if (ev.type === 'Inactividad') {
-                        if (evEnd - evStart < 30000) return;
-                        let insideBreak = breaks.some(b => {
-                            let bStart = b.start;
-                            let bEnd = b.end || endDate.getTime();
-                            return evStart >= bStart && evEnd <= bEnd;
-                        });
-                        if (insideBreak) return;
-                    }
-
-                    if (cleanTimeline.length === 0) {
-                        cleanTimeline.push({ type: ev.type, start: evStart, end: evEnd });
-                    } else {
-                        let prev = cleanTimeline[cleanTimeline.length - 1];
-                        if (prev.type === ev.type && evStart <= prev.end + 60000) {
-                            // Unificar si es del mismo tipo y continuo (o con menos de 1 min de diferencia)
-                            prev.end = Math.max(prev.end, evEnd);
-                        } else if (evStart < prev.end) {
-                            // Si se traslapan eventos de distinto tipo:
-                            if (ev.type === 'Inactividad') {
-                                // Ajustar el inicio de la inactividad después de que termina el evento anterior
-                                if (evEnd > prev.end) {
-                                    evStart = prev.end;
-                                    if (evEnd - evStart >= 30000) {
-                                        cleanTimeline.push({ type: ev.type, start: evStart, end: evEnd });
-                                    }
-                                }
-                            } else {
-                                cleanTimeline.push({ type: ev.type, start: evStart, end: evEnd });
-                            }
-                        } else {
-                            cleanTimeline.push({ type: ev.type, start: evStart, end: evEnd });
-                        }
-                    }
-                });
-            }
-
-            // [Fase 2] Delegado a shiftReportBuilder.buildBitacoraText
-            const bitacoraTexto = (window.RiskOps && window.RiskOps.shiftReportBuilder)
-                ? window.RiskOps.shiftReportBuilder.buildBitacoraText(cleanTimeline)
-                : (() => {
-                    if (cleanTimeline.length === 0) return "No se registraron pausas o inactividades.";
-                    let t = "";
-                    cleanTimeline.forEach(ev => {
-                        const s = new Date(ev.start).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'});
-                        const eTime = ev.end ? new Date(ev.end).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'}) : "No regresó";
-                        t += `- ${ev.type}: inicio ${s} fin ${eTime}\n`;
-                    });
-                    return t;
-                  })();
-            formData.append("Bitacora_de_Tiempos", bitacoraTexto);
-            
-            if(setSelect) {
-                formData.append("SET_Principal_Trabajado", setSelect.value);
-            }
-            
-            formData.append("_subject", `Reporte de Turno: ${localUser.name}`);
-            formData.append("_captcha", "false");
-            appendFormSubmitCc(formData);
-            
-            // Build task report
-            let report = buildTaskReportSummaryText({ tasks: taskStateCache });
-            report += "\n\n=== BITÁCORA DE TIEMPOS ===\n" + bitacoraTexto;
-            formData.append("Resumen_de_Tareas", report);
-            
-            // Recalcular inactividadTotalMins usando cleanTimeline limpio sin superposiciones ni duplicados
-            let inactividadMinsLimpia = 0;
-            if (cleanTimeline && cleanTimeline.length > 0) {
-                cleanTimeline.forEach(ev => {
-                    if (ev.type === 'Inactividad') {
-                        let eTime = ev.end ? ev.end : endDate.getTime();
-                        inactividadMinsLimpia += (eTime - ev.start) / (1000 * 60);
-                    }
-                });
-            }
-            inactividadMinsLimpia = parseFloat(inactividadMinsLimpia.toFixed(1));
-
-            // --- RESPALDO SEGURO EN FIREBASE ---
-            const reportUid = localUser.uid || (currentUser && currentUser.uid) || (firebase.auth().currentUser ? firebase.auth().currentUser.uid : null);
-            // [Fase 2] Delegado a shiftReportBuilder.buildShiftReportObject
-            const shiftReportObject = (window.RiskOps && window.RiskOps.shiftReportBuilder)
-                ? window.RiskOps.shiftReportBuilder.buildShiftReportObject({
-                    uid: reportUid,
-                    localUser,
-                    loginDate,
-                    now: endDate,
-                    setSelectValue: setSelect ? setSelect.value : null,
-                    report,
-                    tasks: taskStateCache,
-                    cleanTimeline,
-                    penaltyMins: penalidadConectividadMins,
-                    cleanInactivityMins: inactividadMinsLimpia,
-                    lunchMinutes,
-                    breakfastMinutes,
-                    totalSplitShiftTimeMs: totalSplitShiftTimeMs || 0
-                  })
-                : {
-                    uid: reportUid,
-                    gestor: localUser.name,
-                    rol: localUser.role,
-                    horaInicio: loginDate.toLocaleString(),
-                    horaFin: endDate.toLocaleString(),
-                    turnoProgramado: localUser.shift || 'Por Asignar',
-                    setTrabajado: setSelect ? setSelect.value : 'N/A',
-                    reporte: report,
-                    tasks: taskStateCache,
-                    timeline: cleanTimeline,
-                    penalidadConectividadMins: penalidadConectividadMins,
-                    inactividadTotalMins: inactividadMinsLimpia,
-                    tiempoAlmuerzoMins: lunchMinutes,
-                    tiempoDesayunoMins: breakfastMinutes,
-                    tiempoPausaTurnoMins: totalSplitShiftTimeMs ? parseFloat((totalSplitShiftTimeMs / 60000).toFixed(1)) : 0,
-                    timestamp: Date.now()
-                  };
-
-            // Persistencia central atómica: reporte, cierre de sesión activa y logoutTime.
-            // Si cualquiera falla, no se limpia la sesión local ni se intenta enviar correo.
-            try {
-                await persistShiftClosureCore(reportUid, localUser.loginLogId, shiftReportObject);
-                shiftClosurePersisted = true;
-            } catch (coreError) {
-                console.error('CORE_SHIFT_CLOSE_FAILED', {
-                    code: coreError && coreError.code ? coreError.code : 'unknown',
-                    message: coreError && coreError.message ? coreError.message : 'unknown'
-                });
-                restoreEndShiftButton(btn, prevHtml);
-                alert('No fue posible finalizar el turno porque el reporte o el cierre de sesión no quedó guardado. Intenta nuevamente.');
-                return;
-            }
-
-            // El cierre central ya quedó persistido; ahora se limpia la sesión local.
-            localStorage.removeItem('riskOps_currentUser');
-            localStorage.removeItem('riskOps_cache');
-            localStorage.removeItem('riskOps_breakState');
-            localStorage.removeItem('riskOps_timeline');
-            
-            // Set the global currentUser to null so syncActiveSessionToFirebase stops firing
-            currentUser = null;
-
-            try {
-                await firebase.auth().signOut();
-            } catch (signOutError) {
-                console.error('SHIFT_SIGNOUT_FAILED', {
-                    code: signOutError && signOutError.code ? signOutError.code : 'unknown',
-                    message: signOutError && signOutError.message ? signOutError.message : 'unknown'
-                });
-                alert('El turno quedó guardado, pero no fue posible cerrar la autenticación. Recarga la página antes de volver a ingresar.');
-                window.location.href = 'login.html';
-                return;
-            }
-
-            // El correo es una notificación best-effort y nunca revierte el cierre persistido.
-            let emailSent = false;
-            let emailStatus = null;
-            let emailErrorMessage = null;
-            try {
-                const emailResponse = await fetch('https://formsubmit.co/ajax/maria.sanchez@virtualsoft.tech', {
-                    method: 'POST',
-                    body: formData,
-                    headers: { 'Accept': 'application/json' }
-                });
-                emailStatus = emailResponse.status;
-                emailSent = emailResponse.ok;
-            } catch (emailError) {
-                emailErrorMessage = emailError && emailError.message ? emailError.message : 'network error';
-            }
-
-            if (emailSent) {
-                alert('Turno finalizado correctamente y reporte enviado al supervisor.');
-            } else {
-                console.warn('EMAIL_NOTIFICATION_FAILED', {
-                    status: emailStatus,
-                    message: emailErrorMessage
-                });
-                alert('Turno finalizado correctamente. No fue posible enviar la notificación por correo.');
-            }
-            window.location.href = 'login.html';
-    } catch (fatalError) {
-        console.error("FATAL END SHIFT ERROR:", fatalError);
-        restoreEndShiftButton(btn, prevHtml);
-
-        if (shiftClosurePersisted) {
-            currentUser = null;
-            try {
-                await firebase.auth().signOut();
-            } catch (signOutError) {
-                console.error('SHIFT_SIGNOUT_AFTER_PERSISTENCE_FAILED', signOutError);
-            }
-            alert("El turno quedó guardado, pero ocurrió un error al completar la salida. Serás dirigido al inicio de sesión.");
-            window.location.href = 'login.html';
-            return;
-        }
-
-        alert("No fue posible finalizar el turno: " + fatalError.message + "\n\nLa sesión se mantiene activa para que puedas intentar nuevamente.");
-    }
+// [LAB-INTEGRACION] W-17 (paso 3.2): cierre de turno desde RiskOps.shiftClosureController.
+// app.js solo inyecta dependencias (envoltorio); el flujo vive en src/controllers/shift-closure-controller.js.
+let __labShiftClosure = null;
+function __shiftClosure() {
+    if (__labShiftClosure) return __labShiftClosure;
+    __labShiftClosure = RiskOps.shiftClosureController.createShiftClosureController({
+        doc: document,
+        confirm: (message) => confirm(message),
+        alert: (message) => alert(message),
+        redirectToLogin: () => { window.location.href = 'login.html'; },
+        readStoredUserRaw: () => localStorage.getItem('riskOps_currentUser'),
+        getUser: () => currentUser,
+        clearUser: () => { currentUser = null; },
+        getTaskCache: () => taskStateCache,
+        getAllTasks: () => allTasks,
+        getTimeline: () => shiftTimeline,
+        getSplitShiftTotalMs: () => totalSplitShiftTimeMs,
+        shift: {
+            closeOpenBreaks: () => __shiftController().closeOpenBreaks(),
+            computeShiftClosure: (input) => __shiftController().computeShiftClosure(input)
+        },
+        buildTaskReport: (report) => buildTaskReportSummaryText(report),
+        persistShiftClosure: (uid, loginLogId, shiftReport) => RiskOps.shiftRepository.createShiftRepository({ database, serverTimestamp: firebase.database.ServerValue.TIMESTAMP }).persistShiftClosureCore(uid, loginLogId, shiftReport),
+        restoreButton: (button, previousHtml) => RiskOps.endShiftButton.restoreEndShiftButton(button, previousHtml),
+        clearSessionStorage: () => clearRiskOpsSessionStorage(),
+        getAuthUid: () => { const u = firebase.auth().currentUser; return u ? u.uid : null; },
+        signOut: () => firebase.auth().signOut(),
+        appendFormSubmitCc: (formData) => appendFormSubmitCc(formData),
+        createFormData: () => new FormData(),
+        fetchFn: (url, init) => fetch(url, init),
+        now: () => Date.now(),
+        logger: console
+    });
+    return __labShiftClosure;
 }
+
+// Botón "Finalizar Turno" (index.html: data-action="end-shift").
+async function handleEndShift() { return __shiftClosure().handleEndShift(); }
 
 // Inicializar inmediatamente ya que el script está al final del DOM
 initApp();
@@ -2887,8 +1577,6 @@ async function saveExtraTask() { return __modals().saveExtraTask(); }
 // Logic for Approving Users
 async function renderPendingUsers() { return __approvals().renderPendingUsers(); }
 
-async function approveUser(userId) { return __approvals().approveUser(userId); }
-
 function showUserRejectBox(id) { return __approvals().showUserRejectBox(id); }
 
 function cancelRejectUser(id) { return __approvals().cancelRejectUser(id); }
@@ -2913,7 +1601,6 @@ function cancelApprovePerm(id) { return __approvals().cancelApprovePerm(id); }
 
 async function confirmApprovePerm(id) { return __approvals().confirmApprovePerm(id); }
 
-async function updatePermissionStatus(fb_id, newStatus, reason = null) { return __approvals().updatePermissionStatus(fb_id, newStatus, reason); }
 // [LAB-INTEGRACION:MODALES-PERMISOS:FIN]
 
 // [LAB-INTEGRACION:HISTORIAL-NAVEGACION:INICIO]
@@ -2947,7 +1634,7 @@ function __histNav() {
             getShiftCategory: (shift) => getShiftCategory(shift),
             // [LAB-INTEGRACION] D9b: sin SUPERVISORES_NOMBRES; el controlador deriva los supervisores del ROL en users (consulta por rol
             // con el repositorio de arriba; Monitoreo solo lo abre Supervisor/Admin, que puede leer users) y excluye por UID.
-            avatars: availableAvatars,
+            avatars: RiskOps.appInitRules.AVAILABLE_AVATARS,
             now: () => Date.now(),
             logger: console
         }),
@@ -2979,7 +1666,6 @@ window.openShiftDetailModal = function(fb_id) { return __histNav().shiftReports.
 function toggleNotifications() { return __histNav().notifications.toggleNotifications(); }
 async function markAllAsRead() { return __histNav().notifications.markAllAsRead(); }
 function openProfileModal() { return __histNav().profile.openProfileModal(); }
-function toggleProfilePassword(iconElement) { return __histNav().profile.toggleProfilePassword(iconElement); }
 async function changePassword() { return __histNav().profile.changePassword(); }
 // [LAB-INTEGRACION:HISTORIAL-NAVEGACION:FIN]
 
@@ -2990,473 +1676,44 @@ function alignAdministrativeControlsByRole() {
     return RiskOps.appRouter.createAppRouter({ document, getUser: () => currentUser }).alignAdministrativeControlsByRole();
 }
 
+// [LAB-INTEGRACION] Enrutador de navegación (W-20): RiskOps.appRouter. El usuario se lee en cada llamada.
+let __labAppRouter = null;
+function __appRouter() {
+    if (!__labAppRouter) __labAppRouter = RiskOps.appRouter.createAppRouter({ document, getUser: () => currentUser });
+    return __labAppRouter;
+}
+
+// [LAB-INTEGRACION] setupSidebar completo en RiskOps.appRouter (fusión Horario/Teletrabajo, orden por rol, botones).
 function setupSidebar() {
-    const sidebarNav = document.querySelector('.sidebar-nav');
-    if (!sidebarNav) return;
-    
-    const navWorkspace = document.getElementById('navWorkspace');
-    const navHorario = document.getElementById('navHorario');
-    const navTeletrabajo = document.getElementById('navTeletrabajo');
-    const navDocs = document.getElementById('navDocs');
-    const navPermisos = document.getElementById('navPermisos');
-    const navComunicados = document.getElementById('navComunicados');
-    
-    const adminNavGroup = document.getElementById('adminNavGroup');
-    const navAdminComunicados = document.getElementById('navAdminComunicados');
-    const navTurnos = document.getElementById('navTurnos');
-    const navAprobaciones = document.getElementById('navAprobaciones');
-    const navMonitoreo = document.getElementById('navMonitoreo');
-    const navTiempos = document.getElementById('navTiempos');
-
-    // Unify Horario and Teletrabajo into one tab for all roles
-    if (navHorario) {
-        navHorario.style.display = 'flex';
-        navHorario.innerHTML = "<i class='bx bx-calendar'></i> Horario y Teletrabajo";
-    }
-    if (navTeletrabajo) {
-        navTeletrabajo.style.display = 'none';
-    }
-
-    // Merge Teletrabajo view content into Horario view for everyone
-    const viewHorario = document.getElementById('view-horario');
-    const viewTeletrabajo = document.getElementById('view-teletrabajo');
-    if (viewHorario && viewTeletrabajo) {
-        const teletrabajoContent = viewTeletrabajo.querySelector('.glass-panel');
-        if (teletrabajoContent && !document.getElementById('mergedTeletrabajoPanel')) {
-            teletrabajoContent.id = 'mergedTeletrabajoPanel';
-            
-            // Update main view title
-            const panelTitle = viewHorario.querySelector('.panel-title');
-            if (panelTitle) panelTitle.innerHTML = "<i class='bx bx-calendar'></i> Horario y Teletrabajo";
-            
-            // Add sub-section headers
-            const hrPanel = viewHorario.querySelector('.glass-panel');
-            if (hrPanel && !hrPanel.querySelector('.section-header')) {
-                const h3Horario = document.createElement('h3');
-                h3Horario.className = 'section-header';
-                h3Horario.style.cssText = "color: var(--accent-primary); margin-bottom: 15px; font-size: 16px;";
-                h3Horario.innerText = "Horario Semanal";
-                hrPanel.insertBefore(h3Horario, hrPanel.firstChild);
-            }
-            
-            if (!teletrabajoContent.querySelector('.section-header')) {
-                const h3Tele = document.createElement('h3');
-                h3Tele.className = 'section-header';
-                h3Tele.style.cssText = "color: var(--success); margin-bottom: 15px; font-size: 16px;";
-                h3Tele.innerText = "Cronograma de Teletrabajo";
-                teletrabajoContent.insertBefore(h3Tele, teletrabajoContent.firstChild);
-            }
-
-            viewHorario.appendChild(teletrabajoContent);
-        }
-    }
-
-    // [LAB-INTEGRACION] orden de pestañas por rol desde RiskOps.appRouter (política pura: RiskOps.authService.buildSidebarPolicy)
-    const __navResult = RiskOps.appRouter.createAppRouter({ document, getUser: () => currentUser }).applyRoleNavigation(sidebarNav);
-    if (!__navResult.privileged) {
-        
-        // [LAB-INTEGRACION] botones de Almuerzo y Desayuno del Gestor desde RiskOps.appRouter
-        RiskOps.appRouter.createAppRouter({ document, getUser: () => currentUser }).applyBreakButtonsVisibility();
-
-        const toggleSplitShiftBtn = document.getElementById('toggleSplitShiftBtn');
-        if (toggleSplitShiftBtn) {
-            __shiftController().refreshSplitShiftButton(); // [LAB-INTEGRACION] visible con flag o con pausa en curso
-        }
-    }
-
-    alignAdministrativeControlsByRole();
+    return __appRouter().setupSidebar({ refreshSplitShiftButton: () => __shiftController().refreshSplitShiftButton() }); // [LAB-INTEGRACION] visible con flag o con pausa en curso
 }
 
 function updateNavigation() {
     const toggleSplitShiftBtn = document.getElementById('toggleSplitShiftBtn');
-    if (toggleSplitShiftBtn && typeof currentUser !== 'undefined' && currentUser) {
-        __shiftController().refreshSplitShiftButton(); // [LAB-INTEGRACION] visible con flag o con pausa en curso
-    }
-    if (typeof setupSidebar === 'function') {
-        setupSidebar();
-    }
+    const refreshSplitShiftButton = (toggleSplitShiftBtn && typeof currentUser !== 'undefined' && currentUser)
+        ? () => __shiftController().refreshSplitShiftButton() // [LAB-INTEGRACION] visible con flag o con pausa en curso
+        : null;
+    return __appRouter().updateNavigation({ refreshSplitShiftButton, setupSidebar });
 }
 window.updateNavigation = updateNavigation;
 
 let allActiveSessions = {};
-
-const availableAvatars = [
-    "Alexander Villada.png",
-    "Camilo Espinosa.png",
-    "Daniel Benavides.png",
-    "Josue Alvarez.png",
-    "Juan Jose Diaz.png",
-    "Luis Fuentes.png",
-    "Maria Sanchez.png",
-    "Marilyn Jimenez.png",
-    "Oriana Borja.png",
-    "Samuel Cruz.png",
-    "Sara Santamaria.png",
-    "Sebastian Arango.png",
-    "Sebastian Hincapie.png",
-    "Yefferson Giraldo.png"
-];
 
 function startActiveSessionsListener() {
     // [LAB-INTEGRACION] escucha de active_sessions en RiskOps.monitoringController
     return __histNav().monitoring.startActiveSessionsListener();
 }
 
-function calculateShiftDelay(session) {
-    if (!session.loginTime || !session.shift) return '';
-    const shiftStr = session.shift.toLowerCase().trim();
-    
-    // Parse start time: e.g. "8am - 4pm" -> "8", "am"
-    const match = shiftStr.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
-    if (!match) return ''; // Cannot parse shift
-    
-    let hour = parseInt(match[1], 10);
-    let minute = match[2] ? parseInt(match[2], 10) : 0;
-    const ampm = match[3].toLowerCase();
-    
-    if (ampm === 'pm' && hour < 12) hour += 12;
-    if (ampm === 'am' && hour === 12) hour = 0;
-    
-    const loginDate = new Date(session.loginTime);
-    const expected = new Date(loginDate);
-    expected.setHours(hour, minute, 0, 0);
-    
-    let diffMinutes = (loginDate - expected) / 60000;
-    
-    if (diffMinutes < -12 * 60) {
-        expected.setDate(expected.getDate() - 1);
-        diffMinutes = (loginDate - expected) / 60000;
-    } else if (diffMinutes > 12 * 60) {
-        expected.setDate(expected.getDate() + 1);
-        diffMinutes = (loginDate - expected) / 60000;
-    }
-    
-    if (diffMinutes <= 5) {
-        return `<span style="background: var(--success); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 5px;" title="Límite: ${expected.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}">A tiempo</span>`;
-    } else if (diffMinutes > 240) {
-        // Fuera del horario: > 4 horas tarde no se considera "tardanza" de este turno
-        return `<span style="background: rgba(139,92,246,0.15); color: #8b5cf6; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 5px;" title="Límite: ${expected.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}">Fuera de Horario</span>`;
-    } else {
-        const tardanza = Math.round(diffMinutes);
-        return `<span style="background: var(--danger); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 5px;" title="Límite: ${expected.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}">+${tardanza}m Tarde</span>`;
-    }
-}
-
 function renderActiveSessionsDashboard() {
-    // [LAB-INTEGRACION] con el bundle cargado se usa RiskOps.monitoringController; el cuerpo original queda de respaldo
-    if (typeof RiskOps !== 'undefined' && typeof __histNav === 'function') return __histNav().monitoring.renderActiveSessionsDashboard();
-    const grid = document.getElementById('monitoreoGrid');
-    if (!grid) return;
-
-    grid.innerHTML = '';
-    
-    // Get filter queries
-    const searchInputEl = document.getElementById('monitoreoSearchInput');
-    const searchQuery = searchInputEl ? normalizeName(searchInputEl.value) : '';
-    const shiftSelectEl = document.getElementById('filterShiftSelect');
-    const shiftQuery = shiftSelectEl ? shiftSelectEl.value : '';
-    const statusSelectEl = document.getElementById('filterStatusSelect');
-    const statusQuery = statusSelectEl ? statusSelectEl.value : '';
-
-    const uids = Object.keys(allActiveSessions);
-    
-    // Filtering active sessions
-    let filteredUids = uids.filter(uid => {
-        const session = allActiveSessions[uid];
-        if (!session || !session.name) return false;
-        
-        const fullName = (session.name || '').trim();
-        const email = (session.email || '');
-        const shift = session.shift || 'Mañana';
-        let isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
-        
-        // Exclude supervisors from Monitoreo
-        const excludedMonitoreo = SUPERVISORES_NOMBRES;
-        if (excludedMonitoreo.some(ex => fullName.toLowerCase().includes(ex.toLowerCase()))) return false;
-
-        if (session.status === 'En Almuerzo' || session.status === 'En Desayuno' || session.status === 'En Pausa de Turno' || session.status === 'Inactivo') {
-            isOnline = false;
-        }
-
-        // Search match (accent-insensitive substring)
-        if (searchQuery && !normalizeName(fullName).includes(searchQuery) && !normalizeName(email).includes(searchQuery)) {
-            return false;
-        }
-
-        // Shift match using getShiftCategory helper
-        const sessionShiftCat = getShiftCategory(shift);
-        if (shiftQuery && sessionShiftCat !== shiftQuery) {
-            return false;
-        }
-
-        // Status match
-        if (statusQuery) {
-            if (statusQuery === 'online' && !isOnline) return false;
-            if (statusQuery === 'offline' && isOnline) return false;
-        }
-
-        return true;
-    });
-
-    if (filteredUids.length === 0) {
-        grid.innerHTML = `
-            <div style="grid-column: 1 / -1; padding: 60px; text-align: center; color: var(--text-secondary);">
-                <i class='bx bx-devices' style="font-size: 48px; margin-bottom: 15px; color: var(--text-secondary); opacity: 0.5;"></i>
-                <p style="font-size: 16px; font-weight: 500;">No se encontraron gestores en el turno con los filtros aplicados.</p>
-                <p style="font-size: 12px; margin-top: 5px; opacity: 0.7;">Los gestores activos se listarán aquí automáticamente al ingresar.</p>
-            </div>
-        `;
-        return;
-    }
-
-    filteredUids.forEach(uid => {
-        const session = allActiveSessions[uid];
-        if (!session) return;
-        
-        let isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
-        
-        // Fix: If they stopped pinging Firebase for over 2 minutes and aren't on break, force them to Inactivo locally
-        if (!isOnline && session.status !== 'En Almuerzo' && session.status !== 'En Desayuno' && session.status !== 'En Pausa de Turno') {
-            session.status = 'Inactivo';
-        }
-
-        let displayStatus = isOnline ? 'En Línea' : 'Inactivo';
-        
-        let statusBadge = '';
-        let statusDot = isOnline ? '<div class="pulse-dot"></div>' : '<div class="pulse-dot offline"></div>';
-
-        if (session.status === 'En Almuerzo') {
-            statusBadge = '<span style="background: rgba(40,167,69,0.2); color: #28a745; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;"><i class="bx bx-restaurant"></i> Almuerzo/Cena</span>';
-            displayStatus = 'En Almuerzo/Cena 🍽️';
-            statusDot = '<div style="width: 8px; height: 8px; border-radius: 50%; background: #28a745; margin-right: 6px;"></div>';
-        } else if (session.status === 'En Desayuno') {
-            statusBadge = '<span style="background: rgba(255,193,7,0.2); color: #ffc107; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;"><i class="bx bx-coffee"></i> Desayuno</span>';
-            displayStatus = 'En Desayuno ☕';
-            statusDot = '<div style="width: 8px; height: 8px; border-radius: 50%; background: #ffc107; margin-right: 6px;"></div>';
-        } else if (session.status === 'En Pausa de Turno') {
-            statusBadge = '<span style="background: rgba(139,92,246,0.2); color: #8b5cf6; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;"><i class="bx bx-pause-circle"></i> Pausa de Turno</span>';
-            displayStatus = 'En Pausa de Turno ⏸️';
-            statusDot = '<div style="width: 8px; height: 8px; border-radius: 50%; background: #8b5cf6; margin-right: 6px;"></div>';
-        } else if (session.status === 'Inactivo') {
-            isOnline = false;
-            displayStatus = 'Inactivo 💤';
-            statusDot = '<div class="pulse-dot offline"></div>';
-        } else if (session.status === 'En Línea') {
-            displayStatus = 'En Línea';
-        }
-        
-        const lastActiveTime = session.lastActive ? new Date(session.lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Nunca';
-        const loginTimeStr = session.loginTime ? new Date(session.loginTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Pendiente (Falta actualizar)';
-        const delayBadge = calculateShiftDelay(session);
-        
-        const fullName = (session.name || '').trim();
-        let matchedAvatar = availableAvatars.find(img => namesMatch(fullName, img.replace('.png', '')));
-        let avatarSrc = matchedAvatar ? `assets/src/img/${matchedAvatar}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0D8ABC&color=fff`;
-
-        let completedCount = session.completedTasks !== undefined ? session.completedTasks : 0;
-        let notDoneCount = session.notDoneTasks !== undefined ? session.notDoneTasks : 0;
-        const totalTasks = session.totalTasks || 0;
-        
-        // Fallback for older sessions that haven't synced the new variables yet
-        if (session.completedTasks === undefined && session.tasks) {
-            completedCount = Object.values(session.tasks).filter(t => t.status === 'Finalizada').length;
-            notDoneCount = Object.values(session.tasks).filter(t => t.status === 'No Realizada').length;
-        }
-
-        const compPct = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
-        const notDonePct = totalTasks > 0 ? Math.round((notDoneCount / totalTasks) * 100) : 0;
-        const totalPct = compPct + notDonePct;
-
-        const tasks = session.tasks || {};
-        
-        let assignedTasks = [];
-        if (globalCronogramaData) {
-            assignedTasks = getAssignedTasksForGestor(fullName, session.shift || 'Mañana');
-        }
-
-        let displayTasks = [];
-        if (assignedTasks && assignedTasks.length > 0) {
-            assignedTasks.forEach(taskName => {
-                // Reconciliación centralizada (compartida con openMonitoreoDetails): usa
-                // taskNamesMatch() en vez de igualdad exacta y resuelve nombres legados
-                // "Tarea <id>" contra el catálogo, para que el color coincida con lo
-                // realmente confirmado en Firebase sin esperar al cierre del turno.
-                const reconciled = reconcileScheduledTaskWithSession(taskName, tasks);
-                displayTasks.push({ name: taskName, status: reconciled.status });
-            });
-        }
-
-        // Agregar las tareas extras
-        for (let key in tasks) {
-            if (key.startsWith('extra_') && tasks[key]) {
-                displayTasks.push({ name: tasks[key].name, status: tasks[key].status });
-            }
-        }
-
-        let tasksHtml = '';
-        if (displayTasks.length > 0) {
-            tasksHtml = '<div style="margin-top: 15px; max-height: 80px; overflow-y: auto; font-size: 11px; border: 1px solid var(--glass-border); border-radius: 4px; padding: 5px; background: rgba(0,0,0,0.02);">';
-            displayTasks.forEach(t => {
-                let icon = "<i class='bx bx-radio-circle' style='color: var(--text-secondary)'></i>";
-                
-                let textStyle = '';
-                if (t.status === 'Finalizada') {
-                    icon = "<i class='bx bx-check-circle' style='color: var(--success)'></i>";
-                    textStyle = "color: var(--success); font-weight: bold;";
-                } else if (t.status === 'En Proceso') {
-                    icon = "<i class='bx bx-time-five' style='color: var(--warning)'></i>";
-                    textStyle = "color: var(--warning);";
-                } else if (t.status === 'No Realizada') {
-                    icon = "<i class='bx bx-x-circle' style='color: var(--danger)'></i>";
-                    textStyle = "color: var(--danger); text-decoration: line-through;";
-                }
-
-                tasksHtml += `<div style="display: flex; align-items: center; gap: 5px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: ${t.status==='Pendiente'?0.7:1};">${icon} <span title="${escapeHTML(t.name)}" style="${textStyle}">${escapeHTML(t.name)}</span></div>`;
-            });
-            tasksHtml += '</div>';
-        } else {
-            tasksHtml = '<div style="margin-top: 15px; font-size: 11px; color: var(--text-secondary); text-align: center; font-style: italic;">' + 
-                        (globalCronogramaData ? 'No tiene tareas asignadas en este turno' : 'Cargando cronograma...') + '</div>';
-        }
-
-        const card = document.createElement('div');
-        card.className = 'monitoreo-card';
-        card.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: start; gap: 8px;">
-                <div class="monitoreo-user-info">
-                    <img class="monitoreo-avatar">
-                    <div class="monitoreo-details">
-                        <span class="monitoreo-name">${escapeHTML(fullName)}</span>
-                        <span class="monitoreo-meta">${escapeHTML(session.email || '')}</span>
-                    </div>
-                </div>
-                <div class="status-indicator-badge ${isOnline ? 'status-online' : 'status-offline'}">
-                    <div class="pulse-dot ${isOnline ? '' : 'offline'}"></div>
-                    ${displayStatus}
-                </div>
-            </div>
-            
-            <div style="margin-top: 10px; font-size: 13px;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                    <span style="color: var(--text-secondary);"><i class='bx bx-calendar-check'></i> Turno:</span>
-                    <strong style="color: var(--text-primary);">${escapeHTML(session.shift || 'Mañana')}</strong>
-                </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                    <span style="color: var(--text-secondary);"><i class='bx bx-time'></i> Inicio de Turno:</span>
-                    <div style="display: flex; align-items: center;">
-                        <span style="color: var(--text-primary); font-size: 12px;">${loginTimeStr}</span>
-                        ${delayBadge}
-                    </div>
-                </div>
-            </div>
-
-            <div class="progress-container">
-                <div class="progress-label-row">
-                    <span>Avance de Tareas</span>
-                    <div style="display: flex; gap: 6px; font-size: 11px;">
-                        <strong style="color: var(--success);" title="Realizadas">${completedCount} <i class='bx bx-check'></i></strong>
-                        <strong style="color: var(--danger);" title="No Realizadas">${notDoneCount} <i class='bx bx-x'></i></strong>
-                        <strong style="color: var(--text-secondary); margin-left: 4px;">/ ${totalTasks} (${totalPct}%)</strong>
-                    </div>
-                </div>
-                <div class="progress-bar-bg" style="display: flex; overflow: hidden; background: rgba(255,255,255,0.05);">
-                    <div class="progress-bar-fill" style="width: ${compPct}%; border-radius: 0; background: linear-gradient(90deg, var(--success), #34d399); transition: width 0.5s;"></div>
-                    <div style="width: ${notDonePct}%; background: linear-gradient(90deg, var(--danger), #fb7185); transition: width 0.5s;"></div>
-                </div>
-            </div>
-
-            ${tasksHtml}
-
-            <div style="margin-top: 15px; display: flex; gap: 5px; justify-content: flex-end;">
-                <button class="btn btn-outline" style="flex: 1; padding: 6px 10px; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="openMonitoreoDetails(decodeURIComponent('${encodeInlineHandlerArg(uid)}'))">
-                    <i class='bx bx-search-alt-2'></i> Detalles
-                </button>
-                <button class="btn btn-outline" style="flex: 1; padding: 6px 10px; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px; border-color: var(--warning); color: var(--warning);" onclick="viewTimelineInMonitoreo(decodeURIComponent('${encodeInlineHandlerArg(uid)}'))">
-                    <i class='bx bx-time'></i> Bitácora
-                </button>
-            </div>
-        `;
-        const avatarElement = card.querySelector('.monitoreo-avatar');
-        if (avatarElement) {
-            const fallbackAvatarSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0D8ABC&color=fff`;
-            avatarElement.alt = fullName;
-            avatarElement.addEventListener('error', () => {
-                avatarElement.src = fallbackAvatarSrc;
-            }, { once: true });
-            avatarElement.src = avatarSrc;
-        }
-        grid.appendChild(card);
-    });
+    // [LAB-INTEGRACION] Monitoreo: RiskOps.monitoringController (src/controllers/monitoring-controller.js)
+    return __histNav().monitoring.renderActiveSessionsDashboard();
 }
 
 function viewTimelineInMonitoreo(uid) {
-    // [LAB-INTEGRACION] con el bundle cargado se usa RiskOps.monitoringController; el cuerpo original queda de respaldo
-    if (typeof RiskOps !== 'undefined' && typeof __histNav === 'function') return __histNav().monitoring.viewTimelineInMonitoreo(uid);
-    const session = allActiveSessions[uid];
-    if (!session) return;
-    
-    const modal = document.getElementById('timelineModal');
-    const tbody = document.getElementById('timelineTableBody');
-    if (!modal || !tbody) return;
-    
-    document.getElementById('timelineModalName').innerText = session.name || 'Gestor';
-    
-    const timeline = session.timeline || [];
-    tbody.innerHTML = '';
-    
-    // Filter out very short glitches (under 60 seconds) that have already ended
-    let validTimeline = timeline.filter(ev => {
-        if (ev.end && (ev.end - ev.start) < 60000) return false;
-        return true;
-    });
-
-    // Inyectar dinámicamente el bloque de inactividad actual si el gestor perdió conexión (PC suspendido) y no está en pausa
-    const lastPing = session.lastActive ? new Date(session.lastActive).getTime() : 0;
-    const now = Date.now();
-    if (lastPing && (now - lastPing) > 120000 && session.status !== 'En Almuerzo' && session.status !== 'En Desayuno' && session.status !== 'En Pausa de Turno') { // más de 2 minutos sin dar señal y no está en break
-        const hasOngoingInactividad = validTimeline.some(ev => ev.type === 'Inactividad' && !ev.end);
-        if (!hasOngoingInactividad) {
-            validTimeline.push({
-                type: 'Inactividad',
-                start: lastPing,
-                end: null // En curso
-            });
-        }
-    }
-
-    if (validTimeline.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-secondary);">No hay pausas ni inactividades registradas en este turno.</td></tr>';
-    } else {
-        validTimeline.forEach(ev => {
-            const s = new Date(ev.start).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'});
-            let eTime = "No regresó";
-            let durationStr = "En curso...";
-            if (ev.end) {
-                eTime = new Date(ev.end).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'});
-                const mins = Math.max(1, Math.round((ev.end - ev.start) / 60000));
-                durationStr = `${mins} min`;
-            }
-            
-            let icon = "<i class='bx bx-time'></i>";
-            if (ev.type === 'Almuerzo') icon = "<i class='bx bx-restaurant' style='color: var(--success)'></i>";
-            if (ev.type === 'Desayuno') icon = "<i class='bx bx-coffee' style='color: var(--warning)'></i>";
-            if (ev.type === 'Inactividad') icon = "<i class='bx bx-sleepy' style='color: var(--danger)'></i>";
-            if (ev.type === 'Pausa de Turno') icon = "<i class='bx bx-pause-circle' style='color: #8b5cf6'></i>";
-
-            tbody.innerHTML += `
-                <tr style="border-bottom: 1px solid var(--glass-border);">
-                    <td style="padding: 10px; font-weight: 500;">${icon} ${ev.type}</td>
-                    <td style="padding: 10px; font-size: 13px;">${s} - ${eTime}</td>
-                    <td style="padding: 10px; text-align: center;"><span class="badge" style="background: rgba(255,255,255,0.05);">${durationStr}</span></td>
-                </tr>
-            `;
-        });
-    }
-    
-    modal.classList.add('active');
+    // [LAB-INTEGRACION] Bitácora del gestor: RiskOps.monitoringController
+    return __histNav().monitoring.viewTimelineInMonitoreo(uid);
 }
 window.viewTimelineInMonitoreo = viewTimelineInMonitoreo;
-
 
 window.openMonitoreoDetails = function(uid) { return __histNav().monitoring.openMonitoreoDetails(uid); }; // [LAB-INTEGRACION]
 
@@ -3484,6 +1741,10 @@ function __kpiController() {
         fetchKpiData: () => fetchKpiOperativosData(),
         database: database,
         getSelectedGestores: (id) => getSelectedMultiSelectValues(id),
+        querySelectorAll: (selector) => document.querySelectorAll(selector),
+        getUser: () => currentUser,
+        resolveTaskDisplayName: (key, entry) => resolveTaskDisplayName(key, entry),
+        isLegacyGenericTaskName: (name) => isLegacyGenericTaskName(name),
         setSelectedGestores: (id, values) => setCustomMultiSelectValues(id, values),
         setupMultiSelect: (id, options, onChange) => setupCustomMultiSelect(id, options, onChange),
         recalcularIndicadores: () => calcularIndicadores(),
@@ -3504,637 +1765,18 @@ function __kpiController() {
 async function fetchKpiOperativosData() { // [LAB-INTEGRACION] RiskOps.kpiOperativosSource
     return RiskOps.kpiOperativosSource.fetchKpiOperativosData({
         fetchFn: (url) => fetch(url),
-        isLocal: RiskOps.kpiOperativosSource.detectLocalEnvironment(window),
         now: () => new Date().getTime(),
         logger: console
     });
 }
 
-// Cargar data de retiros automáticamente (JSON pre-procesado del motor operativo o seed en local)
+// Cargar data de retiros automáticamente (JSON pre-procesado del motor operativo)
 async function loadRetirosData() { return __kpiController().loadRetirosData(); } // [LAB-INTEGRACION] RiskOps.kpiController
 
 function loadGestoresForKPIs() { __kpiController().loadGestoresForKPIs(); } // [LAB-INTEGRACION] RiskOps.kpiController (el original no devuelve nada)
 
-async function calcularIndicadores() {
-    const selectedGestores = getSelectedMultiSelectValues('operativoGestorMultiSelect');
-    const fechaEl = document.getElementById('filtroFechaOperativo');
-    if (!fechaEl) return;
-
-    let gestorName = 'todos';
-    if (selectedGestores.length > 0) {
-        gestorName = selectedGestores.length === 1 ? selectedGestores[0] : 'multiple';
-    }
-
-    const selectedFecha = fechaEl.value;
-    let periodo = 'general';
-    if (selectedFecha === 'today') periodo = 'hoy';
-    else if (selectedFecha === 'yesterday') periodo = 'ayer';
-    else if (selectedFecha === '7') periodo = 'semanal';
-    else if (selectedFecha === '30') periodo = '30dias';
-    else if (selectedFecha === 'thisMonth') periodo = 'mes';
-    else if (selectedFecha === 'lastMonth') periodo = 'lastMonth';
-    else if (selectedFecha === 'Todas') periodo = 'general';
-    else if (selectedFecha === 'custom') periodo = 'custom';
-
-    // Resetear listas de detalle
-    window.kpiTaskLists = { finalizadas: [], no_realizadas: [], pendientes: [] };
-    window.kpiBitacoraHTML = "";
-
-    // Limpiar UI anterior
-    const resultsContainer = document.getElementById('kpiResultsContainer');
-    if (resultsContainer) {
-        resultsContainer.style.display = 'none';
-    }
-    
-    if (!gestorName) {
-        return;
-    }
-    
-    let shiftReports = [];
-    try {
-        let snapshotReports;
-        
-        if (gestorName === 'todos' || selectedGestores.length > 0) {
-            snapshotReports = await database.ref('shift_reports').once('value');
-        }
-        
-        if (snapshotReports && snapshotReports.exists()) {
-            const data = snapshotReports.val();
-            shiftReports = shiftReports.concat(Object.values(data));
-        }
-        
-        if (selectedGestores.length > 0 && gestorName !== 'todos') {
-            const checkGestorMatch = (fbGestor, mstrGestoresList) => {
-                if (!fbGestor) return false;
-                const normFb = fbGestor.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                return mstrGestoresList.some(sel => {
-                    const normMstr = sel.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                    if (normFb === normMstr) return true;
-                    const mstrParts = normMstr.split(' ').filter(Boolean);
-                    if (mstrParts.every(p => normFb.includes(p))) return true;
-                    const fbParts = normFb.split(' ').filter(Boolean);
-                    if (mstrParts.length >= 2 && fbParts.length >= 2) {
-                        return normMstr.includes(fbParts[0]) && normMstr.includes(fbParts[1]);
-                    }
-                    return false;
-                });
-            };
-            shiftReports = shiftReports.filter(report => checkGestorMatch(report.gestor, selectedGestores));
-        }
-    } catch(e) {
-        console.error("Error cargando shift reports para KPIs", e);
-        return;
-    }
-    
-    // Filtro por fecha
-    const now = Date.now();
-    
-    const getTimestamp = (r) => {
-        let t = r.timestamp || r.loginTime;
-        if (typeof t === 'string') return new Date(t).getTime();
-        return t;
-    };
-    
-    if (periodo === 'hoy') {
-        const hoyStart = new Date().setHours(0,0,0,0);
-        shiftReports = shiftReports.filter(r => { const t = getTimestamp(r); return t && t >= hoyStart; });
-    } else if (periodo === 'ayer') {
-        const hoyStart = new Date().setHours(0,0,0,0);
-        const ayerStart = hoyStart - (24 * 60 * 60 * 1000);
-        shiftReports = shiftReports.filter(r => { const t = getTimestamp(r); return t && t >= ayerStart && t < hoyStart; });
-    } else if (periodo === 'semanal') {
-        const unaSemanaAtras = now - (7 * 24 * 60 * 60 * 1000);
-        shiftReports = shiftReports.filter(r => { const t = getTimestamp(r); return t && t >= unaSemanaAtras; });
-    } else if (periodo === '30dias') {
-        const unMesAtras = now - (30 * 24 * 60 * 60 * 1000);
-        shiftReports = shiftReports.filter(r => { const t = getTimestamp(r); return t && t >= unMesAtras; });
-    } else if (periodo === 'mes') {
-        const esteMesStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
-        shiftReports = shiftReports.filter(r => { const t = getTimestamp(r); return t && t >= esteMesStart; });
-    } else if (periodo === 'lastMonth') {
-        const d = new Date();
-        const startLast = new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime();
-        const endLast = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
-        shiftReports = shiftReports.filter(r => { const t = getTimestamp(r); return t && t >= startLast && t < endLast; });
-    } else if (periodo === 'custom') {
-        const dateStartStr = document.getElementById('operativoDateStart')?.value;
-        const dateEndStr = document.getElementById('operativoDateEnd')?.value;
-        if (dateStartStr && dateEndStr) {
-            const startParts = dateStartStr.split('-');
-            const endParts = dateEndStr.split('-');
-            const customStart = new Date(startParts[0], startParts[1]-1, startParts[2]).getTime();
-            const customEnd = new Date(endParts[0], endParts[1]-1, endParts[2]).getTime() + 86400000;
-            shiftReports = shiftReports.filter(r => { const t = getTimestamp(r); return t && t >= customStart && t < customEnd; });
-        } else {
-            return;
-        }
-    }
-    
-    // The shiftReports are already filtered by gestor using checkGestorMatch above.
-    if (shiftReports.length === 0) {
-        console.warn(`No hay reportes de turno para ${gestorName} en esta fecha/periodo.`);
-        // No hacer return, permitir que el código continúe para cargar los datos de Retiros
-    }
-
-    let totalFinalizadas = 0;
-    let totalNoRealizadas = 0;
-    let totalPendientes = 0;
-    let turnosAnalizados = shiftReports.length;
-    let totalMinutosConectados = 0;
-    let turnosValidosParaTiempo = 0;
-    
-    shiftReports.forEach(report => {
-        // Calcular duración del turno
-        if (report.horaInicio && report.horaFin) {
-            const baseMs = report.timestamp || report.loginTime || Date.now();
-            
-            const parseTime = (timeStr, baseDateMs) => RiskOps.kpiMetrics.parseTime(timeStr, baseDateMs); // [LAB-INTEGRACION] RiskOps.kpiMetrics
-
-            const startMs = parseTime(report.horaInicio, baseMs);
-            const endMs = parseTime(report.horaFin, baseMs);
-            
-            if (!isNaN(startMs) && !isNaN(endMs)) {
-                let diffMins = (endMs - startMs) / 60000;
-                if (diffMins < 0) diffMins += 1440; // Cruzó la medianoche
-                
-                if (diffMins > 0 && diffMins <= 1440) {
-                    // [LAB-INTEGRACION] D1: fórmula única de tiempo efectivo, la misma del correo de cierre (RiskOps.effectiveTime):
-                    // duración - almuerzo - desayuno - Pausa de Turno - inactividad (inactividadTotalMins; en reportes
-                    // antiguos, penalidad - excesos). La penalidad de conectividad es informativa y no se resta.
-                    let tiempoEfectivo = RiskOps.effectiveTime.computeSavedReportEffectiveMinutes(report, diffMins);
-                    
-                    totalMinutosConectados += tiempoEfectivo;
-                    turnosValidosParaTiempo++;
-                }
-            }
-        }
-
-        // Construir HTML de bitácora para el modal/tarjeta
-        const shiftDateStr = new Date(report.timestamp || report.loginTime || Date.now()).toLocaleDateString('es-CO');
-        let html = `<div style="background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">`;
-        html += `<div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">`;
-        html += `<div style="font-weight: 600; color: var(--accent-primary); font-size: 14px;"><i class='bx bx-calendar-event'></i> Turno del ${shiftDateStr}</div>`;
-        html += `<div style="font-size: 12px; color: var(--text-primary); background: var(--glass-border); padding: 5px 12px; border-radius: 20px; font-weight: 500;"><i class='bx bx-user'></i> ${report.gestor || 'Desconocido'}</div>`;
-        html += `</div>`;
-        
-        let horaI = report.horaInicio ? report.horaInicio : (report.loginTime ? new Date(report.loginTime).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'}) : 'N/A');
-        let horaF = report.horaFin || (report.status === "En Línea" ? "<span style='color:var(--success)'><i class='bx bx-radio-circle-marked bx-flashing'></i> En Curso</span>" : 'N/A');
-        
-        html += `<div style="display: flex; gap: 15px; font-size: 13px; color: var(--text-secondary); margin-bottom: 15px; flex-wrap: wrap;">`;
-        html += `<div style="background: var(--bg-primary); border: 1px solid var(--glass-border); padding: 8px 15px; border-radius: 8px;"><i class='bx bx-log-in-circle' style="color: var(--accent-primary);"></i> Ingreso: <span style="color: var(--text-primary); font-weight: 600;">${horaI}</span></div>`;
-        html += `<div style="background: var(--bg-primary); border: 1px solid var(--glass-border); padding: 8px 15px; border-radius: 8px;"><i class='bx bx-log-out-circle' style="color: var(--warning);"></i> Salida: <span style="color: var(--text-primary); font-weight: 600;">${horaF}</span></div>`;
-        html += `</div>`;
-
-        html += `<div style="display: flex; flex-direction: column; gap: 10px;">`;
-        
-        if (report.timeline && report.timeline.length > 0) {
-            report.timeline.forEach(ev => {
-                const s = new Date(ev.start).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'});
-                const eTime = ev.end ? new Date(ev.end).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'}) : "<span style='color:var(--warning)'>En Pausa</span>";
-                let icon = ev.type === 'Desayuno' ? "<i class='bx bx-coffee'></i>" : (ev.type === 'Almuerzo' ? "<i class='bx bx-restaurant'></i>" : "<i class='bx bx-time-five'></i>");
-                let color = ev.type === 'Desayuno' ? "var(--warning)" : (ev.type === 'Almuerzo' ? "var(--success)" : "var(--danger)");
-                let bgLight = ev.type === 'Desayuno' ? "var(--warning-bg)" : (ev.type === 'Almuerzo' ? "var(--success-bg)" : "var(--danger-bg)");
-                
-                html += `<div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-primary); padding: 12px 16px; border-radius: 10px; border-left: 4px solid ${color}; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">`;
-                html += `<div style="display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 13px; color: var(--text-primary);"><div style="background: ${bgLight}; color: ${color}; width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 16px;">${icon}</div> ${escapeHTML(String(ev.type))}</div>`;
-                html += `<div style="font-family: monospace; font-size: 12px; color: var(--text-primary); background: var(--bg-secondary); border: 1px solid var(--glass-border); padding: 5px 12px; border-radius: 8px; font-weight: 500;"><i class='bx bx-time' style="color: var(--text-secondary);"></i> ${s} - ${eTime}</div>`;
-                html += `</div>`;
-            });
-        } else if (report.reporte && report.reporte.includes("=== BITÁCORA DE TIEMPOS ===")) {
-            const parts = report.reporte.split("=== BITÁCORA DE TIEMPOS ===");
-            if (parts.length > 1) {
-                const rawBitacora = parts[1].trim();
-                const lines = rawBitacora.split('\n').map(l => l.trim()).filter(Boolean);
-                const uniqueLines = [];
-                lines.forEach(line => {
-                    if (!uniqueLines.includes(line)) {
-                        uniqueLines.push(line);
-                    }
-                });
-                html += `<div style="font-family: monospace; font-size: 13px; color: var(--text-secondary); white-space: pre-wrap; background: var(--bg-primary); border: 1px solid var(--glass-border); padding: 15px; border-radius: 10px;">${escapeHTML(uniqueLines.join('\n'))}</div>`;
-            }
-        } else {
-            html += `<div style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 13px; background: var(--bg-primary); border-radius: 10px; border: 1px dashed var(--glass-border);"><i class='bx bx-info-circle' style="font-size: 18px; display: block; margin-bottom: 5px; opacity: 0.5;"></i> No se registraron pausas en este turno</div>`;
-        }
-        html += `</div></div>`;
-        
-        window.kpiBitacoraHTML = (window.kpiBitacoraHTML || "") + html;
-        
-        let tasks = report.tasks;
-        if (!tasks && report.reporte) {
-            tasks = {};
-            const regex = /\[\s*([A-Za-z_]+)\s*\]\s*-\s*([^\n]+)(?:\nObservación:\s*([^\n]+))?/g;
-            let match;
-            let i = 0;
-            while ((match = regex.exec(report.reporte)) !== null) {
-                tasks[`parsed_${i++}`] = {
-                    status: match[1].toLowerCase(),
-                    name: match[2].trim(),
-                    observation: match[3] ? match[3].trim() : 'N/A'
-                };
-            }
-        }
-        
-        if (!tasks) return;
-        
-        // Contar tareas
-        for (let taskId in tasks) {
-            const task = tasks[taskId];
-            const shiftDateStr = new Date(report.timestamp || report.loginTime || Date.now()).toLocaleDateString();
-
-            let displayName = task.name || '';
-            const isExtra = taskId.startsWith('extra_') || displayName.includes('[EXTRA]');
-            if (!isExtra) {
-                if (isLegacyGenericTaskName(displayName)) {
-                    const tid = displayName.replace(/Tarea\s*/i, '').trim();
-                    displayName = resolveTaskDisplayName(tid, { name: displayName });
-                } else if (!taskId.startsWith('parsed_')) {
-                    displayName = resolveTaskDisplayName(taskId, task);
-                }
-            }
-
-            const taskObj = { name: displayName, date: shiftDateStr, type: task.type || 'N/A', observation: task.observation || 'N/A' };
-            
-            if (!task.status) continue;
-            const tStatus = task.status.toLowerCase().trim();
-            
-            if (tStatus === 'finalizada') {
-                totalFinalizadas++;
-                window.kpiTaskLists.finalizadas.push(taskObj);
-            } else if (tStatus === 'no_realizada' || tStatus === 'no realizada') {
-                totalNoRealizadas++;
-                window.kpiTaskLists.no_realizadas.push(taskObj);
-            } else if (tStatus === 'pendiente' || tStatus === 'en_proceso' || tStatus === 'en proceso') {
-                totalPendientes++;
-                window.kpiTaskLists.pendientes.push(taskObj);
-            }
-        }
-    });
-    
-    const totalTareas = totalFinalizadas + totalNoRealizadas + totalPendientes;
-    let porcentajeActividades = 0;
-    
-    if (totalTareas > 0) {
-        porcentajeActividades = (totalFinalizadas / totalTareas) * 100;
-    } else {
-        porcentajeActividades = 0; // Regla confirmada: 0% si no marcó nada
-    }
-    
-    porcentajeActividades = Math.round(porcentajeActividades);
-    
-    // Calcular Penalidad de Conectividad e Inactividad
-    let totalInactividadMins = 0;
-    let totalPenalidadConectividad = 0;
-    let validInactivitySessions = 0;
-    shiftReports.forEach(report => {
-        let isFueraDeHorario = false;
-        if (report.turnoProgramado) {
-            let loginDateObj = report.loginTime ? new Date(report.loginTime) : (report.timestamp ? new Date(report.timestamp) : null);
-            if (!loginDateObj || isNaN(loginDateObj) && report.horaInicio) {
-                try {
-                    let parts = report.horaInicio.split(',');
-                    if (parts.length > 0) {
-                        let dParts = parts[0].trim().split('/');
-                        if (dParts.length === 3) {
-                            let day = parseInt(dParts[0]), month = parseInt(dParts[1]), year = parseInt(dParts[2]);
-                            if (month > 12) { let t = day; day = month; month = t; }
-                            let tStr = parts.length > 1 ? parts[1].trim().replace(/\./g, '').replace(/a\s*m/i, 'AM').replace(/p\s*m/i, 'PM') : "00:00:00";
-                            loginDateObj = new Date(`${month}/${day}/${year} ${tStr}`);
-                        }
-                    }
-                } catch(e) {}
-            }
-            if (loginDateObj && !isNaN(loginDateObj)) {
-                let shiftStr = report.turnoProgramado.toLowerCase().trim();
-                let match = shiftStr.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
-                if (match) {
-                    let h = parseInt(match[1]); let m = match[2] ? parseInt(match[2]) : 0;
-                    let ampm = match[3];
-                    if (ampm === 'pm' && h < 12) h += 12;
-                    if (ampm === 'am' && h === 12) h = 0;
-                    let exp = new Date(loginDateObj);
-                    exp.setHours(h, m, 0, 0);
-                    let diffMin = (loginDateObj - exp) / 60000;
-                    if (diffMin < -720) { exp.setDate(exp.getDate() - 1); diffMin = (loginDateObj - exp) / 60000; }
-                    else if (diffMin > 720) { exp.setDate(exp.getDate() + 1); diffMin = (loginDateObj - exp) / 60000; }
-                    if (diffMin > 240) isFueraDeHorario = true;
-                }
-            }
-        }
-        
-        if (isFueraDeHorario) return;
-        validInactivitySessions++;
-        
-        if (report.penalidadConectividadMins) {
-            // Regla confirmada: 1% menos por cada minuto sobrepasado
-            totalPenalidadConectividad += report.penalidadConectividadMins;
-        }
-        
-        if (report.timeline && report.timeline.length > 0) {
-            // Limpiar y unificar timeline de reportes pasados para ignorar inactividades duplicadas/superpuestas
-            let cleanTimeline = [];
-            const breaks = report.timeline.filter(b => b.type === 'Desayuno' || b.type === 'Almuerzo');
-            let sortedEvs = [...report.timeline].sort((a, b) => a.start - b.start);
-            const reportEndTs = report.timestamp || Date.now();
-
-            sortedEvs.forEach(ev => {
-                let evStart = ev.start;
-                let evEnd = ev.end || reportEndTs;
-                if (evEnd <= evStart) return;
-
-                if (ev.type === 'Inactividad') {
-                    if (evEnd - evStart < 30000) return;
-                    let insideBreak = breaks.some(b => {
-                        let bStart = b.start;
-                        let bEnd = b.end || reportEndTs;
-                        return evStart >= bStart && evEnd <= bEnd;
-                    });
-                    if (insideBreak) return;
-                }
-
-                if (cleanTimeline.length === 0) {
-                    cleanTimeline.push({ type: ev.type, start: evStart, end: evEnd });
-                } else {
-                    let prev = cleanTimeline[cleanTimeline.length - 1];
-                    if (prev.type === ev.type && evStart <= prev.end + 60000) {
-                        prev.end = Math.max(prev.end, evEnd);
-                    } else if (evStart < prev.end) {
-                        if (ev.type === 'Inactividad') {
-                            if (evEnd > prev.end) {
-                                evStart = prev.end;
-                                if (evEnd - evStart >= 30000) {
-                                    cleanTimeline.push({ type: ev.type, start: evStart, end: evEnd });
-                                }
-                            }
-                        } else {
-                            cleanTimeline.push({ type: ev.type, start: evStart, end: evEnd });
-                        }
-                    } else {
-                        cleanTimeline.push({ type: ev.type, start: evStart, end: evEnd });
-                    }
-                }
-            });
-
-            let fallbackMins = 0;
-            const loginDate = report.loginTime ? new Date(report.loginTime) : (report.timestamp ? new Date(report.timestamp) : null);
-            const maxEndTime = loginDate ? loginDate.getTime() + (10 * 60 * 60 * 1000) : Date.now() + 99999999;
-
-            cleanTimeline.forEach(ev => {
-                if (ev.type === 'Inactividad') {
-                    if (loginDate && ev.start > maxEndTime) return;
-                    let eTime = ev.end ? ev.end : Date.now();
-                    if (loginDate && eTime > maxEndTime) eTime = maxEndTime;
-                    let mins = (eTime - ev.start) / (1000 * 60);
-                    if (mins > 0) fallbackMins += mins;
-                }
-            });
-            totalInactividadMins += Math.min(fallbackMins, 480);
-        } else if (report.inactividadTotalMins !== undefined) {
-            totalInactividadMins += Math.min(report.inactividadTotalMins, 480);
-        }
-    });
-    let diasTrabajados = validInactivitySessions || (shiftReports.length ? 1 : 0);
-    let totalMinutosEsperados = diasTrabajados * 405; // 6:45 horas = 405 minutos por dia
-    let porcentajeInactividad = totalMinutosEsperados > 0 ? (totalInactividadMins / totalMinutosEsperados) * 100 : 0;
-    
-    let porcentajeConectividad = 100 - porcentajeInactividad;
-    porcentajeConectividad = Number(porcentajeConectividad.toFixed(2));
-    if (porcentajeConectividad < 0) porcentajeConectividad = 0;
-    if (porcentajeConectividad > 100) porcentajeConectividad = 100;
-
-    
-    // Aplicar penalidad de retiros si existe la data y llenar nuevas tarjetas
-    let penalidadRetiros = 0;
-    const cardRetiros = document.getElementById('kpiRetirosPenalidadCard');
-    const textPenalidad = document.getElementById('kpiPenalidadRetiros');
-    const textDemora = document.getElementById('kpiDemoraPromedioText');
-    const cardPagados = document.getElementById('metric-approved-count');
-    const cardPagadosTitle = document.getElementById('metric-approved-title');
-    const cardRechazados = document.getElementById('kpiRetirosRechazados');
-    const retirosCardsElements = document.querySelectorAll('.retiros-card');
-    
-    // Set a flag so the real-time Firebase listener knows if we are overriding the value
-    window.isFilteredByGestor = gestorName !== 'todos';
-    
-    // Asegurar que controlOperativoRawData esté cargado
-    if (!window.controlOperativoRawData) {
-        try {
-            window.controlOperativoRawData = await fetchKpiOperativosData();
-        } catch (e) {
-            console.error("Error al cargar datos de operativos", e);
-        }
-    }
-    
-    let finalStats = { totalAprobados: 0, totalRechazados: 0, montoProcesado: 0, minutosDemoraTotales: 0, retirosConTiempo: 0 };
-    
-    if (window.controlOperativoRawData) {
-        let targetDates = [];
-        const getLocalYYYYMMDD = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-        const now = new Date();
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        
-        const addDates = (d) => targetDates.push(getLocalYYYYMMDD(d));
-
-        if (periodo === 'hoy') {
-            addDates(todayStart);
-        } else if (periodo === 'ayer') {
-            addDates(new Date(todayStart.getTime() - 86400000));
-        } else if (periodo === 'semanal') {
-            for(let i=0; i<7; i++) addDates(new Date(todayStart.getTime() - (i * 86400000)));
-        } else if (periodo === '30dias') {
-            for(let i=0; i<30; i++) addDates(new Date(todayStart.getTime() - (i * 86400000)));
-        } else if (periodo === 'mes') {
-            for(let i=1; i<=31; i++){
-                const dt = new Date(todayStart.getFullYear(), todayStart.getMonth(), i);
-                if (dt.getMonth() === todayStart.getMonth() && dt <= todayStart) addDates(dt);
-            }
-        } else if (periodo === 'lastMonth') {
-            const firstLast = new Date(todayStart.getFullYear(), todayStart.getMonth() - 1, 1);
-            const lastLast = new Date(todayStart.getFullYear(), todayStart.getMonth(), 0);
-            for(let d = new Date(firstLast); d <= lastLast; d.setDate(d.getDate() + 1)) {
-                addDates(new Date(d));
-            }
-        } else if (periodo === 'custom') {
-            const dateStartStr = document.getElementById('operativoDateStart')?.value;
-            const dateEndStr = document.getElementById('operativoDateEnd')?.value;
-            if (dateStartStr && dateEndStr) {
-                const sp = dateStartStr.split('-').map(Number);
-                const ep = dateEndStr.split('-').map(Number);
-                const start = new Date(sp[0], sp[1] - 1, sp[2]);
-                const end = new Date(ep[0], ep[1] - 1, ep[2]);
-                for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                    addDates(new Date(d));
-                }
-            }
-        }
-        
-        let gestoresToCheck = [];
-        if (selectedGestores.length === 0) {
-            gestoresToCheck = Object.keys(window.controlOperativoRawData);
-        } else {
-            const rawKeys = Object.keys(window.controlOperativoRawData);
-            gestoresToCheck = selectedGestores.map(g => {
-                let realGestor = rawKeys.find(k => k === g);
-                if (!realGestor) {
-                    const parts = g.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(' ');
-                    realGestor = rawKeys.find(k => {
-                        const normK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                        return parts.every(p => normK.includes(p));
-                    });
-                }
-                return realGestor || g;
-            });
-        }
-        
-        for (let g of gestoresToCheck) {
-            if (!window.controlOperativoRawData[g]) continue; 
-            
-            for (let f in window.controlOperativoRawData[g]) {
-                if (periodo !== 'general' && !targetDates.includes(f)) continue;
-                
-                const dayData = window.controlOperativoRawData[g][f];
-                finalStats.totalAprobados += dayData.Retiros_Aprobados || 0;
-                finalStats.totalRechazados += dayData.Retiros_Rechazados || 0;
-                finalStats.minutosDemoraTotales += (dayData.Tiempo_Total_Desde_Creacion_Segundos || 0) / 60;
-                finalStats.retirosConTiempo += dayData.Retiros_Procesados || 0;
-            }
-        }
-    }
-
-    if (cardPagados) {
-        cardPagados.textContent = finalStats.totalAprobados;
-        if (cardPagadosTitle) {
-            cardPagadosTitle.textContent = window.isFilteredByGestor ? "Retiros Aprobados (Filtrado)" : "Retiros Aprobados (Global)";
-        }
-    }
-    if (cardRechazados) cardRechazados.textContent = finalStats.totalRechazados;
-    
-    if (finalStats.retirosConTiempo > 0) {
-        const avgDemoraMins = finalStats.minutosDemoraTotales / finalStats.retirosConTiempo;
-        
-        // Penalidad: si el promedio supera los 15 minutos, restar 1% por cada minuto extra (max 30% de penalidad)
-        if (avgDemoraMins > 15) {
-            penalidadRetiros = Math.floor(avgDemoraMins - 15);
-            if (penalidadRetiros > 30) penalidadRetiros = 30; // Cap
-        }
-        
-        if (cardRetiros) {
-            if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
-                cardRetiros.style.display = 'none';
-            } else {
-                cardRetiros.style.display = 'flex';
-            }
-        }
-        if (textPenalidad) textPenalidad.textContent = `-${penalidadRetiros}%`;
-        if (textDemora) textDemora.textContent = `Promedio: ${Math.round(avgDemoraMins)} min / ${finalStats.retirosConTiempo} retiros`;
-    } else {
-        if (cardRetiros) cardRetiros.style.display = 'none';
-    }
-    
-    // Hide Rendimiento Retiros for Gestor
-    const kpiRendimientoRetirosCard = document.getElementById('kpiRendimientoRetirosCard'); // we need to make sure this is the right ID
-    if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'Gestor') {
-        document.querySelectorAll('.retiros-card').forEach(el => el.style.display = 'none');
-        if (cardRetiros) cardRetiros.style.display = 'none';
-    }
-    
-    let porcentajeRetiros = 100 - penalidadRetiros;
-    if (porcentajeRetiros < 0) porcentajeRetiros = 0;
-    
-    // Calcular promedio de horas y minutos
-    let promedioHoras = 0;
-    let promedioMinutosRestantes = 0;
-    if (turnosValidosParaTiempo > 0) {
-        const avgMinutosTotales = totalMinutosConectados / turnosValidosParaTiempo;
-        promedioHoras = Math.floor(avgMinutosTotales / 60);
-        promedioMinutosRestantes = Math.round(avgMinutosTotales % 60);
-    }
-    
-    // Update DOM
-    document.getElementById('kpiTotalFinalizadas').textContent = totalFinalizadas;
-    document.getElementById('kpiTotalNoRealizadas').textContent = totalNoRealizadas;
-    document.getElementById('kpiTotalPendientes').textContent = totalPendientes;
-    document.getElementById('kpiTurnosAnalizados').textContent = turnosAnalizados;
-    document.getElementById('kpiDuracionPromedio').textContent = turnosValidosParaTiempo > 0 ? `${promedioHoras}h ${promedioMinutosRestantes}m` : 'N/A';
-    
-    // Inactividad
-    let inactividadHoras = Math.floor(totalInactividadMins / 60);
-    let inactividadMinutos = Math.round(totalInactividadMins % 60);
-    let inactividadStr = totalInactividadMins > 0 ? `${inactividadHoras}h ${inactividadMinutos}m` : '0h 0m';
-    if(document.getElementById('kpiTiempoInactivo')) {
-        document.getElementById('kpiTiempoInactivo').textContent = inactividadStr;
-    }
-    
-    // Mostrar Bitácora integrada
-    const cardBitacora = document.getElementById('kpiBitacoraInlineCard');
-    const listBitacora = document.getElementById('kpiBitacoraInlineList');
-    const titleBitacora = document.getElementById('kpiBitacoraTitle');
-    
-    let gestorLabel = 'Todos los Gestores';
-    if (selectedGestores && selectedGestores.length === 1) {
-        gestorLabel = selectedGestores[0];
-    } else if (selectedGestores && selectedGestores.length > 1) {
-        gestorLabel = selectedGestores.join(', ');
-    }
-    
-    if (titleBitacora) {
-        titleBitacora.innerHTML = `<i class='bx bx-time-five' style="color: #8B5CF6; margin-right: 6px;"></i> Desglose de Horarios - <span style="color: var(--accent-primary); font-weight: 700;">${escapeHTML(gestorLabel)}</span> <span style="font-size: 13px; color: var(--text-secondary); font-weight: normal;">(Desayuno, Almuerzo/Cena e Inactividad)</span>`;
-    }
-
-    if (cardBitacora && listBitacora) {
-        if (window.kpiBitacoraHTML && window.kpiBitacoraHTML.trim() !== '') {
-            listBitacora.innerHTML = window.kpiBitacoraHTML;
-            cardBitacora.style.display = 'flex';
-        } else {
-            const periodoText = periodo === 'hoy' ? 'Hoy' : (periodo === 'ayer' ? 'Ayer' : (periodo === 'semanal' ? 'Últimos 7 días' : (periodo === '30dias' ? 'Últimos 30 días' : (periodo === 'mes' ? 'Este Mes' : 'Periodo seleccionado'))));
-            listBitacora.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 13px; background: var(--bg-primary); border-radius: 10px; border: 1px dashed var(--glass-border);"><i class='bx bx-info-circle' style="font-size: 18px; display: block; margin-bottom: 5px; opacity: 0.5;"></i> No se registran turnos cerrados ni pausas para <strong style="color: var(--text-primary);">${escapeHTML(gestorLabel)}</strong> en el periodo seleccionado (${periodoText}).</div>`;
-            cardBitacora.style.display = 'flex';
-        }
-    }
-    
-    // Animar anillos independientes
-    const animateRing = (ringId, textId, badgeId, percentage) => {
-        const ring = document.getElementById(ringId);
-        const textPercent = document.getElementById(textId);
-        const badge = document.getElementById(badgeId);
-        if(!ring || !textPercent || !badge) return;
-        
-        const circumference = 251.2;
-        const offset = circumference - (percentage / 100) * circumference;
-        
-        ring.style.transition = 'none';
-        ring.style.strokeDashoffset = circumference;
-        
-        setTimeout(() => {
-            ring.style.transition = 'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)';
-            ring.style.strokeDashoffset = offset;
-            textPercent.textContent = percentage + '%';
-            
-            if (percentage >= 90) {
-                ring.style.stroke = 'var(--success)';
-                badge.style.background = 'rgba(16, 185, 129, 0.2)';
-                badge.style.color = 'var(--success)';
-                badge.textContent = 'Óptimo';
-            } else if (percentage >= 75) {
-                ring.style.stroke = 'var(--warning)';
-                badge.style.background = 'rgba(245, 158, 11, 0.2)';
-                badge.style.color = 'var(--warning)';
-                badge.textContent = 'Aceptable';
-            } else {
-                ring.style.stroke = 'var(--danger)';
-                badge.style.background = 'rgba(239, 68, 68, 0.2)';
-                badge.style.color = 'var(--danger)';
-                badge.textContent = 'Crítico';
-            }
-        }, 50);
-    };
-
-    animateRing('kpiScoreRingActividades', 'kpiScoreTextActividades', 'kpiVerdictBadgeActividades', porcentajeActividades);
-    animateRing('kpiScoreRingConectividad', 'kpiScoreTextConectividad', 'kpiVerdictBadgeConectividad', porcentajeConectividad);
-    animateRing('kpiScoreRingRetiros', 'kpiScoreTextRetiros', 'kpiVerdictBadgeRetiros', porcentajeRetiros);
-    
-    resultsContainer.style.display = 'flex';
-}
+// [LAB-INTEGRACION] KPIs de turnos y retiros: RiskOps.kpiController.calcularIndicadores (src/controllers/kpi-controller.js)
+async function calcularIndicadores() { return __kpiController().calcularIndicadores(); }
 
 // Modal de Detalle de Tareas (KPIs) — [LAB-INTEGRACION] RiskOps.kpiController
 function openKpiTaskDetails(tipo) { return __kpiController().openKpiTaskDetails(tipo); }
@@ -4169,27 +1811,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Window clicks para cerrar modales
-window.onclick = function(event) {
-    const modalPermiso = document.getElementById('permisoModal');
-    if (event.target == modalPermiso) {
-        cerrarModalPermiso();
-    }
-    
-    const taskDetailsModal = document.getElementById('kpiTaskDetailsModal');
-    if (event.target == taskDetailsModal) {
-        closeKpiTaskDetails();
-    }
-};
-
-// Cerrar modales con la tecla Escape
-window.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') {
-        const activeModals = document.querySelectorAll('.modal-overlay.active');
-        activeModals.forEach(modal => {
-            modal.classList.remove('active');
-        });
-    }
+// [LAB-INTEGRACION] Cierre de modales por fondo y Escape: RiskOps.modalView.bindModalDismissal (W-22).
+// El clic sobre el fondo de permisoModal se retiró: ese id no existe en index.html, así que nunca se ejecutaba.
+const __labModalDismissalUnbind = RiskOps.modalView.bindModalDismissal({
+    win: window,
+    doc: document,
+    backdrops: [{ id: 'kpiTaskDetailsModal', close: () => closeKpiTaskDetails() }]
 });
 
 // --- MÓDULO DE COMUNICADOS ---
@@ -4223,15 +1850,10 @@ function openNewComunicadoModal() { __labAnnouncements().openNewModal(); } // [L
 
 async function saveNewComunicado() { return __labAnnouncements().save(); } // [LAB-INTEGRACION]
 
-function updateUnreadBadge() { __labAnnouncements().updateUnreadBadge(); } // [LAB-INTEGRACION]
-
 function renderGestorComunicados() { __labAnnouncements().renderGestor(); } // [LAB-INTEGRACION]
 
 async function markComunicadoAsRead(id) { await __labAnnouncements().markAsRead(id); } // [LAB-INTEGRACION]
 
-function checkUnreadUrgentAnnouncements() { __labAnnouncements().checkUnreadUrgent(); } // [LAB-INTEGRACION]
-
-async function markUrgentComunicadoAsRead(id) { return __labAnnouncements().markUrgentAsRead(id); } // [LAB-INTEGRACION]
 // [LAB-INTEGRACION:COMUNICADOS-FIN]
 
 // [LAB-INTEGRACION:CONFIG-GESTORES-INICIO]
@@ -4271,8 +1893,6 @@ document.getElementById('confirmDeleteBtn')?.addEventListener('click', () => __l
 // ==========================================
 let controlOperativoCharts = {};
 
-function destroyChart(id) { return __kpiController().destroyChart(id); } // [LAB-INTEGRACION] RiskOps.kpiController (mismo registro controlOperativoCharts)
-
 window.controlOperativoRawData = null;
 
 function toggleOperativoCustomDates() { return __kpiController().toggleOperativoCustomDates(); } // [LAB-INTEGRACION] RiskOps.kpiController
@@ -4282,30 +1902,15 @@ function toggleOperativoCustomDates() { return __kpiController().toggleOperativo
 // ==========================================
 function generarAnalisisTextual() { return __kpiController().generarAnalisisTextual(); } // [LAB-INTEGRACION] RiskOps.kpiController
 
-
 // ==========================================
 // Función para Generar Informe Ejecutivo en PDF
 // ==========================================
 function generarReporteEjecutivoPDF() { return __kpiController().generarReporteEjecutivoPDF(); } // [LAB-INTEGRACION] RiskOps.kpiController
 
-
-
 async function loadControlOperativoData() { return __kpiController().loadControlOperativoData(); } // [LAB-INTEGRACION] RiskOps.kpiController
 
 // [LAB-INTEGRACION] Tabla/tarjetas/gráficas del Control Operativo: RiskOps.kpiController (kpiMetrics, kpiChartPlan, kpiChartConfigs)
 function renderControlOperativoFiltered() { return __kpiController().renderControlOperativoFiltered(); }
-
-function renderControlOperativoCharts(data, dailyData, selectedGestor) { return __kpiController().renderControlOperativoCharts(data, dailyData, selectedGestor); }
-
-function drawPunctualDatesChart(id, dates, dataArr, bgColors) { return __kpiController().drawPunctualDatesChart(id, dates); } // dataArr y bgColors los ignora el original
-
-function drawChart(id, type, labels, dataArr, labelStr, bgColor, borderColor, extraOptions = {}) { return __kpiController().drawChart(id, type, labels, dataArr, labelStr, bgColor, borderColor, extraOptions); }
-
-function drawCombinedChart(id, labels, data) { return __kpiController().drawCombinedChart(id, labels, data); }
-
-function drawCombinedChartDaily(id, sortedDates, selectedGestor) { return __kpiController().drawCombinedChartDaily(id, sortedDates, selectedGestor); }
-
-function drawScatterMatriz(id, gestores, data, isGlobal = true) { return __kpiController().drawScatterMatriz(id, gestores, data, isGlobal); }
 
 // ==========================================
 // ACTIVE SUPERVISOR BADGE LOGIC
@@ -4328,7 +1933,6 @@ function updateActiveSupervisorBadge() { // [LAB-INTEGRACION] RiskOps.supervisor
 setInterval(updateActiveSupervisorBadge, 60000); // Check every minute
 setTimeout(updateActiveSupervisorBadge, 3000); // Initial check after loading
 
-
 // ==========================================
 // HISTORIAL DE ACCESOS LOGIC
 // ==========================================
@@ -4349,8 +1953,6 @@ function __labLoginHistory() {
 
 async function openLoginHistoryModal() { return __labLoginHistory().open(); } // [LAB-INTEGRACION]
 
-function renderLoginHistoryTable(records) { __labLoginHistory().render(records); } // [LAB-INTEGRACION]
-
 function filterLoginHistoryTable() { __labLoginHistory().filter(); } // [LAB-INTEGRACION]
 // [LAB-INTEGRACION:LOGIN-HISTORY-FIN]
 
@@ -4367,17 +1969,7 @@ window.filterLoginHistoryTable = filterLoginHistoryTable;
  * Tiempo de Aprobación = FechaHoraAprobación - HoraInicioCálculo
  */
 function calculateEffectiveApprovalTime(creacionTime, aprobacionTime, inicioTurnoTime) {
-    if (!aprobacionTime) return 0;
-    const creacionMs = new Date(creacionTime).getTime();
-    const aprobacionMs = new Date(aprobacionTime).getTime();
-    let inicioTurnoMs = inicioTurnoTime ? new Date(inicioTurnoTime).getTime() : 0;
-    
-    if (isNaN(creacionMs) || isNaN(aprobacionMs)) return 0;
-    if (isNaN(inicioTurnoMs)) inicioTurnoMs = 0;
-
-    const horaInicioCalculoMs = Math.max(creacionMs, inicioTurnoMs);
-    const diffMins = (aprobacionMs - horaInicioCalculoMs) / 60000;
-    return Math.max(0, Math.round(diffMins * 100) / 100);
+    return RiskOps.withdrawalMetrics.calculateEffectiveApprovalTime(creacionTime, aprobacionTime, inicioTurnoTime);
 }
 
 /**
@@ -4464,16 +2056,7 @@ function renderIncidentsTable(incidents) { __labIncidents().renderTable(incident
 function renderAssignedTasksFilter() {
     const assigneeSelect = document.getElementById('filter-assignee');
     if (!assigneeSelect) return;
-    const selectedAssignee = assigneeSelect.value;
-    
-    document.querySelectorAll('.task-item').forEach(taskItem => {
-        const assigneeAttr = taskItem.getAttribute('data-assignee') || '';
-        if (selectedAssignee === 'Todos' || (typeof normalizeName === 'function' && normalizeName(assigneeAttr).includes(normalizeName(selectedAssignee)))) {
-            taskItem.style.display = '';
-        } else {
-            taskItem.style.display = 'none';
-        }
-    });
+    RiskOps.taskTreeView.filterTasksByAssignee(document, assigneeSelect.value); // [LAB-INTEGRACION] W-22
 }
 
 // Exponer funciones globalmente
@@ -4486,6 +2069,4 @@ window.handleNewIncidentSubmit = handleNewIncidentSubmit;
 window.startIncidentsRealtimeListener = startIncidentsRealtimeListener;
 window.renderIncidentsTable = renderIncidentsTable;
 window.renderAssignedTasksFilter = renderAssignedTasksFilter;
-
-
 

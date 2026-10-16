@@ -77,14 +77,11 @@ testAsync('filtrar: por texto y por fecha con los controles de la página; sin c
     assert.equal(t2.controller.getRecords().length, 4);
 });
 
-testAsync('D2 (predeterminado): un loginTime malicioso escrito por un gestor se pinta ESCAPADO; el original (sin escapar) solo con escapeRawLoginTime: false', async () => {
+testAsync('D2 / W-52: un loginTime malicioso escrito por un gestor se pinta ESCAPADO siempre (ninguna opción lo apaga)', async () => {
     const d = data();
     d.login_history.hx = { name: 'Mal', loginTime: '<img src=x onerror=alert(1)>' };
     d.login_history.hy = { name: 'Mal2', loginTime: `"><script>alert('x')</script>` };
-    const legacy = setup(d, { escapeRawLoginTime: false });
-    await legacy.controller.open();
-    assert.ok(legacy.document.el('loginHistoryTableBody').innerHTML.includes('<img src=x onerror=alert(1)>'), 'HALLAZGO reproducido solo con la opción legada');
-    for (const options of [{}, { escapeRawLoginTime: true }]) {
+    for (const options of [{}, { escapeRawLoginTime: false }]) {
         const safe = setup(d, options);
         await safe.controller.open();
         const html = safe.document.el('loginHistoryTableBody').innerHTML;
