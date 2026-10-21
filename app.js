@@ -4300,26 +4300,10 @@ async function renderPendingUsers() {
         return matchSearch && matchStatus;
     });
     
-    // Only show top 5 if no filters are active to keep UI clean
-    if (!hasFilter && allDisplayUsers.length > 5) {
-        allDisplayUsers = allDisplayUsers.slice(0, 5);
-        // Add a fake row to indicate there are more
-        const total = [...pending, ...approved].length;
-        setTimeout(() => {
-            if(document.getElementById('pendingUsersTableBody')) {
-                document.getElementById('pendingMostrandoMsg') ? document.getElementById('pendingMostrandoMsg').remove() : null;
-                const msg = document.createElement('div');
-                msg.id = 'pendingMostrandoMsg';
-                msg.style = 'text-align: center; font-size: 11px; color: var(--text-secondary); margin-top: 10px; margin-bottom: 15px; font-style: italic;';
-                msg.innerText = `Mostrando los 5 registros más recientes de ${total} en total. Usa los filtros arriba para buscar más.`;
-                document.getElementById('pendingUsersTableBody').parentElement.parentElement.appendChild(msg);
-            }
-        }, 100);
-    } else {
-        setTimeout(() => {
-            if(document.getElementById('pendingMostrandoMsg')) document.getElementById('pendingMostrandoMsg').remove();
-        }, 100);
-    }
+    // Sin tope: la tabla muestra todas las solicitudes y tiene scroll (ver .approval-scroll).
+    setTimeout(() => {
+        if (document.getElementById('pendingMostrandoMsg')) document.getElementById('pendingMostrandoMsg').remove();
+    }, 100);
     
     if (allDisplayUsers.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay usuarios que coincidan con los filtros.</td></tr>`;
@@ -4439,23 +4423,10 @@ async function renderPendingPermissions() {
         return new Date(b.fecha).getTime() - new Date(a.fecha).getTime();
     });
     
-    // Limit to 5
-    if (pending.length > 5) {
-        const total = pending.length;
-        pending = pending.slice(0, 5);
-        setTimeout(() => {
-            if(document.getElementById('pendingPermsMostrandoMsg')) document.getElementById('pendingPermsMostrandoMsg').remove();
-            const msg = document.createElement('div');
-            msg.id = 'pendingPermsMostrandoMsg';
-            msg.style = 'text-align: center; font-size: 11px; color: var(--text-secondary); margin-top: 10px; margin-bottom: 15px; font-style: italic;';
-            msg.innerText = `Mostrando los 5 permisos más recientes de ${total} pendientes.`;
-            document.getElementById('pendingPermissionsTableBody').parentElement.parentElement.appendChild(msg);
-        }, 100);
-    } else {
-        setTimeout(() => {
-            if(document.getElementById('pendingPermsMostrandoMsg')) document.getElementById('pendingPermsMostrandoMsg').remove();
-        }, 100);
-    }
+    // Sin tope: la tabla muestra todas las solicitudes y tiene scroll (ver .approval-scroll).
+    setTimeout(() => {
+        if (document.getElementById('pendingPermsMostrandoMsg')) document.getElementById('pendingPermsMostrandoMsg').remove();
+    }, 100);
     
     tbody.innerHTML = '';
     

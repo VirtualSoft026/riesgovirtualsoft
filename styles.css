@@ -1281,3 +1281,6 @@ select.modern-input option { background-color: #ffffff; color: #000000; }
     }
 }
 
+/* Aprobaciones: tablas con altura máxima, encabezado fijo y scroll (todas las solicitudes, con o sin filtros). */
+.approval-scroll { max-height: 420px; overflow: auto; }
+.approval-scroll thead th { position: sticky; top: 0; z-index: 1; }
