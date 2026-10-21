@@ -350,7 +350,25 @@
 
             <!-- Vista: Aprobaciones (Admin) -->
             <div id="view-aprobaciones" class="view-panel" style="display: none; padding: 15px;">
-                
+                                <!-- SECCION 2: PERMISOS PENDIENTES -->
+                <h2 class="panel-title" style="margin-bottom: 15px; color: var(--accent-primary); font-size: 18px;"><i class='bx bx-time-five'></i> Permisos Pendientes</h2>
+
+                <div class="glass-panel approval-scroll" style="padding: 0; border: 1px solid var(--accent-primary); border-radius: 8px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--glass-border);">
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Gestor</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Tipo</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Fecha</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Motivo</th>
+                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: center; background: var(--bg-dark);">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingPermissionsTableBody" style="background: rgba(255,255,255,0.02);"></tbody>
+                    </table>
+                </div>
+            </div>
+
                 <!-- SECCION 1: GESTION DE USUARIOS -->
                 <h2 class="panel-title" style="margin-bottom: 15px; color: var(--warning); font-size: 18px;"><i class='bx bx-user-check'></i> Gestión de Usuarios</h2>
                 
@@ -384,25 +402,6 @@
                         <tbody id="pendingUsersTableBody" style="background: rgba(255,255,255,0.02);"></tbody>
                     </table>
                 </div>
-
-                <!-- SECCION 2: PERMISOS PENDIENTES -->
-                <h2 class="panel-title" style="margin-bottom: 15px; color: var(--accent-primary); font-size: 18px;"><i class='bx bx-time-five'></i> Permisos Pendientes</h2>
-
-                <div class="glass-panel approval-scroll" style="padding: 0; border: 1px solid var(--accent-primary); border-radius: 8px;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-                        <thead>
-                            <tr style="border-bottom: 1px solid var(--glass-border);">
-                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Gestor</th>
-                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Tipo</th>
-                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Fecha</th>
-                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: left; background: var(--bg-dark);">Motivo</th>
-                                <th style="padding: 12px 10px; color: var(--accent-primary); text-align: center; background: var(--bg-dark);">Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pendingPermissionsTableBody" style="background: rgba(255,255,255,0.02);"></tbody>
-                    </table>
-                </div>
-            </div>
 
             <!-- Vista: Historial de Turnos -->
             <div id="view-turnos" class="view-panel" style="display: none; padding: 20px;">
