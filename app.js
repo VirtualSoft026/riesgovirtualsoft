@@ -4320,6 +4320,10 @@ async function renderPendingUsers() {
             if(document.getElementById('pendingMostrandoMsg')) document.getElementById('pendingMostrandoMsg').remove();
         }, 100);
     }
+    // Sin tope: la tabla muestra todas las solicitudes y tiene scroll (ver .approval-scroll).
+    setTimeout(() => {
+        if (document.getElementById('pendingMostrandoMsg')) document.getElementById('pendingMostrandoMsg').remove();
+    }, 100);
     
     if (allDisplayUsers.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay usuarios que coincidan con los filtros.</td></tr>`;
@@ -4456,6 +4460,10 @@ async function renderPendingPermissions() {
             if(document.getElementById('pendingPermsMostrandoMsg')) document.getElementById('pendingPermsMostrandoMsg').remove();
         }, 100);
     }
+    // Sin tope: la tabla muestra todas las solicitudes y tiene scroll (ver .approval-scroll).
+    setTimeout(() => {
+        if (document.getElementById('pendingPermsMostrandoMsg')) document.getElementById('pendingPermsMostrandoMsg').remove();
+    }, 100);
     
     tbody.innerHTML = '';
     
