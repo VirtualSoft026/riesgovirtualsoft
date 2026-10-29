@@ -295,6 +295,19 @@ function setCustomMultiSelectValues(containerId, newValuesArray) {
 // --- INACTIVITY & LUNCH TRACKING GLOBALS ---
 let lastLocalActivityTimestamp = Date.now();
 let lastSyncLoopTimestamp = Date.now();
+
+// Última actividad REAL del usuario (teclado, mouse o clic). No cuenta cambios de
+// visibilidad ni de foco, ni scroll programático. El admin usa este campo para "En Línea".
+let lastUserActivityTs = Date.now();
+const USER_INPUT_EVENTS = new Set(['keydown', 'mousemove', 'mousedown', 'click']);
+const ONLINE_WINDOW_MS = 3 * 60 * 1000; // ventana de 3 minutos
+
+// Decide si una sesión se muestra "En Línea" según su última actividad real.
+function isSessionOnline(session) {
+    if (!session) return false;
+    const last = Number(session.lastUserActivity) || 0;
+    return last > 0 && (Date.now() - last) < ONLINE_WINDOW_MS;
+}
 const NATIVE_IDLE_THRESHOLD_MS = 3 * 60 * 1000;
 const DOM_IDLE_FALLBACK_THRESHOLD_MS = 5 * 60 * 1000;
 let isLunchBreak = false;
@@ -658,8 +671,12 @@ function shouldApplyDomIdleFallback(now = Date.now()) {
     return now - lastLocalActivityTimestamp > DOM_IDLE_FALLBACK_THRESHOLD_MS;
 }
 
-function updateActivity() {
+function updateActivity(evt) {
     loadBreakState();
+    // Solo cuentan como actividad real las entradas del usuario (o llamadas desde botones de la app)
+    if (!evt || USER_INPUT_EVENTS.has(evt.type)) {
+        lastUserActivityTs = Date.now();
+    }
     const now = Date.now();
     const timeSinceLast = now - lastLocalActivityTimestamp;
     lastLocalActivityTimestamp = now;
@@ -2597,7 +2614,9 @@ function syncActiveSessionToFirebase() {
         notDoneTasks: notDoneTasks,
         percentage: percentage,
         timeline: shiftTimeline || [],
-        appVersion: 'v104'
+        appVersion: 'v104',
+        lastUserActivity: lastUserActivityTs,
+        idleDetectorGranted: window.idleDetectorGranted === true
     };
 
     // No se atrapa el error de forma que oculte el fallo: se devuelve la
@@ -5394,7 +5413,7 @@ function renderActiveSessionsDashboard() {
         const fullName = (session.name || '').trim();
         const email = (session.email || '');
         const shift = session.shift || 'Mañana';
-        let isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
+        let isOnline = isSessionOnline(session);
         
         // Exclude supervisors from Monitoreo
         const excludedMonitoreo = SUPERVISORES_NOMBRES;
@@ -5439,7 +5458,7 @@ function renderActiveSessionsDashboard() {
         const session = allActiveSessions[uid];
         if (!session) return;
         
-        let isOnline = session.lastActive ? ((Date.now() - session.lastActive) < 120000) : false;
+        let isOnline = isSessionOnline(session);
         
         // Fix: If they stopped pinging Firebase for over 2 minutes and aren't on break, force them to Inactivo locally
         if (!isOnline && session.status !== 'En Almuerzo' && session.status !== 'En Desayuno' && session.status !== 'En Pausa de Turno') {
@@ -5560,6 +5579,7 @@ function renderActiveSessionsDashboard() {
                     <div class="pulse-dot ${isOnline ? '' : 'offline'}"></div>
                     ${displayStatus}
                 </div>
+                ${session.idleDetectorGranted === false ? '<div style="margin-top:6px;"><span style="background: rgba(245,158,11,0.15); color: #f59e0b; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;"><i class="bx bx-error-circle"></i> Sin permiso de inactividad</span></div>' : ''}
             </div>
             
             <div style="margin-top: 10px; font-size: 13px;">
@@ -8591,7 +8611,7 @@ async function openLoginHistoryModal() {
                 const key = `${s.name.trim().toLowerCase()}_${loginTimeStr.substring(0, 16)}`;
                 seenKeys.add(key);
 
-                let isOnline = s.lastActive ? ((Date.now() - s.lastActive) < 120000) : false;
+                let isOnline = isSessionOnline(s);
                 if (s.status === 'En Almuerzo' || s.status === 'En Desayuno' || s.status === 'En Pausa de Turno' || s.status === 'Inactivo') isOnline = false;
 
                 allLoginHistoryRecords.push({
