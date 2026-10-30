@@ -18,6 +18,23 @@ const inputs = [
   {
     label: 'F1',
     env: 'F1_APP_PATH',
+    // Updated 2026-09-29 (task-identity stability hotfix): task ids no longer
+    // rotate between page loads or catalog edits. Synthetic (schedule-only,
+    // no master-catalog match) tasks get a deterministic hash of Set+Tarea
+    // instead of a volatile in-memory counter (mockId++); master catalog
+    // tasks (Tareas de Riesgo.xlsx) get a deterministic hash of Set+Tarea
+    // instead of their row position (row.id = idx), which used to shift
+    // every id after any insert/delete/reorder in that sheet and orphan
+    // already-saved progress. handleEndShift() now validates closure only
+    // against allTasks (today's visible tasks) plus extra_ tasks, instead of
+    // scanning the entire historical taskStateCache, and both this guard and
+    // the loadExcelTasks() local purge accept an empty array (not only a
+    // non-empty one) so a Gestor with zero tasks assigned today is neither
+    // blocked by, nor left unable to clear, stale cache entries.
+    // loadExcelTasks() also purges orphaned taskStateCache entries in
+    // Firebase (active_sessions/{uid}/tasks), not just locally.
+    // Previous hash (browser-aware inactivity):
+    // 778420ac9fb46f4238f94a73276669368a74a8c32c170bfbd5a98fc295e62793
     // Updated 2026-09-01 (end-shift FormData hotfix): FormSubmit `_cc`
     // recipients are passed as one comma-separated string. Supplying a third
     // string argument makes browsers treat it as a Blob filename and throws
@@ -65,7 +82,7 @@ const inputs = [
     // 29f9cdb7f0298fbf4e53755dba01231c76de8bfdf94cdb6ab4808c8b21914204
     // Hash before this hotfix (Supervisor comunicados capability):
     // 876049dfce42455256c3eae59f37a5d087fbbab24ca29f1ad09d4eba38a8b683
-    sha: '778420ac9fb46f4238f94a73276669368a74a8c32c170bfbd5a98fc295e62793',
+    sha: '3b27b6d17180b8eb6c8c3e65a8944b207fe635dea0a50d7db9babafe754352c5',
     mustContain: [
       "uid: userUid",
       "uid: currentUser.uid || firebase.auth().currentUser.uid",
