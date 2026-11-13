@@ -1345,18 +1345,18 @@ function getShiftForDate(rows, allScheduleBlocks, gestorName, date) {
 // Mapeo de URLs para documentos (especialmente videos pesados alojados en Google Drive)
 const privateGitHubDocs = {
   "Guia Jira EGT - Proveedor de Casino.pdf": "https://virtualsoftserv.sharepoint.com/:b:/s/GestindeRiesgo/IQAN4F3bHU1fQLV0q-zHiZ22AcaHMxxApoL7T_v7J1fTfyU?e=msaPhD",
-  "Instructivo de revisión de apuestas casino.pdf": "https://github.com/RiesgoVirtualsoft/riskmanager-internal-docs/blob/main/Procedimientos/Instructivo%20de%20revisi%C3%B3n%20de%20apuestas%20casino.pdf",
-  "Instructivo de validación de GGR Casino.pdf": "https://github.com/RiesgoVirtualsoft/riskmanager-internal-docs/blob/main/Procedimientos/Instructivo%20de%20validaci%C3%B3n%20de%20GGR%20Casino.pdf",
-  "Política Procedimiento De Aprobación De Retiros.pdf": "https://github.com/RiesgoVirtualsoft/riskmanager-internal-docs/blob/main/Procedimientos/Pol%C3%ADtica%20Procedimiento%20De%20Aprobaci%C3%B3n%20De%20Retiros.pdf",
-  "Procedimiento Identificación de jineteo.pdf": "https://github.com/RiesgoVirtualsoft/riskmanager-internal-docs/blob/main/Procedimientos/Procedimiento%20Identificaci%C3%B3n%20de%20jineteo.pdf",
-  "Proceso de Eliminación de Cuentas - Implementaciones.pdf": "https://github.com/RiesgoVirtualsoft/riskmanager-internal-docs/blob/main/Procedimientos/Proceso%20de%20Eliminaci%C3%B3n%20de%20Cuentas%20-%20Implementaciones.pdf",
-  "VALIDACIÓN DE ABUSO DE BONOS EN CAMPAÑAS DE CRM.pdf": "https://github.com/RiesgoVirtualsoft/riskmanager-internal-docs/blob/main/Procedimientos/VALIDACI%C3%93N%20DE%20ABUSO%20DE%20BONOS%20EN%20CAMPA%C3%91AS%20DE%20CRM.pdf",
+  "Instructivo de revisión de apuestas casino.pdf": "https://virtualsoftserv.sharepoint.com/:b:/s/GestindeRiesgo/IQBT22sCsCFoSrDaHICIE_jUAQkwPAlWa95cRhmfLg5NZKk?e=Yjefmv",
+  "Instructivo de validación de GGR Casino.pdf": "https://virtualsoftserv.sharepoint.com/:b:/s/GestindeRiesgo/IQC9f9dYEt34R5f5BLByfk8XAW_uh5HCp_bJtGB4DZuzH1Y?e=L129fJ",
+  "Política Procedimiento De Aprobación De Retiros.pdf": "https://virtualsoftserv.sharepoint.com/:b:/s/GestindeRiesgo/IQAjduRbo354QpPt31hDdN9JAV9cAFx6qkUnBsMrHYeWCUc?e=RJJPL2",
+  "Procedimiento Identificación de jineteo.pdf": "https://virtualsoftserv.sharepoint.com/:b:/s/GestindeRiesgo/IQDdYAxEsIcUQqqWqeAtKR6vAYZCZQ8MXbqucdD8XrOI-JE?e=jKPgfn",
+  "Proceso de Eliminación de Cuentas - Implementaciones.pdf": "https://virtualsoftserv.sharepoint.com/:b:/s/GestindeRiesgo/IQCze6QyWcLeQbn1MW1j3x5JAUHJR7xeCOeTN_yzRmlpIUM?e=Bj0q6J",
+  "VALIDACIÓN DE ABUSO DE BONOS EN CAMPAÑAS DE CRM.pdf": "https://virtualsoftserv.sharepoint.com/:b:/s/GestindeRiesgo/IQBXyVYcZWtpQ629oDe6j-BiASex_YNScrA6kyA_F0Xx5ps?e=gV7kcP",
   "Guia Diligenciamiento Abuso de Bono.pdf": "https://virtualsoftserv.sharepoint.com/:b:/s/GestindeRiesgo/IQCH5HmYKD-sRpy_4U-PjLdBAd6rDqaUfNmnohZYlacftek?e=7iXaTA",
   "Guia de uso gestor destagueo.pdf": "https://virtualsoftserv.sharepoint.com/:b:/s/GestindeRiesgo/IQBCLy9zQlWARraIAbh3uGB4AesP7z9ic__ngJl1kWkbE4o?e=PFdrAN"
 };
 
 const documentUrls = {
-    "Revisión de Eventos Deportivos.mp4": "https://drive.google.com/file/d/1UqccsnUwTG6tgPcDYdUeLnf9XqvGzSoc/view?usp=sharing",
+    "Revisión de Eventos Deportivos.mp4": "https://drive.google.com/file/d/1UqccsnUwTG6tgPcDYdUeLnf9XqvGzSoc/view?usp=sharing", 
     "Revisión de Eventos.mp4": "https://drive.google.com/file/d/1SB9ePi1EOJU05hzOsxOyl7BeNvCN1hOh/view?usp=sharing",
     "Validación SEON.mp4": "https://drive.google.com/file/d/1JFf5basGD0gmrAVIy5AlMK1DBHYgE6JC/view?usp=sharing"
 };
