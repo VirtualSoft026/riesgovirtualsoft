@@ -65,6 +65,7 @@ const inputs = [
     // 29f9cdb7f0298fbf4e53755dba01231c76de8bfdf94cdb6ab4808c8b21914204
     // Hash before this hotfix (Supervisor comunicados capability):
     // 876049dfce42455256c3eae59f37a5d087fbbab24ca29f1ad09d4eba38a8b683
+    //778420ac9fb46f4238f94a73276669368a74a8c32c170bfbd5a98fc295e62793
     sha: '778420ac9fb46f4238f94a73276669368a74a8c32c170bfbd5a98fc295e62793',
     mustContain: [
       "uid: userUid",
