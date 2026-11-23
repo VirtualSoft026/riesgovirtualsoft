@@ -6809,13 +6809,30 @@ function updateUnreadBadge() {
     }
 }
 
+function timestampDesdeClavePush(clave) {
+    // Firebase codifica la hora de creación en los primeros 8 caracteres de la clave push().
+    const ALFABETO = '-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz';
+    let t = 0;
+    for (let i = 0; i < 8; i++) {
+        const idx = ALFABETO.indexOf(clave.charAt(i));
+        if (idx < 0) return 0;
+        t = t * 64 + idx;
+    }
+    return t;
+}
+
+function fechaComunicado(clave, c) {
+    const ms = new Date(c && c.date).getTime();
+    return Number.isNaN(ms) ? timestampDesdeClavePush(clave) : ms;
+}
+
 function renderGestorComunicados() {
     const list = document.getElementById('gestorComunicadosList');
     if (!list) return;
     
     list.innerHTML = '';
     const keys = Object.keys(globalComunicados).sort((a,b) => {
-        return new Date(globalComunicados[b].date) - new Date(globalComunicados[a].date);
+        return fechaComunicado(b, globalComunicados[b]) - fechaComunicado(a, globalComunicados[a]);
     });
     
     if (keys.length === 0) {
@@ -6828,7 +6845,7 @@ function renderGestorComunicados() {
     keys.forEach(key => {
         const c = globalComunicados[key];
         const isRead = c.readBy && c.readBy[uid];
-        const formattedDate = new Date(c.date).toLocaleString('es-CO');
+        const formattedDate = new Date(fechaComunicado(key, c)).toLocaleString('es-CO');
         
         let actionsHtml = '';
         if (isRead) {
@@ -6871,7 +6888,7 @@ function checkUnreadUrgentAnnouncements() {
     if (modal && modal.classList.contains('active')) return;
     
     const keys = Object.keys(globalComunicados).sort((a,b) => {
-        return new Date(globalComunicados[a].date) - new Date(globalComunicados[b].date);
+        return fechaComunicado(a, globalComunicados[a]) - fechaComunicado(b, globalComunicados[b]);
     });
     
     for (let key of keys) {
@@ -7001,7 +7018,7 @@ function renderAdminComunicados() {
     
     tbody.innerHTML = '';
     const keys = Object.keys(globalComunicados).sort((a,b) => {
-        return new Date(globalComunicados[b].date) - new Date(globalComunicados[a].date);
+        return fechaComunicado(b, globalComunicados[b]) - fechaComunicado(a, globalComunicados[a]);
     });
     
     if (keys.length === 0) {
@@ -7013,7 +7030,7 @@ function renderAdminComunicados() {
 
     keys.forEach(key => {
         const c = globalComunicados[key];
-        const formattedDate = new Date(c.date).toLocaleString('es-CO');
+        const formattedDate = new Date(fechaComunicado(key, c)).toLocaleString('es-CO');
         const readCount = c.readBy ? Object.keys(c.readBy).length : 0;
         const deleteBtnHtml = showDelete
             ? `<button class="btn btn-danger" style="padding: 5px 10px; font-size: 12px; margin-left: 5px;" onclick="deleteComunicado(decodeURIComponent('${encodeInlineHandlerArg(key)}'))"><i class='bx bx-trash'></i></button>`

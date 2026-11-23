@@ -66,7 +66,9 @@ const inputs = [
     // Hash before this hotfix (Supervisor comunicados capability):
     // 876049dfce42455256c3eae59f37a5d087fbbab24ca29f1ad09d4eba38a8b683
     //778420ac9fb46f4238f94a73276669368a74a8c32c170bfbd5a98fc295e62793
-    sha: '778420ac9fb46f4238f94a73276669368a74a8c32c170bfbd5a98fc295e62793',
+    // Hash antes del fix de fechas de comunicados (fechaComunicado): 
+    // 2f2df93c989b2ceac887e60991721a91e39340a6f5c85d16269ff37590c521ff
+    sha: 'f138e10c4eb80cbadfffd46c454926929467549132ce186745da19bf483f863d',
     mustContain: [
       "uid: userUid",
       "uid: currentUser.uid || firebase.auth().currentUser.uid",
