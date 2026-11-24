@@ -68,7 +68,8 @@ const inputs = [
     //778420ac9fb46f4238f94a73276669368a74a8c32c170bfbd5a98fc295e62793
     // Hash antes del fix de fechas de comunicados (fechaComunicado): 
     // 2f2df93c989b2ceac887e60991721a91e39340a6f5c85d16269ff37590c521ff
-    sha: 'f138e10c4eb80cbadfffd46c454926929467549132ce186745da19bf483f863d',
+    // f138e10c4eb80cbadfffd46c454926929467549132ce186745da19bf483f863d 
+    sha: '547775e56a5ccb0888b0dd78bad39b86edeb711533032327980304d3c069bfff',
     mustContain: [
       "uid: userUid",
       "uid: currentUser.uid || firebase.auth().currentUser.uid",

@@ -763,13 +763,22 @@ try {
         // (Old visibilitychange logic removed, handled by new interval and mouse events)
 
 
-        if (currentUser.loginLogId) {
+        // [CIERRE-FORZOSO] Un gestor cuya sesion cerro un supervisor no debe revertir ese cierre al recargar.
+        const registrarLogSesion = () => {
             // Eliminar cualquier falso logoutTime que se haya generado si el usuario simplemente refrescó la página (F5) o perdió red temporalmente
             database.ref(`login_logs/${currentUser.loginLogId}/logoutTime`).remove();
-            
+
             database.ref(`login_logs/${currentUser.loginLogId}`).onDisconnect().update({
                 logoutTime: firebase.database.ServerValue.TIMESTAMP
             });
+        };
+        if (currentUser.loginLogId && currentUser.role === 'Gestor') {
+            sesionFueCerradaForzosamente(currentUser.uid, currentUser.loginLogId).then((forzado) => {
+                if (forzado) cerrarSesionPorSupervisor();
+                else registrarLogSesion();
+            });
+        } else if (currentUser.loginLogId) {
+            registrarLogSesion();
         }
         if (currentUser.uid && currentUser.role === 'Gestor') {
             // We removed the aggressive onDisconnect hook because it was triggering falsely when Chrome paused the background tab
@@ -2521,7 +2530,52 @@ async function migrateLocalTasksToActiveSession(uid, mergedCache, remoteCache) {
     return { migrated, failed, skipped };
 }
 
+// [CIERRE-FORZOSO] Lee la bandera forced_closures/<uid> y dice si corresponde a ESTA sesion
+// (mismo loginLogId). Si la lectura tarda mas de 4 s o falla, responde false: la sesion sigue igual que antes.
+function sesionFueCerradaForzosamente(uid, loginLogId) {
+    if (!uid || !loginLogId || typeof database === 'undefined') return Promise.resolve(false);
+    const lectura = database.ref(`forced_closures/${uid}/loginLogId`).once('value')
+        .then((snap) => snap.val() === loginLogId)
+        .catch(() => false);
+    const limite = new Promise((resolve) => setTimeout(() => resolve(false), 4000));
+    return Promise.race([lectura, limite]);
+}
+
+// [CIERRE-FORZOSO] Cierre local por decision del supervisor: detiene el latido, borra la tarjeta
+// (si quedo alguna) y regresa al login. No escribe nada mas en active_sessions.
+function cerrarSesionPorSupervisor() {
+    if (window.sesionCerradaForzosamente) return;
+    window.sesionCerradaForzosamente = true;
+    const uid = currentUser && currentUser.uid;
+    try { if (window.pingWorker) window.pingWorker.terminate(); } catch (e) {}
+    try { localStorage.removeItem('riskOps_currentUser'); } catch (e) {}
+    currentUser = null;
+    if (uid && typeof database !== 'undefined') {
+        database.ref(`active_sessions/${uid}`).remove().catch(() => {});
+    }
+    if (typeof firebase !== 'undefined' && firebase.auth) {
+        firebase.auth().signOut().catch(() => {});
+    }
+    alert('Un supervisor cerró tu sesión. Vuelve a iniciar sesión para continuar.');
+    window.location.href = 'login.html';
+}
+
+// [CIERRE-FORZOSO] Latido del gestor: primero revisa la bandera; si no hay, escribe el latido de siempre.
 function syncActiveSessionToFirebase() {
+    if (!currentUser || currentUser.role !== 'Gestor') return Promise.resolve();
+    if (window.sesionCerradaForzosamente) return Promise.resolve();
+    const uid = currentUser.uid;
+    if (!uid || !currentUser.loginLogId) return syncActiveSessionToFirebaseCore();
+    return sesionFueCerradaForzosamente(uid, currentUser.loginLogId).then((forzado) => {
+        if (forzado) {
+            cerrarSesionPorSupervisor();
+            return;
+        }
+        return syncActiveSessionToFirebaseCore();
+    });
+}
+
+function syncActiveSessionToFirebaseCore() {
     if (!currentUser || currentUser.role !== 'Gestor') return Promise.resolve();
     const uid = currentUser.uid;
     if (!uid) return Promise.resolve();
@@ -2599,7 +2653,8 @@ function syncActiveSessionToFirebase() {
         notDoneTasks: notDoneTasks,
         percentage: percentage,
         timeline: shiftTimeline || [],
-        appVersion: 'v104'
+        appVersion: 'v104',
+        loginLogId: currentUser.loginLogId || null
     };
 
     // No se atrapa el error de forma que oculte el fallo: se devuelve la
@@ -5547,6 +5602,11 @@ function renderActiveSessionsDashboard() {
                         (globalCronogramaData ? 'No tiene tareas asignadas en este turno' : 'Cargando cronograma...') + '</div>';
         }
 
+        // [CIERRE-FORZOSO] Boton solo para Admin/Supervisor; se habilita cuando la sesion ya trae loginLogId
+        const puedeForzarCierre = !!(allActiveSessions[uid] && allActiveSessions[uid].loginLogId);
+        const forzarBtnHtml = `<button class="btn btn-outline" style="flex: 1; padding: 6px 10px; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px; border-color: var(--danger); color: var(--danger);" ${puedeForzarCierre ? '' : 'disabled title="Disponible en unos 30 segundos"'} onclick="forzarCierreSesion(decodeURIComponent('${encodeInlineHandlerArg(uid)}'))">
+                    <i class='bx bx-log-out-circle'></i> Cierre forzado
+                </button>`;
         const card = document.createElement('div');
         card.className = 'monitoreo-card';
         card.innerHTML = `
@@ -5602,6 +5662,7 @@ function renderActiveSessionsDashboard() {
                 <button class="btn btn-outline" style="flex: 1; padding: 6px 10px; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 4px; border-color: var(--warning); color: var(--warning);" onclick="viewTimelineInMonitoreo(decodeURIComponent('${encodeInlineHandlerArg(uid)}'))">
                     <i class='bx bx-time'></i> Bitácora
                 </button>
+                ${forzarBtnHtml}
             </div>
         `;
         const avatarElement = card.querySelector('.monitoreo-avatar');
@@ -5615,6 +5676,36 @@ function renderActiveSessionsDashboard() {
         }
         grid.appendChild(card);
     });
+}
+
+// [CIERRE-FORZOSO] Admin o Supervisor cierra la sesion de un gestor que olvido cerrarla.
+// Una sola escritura multi-ruta: bandera con el loginLogId, hora de cierre en login_logs y borrado de active_sessions.
+// No genera reporte de turno. La pagina del gestor lo aplica en su siguiente latido o al abrirse.
+async function forzarCierreSesion(uid) {
+    if (!currentUser || !['Admin', 'Supervisor'].includes(currentUser.role)) return;
+    const session = allActiveSessions[uid];
+    if (!session) return;
+    if (!session.loginLogId) {
+        alert('Esta sesión todavía no tiene el dato necesario. Espera unos 30 segundos e inténtalo de nuevo.');
+        return;
+    }
+    const nombre = session.name || 'este gestor';
+    if (!confirm(`¿Cerrar la sesión de ${nombre}? Se cierra sin generar reporte de turno.`)) return;
+    const updates = {};
+    updates[`forced_closures/${uid}`] = {
+        loginLogId: session.loginLogId,
+        by: currentUser.uid,
+        at: firebase.database.ServerValue.TIMESTAMP
+    };
+    updates[`login_logs/${session.loginLogId}/logoutTime`] = firebase.database.ServerValue.TIMESTAMP;
+    updates[`active_sessions/${uid}`] = null;
+    try {
+        await database.ref().update(updates);
+        alert(`Sesión de ${nombre} cerrada.`);
+    } catch (e) {
+        console.error('Error al cerrar la sesión forzosamente:', e);
+        alert('No se pudo cerrar la sesión. Revisa la conexión e inténtalo de nuevo.');
+    }
 }
 
 function viewTimelineInMonitoreo(uid) {

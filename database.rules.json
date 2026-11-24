@@ -95,7 +95,7 @@
       ],
       "$session_id": {
         ".read": "auth != null && root.child('users').child(auth.uid).child('approved').val() === true && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('users').child(auth.uid).child('role').val() === 'Supervisor' || auth.uid === $session_id)",
-        ".write": "auth != null && root.child('users').child(auth.uid).child('approved').val() === true && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || auth.uid === $session_id)"
+        ".write": "auth != null && root.child('users').child(auth.uid).child('approved').val() === true && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || auth.uid === $session_id || (root.child('users').child(auth.uid).child('role').val() === 'Supervisor' && !newData.exists()))"
       }
     },
     "login_logs": {
@@ -108,7 +108,7 @@
       "$log_id": {
         ".write": "auth != null && root.child('users').child(auth.uid).child('approved').val() === true && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || (!data.exists() && newData.exists() && newData.child('uid').val() === auth.uid))",
         "logoutTime": {
-          ".write": "auth != null && root.child('users').child(auth.uid).child('approved').val() === true && root.child('login_logs').child($log_id).child('uid').val() === auth.uid",
+          ".write": "auth != null && root.child('users').child(auth.uid).child('approved').val() === true && (root.child('login_logs').child($log_id).child('uid').val() === auth.uid || (root.child('users').child(auth.uid).child('role').val() === 'Supervisor' && newData.isNumber()))",
           ".validate": "!newData.exists() || newData.isNumber()"
         }
       }
@@ -117,6 +117,13 @@
       ".read": "auth != null && root.child('users').child(auth.uid).child('approved').val() === true && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('users').child(auth.uid).child('role').val() === 'Supervisor')",
       "$hist_id": {
         ".write": "auth != null && root.child('users').child(auth.uid).child('approved').val() === true && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || (!data.exists() && newData.exists() && newData.child('uid').val() === auth.uid))"
+      }
+    },
+    "forced_closures": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || (root.child('users').child(auth.uid).child('approved').val() === true && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('users').child(auth.uid).child('role').val() === 'Supervisor')))",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('approved').val() === true && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('users').child(auth.uid).child('role').val() === 'Supervisor') && newData.child('by').val() === auth.uid",
+        ".validate": "newData.hasChildren(['loginLogId', 'by', 'at']) && newData.child('loginLogId').isString() && newData.child('by').isString() && newData.child('at').isNumber()"
       }
     },
     "logs": {
